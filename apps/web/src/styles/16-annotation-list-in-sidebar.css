@@ -1,0 +1,70 @@
+/* --- Annotation List in Sidebar --- */
+.annotation-list {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.annotation-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+    border-left: 4px solid var(--color-error);
+}
+
+.annotation-card[data-severity="warning"] { border-left-color: var(--color-warning); }
+.annotation-card[data-severity="info"] { border-left-color: var(--color-info); }
+
+.annotation-card-text {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+    background-color: var(--color-bg-tertiary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    max-height: 48px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.annotation-card-description {
+    font-size: 0.85rem;
+    color: var(--color-text-primary);
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.annotation-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+}
+
+.annotation-delete-btn {
+    opacity: 0;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.annotation-card:hover .annotation-delete-btn {
+    opacity: 1;
+}
+
+.annotation-delete-btn:hover {
+    color: var(--color-error);
+}

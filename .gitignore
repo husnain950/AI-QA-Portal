@@ -1,0 +1,51 @@
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/.venv/
+**/venv/
+**/.pytest_cache/
+**/.ruff_cache/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Node
+**/node_modules/
+apps/web/dist/
+
+# Runtime data (local DB, uploads, OCR cache, conversion output, corpora)
+data/db/*
+!data/db/.gitkeep
+data/uploads/*
+!data/uploads/.gitkeep
+data/output/*
+!data/output/.gitkeep
+data/ocr_cache/*
+!data/ocr_cache/.gitkeep
+data/corpora/*
+!data/corpora/README.md
+apps/api/backend/data/*
+!apps/api/backend/data/.gitkeep
+apps/api/backend/uploads/*
+!apps/api/backend/uploads/.gitkeep
+
+# Seed blobs (never ship multi-GB corpora)
+**/seed_uploads/
+**/seed_data/
+**/.ocrcache/
+
+# Env / secrets
+.env
+.env.local
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Ad-hoc probes
+apps/web/probe*.mjs
+apps/web/repro.mjs
+apps/web/sweep.mjs

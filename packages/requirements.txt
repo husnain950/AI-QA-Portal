@@ -1,0 +1,4 @@
+# Core pipeline deps (text-layer conversion). OCR extras stay in packages/acts_ingest/requirements-ocr.txt
+pdfplumber>=0.11.0
+pypdfium2>=4.0.0
+pillow>=10.0.0

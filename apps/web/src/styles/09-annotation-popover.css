@@ -1,0 +1,65 @@
+/* --- Annotation Popover --- */
+.annotation-popover {
+    position: absolute;
+    z-index: 100;
+    width: 320px;
+    padding: 16px;
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    animation: popFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popFade {
+    from { opacity: 0; transform: scale(0.95) translateY(5px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.annotation-popover-title {
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--color-text-primary);
+}
+
+.form-group {
+    margin-bottom: 12px;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.form-select, .form-textarea, .form-input {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    font-size: 0.85rem;
+    transition: border-color var(--transition-fast);
+}
+
+.form-select:focus, .form-textarea:focus, .form-input:focus {
+    border-color: var(--color-accent);
+}
+
+.form-textarea {
+    resize: none;
+    height: 80px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}

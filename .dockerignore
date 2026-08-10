@@ -1,0 +1,15 @@
+.git
+.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+data/db/**
+data/uploads/**
+data/output/**
+data/ocr_cache/**
+**/.ocrcache
+apps/web/dist
+**/*.db
+.env
+.DS_Store

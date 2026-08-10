@@ -1,0 +1,210 @@
+"""Unit tests for structural parse-quality heuristics and store wiring."""
+
+import json
+
+import aiosqlite
+import pytest
+
+from backend.services.document_store import apply_parsed_document
+from backend.services.json_parser import parse_json_document
+from backend.services.parse_quality import (
+    assess_section_quality,
+    deserialize_quality_flags,
+    serialize_quality_flags,
+)
+from backend.tests.conftest import sample_document
+
+
+def _conclusion_style_body() -> str:
+    """Finance Act Conclusion-style: single h4, glued footnotes, Table 6, no table."""
+    # Keep well over the wall-of-text threshold inside one heading tag.
+    filler = (
+        "Tax-wise TAX Tax-wise Tax Base estimates7 Imports.8 PBS9 "
+        "See Table 6 for the breakdown of revenue estimates. "
+    ) * 25
+    assert len(filler) > 800
+    return (
+        f'<h4 class="section-heading">Conclusion. {filler}</h4>',
+        f"Conclusion. {filler}",
+    )
+
+
+def test_conclusion_style_leaf_flags_missing_table_glue_and_wall():
+    html, plain = _conclusion_style_body()
+    flags = assess_section_quality(
+        html_content=html,
+        plain_text=plain,
+        section_heading="Conclusion",
+    )
+    codes = {flag["code"] for flag in flags}
+    assert "missing_table" in codes
+    assert "footnote_glue" in codes
+    assert "wall_of_text" in codes
+    for flag in flags:
+        assert flag["reason"]
+
+
+def test_clean_leaf_with_table_and_cite_has_no_flags():
+    html = (
+        "<p>Revenue is summarized below.<sup class=\"cite\">1</sup></p>"
+        "<table><tr><td>Item</td><td>Amount</td></tr></table>"
+        "<p>See Table 1 for details.</p>"
+    )
+    plain = "Revenue is summarized below.1 See Table 1 for details."
+    flags = assess_section_quality(
+        html_content=html,
+        plain_text=plain,
+        section_heading="Short heading",
+    )
+    assert flags == []
+
+
+def test_heading_body_bleed_on_long_multi_sentence_heading():
+    heading = (
+        "This is a very long heading that has clearly absorbed body text. "
+        "It contains a second sentence which should trigger the bleed heuristic."
+    )
+    flags = assess_section_quality(
+        html_content="<p>Short body.</p>",
+        plain_text="Short body.",
+        section_heading=heading,
+    )
+    assert any(flag["code"] == "heading_body_bleed" for flag in flags)
+
+
+def test_parser_attaches_quality_flags_and_has_issues_status():
+    html, plain = _conclusion_style_body()
+    payload = {
+        "metadata": {"total_pages": 10},
+        "chapters": [
+            {
+                "code": "I",
+                "heading": "Act",
+                "sections": [
+                    {
+                        "code": "4",
+                        "heading": "Conclusion",
+                        "start_page": 241,
+                        "end_page": 254,
+                        "html": html,
+                        "plain_text": plain,
+                        "footnotes": [],
+                    }
+                ],
+            }
+        ],
+        "schedules": [],
+    }
+    sections, _ = parse_json_document(
+        json.dumps(payload),
+        document_id="finance-2022",
+    )
+    assert len(sections) == 1
+    codes = {flag["code"] for flag in sections[0]["quality_flags"]}
+    assert {"missing_table", "footnote_glue", "wall_of_text"} <= codes
+    assert sections[0]["review_status"] == "has_issues"
+
+
+def test_serialize_roundtrip():
+    flags = [{"code": "missing_table", "reason": "no table"}]
+    raw = serialize_quality_flags(flags)
+    assert deserialize_quality_flags(raw) == flags
+    assert serialize_quality_flags([]) is None
+    assert deserialize_quality_flags(None) == []
+
+
+@pytest.mark.asyncio
+async def test_store_persists_quality_flags_and_elevates_pending(runtime_sandbox):
+    document_id = "quality-document"
+    html, plain = _conclusion_style_body()
+    payload = json.loads(sample_document())
+    payload["chapters"][0]["sections"][0]["html"] = html
+    payload["chapters"][0]["sections"][0]["plain_text"] = plain
+    payload["chapters"][0]["sections"][0]["heading"] = "Conclusion"
+    sections, footnotes = parse_json_document(
+        json.dumps(payload),
+        document_id=document_id,
+    )
+    assert sections[0]["review_status"] == "has_issues"
+
+    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys = ON")
+        await db.execute(
+            """
+            INSERT INTO documents (
+                id, name, pdf_filename, json_filename, total_sections,
+                total_pages, uploaded_at, status, source_type
+            ) VALUES (?, 'Act', 'a.pdf', 'a.json', 2, 3, 'now', 'pending', 'upload')
+            """,
+            (document_id,),
+        )
+        stats = await apply_parsed_document(db, document_id, sections, footnotes)
+        await db.commit()
+        assert stats["has_issues"] >= 1
+
+        async with db.execute(
+            "SELECT review_status, quality_flags FROM sections WHERE id = ?",
+            (sections[0]["id"],),
+        ) as cursor:
+            row = await cursor.fetchone()
+        stored = deserialize_quality_flags(row["quality_flags"])
+        assert row["review_status"] == "has_issues"
+        assert any(flag["code"] == "missing_table" for flag in stored)
+
+        # Approved leaf must not be clobbered on identical re-apply.
+        await db.execute(
+            "UPDATE sections SET review_status = 'approved' WHERE id = ?",
+            (sections[0]["id"],),
+        )
+        await db.commit()
+        await apply_parsed_document(db, document_id, sections, footnotes)
+        await db.commit()
+        async with db.execute(
+            "SELECT review_status FROM sections WHERE id = ?",
+            (sections[0]["id"],),
+        ) as cursor:
+            assert (await cursor.fetchone())[0] == "approved"
+
+
+@pytest.mark.asyncio
+async def test_migration_adds_quality_flags_column(monkeypatch, tmp_path):
+    import sqlite3
+
+    import backend.database as database
+
+    db_path = tmp_path / "legacy.db"
+    connection = sqlite3.connect(db_path)
+    connection.executescript(
+        """
+        CREATE TABLE documents (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, pdf_filename TEXT NOT NULL,
+            json_filename TEXT NOT NULL, total_sections INTEGER NOT NULL,
+            total_pages INTEGER NOT NULL, uploaded_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending'
+        );
+        CREATE TABLE sections (
+            id TEXT PRIMARY KEY, document_id TEXT NOT NULL,
+            chapter_code TEXT, chapter_heading TEXT, part_code TEXT,
+            part_heading TEXT, division_code TEXT, division_heading TEXT,
+            section_code TEXT NOT NULL, section_heading TEXT NOT NULL,
+            start_page INTEGER, end_page INTEGER, html_content TEXT,
+            plain_text TEXT, sort_order INTEGER NOT NULL,
+            review_status TEXT NOT NULL DEFAULT 'pending'
+        );
+        """
+    )
+    connection.commit()
+    connection.close()
+
+    monkeypatch.setattr(database, "DB_DIR", str(tmp_path))
+    monkeypatch.setattr(database, "DB_PATH", str(db_path))
+    await database.init_db()
+
+    connection = sqlite3.connect(db_path)
+    section_columns = {
+        row[1] for row in connection.execute("PRAGMA table_info(sections)")
+    }
+    connection.close()
+    assert "quality_flags" in section_columns
+    assert "hierarchy_kind" in section_columns

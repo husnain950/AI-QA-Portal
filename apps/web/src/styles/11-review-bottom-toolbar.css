@@ -1,0 +1,10 @@
+/* --- Review Bottom Toolbar --- */
+.review-toolbar {
+    height: 64px;
+    background-color: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}

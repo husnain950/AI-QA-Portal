@@ -1,0 +1,101 @@
+/* --- Footnotes Panel --- */
+.footnotes-panel {
+    margin: 24px;
+    margin-top: 0;
+    border-top: 2px solid var(--color-border);
+    padding-top: 24px;
+}
+
+.footnotes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding-bottom: 12px;
+    user-select: none;
+}
+
+.footnotes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.footnote-card {
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: all var(--transition-fast);
+}
+
+.footnote-card.flagged {
+    border-left: 4px solid var(--color-error);
+}
+
+.footnote-card.approved {
+    border-left: 4px solid var(--color-success);
+}
+
+.footnote-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footnote-marker {
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--color-accent);
+}
+
+.footnote-text {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    white-space: pre-wrap;
+    font-family: var(--font-mono);
+}
+
+/* Footnotes with HTML content (tables etc.) */
+.footnote-html-content {
+    white-space: normal;
+    font-family: var(--font-body);
+}
+
+.footnote-html-content p {
+    margin: 0.25em 0;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
+
+.footnote-html-content .fn-table {
+    display: flex;
+    flex-wrap: wrap;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    margin: 0.5em 0;
+    overflow: hidden;
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+.footnote-html-content .fn-table > div {
+    padding: 4px 6px;
+    border-right: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    box-sizing: border-box;
+    word-break: break-word;
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono, monospace);
+}
+
+.footnote-html-content .fn-table > div:last-child,
+.footnote-html-content .fn-table > div:nth-child(n) {
+    border-right: 1px solid var(--color-border);
+}

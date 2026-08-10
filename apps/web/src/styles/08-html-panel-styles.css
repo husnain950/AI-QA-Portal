@@ -1,0 +1,105 @@
+/* --- HTML Panel Styles --- */
+.html-renderer-container {
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 32px;
+    margin: 24px;
+    min-height: calc(100% - 48px);
+    position: relative;
+    user-select: text; /* Enable selection */
+    overflow-x: auto;
+}
+
+/* Text selections & marks */
+.html-renderer-container ::selection {
+    background-color: rgba(99, 102, 241, 0.2);
+}
+
+.qa-highlight {
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 1px 0;
+    transition: opacity var(--transition-fast);
+}
+
+.qa-highlight:hover {
+    filter: brightness(0.9);
+}
+
+.qa-highlight[data-severity="error"] {
+    background-color: var(--color-highlight-error);
+    border-bottom: 2px wavy var(--color-error);
+}
+
+.qa-highlight[data-severity="warning"] {
+    background-color: var(--color-highlight-warning);
+    border-bottom: 2px wavy var(--color-warning);
+}
+
+.qa-highlight[data-severity="info"] {
+    background-color: var(--color-highlight-info);
+    border-bottom: 2px wavy var(--color-info);
+}
+
+/* HTML Document styles mapped to legal ordinances */
+.html-renderer-container h1, 
+.html-renderer-container h2, 
+.html-renderer-container h3, 
+.html-renderer-container h4 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-family: var(--font-heading);
+}
+
+.html-renderer-container h4 {
+    font-size: 1.1rem;
+    color: var(--color-accent);
+}
+
+.html-renderer-container p {
+    margin-bottom: 1em;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--color-text-primary);
+}
+
+.html-renderer-container ul, 
+.html-renderer-container ol {
+    margin-bottom: 1em;
+    margin-left: 2em;
+}
+
+.html-renderer-container li {
+    margin-bottom: 0.5em;
+    font-size: 0.95rem;
+}
+
+
+.html-renderer-container table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+    font-size: 0.9rem;
+}
+
+.html-renderer-container th, 
+.html-renderer-container td {
+    border: 1px solid var(--color-border);
+    padding: 10px 12px;
+    text-align: left;
+}
+
+.html-renderer-container th {
+    background-color: var(--color-bg-tertiary);
+    font-weight: 700;
+}
+
+/* Footnote superscript markers in text */
+.html-renderer-container sup {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    cursor: pointer;
+    padding: 0 2px;
+}

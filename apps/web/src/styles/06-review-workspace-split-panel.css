@@ -1,0 +1,54 @@
+/* --- Review Workspace Split Panel --- */
+.split-pane {
+    display: flex;
+    width: 100%;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.panel {
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.resizer-handle {
+    width: 6px;
+    background-color: var(--color-border);
+    cursor: col-resize;
+    position: relative;
+    z-index: 4;
+    transition: background-color var(--transition-fast);
+}
+
+.resizer-handle:hover, .resizer-handle.active {
+    background-color: var(--color-accent);
+}
+
+.panel-header {
+    height: 48px;
+    padding: 0 16px;
+    background-color: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.panel-title {
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.panel-body {
+    flex: 1;
+    overflow-y: auto;
+    background-color: var(--color-bg-tertiary);
+    position: relative;
+}

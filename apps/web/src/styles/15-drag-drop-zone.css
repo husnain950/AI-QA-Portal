@@ -1,0 +1,40 @@
+/* --- Drag Drop Zone --- */
+.upload-container {
+    max-width: 600px;
+    margin: 60px auto;
+    padding: 32px;
+}
+
+.dropzone {
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    background-color: var(--color-bg-secondary);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-bottom: 24px;
+    display: flex;
+    flex-col: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.dropzone:hover, .dropzone.active {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent-light);
+}
+
+.dropzone-text {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+}
+
+.dropzone-file-selected {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-success);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}

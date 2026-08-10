@@ -1,0 +1,136 @@
+/* Triage queue */
+.tq-page {
+    padding: 20px 24px 48px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.tq-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.tq-burn {
+    font-size: 0.95rem;
+    color: var(--color-text-secondary);
+}
+
+.tq-burn strong {
+    color: var(--color-text-primary);
+}
+
+.tq-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.tq-chip {
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-secondary);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.tq-chip.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #fff;
+}
+
+.tq-group {
+    margin-bottom: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.tq-group-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    background: var(--color-bg-tertiary, var(--color-bg-secondary));
+    list-style: none;
+    font-weight: 650;
+    font-size: 0.85rem;
+}
+
+.tq-group-summary::-webkit-details-marker {
+    display: none;
+}
+
+.tq-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    min-height: 44px;
+    padding: 6px 12px;
+    border-top: 1px solid var(--color-border);
+    font-size: 0.82rem;
+}
+
+.tq-row.active {
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    outline: 1px solid var(--color-accent);
+}
+
+.tq-row-main {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+}
+
+.tq-detector {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 0.72rem;
+    color: var(--color-accent);
+    min-width: 7.5rem;
+}
+
+.tq-meta {
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+}
+
+.tq-blast {
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.tq-expand {
+    padding: 8px 12px 12px 40px;
+    border-top: 1px dashed var(--color-border);
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+}
+
+.tq-edition-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 4px 0;
+    align-items: center;
+}
+
+.tq-hint {
+    margin-top: 16px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.tq-cross-family {
+    color: var(--color-warning, #c47d1a);
+    font-weight: 650;
+}

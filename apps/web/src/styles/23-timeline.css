@@ -1,0 +1,69 @@
+/* Timeline */
+.tl-page {
+    padding: 24px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.tl-title {
+    margin: 0 0 8px;
+    font-size: 1.25rem;
+}
+
+.tl-sub {
+    color: var(--color-text-secondary);
+    margin-bottom: 24px;
+    font-size: 0.9rem;
+}
+
+.tl-spine {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 2px solid var(--color-border);
+}
+
+.tl-event {
+    position: relative;
+    padding: 0 0 20px 20px;
+}
+
+.tl-event::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-accent);
+}
+
+.tl-event.unchanged::before {
+    background: var(--color-border);
+}
+
+.tl-year {
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.tl-warn {
+    color: var(--color-warning, #c47d1a);
+    font-size: 0.8rem;
+}
+
+.tl-search {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.tl-search input {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+}

@@ -1,0 +1,89 @@
+{
+  "dashboard": {
+    "ok": true,
+    "errors": [],
+    "doc_count_hint": [
+      "104",
+      "44",
+      "536",
+      "0",
+      "0"
+    ]
+  },
+  "results": [
+    {
+      "name": "Finance Act 2024",
+      "id": "828ba35a-1422-5819-9c45-f94a9e7e7660",
+      "samplePage": 11,
+      "ok": true,
+      "errors": [],
+      "screenshot": "/Users/muhammad.husnain/Downloads/code/AG/PDF-QA-Portal/frontend/scripts/visual_shots/828ba35a_p11.png",
+      "api_sections": 1
+    },
+    {
+      "name": "Finance Act 2025",
+      "id": "c36c0fb1-1a79-567d-8f95-e6dfb4735c15",
+      "samplePage": 50,
+      "ok": true,
+      "errors": [],
+      "screenshot": "/Users/muhammad.husnain/Downloads/code/AG/PDF-QA-Portal/frontend/scripts/visual_shots/c36c0fb1_p50.png",
+      "api_sections": 1
+    },
+    {
+      "name": "Finance Act, 2021",
+      "id": "a1eed2c0-f8d4-569b-b4c5-a476ce1e4d49",
+      "samplePage": 40,
+      "ok": true,
+      "errors": [],
+      "screenshot": "/Users/muhammad.husnain/Downloads/code/AG/PDF-QA-Portal/frontend/scripts/visual_shots/a1eed2c0_p40.png",
+      "api_sections": 1
+    },
+    {
+      "name": "Sales Tax Act 1990 amended upto 30-06-2025",
+      "id": "010ee08a-721c-574b-ad28-440d4b1c5683",
+      "samplePage": 50,
+      "ok": true,
+      "errors": [],
+      "screenshot": "/Users/muhammad.husnain/Downloads/code/AG/PDF-QA-Portal/frontend/scripts/visual_shots/010ee08a_p50.png",
+      "api_sections": 2
+    },
+    {
+      "name": "Customs Act, 1969 as amended up to 30th June, 2025",
+      "id": "2e3093cf-623e-5c3d-b627-b3bb1c934f62",
+      "samplePage": 40,
+      "ok": true,
+      "errors": [],
+      "screenshot": "/Users/muhammad.husnain/Downloads/code/AG/PDF-QA-Portal/frontend/scripts/visual_shots/2e3093cf_p40.png",
+      "api_sections": 6
+    },
+    {
+      "name": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "id": "01b42648-9656-5655-967e-e57e6c4fb8db",
+      "samplePage": 30,
+      "ok": true,
+      "errors": [],
+      "screenshot": "/Users/muhammad.husnain/Downloads/code/AG/PDF-QA-Portal/frontend/scripts/visual_shots/01b42648_p30.png",
+      "api_sections": 1
+    },
+    {
+      "name": "Benami Transactions (Prohibition) Act, 2017",
+      "id": "d462b0a6-84b5-512a-85fa-e3abd754f16f",
+      "samplePage": 5,
+      "ok": true,
+      "errors": [],
+      "screenshot": "/Users/muhammad.husnain/Downloads/code/AG/PDF-QA-Portal/frontend/scripts/visual_shots/d462b0a6_p5.png",
+      "api_sections": 1
+    },
+    {
+      "name": "The Tax Laws (Amendment) Act, 2024",
+      "id": "109ea073-a4c4-5fb2-8f60-f20163ca4092",
+      "samplePage": 8,
+      "ok": true,
+      "errors": [],
+      "screenshot": "/Users/muhammad.husnain/Downloads/code/AG/PDF-QA-Portal/frontend/scripts/visual_shots/109ea073_p8.png",
+      "api_sections": 2
+    }
+  ],
+  "passed": 8,
+  "failed": 0
+}

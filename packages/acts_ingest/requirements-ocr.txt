@@ -1,0 +1,31 @@
+# Phase-2 OCR only (acts_ingest/ocr.py).  Deliberately NOT in the main
+# requirements: both engines are imported lazily inside the functions that use
+# them, so a text-layer conversion never loads onnxruntime.
+#
+#     ../.venv/bin/pip install -r requirements-ocr.txt
+#
+# Exact versions as installed and measured on 2026-08-01 (macOS arm64,
+# Python 3.13).  Pinned because an OCR model change silently changes the text
+# of a statute: re-pin only together with a fresh scripts/ocr_review.py run.
+
+rapidocr-onnxruntime==1.2.3
+onnxruntime==1.28.0
+
+# pulled in by rapidocr-onnxruntime -- pinned for the same reason
+numpy==2.5.1
+opencv-python==5.0.0.93
+pyclipper==1.4.0
+shapely==2.1.2
+six==1.17.0
+
+# already required by the Phase-1 pipeline; listed because ocr.py needs them
+# for rendering (pypdfium2 -> Pillow) and for the per-page trigger
+pypdfium2==5.11.0
+pillow==12.3.0
+pdfplumber==0.11.10
+
+# NOT a Python package: Tesseract 5.5.2 (leptonica 1.87.0) must be on PATH.
+#     brew install tesseract
+# hOCR is read with `-c hocr_font_info=1`; note this build emits no per-word
+# x_fsize and never any font name or bold flag, which is why every OCR'd word
+# carries fontname=None (see reports/m4-ocr-handoff.md).
