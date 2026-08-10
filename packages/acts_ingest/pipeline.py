@@ -32,6 +32,61 @@ def _toc_lines(pdf, n_pages: int) -> list[str]:
     return lines
 
 
+def cover_footnote_collector_pages(leaves, pages, has_body, has_notes) -> int:
+    """Extend ``end_page`` of the last leaf in each body run through its collector notes.
+
+    Customs (and similar) print footnote-only pages after a body run.  Leaf
+    ranges track body text, so PDF pages that hold only those notes sit in a
+    hole between ``s.N.end_page`` and ``s.N+1.start_page`` -- portal
+    ``/sections/by-page`` returns nothing even though the notes are attached.
+    Extending ONLY the last leaf whose ``start_page`` falls in the body run
+    keeps earlier leaves' spans tight (avoiding the 34-page inflation that
+    broke orphan adoption / page-bleed when every citing leaf claimed its
+    notes' pages).  Call AFTER ``adopt_orphan_footnotes`` so adoption still
+    uses body-only ranges + ``note_body_pages``.
+    """
+    covered = [lf for lf in leaves
+               if lf.get("start_page") is not None and lf.get("end_page") is not None]
+    if not covered:
+        return 0
+    n_ext = 0
+    for bodies, notes in footnote_runs(pages, has_body, has_notes):
+        if not bodies or not notes:
+            continue
+        # pure collector pages after the body run (mixed body+notes pages
+        # already sit inside some leaf's range)
+        collectors = [p for p in notes
+                      if p > max(bodies) and has_notes.get(p) and not has_body.get(p)]
+        if not collectors:
+            continue
+        note_end = max(collectors)
+        candidates = [lf for lf in covered
+                      if bodies[0] <= lf["start_page"] <= bodies[-1]]
+        if not candidates:
+            continue
+        last = max(candidates,
+                   key=lambda lf: (lf["start_page"], lf.get("end_page") or 0))
+        prev = last.get("end_page") or 0
+        if prev >= note_end:
+            continue
+        # #region agent log
+        try:
+            import json as _json, time as _time
+            open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
+                _json.dumps({"sessionId": "661395", "runId": "customs-gap", "hypothesisId": "G",
+                             "location": "pipeline.py:cover_footnote_collector_pages",
+                             "message": "extend_end_page_through_collectors",
+                             "data": {"code": last.get("code"), "from": prev, "to": note_end,
+                                      "collectors": collectors[:12], "body_run": [bodies[0], bodies[-1]]},
+                             "timestamp": int(_time.time() * 1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
+        last["end_page"] = note_end
+        n_ext += 1
+    return n_ext
+
+
 def footnote_runs(pages, has_body, has_notes) -> list[tuple[list[int], list[int]]]:
     """Pair each run of body pages with the footnote pages that annotate it.
 
@@ -342,10 +397,18 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
             yield from _flatten_containers(getattr(n, "divisions", []) or [])
     containers = list(_flatten_containers(chapters))
 
+    # ``footnote_map`` / ``cited_footnotes`` are the CITATION view (a Customs
+    # body page resolves markers against the collector run that follows it).
+    # ``page_footnotes`` stays keyed by the page that PRINTS each note -- that
+    # is what same-page / +1 attach and the orphan net must see.  Collector
+    # notes bind via ``cited_footnotes`` keyed by the CITING page only (never
+    # via looking one page ahead into the citation view -- that is what put
+    # ``139.4`` on 155Q from a heading marker ``4``).
     built = build_sections(body_refs, ordered_sections, footnote_map,
-                           cited_footnotes, page_offset=offset,
+                           page_footnotes, page_offset=offset,
                            printed_by_page=printed_by_page,
-                           containers=containers)
+                           containers=containers,
+                           cited_footnotes=cited_footnotes)
 
     # An omitted section survives in the body only as an empty amendment
     # bracket line ("3[ ]", "4[ 5[ ] ]") that would otherwise be swallowed by
@@ -360,7 +423,8 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         built = build_sections(body_refs, ordered_sections, footnote_map,
                                page_footnotes, page_offset=offset,
                                printed_by_page=printed_by_page,
-                               containers=containers)
+                               containers=containers,
+                               cited_footnotes=cited_footnotes)
         progress(f"claimed {len(claimed_ids)} bracket lines for "
                  f"{len(placeholder_lines)} omitted sections")
     progress(f"assembled {len(built)} / {len(ordered_sections)} sections")
@@ -487,7 +551,8 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
                             continue
                         seen.add((ref_, fn.text))
                         fns.append({"ref": ref_, "marker": ref_,
-                                    "text": fn.text, "html": fn.html})
+                                    "text": fn.text, "html": fn.html,
+                                    "page": pg})
                 fns.sort(key=lambda x: ref_sort_key(x["ref"]))
                 if rows:
                     html_doc = _bhtml(head_html, rows)
@@ -589,6 +654,11 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     n = adopt_orphan_footnotes(leaves, page_footnotes, printed_by_page, offset,
                                note_body_pages=note_body_pages)
     progress(f"adopted {n} orphaned footnotes")
+
+    # Close by-page holes on Customs-style footnote collector pages (after adopt).
+    n_cov = cover_footnote_collector_pages(leaves, scan_pages, has_body, has_notes)
+    if n_cov:
+        progress(f"extended {n_cov} leaf end_page(s) through footnote collector pages")
 
     # RC-5 / RC-7: document-wide plain/html text repairs (marker de-fusion is done
     # inline in _render_words; bare-marker merging and line-break de-hyphenation
@@ -796,7 +866,7 @@ def omission_footnotes(code: str, exp_page: int, page_footnotes: dict,
                     continue
                 seen.add(ref)
                 out.append({"ref": ref, "marker": ref, "text": fn.text,
-                            "html": fn.html})
+                            "html": fn.html, "page": pg})
         if out:
             break
     return out

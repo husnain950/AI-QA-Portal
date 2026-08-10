@@ -14,7 +14,19 @@ from backend.database import DB_PATH
 from backend.sync_acts import run_sync
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+def _infer_repo_root() -> Path:
+    """Host monorepo root, or /app inside the API image (shallower path)."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "apps" / "api").is_dir() and (parent / "packages").is_dir():
+            return parent
+    # Docker: /app/backend/services/this.py → /app
+    if len(here.parents) >= 2:
+        return here.parents[2]
+    return Path.cwd()
+
+
+_REPO_ROOT = _infer_repo_root()
 
 
 def default_ordinance_path() -> Path:

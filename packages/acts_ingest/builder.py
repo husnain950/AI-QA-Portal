@@ -1359,7 +1359,7 @@ def _container_heading_pieces(containers) -> set:
 def build_sections(body_refs: list[LineRef], ordered_sections,
                    footnote_map: dict, page_footnotes: dict,
                    page_offset: int = 19, printed_by_page: dict | None = None,
-                   containers=()) -> dict:
+                   containers=(), cited_footnotes: dict | None = None) -> dict:
     """Split ``body_refs`` into sections keyed by section code.
 
     Boundary detection is code-driven, page-anchored and non-stalling:
@@ -1565,7 +1565,8 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
                 built[id(entry)] = _build_one(entry, seg, footnote_map,
                                               page_footnotes, page_offset,
                                               is_last=(k + 1 == len(starts)),
-                                              printed_by_page=printed_by_page)
+                                              printed_by_page=printed_by_page,
+                                              cited_footnotes=cited_footnotes)
             except Exception as exc:  # never let one bad section kill the run
                 import sys
                 print(f"[fbr] warning: section {entry.code} failed: {exc}",
@@ -1999,7 +2000,8 @@ def adopt_orphan_footnotes(leaves, page_footnotes, printed_by_page, default_offs
                 continue
             have[key] = have.get(key, 0) + 1
             cover.setdefault("footnotes", []).append(
-                {"ref": ref, "marker": ref, "text": fn.text, "html": fn.html})
+                {"ref": ref, "marker": ref, "text": fn.text, "html": fn.html,
+                 "page": pg})
             adopted += 1
     for lf in leaves:
         lf.get("footnotes", []).sort(key=lambda f: ref_sort_key(f["ref"]))
@@ -2305,7 +2307,8 @@ def _wrapped_heading_lines(seg, code: str, heading: str) -> int:
 
 def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
                page_offset: int = 0, is_last: bool = False,
-               printed_by_page: dict | None = None) -> BuiltSection:
+               printed_by_page: dict | None = None,
+               cited_footnotes: dict | None = None) -> BuiltSection:
     # A section ends when a new structural heading begins -- even though the
     # next *section* heading may be a page or two further on.
     #
@@ -2563,6 +2566,15 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
     for (pg, marker) in cited:
         local = by_marker.get(pg, {}).get(marker, [])
         nxt = by_marker.get(pg + 1, {}).get(marker, []) if not local else []
+        # Customs collector: same-page lookup in the CITATION view (notes the
+        # run already scoped to THIS citing page).  Never look up citing_page+1
+        # in that view -- cited_footnotes[pg+1] holds the NEXT body page's
+        # whole collector block, which is how 155Q's heading ``4`` grabbed
+        # note ``4`` printed on pdf 161 (``139.4``).
+        collector = []
+        if not local and not nxt and cited_footnotes:
+            collector = [fn for fn in (cited_footnotes.get(pg) or [])
+                         if fn.marker == marker]
         if nxt:
             # #region agent log
             try:
@@ -2575,14 +2587,38 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
             except Exception:
                 pass
             # #endregion
-        for fn in local or nxt:
+        # #region agent log
+        if entry.code == "155Q" or (marker == "4" and entry.code in ("155Q", "156")):
+            try:
+                import json as _json, time as _time
+                open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
+                    _json.dumps({"sessionId": "661395", "runId": "fn-155Q", "hypothesisId": "H",
+                                 "location": "builder.py:_build_one:attach",
+                                 "message": "cite_resolve",
+                                 "data": {"code": entry.code, "cite_page": pg, "marker": marker,
+                                          "n_local": len(local), "n_nxt": len(nxt),
+                                          "n_collector": len(collector),
+                                          "local_pages": [getattr(fn, "pdf_page", None) for fn in local[:3]],
+                                          "nxt_pages": [getattr(fn, "pdf_page", None) for fn in nxt[:3]],
+                                          "collector_pages": [getattr(fn, "pdf_page", None) for fn in collector[:3]],
+                                          "cite_pages": sorted(cite_pages)[:20]},
+                                 "timestamp": int(_time.time() * 1000)}) + "\n")
+            except Exception:
+                pass
+        # #endregion
+        for fn in local or nxt or collector:
             # The ref names the page the NOTE is printed on, not the page that
             # cites it.  Those coincide in a bottom-of-page layout, but the
             # Customs Act collects its notes onto separate pages after each body
             # run -- keying the ref off the citing page there would both mint a
             # printed page the note does not appear on and break the (ref, text)
             # dedup against the orphan-adoption path, duplicating the note.
-            src_pg = getattr(fn, "pdf_page", None) or (pg if local else pg + 1)
+            if local:
+                src_pg = getattr(fn, "pdf_page", None) or pg
+            elif nxt:
+                src_pg = getattr(fn, "pdf_page", None) or (pg + 1)
+            else:
+                src_pg = getattr(fn, "pdf_page", None) or pg
             # ``off_fn`` (per-page folio, constant only as a fallback) rather than
             # the raw constant: on a document with two folio series the constant
             # is right for only one of them, and it minted negative printed pages
@@ -2596,7 +2632,8 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
             if seen.get(key, 0) >= cap:
                 continue
             seen[key] = seen.get(key, 0) + 1
-            fns.append({"ref": ref, "marker": ref, "text": fn.text, "html": fn.html})
+            fns.append({"ref": ref, "marker": ref, "text": fn.text, "html": fn.html,
+                        "page": src_pg})
             # A footnote whose text continues onto the NEXT page extends the
             # section's physical reach -- but only that far.  Where notes are
             # collected onto their own pages, a cited note can sit 30+ pages
@@ -2605,8 +2642,8 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
             # adopt_orphan_footnotes uses to decide which leaf covers a note, so
             # an inflated span silently adopts other sections' notes (and makes
             # the page-bleed plausibility set match ordinary cross-references).
-            # Nothing is lost by not extending: the note's real page is already
-            # recorded in its ref.
+            # Collector-page coverage for by-page queries is handled later by
+            # ``cover_footnote_collector_pages`` (last leaf of the body run only).
             fe = getattr(fn, "end_pdf_page", None)
             if fe is not None and end_page < fe <= end_page + 2:
                 end_page = fe

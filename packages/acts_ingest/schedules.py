@@ -886,7 +886,8 @@ def _collect_footnotes(cited, page_footnotes, printed_by_page):
             if seen.get(key, 0) >= src_mult.get((src_pg, marker, fn.text), 1):
                 continue
             seen[key] = seen.get(key, 0) + 1
-            out.append({"ref": ref, "marker": ref, "text": fn.text, "html": fn.html})
+            out.append({"ref": ref, "marker": ref, "text": fn.text, "html": fn.html,
+                        "page": src_pg})
             # bounded to a genuine page-break continuation -- see the same fix
             # in builder._build_one
             end = getattr(fn, "end_pdf_page", None)

@@ -129,6 +129,10 @@ async def get_section(document_id: str, section_id: str, db: aiosqlite.Connectio
 
 @router.get("/{document_id}/sections/by-page/{page_number}", response_model=list[SectionResponse])
 async def get_sections_by_page(document_id: str, page_number: int, db: aiosqlite.Connection = Depends(get_db)):
+    # Range match covers body pages.  Also include leaves whose footnotes were
+    # printed on this PDF page (Customs collector pages sit outside every
+    # body-only start/end range until end_page is extended, and even then the
+    # notes often belong to earlier citing leaves).
     query = f"""
         SELECT 
             {_SECTION_META_COLS},
@@ -136,11 +140,20 @@ async def get_sections_by_page(document_id: str, page_number: int, db: aiosqlite
             COUNT(a.id) as annotation_count
         FROM sections s
         LEFT JOIN annotations a ON a.section_id = s.id
-        WHERE s.document_id = ? AND ? >= s.start_page AND ? <= s.end_page
+        WHERE s.document_id = ?
+          AND (
+            (? >= s.start_page AND ? <= s.end_page)
+            OR s.id IN (
+              SELECT section_id FROM footnotes
+              WHERE page = ?
+            )
+          )
         GROUP BY s.id
         ORDER BY s.sort_order ASC
     """
-    async with db.execute(query, (document_id, page_number, page_number)) as cursor:
+    async with db.execute(
+        query, (document_id, page_number, page_number, page_number)
+    ) as cursor:
         rows = await cursor.fetchall()
         
     results = []
