@@ -20,6 +20,18 @@ class DocumentBase(BaseModel):
 class DocumentCreate(DocumentBase):
     pass
 
+class DocumentProvenance(BaseModel):
+    """Auto-derived document tags from pipeline metadata.ocr / source_kind."""
+
+    source_kind: str  # native-digital | scanned-ocr | mixed-ocr
+    tags: List[str] = []
+    ocr_pages: Optional[int] = None
+    ocr_total_pages: Optional[int] = None
+    mean_agreement: Optional[float] = None
+    floor: Optional[str] = None  # admitted | provisional
+    pages_ocred: List[int] = []
+
+
 class DocumentResponse(DocumentBase):
     model_config = ConfigDict(from_attributes=True)
 
@@ -37,6 +49,25 @@ class DocumentResponse(DocumentBase):
     active_version_no: int = 1
     # The pipeline's own measurements for the active parse, when they were ingested.
     health: Optional["VersionMetrics"] = None
+    provenance: Optional[DocumentProvenance] = None
+    corpus_lane: Optional[str] = None
+
+
+class EditionSibling(BaseModel):
+    """Another edition of the same statute family (for Review switcher)."""
+
+    id: str
+    name: str
+    year: Optional[int] = None
+    year_label: str = "year unknown"
+    corpus_lane: Optional[str] = None
+    is_current: bool = False
+
+
+class DocumentEditionsResponse(BaseModel):
+    family_key: str
+    family_title: str
+    editions: List[EditionSibling] = []
 
 # --- Annotation Models ---
 
@@ -163,6 +194,51 @@ class SectionResponse(SectionMetadataResponse):
 
 class SectionStatusUpdate(BaseModel):
     review_status: str # "approved" | "has_issues" | "pending"
+
+# --- AI Fix Models ---
+
+class FixProposalCreate(BaseModel):
+    instructions: str
+    # Must be one of the configured OPENPATHS_MODELS; omitted means the default.
+    model_name: Optional[str] = None
+
+
+class FixModelsResponse(BaseModel):
+    models: List[str]
+    default: str
+
+
+class FixValidationIssue(BaseModel):
+    level: str  # "error" | "warning"
+    code: str
+    message: str
+
+
+class FixProposalResponse(BaseModel):
+    id: str
+    document_id: str
+    section_id: Optional[str] = None
+    source_key: str
+    instructions: str
+    model_name: Optional[str] = None
+    status: str  # "proposed" | "approved" | "rejected" | "failed"
+    error: Optional[str] = None
+    created_at: str
+    created_by: Optional[str] = None
+    resolved_at: Optional[str] = None
+    resolved_by: Optional[str] = None
+    # The merged replacement leaf (pipeline JSON shape), when the model answered.
+    proposed: Optional[dict] = None
+    validation: List[FixValidationIssue] = []
+    diff: Optional[dict] = None
+
+
+class FixApprovalResponse(BaseModel):
+    proposal_id: str
+    overlay_id: str
+    version_no: int
+    version_outcome: str
+
 
 # --- Search Models ---
 

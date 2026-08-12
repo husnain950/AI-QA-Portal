@@ -631,6 +631,20 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
             metadata["ocr"]["provisional"] = True
             metadata["ocr"]["provisional_reason"] = fidelity.reason
 
+    # First-class document class for Library tags.  Same rules as portal
+    # ``backend.services.document_provenance`` (OCR_FULL_RATIO = 0.9).
+    ocr_meta = metadata.get("ocr")
+    if not ocr_meta:
+        metadata["source_kind"] = "native-digital"
+    else:
+        ocr_pages = int(ocr_meta.get("pages") or 0)
+        if total_pages > 0 and (ocr_pages / total_pages) >= 0.9:
+            metadata["source_kind"] = "scanned-ocr"
+        elif ocr_pages >= 1:
+            metadata["source_kind"] = "mixed-ocr"
+        else:
+            metadata["source_kind"] = "native-digital"
+
     result = {
         "metadata": metadata,
         "chapters": [_node_to_dict(c) for c in chapters],

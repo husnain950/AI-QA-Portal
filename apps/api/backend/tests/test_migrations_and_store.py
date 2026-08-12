@@ -51,7 +51,7 @@ async def test_migration_adds_source_columns_and_unique_indexes(monkeypatch, tmp
     }
     connection.close()
 
-    assert {"source_type", "source_key", "source_hash"} <= document_columns
+    assert {"source_type", "source_key", "source_hash", "provenance", "corpus_lane"} <= document_columns
     assert "source_key" in section_columns
     assert "quality_flags" in section_columns
     assert "hierarchy_kind" in section_columns

@@ -3,3 +3,6 @@ uvicorn
 aiosqlite
 python-multipart
 pypdf
+httpx2
+pypdfium2
+pillow

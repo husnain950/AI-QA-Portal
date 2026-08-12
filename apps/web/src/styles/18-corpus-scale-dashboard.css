@@ -136,3 +136,246 @@
     color: var(--color-accent);
     border-color: color-mix(in srgb, var(--color-accent) 38%, var(--color-border));
 }
+
+.library-facets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    margin: -4px 0 20px;
+    align-items: flex-end;
+}
+
+.library-facets-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 10px 0 12px;
+    background: color-mix(in srgb, var(--color-bg-primary) 92%, transparent);
+    backdrop-filter: blur(8px);
+}
+
+.facet-clear {
+    align-self: flex-end;
+    padding: 7px 12px;
+    font-size: 0.78rem;
+}
+
+.edition-year-badge {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+}
+
+.source-badge.lane-ordinance,
+.source-badge.lane-customs,
+.source-badge.lane-sales_tax,
+.source-badge.lane-federal_excise,
+.source-badge.lane-finance,
+.source-badge.lane-tax_laws_amendment,
+.source-badge.lane-other_acts {
+    color: var(--color-accent);
+    border-color: color-mix(in srgb, var(--color-accent) 38%, var(--color-border));
+}
+
+.family-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.family-group-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.family-group-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.family-group-header p {
+    margin: 4px 0 0;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+}
+
+.family-group-health {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.family-group-health-fail {
+    color: #8b2e2e;
+}
+
+.facet-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.facet-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+
+.facet-select,
+.library-sort select {
+    padding: 7px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    font: inherit;
+    font-size: 0.8rem;
+    max-width: min(280px, 70vw);
+}
+
+.document-tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.document-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+.document-tag.tag-native {
+    color: #1f6b4a;
+    border-color: color-mix(in srgb, #1f6b4a 35%, var(--color-border));
+    background: color-mix(in srgb, #1f6b4a 10%, var(--color-bg-secondary));
+}
+
+.document-tag.tag-scanned {
+    color: #8a4b12;
+    border-color: color-mix(in srgb, #8a4b12 35%, var(--color-border));
+    background: color-mix(in srgb, #8a4b12 10%, var(--color-bg-secondary));
+}
+
+.document-tag.tag-mixed {
+    color: #215a8f;
+    border-color: color-mix(in srgb, #215a8f 35%, var(--color-border));
+    background: color-mix(in srgb, #215a8f 10%, var(--color-bg-secondary));
+}
+
+.document-tag.tag-provisional,
+.document-tag.tag-needs-review {
+    color: #8b2e2e;
+    border-color: color-mix(in srgb, #8b2e2e 35%, var(--color-border));
+    background: color-mix(in srgb, #8b2e2e 10%, var(--color-bg-secondary));
+}
+
+.review-provenance-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 14px;
+    margin: 0 0 8px;
+    border: 1px solid color-mix(in srgb, #8b2e2e 35%, var(--color-border));
+    background: color-mix(in srgb, #8b2e2e 8%, var(--color-bg-secondary));
+    color: var(--color-text-primary);
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+}
+
+.review-context-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.review-header-tags {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.review-context-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.edition-switcher select {
+    max-width: min(420px, 55vw);
+    padding: 5px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    font: inherit;
+    font-size: 0.75rem;
+}
+
+.review-ocr-link {
+    opacity: 0.85;
+}
+
+.toc-lane-header {
+    width: 100%;
+    padding: 8px 12px 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+}
+
+.toc-ocr-mark {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #8a4b12;
+    border: 1px solid color-mix(in srgb, #8a4b12 35%, var(--color-border));
+    background: color-mix(in srgb, #8a4b12 10%, var(--color-bg-secondary));
+}
+
+.toc-quality-mark {
+    display: inline-flex;
+    margin-left: 4px;
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--color-error, #8b2e2e);
+}

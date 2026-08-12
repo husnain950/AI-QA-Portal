@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, AlertCircle, CheckCircle, History } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, CheckCircle, History, GitBranch } from 'lucide-react';
 
 import AppShell from '../components/layout/AppShell';
 import Sidebar from '../components/layout/Sidebar';
@@ -10,13 +10,19 @@ import HtmlPanel from '../components/review/HtmlPanel';
 import ReviewToolbar from '../components/review/ReviewToolbar';
 import NewVersionButton from '../components/review/NewVersionButton';
 import Breadcrumbs from '../components/review/Breadcrumbs';
+import DocumentTags from '../components/dashboard/DocumentTags';
+import DocumentHealth from '../components/dashboard/DocumentHealth';
 
 import { useDocumentStore } from '../stores/documentStore';
 import { useReviewStore } from '../stores/reviewStore';
+import { useAiFixStore } from '../stores/aiFixStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
-import { api } from '../utils/api';
+import { api, versionsApi } from '../utils/api';
 import VersionPanel from '../components/review/VersionPanel';
 import { formatLeafIdentity } from '../utils/tocLabels';
+import { TAG_NEEDS_REVIEW, TAG_PROVISIONAL } from '../utils/documentTags';
+import { laneLabel } from '../utils/corpusLanes';
+import { editionDateFromName, familyKeyFromName } from '../utils/editions';
 
 const ReviewPage = () => {
     const { documentId, sectionId } = useParams();
@@ -24,6 +30,7 @@ const ReviewPage = () => {
 
     const [successMessage, setSuccessMessage] = useState('');
     const [versionsOpen, setVersionsOpen] = useState(false);
+    const [editions, setEditions] = useState(null);
 
     const { 
         activeDocument, 
@@ -37,11 +44,21 @@ const ReviewPage = () => {
     } = useDocumentStore();
 
     const { currentPage, viewMode, setViewMode, setCurrentPage } = useReviewStore();
+    const fetchAiProposals = useAiFixStore((s) => s.fetchProposals);
     const [initialLoad, setInitialLoad] = useState(true);
     const [error, setError] = useState('');
     const currentSectionIndex = sections.findIndex(
         (section) => section.id === activeSection?.id,
     );
+
+    const loadEditions = useCallback(async (docId) => {
+        try {
+            const data = await versionsApi.editions(docId);
+            setEditions(data);
+        } catch {
+            setEditions(null);
+        }
+    }, []);
 
     const navigateBySection = (offset) => {
         if (viewMode !== 'section' || currentSectionIndex < 0) return;
@@ -49,6 +66,26 @@ const ReviewPage = () => {
         if (target) {
             navigate(`/review/${documentId}/${target.id}`);
         }
+    };
+
+    const switchEdition = async (siblingId) => {
+        if (!siblingId || siblingId === documentId) return;
+        const sectionCode = activeSection?.section_code;
+        if (sectionCode) {
+            try {
+                const siblingSections = await api.get(`/documents/${siblingId}/sections`);
+                const match = (siblingSections || []).find(
+                    (sec) => sec.section_code === sectionCode,
+                );
+                if (match) {
+                    navigate(`/review/${siblingId}/${match.id}`);
+                    return;
+                }
+            } catch {
+                // fall through to document root
+            }
+        }
+        navigate(`/review/${siblingId}`);
     };
 
     useKeyboardNav({
@@ -81,8 +118,9 @@ const ReviewPage = () => {
                     return;
                 }
 
-                // Fetch sections list for TOC
                 await fetchSections(documentId);
+                await loadEditions(documentId);
+                fetchAiProposals(documentId); // fire-and-forget: only feeds badges
             } catch (err) {
                 setError('Failed to load review data');
                 console.error(err);
@@ -94,7 +132,7 @@ const ReviewPage = () => {
         if (documentId) {
             loadDocAndSections();
         }
-    }, [documentId, fetchDocument, fetchSections]);
+    }, [documentId, fetchDocument, fetchSections, loadEditions, fetchAiProposals]);
 
     // Fetch page sections when in Page View
     useEffect(() => {
@@ -223,6 +261,14 @@ const ReviewPage = () => {
         })()
         : '';
 
+    const provenanceTags = activeDocument.provenance?.tags || [];
+    const showOcrLink = provenanceTags.includes(TAG_PROVISIONAL)
+        || provenanceTags.includes(TAG_NEEDS_REVIEW);
+    const edition = editionDateFromName(activeDocument.name);
+    const lane = activeDocument.corpus_lane
+        || (activeDocument.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
+    const familyKey = familyKeyFromName(activeDocument.name);
+
     const actions = (
         <div className="review-header-actions flex align-center gap-3">
             {/* Available for every document now: ACT-corpus rows used to be locked out
@@ -315,6 +361,63 @@ const ReviewPage = () => {
                     <span>{successMessage}</span>
                 </div>
             )}
+
+            <div className="review-context-strip" style={{ padding: '10px 24px 0' }}>
+                <div className="review-header-tags">
+                    <span className={`source-badge lane-${lane}`}>{laneLabel(lane)}</span>
+                    {!edition.unknown && (
+                        <span className="edition-year-badge">{edition.label}</span>
+                    )}
+                    <DocumentTags provenance={activeDocument.provenance} />
+                    <DocumentHealth health={activeDocument.health} />
+                </div>
+                <div className="review-context-actions">
+                    {editions?.editions?.length > 1 && (
+                        <label className="edition-switcher">
+                            <span className="sr-only">Switch edition</span>
+                            <select
+                                value={documentId}
+                                onChange={(event) => switchEdition(event.target.value)}
+                                title={editions.family_title || 'Editions'}
+                            >
+                                {editions.editions.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.year_label}
+                                        {item.is_current ? ' (current)' : ''}
+                                        {' — '}
+                                        {item.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
+                    {activeSection?.section_code && (
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                            title="Open family timeline for this section"
+                            onClick={() => navigate(
+                                `/timeline/${encodeURIComponent(familyKey)}/${encodeURIComponent(activeSection.section_code)}`,
+                            )}
+                        >
+                            <GitBranch size={13} />
+                            <span>Timeline</span>
+                        </button>
+                    )}
+                    {showOcrLink && (
+                        <button
+                            type="button"
+                            className="btn btn-secondary review-ocr-link"
+                            style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                            onClick={() => navigate('/?detector=ocr_disagree')}
+                            title="OCR engine disagreements for this corpus"
+                        >
+                            OCR disagreements
+                        </button>
+                    )}
+                </div>
+            </div>
 
             {viewMode === 'section' && activeSection && (
                 <>

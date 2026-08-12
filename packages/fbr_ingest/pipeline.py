@@ -265,6 +265,8 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         "chapters_count": len(chapters),
         "schedules_count": len(schedules_out),
         "sections_count": sections_count,
+        # Ordinance path is text-layer only; matches portal document_provenance.
+        "source_kind": "native-digital",
     }
 
     result = {

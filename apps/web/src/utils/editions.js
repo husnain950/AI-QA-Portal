@@ -4,9 +4,17 @@
  */
 
 const DATE_PATTERNS = [
-    /(?:amended|upto|up\s*to|as\s+on|dated)\s*(?:upto\s*)?(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4})/i,
+    /(?:amended|upto|up\s*to|as\s+on|dated).{0,40}?(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4})/i,
+    /(?:amended|upto|up\s*to|as\s+on|dated).{0,40}?\b((?:19|20)\d{2})\b/i,
+    /\b(20\d{2})\s*[-–]\s*(\d{2})\b/, // 2011-12 — before bare year
     /\b(20\d{2}|19\d{2})\b/,
-    /\b(20\d{2})\s*[-–]\s*(\d{2})\b/, // 2011-12
+];
+
+const CANONICAL_FAMILIES = [
+    [/^income\s+tax\s+ordinance(?:\s*,?\s*2001)?$/i, 'income tax ordinance, 2001'],
+    [/^customs\s+act(?:\s*,?\s*1969)?$/i, 'customs act, 1969'],
+    [/^sales\s+tax\s+act(?:\s*,?\s*1990)?$/i, 'sales tax act, 1990'],
+    [/^federal\s+excise\s+act(?:\s*,?\s*2005)?$/i, 'federal excise act, 2005'],
 ];
 
 export function familyKeyFromName(name) {
@@ -14,13 +22,36 @@ export function familyKeyFromName(name) {
     if (!raw) return 'unknown';
     let base = raw
         .replace(/\(.*?\)/g, ' ')
+        .replace(/\s*[-–]\s*(?=(?:as\s+)?amended|upto|up\s*to|dated)/i, ' ')
         .replace(/,?\s*(as\s+)?amended.*$/i, ' ')
         .replace(/,?\s*upto.*$/i, ' ')
+        .replace(/,?\s*up\s*to.*$/i, ' ')
         .replace(/,?\s*dated.*$/i, ' ')
+        .replace(/^the\s+/i, ' ')
+        .replace(/\s*,\s*/g, ', ')
         .replace(/\s+/g, ' ')
-        .trim();
-    base = base.replace(/[,\s]+$/g, '').trim();
-    return base.toLowerCase() || 'unknown';
+        .trim()
+        .replace(/[,\s]+$/g, '')
+        .trim()
+        .toLowerCase();
+    if (!base) return 'unknown';
+
+    for (const [pattern, canonical] of CANONICAL_FAMILIES) {
+        if (pattern.test(base)) return canonical;
+    }
+
+    const finance = base.match(
+        /^(finance(?:\s+supplementary)?\s+act),?\s*(?:19|20)\d{2}(?:\s*[-–]\s*\d{2})?$/i,
+    );
+    if (finance) return finance[1].toLowerCase();
+
+    return base;
+}
+
+export function familyTitleFromKey(familyKey) {
+    const raw = String(familyKey || '').trim();
+    if (!raw || raw === 'unknown') return 'Unknown statute';
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
 /**

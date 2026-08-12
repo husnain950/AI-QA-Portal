@@ -279,7 +279,10 @@ async def sync_validated_pair(
     force: bool = False,
     mode: str = SUPERSEDE,
     note: Optional[str] = None,
+    corpus_origin: Optional[str] = None,
 ) -> str:
+    from backend.services.corpus_lanes import classify_lane
+
     pair = validated.pair
     async with db.execute(
         "SELECT * FROM documents WHERE source_type = ? AND source_key = ?",
@@ -298,6 +301,7 @@ async def sync_validated_pair(
         and pdf_stored
         and blob_store.usable(blob_store.blob_path(existing["json_filename"]))
         and not force
+        and existing.get("corpus_lane")
     ):
         return "skipped"
 
@@ -317,13 +321,29 @@ async def sync_validated_pair(
         blob_store.store_bytes(json_bytes, "json")
         repaired = repaired or existing is not None
 
+    corpus_lane = classify_lane(
+        pair.source_key,
+        source_type=SOURCE_TYPE,
+        corpus_origin=corpus_origin,
+    )
+
     await db.execute("BEGIN IMMEDIATE")
     try:
+        # Approved AI fixes ride on top of whatever the pipeline produced. The
+        # overlay store also detects the two ways a fix can die: the parser now
+        # agrees with it (superseded) or the parser changed the leaf on its own
+        # (stale — never silently overwritten, the section is re-flagged below).
+        from backend.services import overlays
+
+        json_bytes, overlay_report = await overlays.apply_overlays(
+            db, validated.pdf_hash, json_bytes
+        )
         if existing:
             await db.execute(
                 """
                 UPDATE documents
-                SET name = ?, pdf_filename = ?, total_pages = ?, source_hash = ?
+                SET name = ?, pdf_filename = ?, total_pages = ?, source_hash = ?,
+                    corpus_lane = ?
                 WHERE id = ?
                 """,
                 (
@@ -331,6 +351,7 @@ async def sync_validated_pair(
                     pdf_filename,
                     validated.total_pages,
                     validated.source_hash,
+                    corpus_lane,
                     document_id,
                 ),
             )
@@ -340,8 +361,8 @@ async def sync_validated_pair(
                 INSERT INTO documents (
                     id, name, pdf_filename, json_filename, total_sections,
                     total_pages, uploaded_at, status, source_type, source_key,
-                    source_hash
-                ) VALUES (?, ?, ?, '', 0, ?, ?, 'pending', ?, ?, ?)
+                    source_hash, corpus_lane
+                ) VALUES (?, ?, ?, '', 0, ?, ?, 'pending', ?, ?, ?, ?)
                 """,
                 (
                     document_id,
@@ -352,6 +373,7 @@ async def sync_validated_pair(
                     SOURCE_TYPE,
                     pair.source_key,
                     validated.source_hash,
+                    corpus_lane,
                 ),
             )
 
@@ -364,6 +386,10 @@ async def sync_validated_pair(
             created_by="sync_acts",
             mode=mode,
         )
+        if overlay_report.stale:
+            await overlays.flag_stale_sections(
+                db, document_id, overlay_report.stale
+            )
         await db.commit()
     except Exception:
         await db.rollback()
@@ -385,6 +411,7 @@ async def run_sync(
     strict: bool = False,
     metrics_dir: Optional[Path] = None,
     pdf_dir: Optional[Path] = None,
+    corpus_origin: Optional[str] = None,
 ) -> Dict[str, object]:
     if acts_repo:
         pairs, unmatched = discover_acts_repo(source, pdf_dir)
@@ -445,6 +472,7 @@ async def run_sync(
                     validated,
                     force=force,
                     mode=STRICT if strict else SUPERSEDE,
+                    corpus_origin=corpus_origin,
                 )
                 summary[result] = int(summary[result]) + 1
             except ReviewConflict as conflict:

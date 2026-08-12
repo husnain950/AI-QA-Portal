@@ -11,13 +11,25 @@ from fastapi.responses import JSONResponse
 
 from backend.database import get_db
 from backend.models import (
+    DocumentEditionsResponse,
+    DocumentProvenance,
     DocumentResponse,
     DocumentStats,
+    EditionSibling,
     VersionMetrics,
     VersionResponse,
 )
 from backend.services import blob_store, versions
+from backend.services.corpus_lanes import classify_lane, normalize_lane
+from backend.services.document_provenance import (
+    backfill_provenance_row,
+)
 from backend.services.document_store import ReviewConflict, document_status
+from backend.services.editions import (
+    edition_date_from_name,
+    family_key_from_name,
+    family_title_from_key,
+)
 from backend.services.json_parser import parse_json_document
 from backend.services.pdf_service import get_pdf_page_count
 
@@ -30,6 +42,7 @@ def get_upload_path(filename: str) -> str:
     """Absolute path of a stored blob (or a legacy flat upload)."""
     os.makedirs(blob_store.upload_root(), exist_ok=True)
     return blob_store.blob_path(filename)
+
 
 def safe_upload_name(filename: str | None, fallback: str) -> str:
     cleaned = os.path.basename(filename or "").replace("\x00", "")
@@ -98,6 +111,67 @@ def _document_stats(
         pending=pending,
         flagged_sections=has_issues,
         open_annotations=open_annotations,
+    )
+
+
+async def _resolve_provenance(
+    db: aiosqlite.Connection, row
+) -> Optional[DocumentProvenance]:
+    keys = row.keys() if hasattr(row, "keys") else []
+    raw = row["provenance"] if "provenance" in keys else None
+    return await backfill_provenance_row(
+        db,
+        document_id=row["id"],
+        json_filename=row["json_filename"],
+        total_pages=row["total_pages"],
+        existing_raw=raw,
+    )
+
+
+async def _resolve_corpus_lane(db: aiosqlite.Connection, row) -> Optional[str]:
+    keys = row.keys() if hasattr(row, "keys") else []
+    existing = normalize_lane(row["corpus_lane"] if "corpus_lane" in keys else None)
+    if existing:
+        return existing
+    lane = classify_lane(
+        row["name"],
+        source_type=row["source_type"] if "source_type" in keys else "upload",
+    )
+    await db.execute(
+        "UPDATE documents SET corpus_lane = ? WHERE id = ?",
+        (lane, row["id"]),
+    )
+    return lane
+
+
+async def _document_response(
+    db: aiosqlite.Connection, r
+) -> DocumentResponse:
+    provenance = await _resolve_provenance(db, r)
+    corpus_lane = await _resolve_corpus_lane(db, r)
+    return DocumentResponse(
+        id=r["id"],
+        name=r["name"],
+        pdf_filename=r["pdf_filename"],
+        json_filename=r["json_filename"],
+        total_sections=r["total_sections"],
+        total_pages=r["total_pages"],
+        uploaded_at=r["uploaded_at"],
+        status=r["status"],
+        source_type=r["source_type"],
+        source_key=r["source_key"],
+        stats=_document_stats(
+            reviewed=r["reviewed"],
+            approved=r["approved"],
+            has_issues=r["has_issues"],
+            pending=r["pending"],
+            open_annotations=r["open_annotations"] or 0,
+        ),
+        version_count=r["version_count"] or 1,
+        active_version_no=r["active_version_no"] or 1,
+        health=_metrics_response(r if r["measured_at"] else None),
+        provenance=provenance,
+        corpus_lane=corpus_lane,
     )
 
 
@@ -181,10 +255,10 @@ async def upload_document(
             INSERT INTO documents (
                 id, name, pdf_filename, json_filename, total_sections,
                 total_pages, uploaded_at, status, source_type, source_key,
-                source_hash
-            ) VALUES (?, ?, ?, '', 0, ?, ?, 'pending', 'upload', NULL, NULL)
+                source_hash, corpus_lane
+            ) VALUES (?, ?, ?, '', 0, ?, ?, 'pending', 'upload', NULL, NULL, ?)
             """,
-            (doc_id, name, pdf_filename, total_pages, uploaded_at),
+            (doc_id, name, pdf_filename, total_pages, uploaded_at, "manual"),
         )
         # Version 1 writes the sections, footnotes and the active-version row, through
         # exactly the same path every later version takes.
@@ -206,7 +280,11 @@ async def upload_document(
 
     stats = outcome["stats"]
     doc_status = document_status(stats)
-    json_filename = (await _require_document(db, doc_id))["json_filename"]
+    doc_row = await _require_document(db, doc_id)
+    json_filename = doc_row["json_filename"]
+    provenance = await _resolve_provenance(db, doc_row)
+    corpus_lane = await _resolve_corpus_lane(db, doc_row)
+    await db.commit()
 
     return DocumentResponse(
         id=doc_id,
@@ -226,6 +304,8 @@ async def upload_document(
             pending=stats["pending"],
             open_annotations=0,
         ),
+        provenance=provenance,
+        corpus_lane=corpus_lane,
     )
 
 @router.get("", response_model=list[DocumentResponse])
@@ -234,6 +314,7 @@ async def list_documents(db: aiosqlite.Connection = Depends(get_db)):
         SELECT 
             d.id, d.name, d.pdf_filename, d.json_filename, d.total_sections,
             d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
+            d.provenance, d.corpus_lane,
             {_DOC_STATS_SELECT},
             {_DOC_VERSION_SELECT}
         FROM documents d
@@ -244,31 +325,11 @@ async def list_documents(db: aiosqlite.Connection = Depends(get_db)):
     """
     async with db.execute(query) as cursor:
         rows = await cursor.fetchall()
-        
+
     results = []
     for r in rows:
-        results.append(DocumentResponse(
-            id=r["id"],
-            name=r["name"],
-            pdf_filename=r["pdf_filename"],
-            json_filename=r["json_filename"],
-            total_sections=r["total_sections"],
-            total_pages=r["total_pages"],
-            uploaded_at=r["uploaded_at"],
-            status=r["status"],
-            source_type=r["source_type"],
-            source_key=r["source_key"],
-            stats=_document_stats(
-                reviewed=r["reviewed"],
-                approved=r["approved"],
-                has_issues=r["has_issues"],
-                pending=r["pending"],
-                open_annotations=r["open_annotations"] or 0,
-            ),
-            version_count=r["version_count"] or 1,
-            active_version_no=r["active_version_no"] or 1,
-            health=_metrics_response(r if r["measured_at"] else None),
-        ))
+        results.append(await _document_response(db, r))
+    await db.commit()
     return results
 
 @router.get("/{document_id}", response_model=DocumentResponse)
@@ -277,6 +338,7 @@ async def get_document(document_id: str, db: aiosqlite.Connection = Depends(get_
         SELECT 
             d.id, d.name, d.pdf_filename, d.json_filename, d.total_sections,
             d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
+            d.provenance, d.corpus_lane,
             {_DOC_STATS_SELECT},
             {_DOC_VERSION_SELECT}
         FROM documents d
@@ -287,31 +349,51 @@ async def get_document(document_id: str, db: aiosqlite.Connection = Depends(get_
     """
     async with db.execute(query, (document_id,)) as cursor:
         r = await cursor.fetchone()
-        
+
     if not r:
         raise HTTPException(status_code=404, detail="Document not found")
-        
-    return DocumentResponse(
-        id=r["id"],
-        name=r["name"],
-        pdf_filename=r["pdf_filename"],
-        json_filename=r["json_filename"],
-        total_sections=r["total_sections"],
-        total_pages=r["total_pages"],
-        uploaded_at=r["uploaded_at"],
-        status=r["status"],
-        source_type=r["source_type"],
-        source_key=r["source_key"],
-        stats=_document_stats(
-            reviewed=r["reviewed"],
-            approved=r["approved"],
-            has_issues=r["has_issues"],
-            pending=r["pending"],
-            open_annotations=r["open_annotations"] or 0,
-        ),
-        version_count=r["version_count"] or 1,
-        active_version_no=r["active_version_no"] or 1,
-        health=_metrics_response(r if r["measured_at"] else None),
+
+    response = await _document_response(db, r)
+    await db.commit()
+    return response
+
+
+@router.get("/{document_id}/editions", response_model=DocumentEditionsResponse)
+async def list_document_editions(
+    document_id: str, db: aiosqlite.Connection = Depends(get_db)
+):
+    """Sibling editions of the same statute family, newest year last."""
+    current = await _require_document(db, document_id)
+    family_key = family_key_from_name(current["name"])
+    async with db.execute(
+        "SELECT id, name, corpus_lane FROM documents"
+    ) as cursor:
+        rows = await cursor.fetchall()
+
+    siblings: list[EditionSibling] = []
+    for row in rows:
+        if family_key_from_name(row["name"]) != family_key:
+            continue
+        edition = edition_date_from_name(row["name"])
+        lane = normalize_lane(row["corpus_lane"]) or classify_lane(
+            row["name"],
+            source_type="acts_corpus",
+        )
+        siblings.append(
+            EditionSibling(
+                id=row["id"],
+                name=row["name"],
+                year=edition.get("year"),
+                year_label=edition.get("label") or "year unknown",
+                corpus_lane=lane,
+                is_current=row["id"] == document_id,
+            )
+        )
+    siblings.sort(key=lambda item: (item.year is None, item.year or 0, item.name))
+    return DocumentEditionsResponse(
+        family_key=family_key,
+        family_title=family_title_from_key(family_key),
+        editions=siblings,
     )
 
 @router.get("/{document_id}/raw-files")
@@ -354,11 +436,14 @@ async def delete_document(document_id: str, db: aiosqlite.Connection = Depends(g
     )
 
 
-async def _document_response(db: aiosqlite.Connection, document_id: str) -> DocumentResponse:
+async def _document_response_by_id(
+    db: aiosqlite.Connection, document_id: str
+) -> DocumentResponse:
     query = f"""
         SELECT
             d.id, d.name, d.pdf_filename, d.json_filename, d.total_sections,
             d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
+            d.provenance, d.corpus_lane,
             {_DOC_STATS_SELECT},
             {_DOC_VERSION_SELECT}
         FROM documents d
@@ -371,28 +456,7 @@ async def _document_response(db: aiosqlite.Connection, document_id: str) -> Docu
         r = await cursor.fetchone()
     if not r:
         raise HTTPException(status_code=404, detail="Document not found")
-    return DocumentResponse(
-        id=r["id"],
-        name=r["name"],
-        pdf_filename=r["pdf_filename"],
-        json_filename=r["json_filename"],
-        total_sections=r["total_sections"],
-        total_pages=r["total_pages"],
-        uploaded_at=r["uploaded_at"],
-        status=r["status"],
-        source_type=r["source_type"],
-        source_key=r["source_key"],
-        stats=_document_stats(
-            reviewed=r["reviewed"],
-            approved=r["approved"],
-            has_issues=r["has_issues"],
-            pending=r["pending"],
-            open_annotations=r["open_annotations"] or 0,
-        ),
-        version_count=r["version_count"] or 1,
-        active_version_no=r["active_version_no"] or 1,
-        health=_metrics_response(r if r["measured_at"] else None),
-    )
+    return await _document_response(db, r)
 
 
 async def _add_version(
@@ -457,7 +521,7 @@ async def replace_json(
     reversible, and ``sync_acts`` reconciles by content hash either way.
     """
     await _add_version(db, document_id, json_file, note, reviewer_name)
-    return await _document_response(db, document_id)
+    return await _document_response_by_id(db, document_id)
 
 
 @router.get("/{document_id}/versions", response_model=list[VersionResponse])

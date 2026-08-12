@@ -101,6 +101,10 @@ export const versionsApi = {
         return api.get(`/documents/${documentId}/versions`);
     },
 
+    editions(documentId) {
+        return api.get(`/documents/${documentId}/editions`);
+    },
+
     create(documentId, file, { note, reviewerName } = {}) {
         const form = new FormData();
         form.append('json_file', file);
@@ -119,5 +123,40 @@ export const versionsApi = {
     diff(documentId, versionId, againstId) {
         const query = againstId ? `?against=${encodeURIComponent(againstId)}` : '';
         return api.get(`/documents/${documentId}/versions/${versionId}/diff${query}`);
+    },
+};
+
+/**
+ * AI fix loop: ask the model for a corrected leaf, then a human approves or
+ * rejects it. Approval creates a new JSON version plus a persistent overlay
+ * that survives corpus re-syncs.
+ */
+export const aiFixApi = {
+    models() {
+        return api.get('/ai-fixes/models');
+    },
+
+    request(documentId, sectionId, instructions, modelName) {
+        return api.post(
+            `/documents/${documentId}/sections/${sectionId}/ai-fix`,
+            { instructions, model_name: modelName || null },
+        );
+    },
+
+    list(documentId, sectionId) {
+        const query = sectionId ? `?section_id=${encodeURIComponent(sectionId)}` : '';
+        return api.get(`/documents/${documentId}/ai-fixes${query}`);
+    },
+
+    get(proposalId) {
+        return api.get(`/ai-fixes/${proposalId}`);
+    },
+
+    approve(proposalId) {
+        return api.post(`/ai-fixes/${proposalId}/approve`, {});
+    },
+
+    reject(proposalId) {
+        return api.post(`/ai-fixes/${proposalId}/reject`, {});
     },
 };

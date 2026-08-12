@@ -20,6 +20,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import aiosqlite
 
 from backend.services import blob_store
+from backend.services.document_provenance import (
+    derive_from_json_content,
+    serialize_provenance,
+)
 from backend.services.document_store import (
     SUPERSEDE,
     apply_parsed_document,
@@ -165,13 +169,39 @@ async def create_version(
             json.dumps(stats.get("carryover") or {}, ensure_ascii=False),
         ),
     )
+    provenance = derive_from_json_content(
+        json_bytes,
+        total_pages=await _document_total_pages(db, document_id),
+    )
     await db.execute(
-        "UPDATE documents SET json_filename = ?, total_sections = ?, status = ? WHERE id = ?",
-        (json_filename, stats["total"], document_status(stats), document_id),
+        """
+        UPDATE documents
+        SET json_filename = ?, total_sections = ?, status = ?, provenance = ?
+        WHERE id = ?
+        """,
+        (
+            json_filename,
+            stats["total"],
+            document_status(stats),
+            serialize_provenance(provenance),
+            document_id,
+        ),
     )
 
     row = await get_version(db, document_id, _version_id(document_id, version_no))
     return row, {"status": "created", "version_no": version_no, "stats": stats}
+
+
+async def _document_total_pages(
+    db: aiosqlite.Connection, document_id: str
+) -> Optional[int]:
+    async with db.execute(
+        "SELECT total_pages FROM documents WHERE id = ?", (document_id,)
+    ) as cursor:
+        row = await cursor.fetchone()
+    if row is None:
+        return None
+    return int(row["total_pages"]) if row["total_pages"] is not None else None
 
 
 async def activate_version(
@@ -204,12 +234,21 @@ async def activate_version(
         "UPDATE document_versions SET is_active = 1 WHERE id = ?",
         (version_id,),
     )
+    provenance = derive_from_json_content(
+        content,
+        total_pages=await _document_total_pages(db, document_id),
+    )
     await db.execute(
-        "UPDATE documents SET json_filename = ?, total_sections = ?, status = ? WHERE id = ?",
+        """
+        UPDATE documents
+        SET json_filename = ?, total_sections = ?, status = ?, provenance = ?
+        WHERE id = ?
+        """,
         (
             target["json_filename"],
             stats["total"],
             document_status(stats),
+            serialize_provenance(provenance),
             document_id,
         ),
     )

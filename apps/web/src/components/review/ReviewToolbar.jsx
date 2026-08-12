@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, AlertTriangle, ArrowLeft, ArrowRight, Loader2, Clock } from 'lucide-react';
+import { Check, AlertTriangle, ArrowLeft, ArrowRight, Loader2, Clock, Sparkles } from 'lucide-react';
 import { useDocumentStore } from '../../stores/documentStore';
 import {
     formatQualityFlagList,
     hasAnyQualityFlags,
 } from '../../utils/qualityFlags';
 import { useUiStore } from '../../stores/uiStore';
+import { useAiFixStore } from '../../stores/aiFixStore';
+import { hasApprovedFix } from '../../utils/aiFix';
+import AiFixPanel from './AiFixPanel';
 
 /**
  * @param {{ section?: object | null }} props
@@ -22,11 +25,18 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
         sections,
         activeSection,
         updateSectionStatus,
+        fetchDocument,
+        fetchSections,
+        fetchSection,
         loading,
     } = useDocumentStore();
+    const [aiFixOpen, setAiFixOpen] = useState(false);
+    const aiProposals = useAiFixStore((s) => s.proposals);
 
     const targetSection = sectionProp || activeSection;
     if (!targetSection || !activeDocument) return null;
+
+    const aiFixed = hasApprovedFix(aiProposals, targetSection.id);
 
     const currentIndex = sections.findIndex((s) => s.id === targetSection.id);
     const hasPrev = currentIndex > 0;
@@ -94,6 +104,15 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
                         >
                             {status === 'has_issues' ? 'flagged' : status === 'approved_inherited' ? 'inherited' : status}
                         </span>
+                        {aiFixed && (
+                            <span
+                                className="badge ai-fix-badge"
+                                title="An approved AI fix is applied to this section"
+                                style={{ fontSize: '0.7rem', padding: '3px 8px', whiteSpace: 'nowrap' }}
+                            >
+                                <Sparkles size={11} /> AI fixed
+                            </span>
+                        )}
                     </>
                 )}
             </div>
@@ -152,6 +171,23 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
                     <AlertTriangle size={14} />
                     <span>Flag</span>
                 </button>
+
+                <button
+                    className="btn btn-secondary"
+                    style={{
+                        padding: '6px 12px',
+                        fontSize: '0.8rem',
+                        borderColor: 'var(--color-border)',
+                        color: 'var(--color-text-secondary)',
+                        whiteSpace: 'nowrap',
+                    }}
+                    onClick={() => setAiFixOpen(true)}
+                    disabled={loading.activeSection}
+                    title="Send this section's JSON + PDF pages to the AI for a proposed fix"
+                >
+                    <Sparkles size={14} />
+                    <span>AI Fix</span>
+                </button>
             </div>
 
             <div className="flex align-center gap-1" style={{ flexShrink: 0 }}>
@@ -175,6 +211,20 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
                     <ArrowRight size={14} />
                 </button>
             </div>
+
+            <AiFixPanel
+                open={aiFixOpen}
+                onClose={() => setAiFixOpen(false)}
+                documentId={activeDocument.id}
+                section={targetSection}
+                onApplied={async () => {
+                    // The approval created a new active version; refresh everything
+                    // that renders the leaf or its status.
+                    await fetchDocument(activeDocument.id);
+                    await fetchSections(activeDocument.id);
+                    await fetchSection(activeDocument.id, targetSection.id);
+                }}
+            />
         </div>
     );
 };

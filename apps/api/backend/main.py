@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.routes import (
+    ai_fixes,
     annotations,
     corpus,
     documents,
@@ -45,6 +46,7 @@ app.include_router(corpus.router, prefix="/api")
 app.include_router(findings.router, prefix="/api")
 app.include_router(variants.router, prefix="/api")
 app.include_router(timeline.router, prefix="/api")
+app.include_router(ai_fixes.router, prefix="/api")
 
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 

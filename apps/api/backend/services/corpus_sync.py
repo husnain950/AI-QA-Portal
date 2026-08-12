@@ -121,6 +121,7 @@ async def sync_one(
         strict=strict,
         metrics_dir=metrics_dir,
         pdf_dir=pdf_dir,
+        corpus_origin=label,
     )
     result["label"] = label
     result["repo"] = str(repo)

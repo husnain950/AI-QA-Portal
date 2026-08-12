@@ -142,7 +142,9 @@ async def upgrade(db: aiosqlite.Connection) -> None:
         status        TEXT NOT NULL DEFAULT 'pending',
         source_type   TEXT NOT NULL DEFAULT 'upload',
         source_key    TEXT,
-        source_hash   TEXT
+        source_hash   TEXT,
+        provenance    TEXT,
+        corpus_lane   TEXT
     );
     """)
 
@@ -277,6 +279,14 @@ async def upgrade(db: aiosqlite.Connection) -> None:
         ),
         ("source_key", "ALTER TABLE documents ADD COLUMN source_key TEXT;"),
         ("source_hash", "ALTER TABLE documents ADD COLUMN source_hash TEXT;"),
+        (
+            "provenance",
+            "ALTER TABLE documents ADD COLUMN provenance TEXT;",
+        ),
+        (
+            "corpus_lane",
+            "ALTER TABLE documents ADD COLUMN corpus_lane TEXT;",
+        ),
     ):
         await _add_column_if_missing(db, "documents", column, ddl)
 

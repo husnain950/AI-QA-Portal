@@ -5,13 +5,17 @@ import { useUiStore } from '../../stores/uiStore';
 import { useDocumentStore } from '../../stores/documentStore';
 import { useReviewStore } from '../../stores/reviewStore';
 import { formatHierarchyLabel, formatSectionLabel } from '../../utils/tocLabels';
-import { hasCriticalQualityFlags } from '../../utils/qualityFlags';
+import { hasCriticalQualityFlags, normalizeQualityFlags } from '../../utils/qualityFlags';
+import { sectionWasOcrd } from '../../utils/documentTags';
+import { laneLabel } from '../../utils/corpusLanes';
+import { editionDateFromName } from '../../utils/editions';
 
 const Sidebar = ({ documentId }) => {
     const navigate = useNavigate();
     const { sidebarTab, setSidebarTab } = useUiStore();
     const { 
-        sections, 
+        sections,
+        activeDocument,
         activeSection, 
         searchResults, 
         search, 
@@ -174,6 +178,8 @@ const Sidebar = ({ documentId }) => {
             }
 
             const isActive = activeSection?.id === sec.id;
+            const ocrd = sectionWasOcrd(sec, activeDocument?.provenance?.pages_ocred);
+            const qualityFlags = normalizeQualityFlags(sec.quality_flags);
             nodes.push(
                 <div 
                     key={`sec-${sec.id}`} 
@@ -200,6 +206,19 @@ const Sidebar = ({ documentId }) => {
                     </span>
                     <span className="toc-node-label">
                         {formatSectionLabel(sec.section_code, sec.section_heading, sec.start_page)}
+                        {ocrd && (
+                            <span className="toc-ocr-mark" title="Section spans OCR’d page(s)">
+                                OCR
+                            </span>
+                        )}
+                        {qualityFlags.length > 0 && (
+                            <span
+                                className="toc-quality-mark"
+                                title={qualityFlags.map((f) => f.reason || f.code).join('; ')}
+                            >
+                                QA×{qualityFlags.length}
+                            </span>
+                        )}
                     </span>
                     {sec.annotation_count > 0 && (
                         <span style={{ fontSize: '0.7rem', padding: '1px 5px', borderRadius: 4, backgroundColor: 'var(--color-error-light)', color: 'var(--color-error)', fontWeight: 700, marginLeft: 'auto', flexShrink: 0 }}>
@@ -243,6 +262,15 @@ const Sidebar = ({ documentId }) => {
         <div ref={sidebarRef} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Tabs */}
             <div className="toc-tabs">
+                {activeDocument && (
+                    <div className="toc-lane-header">
+                        {laneLabel(activeDocument.corpus_lane
+                            || (activeDocument.source_type === 'acts_corpus' ? 'other_acts' : 'manual'))}
+                        {editionDateFromName(activeDocument.name).unknown
+                            ? ''
+                            : ` · ${editionDateFromName(activeDocument.name).label}`}
+                    </div>
+                )}
                 <button 
                     className={`toc-tab ${sidebarTab === 'toc' ? 'active' : ''}`}
                     onClick={() => setSidebarTab('toc')}

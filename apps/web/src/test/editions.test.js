@@ -9,10 +9,13 @@ describe('editions', () => {
     it('derives family keys without edition noise', () => {
         expect(
             familyKeyFromName('Customs Act, 1969 as amended up to 30.06.2025'),
-        ).toMatch(/customs act/i);
+        ).toBe('customs act, 1969');
         expect(
             familyKeyFromName('Customs Act ,1969 (Amended upto 30th June 2007)'),
-        ).toMatch(/customs act/i);
+        ).toBe('customs act, 1969');
+        expect(
+            familyKeyFromName('Income Tax Ordinance 2001 - amended upto 30th June 2025'),
+        ).toBe('income tax ordinance, 2001');
     });
 
     it('parses edition years and falls back visibly', () => {
