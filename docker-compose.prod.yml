@@ -11,4 +11,6 @@ services:
     ports:
       - "${WEB_PORT:-8080}:80"
     volumes: []
-    environment: {}
+    environment:
+      API_HOST: api
+      API_PORT: "8000"
