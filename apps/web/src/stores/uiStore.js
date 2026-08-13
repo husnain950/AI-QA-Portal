@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getReviewerName, setReviewerName } from '../utils/reviewer';
 
 const getInitialTheme = () => {
     if (typeof window !== 'undefined') {
@@ -32,6 +33,17 @@ export const useUiStore = create((set, get) => {
         toasts: [],
         dialog: null, // { title, message, confirmLabel, cancelLabel, resolve }
         hoveredDivergenceId: null,
+        commandPaletteOpen: false,
+        shortcutsHelpOpen: false,
+        reviewerName: getReviewerName(),
+
+        setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+        setShortcutsHelpOpen: (open) => set({ shortcutsHelpOpen: open }),
+        setReviewer: (name) => {
+            const value = setReviewerName(name);
+            set({ reviewerName: value });
+            return value;
+        },
 
         toggleTheme: () => set((state) => {
             const newTheme = state.theme === 'light' ? 'dark' : 'light';

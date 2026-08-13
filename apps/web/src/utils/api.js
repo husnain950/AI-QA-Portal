@@ -1,22 +1,8 @@
+import { getReviewerName, setReviewerName } from './reviewer';
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
-const REVIEWER_KEY = 'qa-portal-reviewer';
-
-export function getReviewerName() {
-    try {
-        const stored = window.localStorage?.getItem(REVIEWER_KEY);
-        if (stored && stored.trim()) return stored.trim();
-    } catch (_) {}
-    return 'anonymous';
-}
-
-export function setReviewerName(name) {
-    const value = String(name || '').trim() || 'anonymous';
-    try {
-        window.localStorage?.setItem(REVIEWER_KEY, value);
-    } catch (_) {}
-    return value;
-}
+export { getReviewerName, setReviewerName };
 
 function withReviewer(headers = {}) {
     return { ...headers, 'X-Reviewer': getReviewerName() };
