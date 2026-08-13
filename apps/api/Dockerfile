@@ -12,14 +12,12 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 # Keep the `backend` package name so imports stay stable.
 COPY apps/api/backend /app/backend
 
-RUN mkdir -p /app/data/db /app/data/uploads /data/corpus/ordinance /data/corpus/acts /seed/corpus
+RUN mkdir -p /app/data/db /app/data/uploads /data/corpus/ordinance /data/corpus/acts /seed/corpus/ordinance /seed/corpus/acts
 
-# Bake pipeline output JSONs into the image for auto-seeding on first boot.
-# These live at /seed/corpus/ (read-only, inside image) — separate from
-# /app/data/ (persistent volume mount point) so volumes don't shadow them.
-# If data/seed/ doesn't exist yet the COPY is a no-op (uses a dot-ignore trick).
-COPY data/seed/ordinance/ /seed/corpus/ordinance/
-COPY data/seed/acts/ /seed/corpus/acts/
+# Bake pipeline corpus into the image for auto-seeding on first boot.
+# data/seed/ is a local build artifact (gitignored); when absent the COPY
+# below is a harmless no-op (copies only the .gitkeep placeholder).
+COPY data/seed/ /seed/corpus/
 
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1

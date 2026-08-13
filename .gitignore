@@ -31,6 +31,12 @@ data/corpora/*
 data/seed/*
 !data/seed/.gitkeep
 !data/seed/README.md
+!data/seed/ordinance/
+data/seed/ordinance/*
+!data/seed/ordinance/.gitkeep
+!data/seed/acts/
+data/seed/acts/*
+!data/seed/acts/.gitkeep
 apps/api/backend/data/*
 !apps/api/backend/data/.gitkeep
 apps/api/backend/uploads/*
