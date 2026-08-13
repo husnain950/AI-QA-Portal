@@ -19,9 +19,14 @@ For each target service the script:
 Only the standard library is used so CI does not need a Python environment
 beyond the interpreter itself.
 
+`enable-cicd` is the alternative to running this script from CI at all: it turns on
+Northflank's own continuous integration and deployment so Northflank watches the
+repository directly and redeploys on every push.
+
 Usage:
     python tools/northflank_deploy.py check
     python tools/northflank_deploy.py deploy --sha "$GITHUB_SHA"
+    python tools/northflank_deploy.py enable-cicd --set-branch
 
 Configuration is read from CLI flags, then environment variables, then `.env`,
 then the defaults baked into `northflank.template.json`:
@@ -224,6 +229,10 @@ class NorthflankClient:
         path = self._service_path(project_id, service_id, "/deployment")
         return self.request("POST", path, body).get("data", {})
 
+    def patch_service(self, project_id: str, service_type: str, service_id: str, body: dict) -> dict:
+        path = f"{self._projects_base}/{project_id}/services/{service_type}/{service_id}"
+        return self.request("PATCH", path, body).get("data", {})
+
 
 def _read_error_body(exc: urllib.error.HTTPError) -> str:
     try:
@@ -381,6 +390,63 @@ def check_services(
     return results
 
 
+def enable_cicd(
+    client: NorthflankClient,
+    config: Config,
+    log: Callable[[str], None],
+    set_branch: bool = False,
+) -> list[ServiceResult]:
+    """Hand the build-and-deploy loop over to Northflank itself.
+
+    Clearing `disabledCI` makes Northflank build every new commit on the watched
+    branch, and setting the deployment's `buildSHA` to `latest` makes it roll each
+    successful build out. Together they replace the GitHub Actions deploy job.
+    """
+    results = []
+    for service_id in config.services:
+        source = resolve_build_source(client, config.project_id, service_id)
+        build_source = source["build_source"]
+        result = ServiceResult(service=service_id, build_source=build_source)
+        service = client.get_service(config.project_id, build_source)
+        service_type = service.get("serviceType") or "combined"
+
+        if config.dry_run:
+            result.notes.append(f"dry run: would enable ci+cd on {service_type} '{build_source}'")
+            log(f"{service_id}: {result.notes[-1]}")
+            results.append(result)
+            continue
+
+        # A deployment service has no build of its own, so CI does not apply to it.
+        if service_type == "deployment":
+            result.notes.append("no build stage; ci not applicable")
+        else:
+            patch: dict[str, Any] = {"disabledCI": False}
+            if set_branch:
+                patch["vcsData"] = {"projectBranch": config.branch}
+            client.patch_service(config.project_id, service_type, build_source, patch)
+            result.notes.append("ci=on")
+            if set_branch:
+                result.notes.append(f"branch={config.branch}")
+
+        client.set_deployment(
+            config.project_id,
+            service_id,
+            {
+                "internal": {
+                    "id": build_source,
+                    "branch": config.branch,
+                    "buildSHA": "latest",
+                },
+                "docker": {"configType": "default"},
+            },
+        )
+        result.notes.append("cd=on")
+        result.deployed = True
+        log(f"{service_id}: {', '.join(result.notes)}")
+        results.append(result)
+    return results
+
+
 def build_config(args: argparse.Namespace, environ: dict[str, str]) -> Config:
     defaults = template_defaults()
 
@@ -433,8 +499,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "command",
         nargs="?",
         default="deploy",
-        choices=("deploy", "check"),
-        help="'deploy' builds and rolls out a commit; 'check' only reports service state",
+        choices=("deploy", "check", "enable-cicd"),
+        help=(
+            "'deploy' builds and rolls out a commit; 'check' only reports service state; "
+            "'enable-cicd' hands continuous build and deploy over to Northflank"
+        ),
     )
     parser.add_argument("--sha", default="", help="Commit SHA to build (defaults to the branch head)")
     parser.add_argument("--branch", default="", help="Branch to build")
@@ -451,6 +520,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--poll-interval", type=float, default=10.0, help="Seconds between build polls")
     parser.add_argument("--timeout", type=float, default=2700.0, help="Seconds to wait for a build")
     parser.add_argument("--no-deploy", action="store_true", help="Build only, do not roll out")
+    parser.add_argument(
+        "--set-branch",
+        action="store_true",
+        help="With enable-cicd, also repoint each service at --branch",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Resolve config and services, change nothing")
     parser.add_argument("--env-file", default=str(ENV_PATH), help="Env file to read defaults from")
     return parser.parse_args(argv)
@@ -471,6 +545,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.command == "check":
             check_services(client, config, log)
+            return 0
+
+        if args.command == "enable-cicd":
+            enable_cicd(client, config, log, set_branch=args.set_branch)
+            log("Northflank now builds and deploys every push to " f"'{config.branch}' on its own.")
             return 0
 
         results = [deploy_service(client, config, service, log) for service in config.services]

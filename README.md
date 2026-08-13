@@ -109,14 +109,20 @@ the template created.
 ### Deploying without GitHub Actions
 
 Northflank has its own CI/CD that watches the repo directly, so deploys do not have to go through
-GitHub Actions at all. On each service in the Northflank dashboard, point the Git source at `main`
-and turn on the **CI** and **CD** toggles in the service header. Every push to `main` then builds and
-rolls out on its own.
+GitHub Actions at all. Either flip the **CI** and **CD** toggles in each service's header in the
+Northflank dashboard, or do both services at once with your local token:
 
-The two mechanisms coexist safely: `tools/northflank_deploy.py` detects a service running in that
-mode (its deployment reports `buildSHA: "latest"`) and lets Northflank perform the rollout instead of
-pinning a build itself. Use `python tools/northflank_deploy.py check` to see which mode each service
-is in.
+```bash
+python tools/northflank_deploy.py enable-cicd --set-branch --branch main
+```
+
+That clears `disabledCI` so Northflank builds every new commit on `main`, and sets each deployment's
+`buildSHA` to `latest` so it rolls each successful build out. `--set-branch` also repoints the
+services at `main`; drop it to leave the watched branch alone.
+
+The two mechanisms coexist safely: `tools/northflank_deploy.py deploy` detects a service running in
+that mode and lets Northflank perform the rollout instead of pinning a build itself. Use
+`python tools/northflank_deploy.py check` to see which mode each service is in.
 
 ## Schema migrations
 

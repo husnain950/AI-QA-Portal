@@ -185,6 +185,56 @@ class TestDeploy:
         assert server.unauthorized
 
 
+class TestEnableCicd:
+    def test_turns_on_northflank_ci_and_cd_for_every_service(self, capsys):
+        with FakeNorthflank(combined_services()) as server:
+            exit_code = run_script(server, "enable-cicd")
+
+        assert exit_code == 0
+        patches = server.calls("PATCH", "/services/")
+        assert [p.path for p in patches] == [
+            "/v1/projects/qa-pdf-portal/services/combined/crx-api",
+            "/v1/projects/qa-pdf-portal/services/combined/crx-web",
+        ]
+        assert all(p.body == {"disabledCI": False} for p in patches)
+
+        # `buildSHA: latest` is what makes Northflank roll out each new build.
+        deploys = server.calls("POST", "/deployment")
+        assert [d.body["internal"]["buildSHA"] for d in deploys] == ["latest", "latest"]
+        assert server.calls("POST", "/build") == []
+        assert "crx-api: ci=on, cd=on" in capsys.readouterr().out
+
+    def test_set_branch_repoints_the_watched_branch(self):
+        with FakeNorthflank(combined_services()) as server:
+            exit_code = run_script(server, "enable-cicd", "--set-branch", "--branch", "main")
+
+        assert exit_code == 0
+        patch = server.calls("PATCH", "/services/")[0]
+        assert patch.body == {"disabledCI": False, "vcsData": {"projectBranch": "main"}}
+
+    def test_deployment_service_only_gets_cd(self):
+        services = {
+            "crx-web": FakeService(
+                service_type="deployment", internal={"nfObjectId": "crx-web"}
+            )
+        }
+        with FakeNorthflank(services) as server:
+            exit_code = run_script(server, "enable-cicd", "--service", "crx-web")
+
+        assert exit_code == 0
+        assert server.calls("PATCH", "/services/") == []
+        assert server.calls("POST", "/deployment")[0].body["internal"]["buildSHA"] == "latest"
+
+    def test_dry_run_changes_nothing(self, capsys):
+        with FakeNorthflank(combined_services()) as server:
+            exit_code = run_script(server, "enable-cicd", "--dry-run")
+
+        assert exit_code == 0
+        assert server.calls("PATCH", "/services/") == []
+        assert server.calls("POST", "/deployment") == []
+        assert "dry run" in capsys.readouterr().out
+
+
 class TestCheck:
     def test_check_reports_state_without_building(self, capsys):
         services = combined_services(**{"crx-web": FakeService(internal={"buildSHA": "latest"})})

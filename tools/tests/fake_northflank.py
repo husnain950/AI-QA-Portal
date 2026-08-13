@@ -153,12 +153,20 @@ def _make_handler(state: FakeNorthflank) -> type[BaseHTTPRequestHandler]:
                 return
 
             rest = match.group("rest").split("/")
+            # PATCH targets /services/{serviceType}/{serviceId}; everything else
+            # addresses the service directly as /services/{serviceId}/...
+            if method == "PATCH" and len(rest) == 2:
+                rest = rest[1:]
             service_id = rest[0]
             service = state.services.get(service_id)
             if service is None:
                 self._send(404, {"error": {"message": f"service {service_id} not found"}})
                 return
             tail = rest[1:]
+
+            if method == "PATCH":
+                self._send(200, {"data": {"id": service_id}})
+                return
 
             if method == "GET" and not tail:
                 self._send(200, {"data": {"id": service_id, "serviceType": service.service_type}})
@@ -191,5 +199,8 @@ def _make_handler(state: FakeNorthflank) -> type[BaseHTTPRequestHandler]:
 
         def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
             self._handle("POST")
+
+        def do_PATCH(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+            self._handle("PATCH")
 
     return Handler
