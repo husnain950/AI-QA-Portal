@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, AlertCircle, CheckCircle, History, GitBranch } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, History, GitBranch } from 'lucide-react';
 
 import AppShell from '../components/layout/AppShell';
 import Sidebar from '../components/layout/Sidebar';
@@ -12,10 +12,12 @@ import NewVersionButton from '../components/review/NewVersionButton';
 import Breadcrumbs from '../components/review/Breadcrumbs';
 import DocumentTags from '../components/dashboard/DocumentTags';
 import DocumentHealth from '../components/dashboard/DocumentHealth';
+import SegmentedControl from '../components/ui/SegmentedControl';
 
 import { useDocumentStore } from '../stores/documentStore';
 import { useReviewStore } from '../stores/reviewStore';
 import { useAiFixStore } from '../stores/aiFixStore';
+import { useUiStore } from '../stores/uiStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { api, versionsApi } from '../utils/api';
 import VersionPanel from '../components/review/VersionPanel';
@@ -28,17 +30,17 @@ const ReviewPage = () => {
     const { documentId, sectionId } = useParams();
     const navigate = useNavigate();
 
-    const [successMessage, setSuccessMessage] = useState('');
     const [versionsOpen, setVersionsOpen] = useState(false);
     const [editions, setEditions] = useState(null);
+    const pushToast = useUiStore((s) => s.pushToast);
 
-    const { 
-        activeDocument, 
-        sections, 
-        activeSection, 
+    const {
+        activeDocument,
+        sections,
+        activeSection,
         pageSections,
-        fetchDocument, 
-        fetchSections, 
+        fetchDocument,
+        fetchSections,
         fetchSection,
         fetchSectionsByPage,
     } = useDocumentStore();
@@ -173,22 +175,22 @@ const ReviewPage = () => {
 
     if (initialLoad) {
         return (
-            <div className="flex flex-col justify-center align-center" style={{ height: '100vh', gap: 16 }}>
+            <div className="review-fullscreen-state">
                 <Loader2 className="animate-spin" size={32} style={{ color: 'var(--color-accent)' }} />
-                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Loading Workspace...</span>
+                <span>Loading workspace…</span>
             </div>
         );
     }
 
     if (error || !activeDocument) {
         return (
-            <div className="flex flex-col justify-center align-center" style={{ height: '100vh', gap: 16 }}>
-                <AlertCircle size={48} style={{ color: 'var(--color-error)' }} />
-                <h3>Workspace Error</h3>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>{error || 'Document metadata could not be fetched'}</p>
+            <div className="review-fullscreen-state">
+                <AlertCircle size={44} style={{ color: 'var(--color-error)' }} />
+                <h3>Workspace error</h3>
+                <p>{error || 'Document metadata could not be fetched'}</p>
                 <button className="btn btn-primary" onClick={() => navigate('/library')}>
-                    <ArrowLeft size={16} />
-                    <span>Back to Dashboard</span>
+                    <ArrowLeft size={15} />
+                    <span>Back to Library</span>
                 </button>
             </div>
         );
@@ -201,18 +203,18 @@ const ReviewPage = () => {
     );
 
     const rightPanel = (
-        <div className="flex flex-col height-100" style={{ height: '100%' }}>
+        <div className="flex flex-col" style={{ height: '100%' }}>
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 {viewMode === 'section' ? (
                     activeSection ? (
-                        <HtmlPanel 
+                        <HtmlPanel
                             section={activeSection}
                             sectionId={activeSection.id}
                             htmlContent={activeSection.html_content}
                             footnotes={activeSection.footnotes}
                         />
                     ) : (
-                        <div className="flex justify-center align-center" style={{ height: '100%', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                        <div className="review-panel-empty">
                             Select a section from the Table of Contents to begin review
                         </div>
                     )
@@ -221,16 +223,16 @@ const ReviewPage = () => {
                     pageSections.length > 0 ? (
                         <div style={{ flex: 1, overflowY: 'auto' }}>
                             {pageSections.map(sec => (
-                                <div key={sec.id} style={{ borderBottom: '4px solid var(--color-border)', paddingBottom: 24 }}>
-                                    <div style={{ padding: '12px 24px', backgroundColor: 'var(--color-bg-tertiary)', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                                <div key={sec.id} className="page-view-section">
+                                    <div className="page-view-section-head">
+                                        <span className="page-view-section-title">
                                             Section {sec.section_code}: {sec.section_heading}
                                         </span>
                                         <span className={`badge badge-${sec.review_status}`}>
-                                            {sec.review_status}
+                                            {sec.review_status === 'has_issues' ? 'flagged' : sec.review_status}
                                         </span>
                                     </div>
-                                    <HtmlPanel 
+                                    <HtmlPanel
                                         section={sec}
                                         sectionId={sec.id}
                                         htmlContent={sec.html_content}
@@ -241,7 +243,7 @@ const ReviewPage = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="flex justify-center align-center" style={{ height: '100%', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                        <div className="review-panel-empty">
                             No parsed sections map to page {currentPage}
                         </div>
                     )
@@ -251,15 +253,15 @@ const ReviewPage = () => {
         </div>
     );
 
-    const statsText = activeDocument.stats
-        ? (() => {
-            const flagged = activeDocument.stats.flagged_sections
-                ?? activeDocument.stats.has_issues
-                ?? 0;
-            const openNotes = activeDocument.stats.open_annotations ?? 0;
-            return `(${activeDocument.stats.approved}/${activeDocument.total_sections} approved · ${flagged} flagged · ${openNotes} open notes)`;
-        })()
-        : '';
+    const stats = activeDocument.stats || null;
+    const flaggedCount = stats
+        ? (stats.flagged_sections ?? stats.has_issues ?? 0)
+        : 0;
+    const openNotes = stats ? (stats.open_annotations ?? 0) : 0;
+    const approvedCount = stats ? stats.approved : 0;
+    const progressPct = activeDocument.total_sections
+        ? Math.round(((approvedCount || 0) / activeDocument.total_sections) * 100)
+        : 0;
 
     const provenanceTags = activeDocument.provenance?.tags || [];
     const showOcrLink = provenanceTags.includes(TAG_PROVISIONAL)
@@ -269,73 +271,11 @@ const ReviewPage = () => {
         || (activeDocument.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
     const familyKey = familyKeyFromName(activeDocument.name);
 
-    const actions = (
-        <div className="review-header-actions flex align-center gap-3">
-            {/* Available for every document now: ACT-corpus rows used to be locked out
-                because a replacement overwrote the parse in place. Versions make it
-                reversible, and sync_acts still reconciles by content hash. */}
-            <NewVersionButton
-                documentId={documentId}
-                documentName={activeDocument?.name}
-                className="replace-json-action btn btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6 }}
-                onSuccess={async () => {
-                    navigate(`/review/${documentId}`, { replace: true });
-                    await fetchDocument(documentId);
-                    await fetchSections(documentId);
-                    setSuccessMessage('New JSON version is active. Open Versions to see what changed.');
-                    setVersionsOpen(true);
-                    setTimeout(() => setSuccessMessage(''), 6000);
-                }}
-            />
-
-            <button
-                className="versions-action btn btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6 }}
-                onClick={() => setVersionsOpen((open) => !open)}
-                title="Version history, diffs and rollback"
-            >
-                <History size={14} />
-                <span>Versions</span>
-            </button>
-
-            <div className="flex align-center gap-2">
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>View:</span>
-                <div className="flex" style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-                    <button
-                        className={`btn ${viewMode === 'section' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: 0, border: 'none' }}
-                        onClick={() => {
-                            setViewMode('section');
-                            const targetId = activeSection?.id || sections.find(s => s.review_status === 'pending')?.id || sections[0]?.id;
-                            if (targetId) {
-                                navigate(`/review/${documentId}/${targetId}`);
-                            }
-                        }}
-                    >
-                        Section View
-                    </button>
-                    <button
-                        className={`btn ${viewMode === 'page' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: 0, border: 'none' }}
-                        onClick={() => {
-                            setViewMode('page');
-                            navigate(`/review/${documentId}`);
-                        }}
-                    >
-                        Page View
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-
     return (
-        <AppShell 
-            title={`${activeDocument.name} ${statsText}`}
+        <AppShell
+            title={activeDocument.name}
             showBackButton={true}
             sidebarContent={<Sidebar documentId={documentId} />}
-            actions={actions}
         >
             <VersionPanel
                 documentId={documentId}
@@ -347,22 +287,7 @@ const ReviewPage = () => {
                 }}
             />
 
-            {successMessage && (
-                <div className="flex align-center gap-2 p-3" style={{ 
-                    backgroundColor: 'var(--color-success-light)', 
-                    color: 'var(--color-success)', 
-                    borderBottom: '1px solid var(--color-success)', 
-                    padding: '10px 24px', 
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center'
-                }}>
-                    <CheckCircle size={16} />
-                    <span>{successMessage}</span>
-                </div>
-            )}
-
-            <div className="review-context-strip" style={{ padding: '10px 24px 0' }}>
+            <div className="review-context-strip">
                 <div className="review-header-tags">
                     <span className={`source-badge lane-${lane}`}>{laneLabel(lane)}</span>
                     {!edition.unknown && (
@@ -370,6 +295,22 @@ const ReviewPage = () => {
                     )}
                     <DocumentTags provenance={activeDocument.provenance} />
                     <DocumentHealth health={activeDocument.health} />
+                    {stats && (
+                        <span
+                            className="review-doc-progress"
+                            title={`${approvedCount} of ${activeDocument.total_sections} sections approved`}
+                        >
+                            <span className="progress-bar" aria-hidden="true">
+                                <span
+                                    className={`progress-bar-fill ${progressPct === 100 ? 'is-complete' : ''}`}
+                                    style={{ width: `${progressPct}%` }}
+                                />
+                            </span>
+                            <span className="review-doc-progress-text">
+                                {approvedCount}/{activeDocument.total_sections} approved · {flaggedCount} flagged · {openNotes} open notes
+                            </span>
+                        </span>
+                    )}
                 </div>
                 <div className="review-context-actions">
                     {editions?.editions?.length > 1 && (
@@ -394,8 +335,7 @@ const ReviewPage = () => {
                     {activeSection?.section_code && (
                         <button
                             type="button"
-                            className="btn btn-secondary"
-                            style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                            className="btn btn-sm btn-secondary"
                             title="Open family timeline for this section"
                             onClick={() => navigate(
                                 `/timeline/${encodeURIComponent(familyKey)}/${encodeURIComponent(activeSection.section_code)}`,
@@ -408,19 +348,63 @@ const ReviewPage = () => {
                     {showOcrLink && (
                         <button
                             type="button"
-                            className="btn btn-secondary review-ocr-link"
-                            style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                            className="btn btn-sm btn-secondary review-ocr-link"
                             onClick={() => navigate('/?detector=ocr_disagree')}
                             title="OCR engine disagreements for this corpus"
                         >
                             OCR disagreements
                         </button>
                     )}
+                    <NewVersionButton
+                        documentId={documentId}
+                        documentName={activeDocument?.name}
+                        className="replace-json-action btn btn-sm btn-secondary"
+                        onSuccess={async () => {
+                            navigate(`/review/${documentId}`, { replace: true });
+                            await fetchDocument(documentId);
+                            await fetchSections(documentId);
+                            pushToast({
+                                type: 'success',
+                                message: 'New JSON version is active. Open Versions to see what changed.',
+                            });
+                            setVersionsOpen(true);
+                        }}
+                    />
+                    <button
+                        className="versions-action btn btn-sm btn-secondary"
+                        onClick={() => setVersionsOpen((open) => !open)}
+                        title="Version history, diffs and rollback"
+                    >
+                        <History size={13} />
+                        <span>Versions</span>
+                    </button>
+                    <SegmentedControl
+                        ariaLabel="Review view mode"
+                        value={viewMode}
+                        onChange={(mode) => {
+                            if (mode === 'section') {
+                                setViewMode('section');
+                                const targetId = activeSection?.id
+                                    || sections.find(s => s.review_status === 'pending')?.id
+                                    || sections[0]?.id;
+                                if (targetId) {
+                                    navigate(`/review/${documentId}/${targetId}`);
+                                }
+                            } else {
+                                setViewMode('page');
+                                navigate(`/review/${documentId}`);
+                            }
+                        }}
+                        options={[
+                            { value: 'section', label: 'Section view', title: 'Review one parsed leaf at a time' },
+                            { value: 'page', label: 'Page view', title: 'Review every leaf that touches a PDF page' },
+                        ]}
+                    />
                 </div>
             </div>
 
             {viewMode === 'section' && activeSection && (
-                <>
+                <div className="review-infobar">
                     <Breadcrumbs section={activeSection} />
                     <div className="section-facts-bar" aria-label="Section facts">
                         <span>
@@ -452,13 +436,15 @@ const ReviewPage = () => {
                             extracted characters
                         </span>
                         <span className="shortcut-hint">
-                            <kbd>J</kbd>/<kbd>K</kbd> section · <kbd>[</kbd>/<kbd>]</kbd> page
+                            <kbd>J</kbd>/<kbd>K</kbd> section · <kbd>A</kbd> approve · <kbd>F</kbd> flag · <kbd>[</kbd>/<kbd>]</kbd> page
                         </span>
                     </div>
-                </>
+                </div>
             )}
             {viewMode === 'page' && pageSections.length > 0 && (
-                <Breadcrumbs section={pageSections[0]} />
+                <div className="review-infobar">
+                    <Breadcrumbs section={pageSections[0]} />
+                </div>
             )}
             <SplitPane left={leftPanel} right={rightPanel} />
         </AppShell>

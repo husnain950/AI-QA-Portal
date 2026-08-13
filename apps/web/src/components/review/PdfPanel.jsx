@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut, Maximize2, ChevronLeft, ChevronRight, Loader2, ExternalLink, AlertTriangle } from 'lucide-react';
 import { usePdfDocument, usePdfPageRenderer } from '../../hooks/usePdfRenderer';
 import { useUiStore } from '../../stores/uiStore';
@@ -54,12 +54,12 @@ const PdfPage = ({ pdfDoc, pageNumber, zoom, pdfUrl }) => {
             }}
         >
             {shouldRender && loading && (
-                <div className="flex justify-center align-center" style={{ position: 'absolute', inset: 0, background: 'rgba(255, 255, 255, 0.4)', zIndex: 1 }}>
+                <div className="pdf-page-overlay is-loading">
                     <Loader2 className="animate-spin" style={{ color: 'var(--color-accent)' }} size={24} />
                 </div>
             )}
             {shouldRender && error && (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-error)', fontSize: '0.8rem' }}>
+                <div className="pdf-page-overlay is-error">
                     Error rendering page {pageNumber}
                 </div>
             )}
@@ -67,16 +67,7 @@ const PdfPage = ({ pdfDoc, pageNumber, zoom, pdfUrl }) => {
                 page as a 1-bit image that pdf.js draws blank without raising an error,
                 and a silent white pane reads as "this page of the statute is empty". */}
             {shouldRender && !error && blank && (
-                <div
-                    data-testid="pdf-page-blank"
-                    style={{
-                        position: 'absolute', inset: 0, display: 'flex',
-                        flexDirection: 'column', alignItems: 'center',
-                        justifyContent: 'center', gap: 8, padding: 24,
-                        textAlign: 'center', color: 'var(--color-text-secondary)',
-                        fontSize: '0.8rem', background: 'rgba(255,255,255,0.92)',
-                    }}
-                >
+                <div className="pdf-page-overlay is-blank" data-testid="pdf-page-blank">
                     <strong style={{ color: 'var(--color-error)' }}>
                         Page {pageNumber} did not render
                     </strong>
@@ -86,8 +77,8 @@ const PdfPage = ({ pdfDoc, pageNumber, zoom, pdfUrl }) => {
                         review it.
                     </span>
                     {pdfUrl ? (
-                        <a className="btn btn-secondary" href={`${pdfUrl}#page=${pageNumber}`}
-                           target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem' }}>
+                        <a className="btn btn-sm btn-secondary" href={`${pdfUrl}#page=${pageNumber}`}
+                           target="_blank" rel="noreferrer">
                             Open page {pageNumber} in the complete PDF
                         </a>
                     ) : null}
@@ -102,18 +93,7 @@ const PdfPage = ({ pdfDoc, pageNumber, zoom, pdfUrl }) => {
                     aria-hidden="true"
                 />
             )}
-            <div style={{
-                position: 'absolute',
-                bottom: 8,
-                right: 8,
-                backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                color: '#ffffff',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                pointerEvents: 'none',
-                zIndex: 2,
-            }}>
+            <div className="pdf-page-badge">
                 Page {pageNumber}
             </div>
         </div>
@@ -183,19 +163,19 @@ const PdfPanel = ({ pdfUrl }) => {
         target?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
     }, [displayedPage, isSectionView, multiPageSection, activeSection?.id]);
 
-    const handlePrevPage = () => {
+    const handlePrevPage = useCallback(() => {
         const lowerBound = isSectionView ? startPage : 1;
         if (displayedPage > lowerBound) {
             setCurrentPage(displayedPage - 1);
         }
-    };
+    }, [isSectionView, startPage, displayedPage, setCurrentPage]);
 
-    const handleNextPage = () => {
+    const handleNextPage = useCallback(() => {
         const upperBound = isSectionView ? endPage : numPages;
         if (displayedPage < upperBound) {
             setCurrentPage(displayedPage + 1);
         }
-    };
+    }, [isSectionView, endPage, numPages, displayedPage, setCurrentPage]);
 
     const pageChromeText = isSectionView
         ? multiPageSection
@@ -217,12 +197,12 @@ const PdfPanel = ({ pdfUrl }) => {
         };
         document.addEventListener('keydown', handlePageShortcut);
         return () => document.removeEventListener('keydown', handlePageShortcut);
-    });
+    }, [handlePrevPage, handleNextPage]);
 
     return (
-        <div className="flex flex-col height-100" style={{ height: '100%' }}>
+        <div className="flex flex-col" style={{ height: '100%' }}>
             {/* Header / Controls */}
-            <div className="panel-header glass-panel pdf-panel-header">
+            <div className="panel-header pdf-panel-header">
                 <span className="panel-title">PDF Original</span>
 
                 {/* Page Navigation */}
@@ -231,7 +211,8 @@ const PdfPanel = ({ pdfUrl }) => {
                         className="btn btn-secondary btn-icon"
                         onClick={handlePrevPage}
                         disabled={displayedPage <= (isSectionView ? startPage : 1) || docLoading}
-                        title="Previous PDF Page ([)"
+                        title="Previous PDF page ([)"
+                        aria-label="Previous PDF page"
                     >
                         <ChevronLeft size={16} />
                     </button>
@@ -257,7 +238,8 @@ const PdfPanel = ({ pdfUrl }) => {
                         className="btn btn-secondary btn-icon"
                         onClick={handleNextPage}
                         disabled={displayedPage >= (isSectionView ? endPage : numPages) || docLoading}
-                        title="Next PDF Page (])"
+                        title="Next PDF page (])"
+                        aria-label="Next PDF page"
                     >
                         <ChevronRight size={16} />
                     </button>
@@ -265,8 +247,7 @@ const PdfPanel = ({ pdfUrl }) => {
                         <>
                             <button
                                 type="button"
-                                className="btn btn-secondary"
-                                style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                                className="btn btn-xs btn-secondary"
                                 onClick={() => setCurrentPage(startPage)}
                                 disabled={displayedPage === startPage || docLoading}
                                 title="Jump PDF to section start"
@@ -275,8 +256,7 @@ const PdfPanel = ({ pdfUrl }) => {
                             </button>
                             <button
                                 type="button"
-                                className="btn btn-secondary"
-                                style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                                className="btn btn-xs btn-secondary"
                                 onClick={() => setCurrentPage(endPage)}
                                 disabled={displayedPage === endPage || docLoading}
                                 title="Jump PDF to section end"
@@ -305,18 +285,20 @@ const PdfPanel = ({ pdfUrl }) => {
                         className="btn btn-secondary btn-icon"
                         onClick={zoomOut}
                         disabled={pdfZoom <= 0.5 || docLoading}
-                        title="Zoom Out"
+                        title="Zoom out"
+                        aria-label="Zoom out"
                     >
                         <ZoomOut size={16} />
                     </button>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, minWidth: 48, textAlign: 'center' }}>
+                    <span className="pdf-zoom-label">
                         {Math.round(pdfZoom * 100)}%
                     </span>
                     <button
                         className="btn btn-secondary btn-icon"
                         onClick={zoomIn}
                         disabled={pdfZoom >= 3.0 || docLoading}
-                        title="Zoom In"
+                        title="Zoom in"
+                        aria-label="Zoom in"
                     >
                         <ZoomIn size={16} />
                     </button>
@@ -324,7 +306,8 @@ const PdfPanel = ({ pdfUrl }) => {
                         className="btn btn-secondary btn-icon"
                         onClick={resetZoom}
                         disabled={pdfZoom === 1.0 || docLoading}
-                        title="Reset Zoom"
+                        title="Reset zoom"
+                        aria-label="Reset zoom"
                     >
                         <Maximize2 size={16} />
                     </button>
@@ -334,11 +317,7 @@ const PdfPanel = ({ pdfUrl }) => {
             {/* Canvas Body */}
             <div className="panel-body">
                 {docLoading && (
-                    <div
-                        className="flex justify-center align-center"
-                        data-testid="pdf-doc-loading"
-                        style={{ position: 'absolute', inset: 0, background: 'rgba(var(--color-bg-primary), 0.5)', zIndex: 3 }}
-                    >
+                    <div className="pdf-doc-loading-overlay" data-testid="pdf-doc-loading">
                         <Loader2 className="animate-spin" style={{ color: 'var(--color-accent)' }} size={32} />
                     </div>
                 )}

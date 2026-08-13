@@ -16,15 +16,23 @@
 
 .resizer-handle {
     width: 6px;
+    flex-shrink: 0;
     background-color: var(--color-border);
     cursor: col-resize;
     position: relative;
     z-index: 4;
+    touch-action: none;
     transition: background-color var(--transition-fast);
 }
 
 .resizer-handle:hover, .resizer-handle.active {
     background-color: var(--color-accent);
+}
+
+.resizer-handle:focus-visible {
+    background-color: var(--color-accent);
+    box-shadow: var(--focus-ring);
+    outline: none;
 }
 
 .panel-header {

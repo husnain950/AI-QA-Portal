@@ -42,6 +42,14 @@
     line-height: 1.35;
 }
 
+.pdf-zoom-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    min-width: 44px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
 .pdf-page-select {
     max-width: 104px;
     padding: 5px 24px 5px 8px;
@@ -100,7 +108,7 @@
     overflow: auto;
     color: var(--color-text-primary);
     background: var(--color-bg-primary);
-    font-family: var(--font-sans);
+    font-family: var(--font-body);
     font-size: 0.94rem;
     line-height: 1.65;
     white-space: pre-wrap;
@@ -256,45 +264,6 @@
    Version history, pipeline health, and stale-annotation chrome
    ========================================================================== */
 
-.version-panel {
-    position: fixed;
-    top: 0;
-    right: 0;
-    z-index: 60;
-    display: flex;
-    flex-direction: column;
-    width: min(460px, 100vw);
-    height: 100vh;
-    padding: 16px 18px 24px;
-    overflow-y: auto;
-    background: var(--color-surface, #fff);
-    border-left: 1px solid var(--color-border);
-    box-shadow: -12px 0 32px rgba(15, 23, 42, 0.18);
-}
-
-.version-panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 4px;
-}
-
-.version-panel-header h3 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-    font-size: 0.95rem;
-}
-
-.version-panel-header button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--color-text-muted);
-    padding: 4px;
-}
-
 .version-panel-hint,
 .version-diff-empty,
 .version-carryover-empty {
@@ -307,8 +276,8 @@
     margin: 0 0 12px;
     padding: 8px 10px;
     font-size: 0.78rem;
-    color: var(--color-danger, #b91c1c);
-    background: var(--color-danger-light, #fef2f2);
+    color: var(--color-error);
+    background: var(--color-error-light);
     border-radius: var(--radius-sm);
 }
 
@@ -324,13 +293,13 @@
 .version-item {
     padding: 12px 14px;
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md, 8px);
-    background: var(--color-bg, #f8fafc);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-primary);
 }
 
 .version-item.is-active {
-    border-color: var(--color-accent, #2563eb);
-    box-shadow: 0 0 0 1px var(--color-accent, #2563eb) inset;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px var(--color-accent) inset;
 }
 
 .version-item-head {
@@ -359,13 +328,13 @@
 }
 
 .version-active-badge {
-    color: var(--color-success, #15803d);
-    background: var(--color-success-light, #dcfce7);
+    color: var(--color-success);
+    background: var(--color-success-light);
 }
 
 .version-gate-fail {
-    color: var(--color-danger, #b91c1c);
-    background: var(--color-danger-light, #fee2e2);
+    color: var(--color-error);
+    background: var(--color-error-light);
 }
 
 .version-when {
@@ -410,14 +379,14 @@
 
 .version-metric-pass,
 .document-health-pass {
-    color: var(--color-success, #15803d);
-    background: var(--color-success-light, #dcfce7);
+    color: var(--color-success);
+    background: var(--color-success-light);
 }
 
 .version-metric-fail,
 .document-health-fail {
-    color: var(--color-danger, #b91c1c);
-    background: var(--color-danger-light, #fee2e2);
+    color: var(--color-error);
+    background: var(--color-error-light);
 }
 
 .version-metric-unknown,
@@ -441,8 +410,8 @@
     font-size: 0.7rem;
 }
 
-.version-delta .better { color: var(--color-success, #15803d); }
-.version-delta .worse { color: var(--color-danger, #b91c1c); }
+.version-delta .better { color: var(--color-success); }
+.version-delta .worse { color: var(--color-error); }
 
 .version-carryover {
     list-style: none;
@@ -500,33 +469,33 @@
     border-radius: 999px;
 }
 
-.diff-changed { color: #92400e; background: #fef3c7; }
-.diff-added { color: #15803d; background: #dcfce7; }
-.diff-removed { color: #b91c1c; background: #fee2e2; }
+.diff-changed { color: var(--color-warning); background: var(--color-warning-light); }
+.diff-added { color: var(--color-success); background: var(--color-success-light); }
+.diff-removed { color: var(--color-error); background: var(--color-error-light); }
 
 .version-diff-body {
     margin: 0;
     padding: 8px 10px;
     max-height: 260px;
     overflow: auto;
-    font-family: var(--font-mono, ui-monospace, monospace);
+    font-family: var(--font-mono);
     font-size: 0.7rem;
     line-height: 1.45;
     white-space: pre-wrap;
     word-break: break-word;
-    background: var(--color-bg, #f1f5f9);
+    background: var(--color-bg-primary);
     border-radius: var(--radius-sm);
 }
 
-.version-diff-body .diff-add { color: #15803d; }
-.version-diff-body .diff-del { color: #b91c1c; }
+.version-diff-body .diff-add { color: var(--color-success); }
+.version-diff-body .diff-del { color: var(--color-error); }
 .version-diff-body .diff-hunk { color: var(--color-text-muted); }
 
 .annotation-anchor-warning {
     padding: 6px 8px;
     font-size: 0.72rem;
-    color: #92400e;
-    background: #fef3c7;
+    color: var(--color-warning);
+    background: var(--color-warning-light);
     border-radius: var(--radius-sm);
 }
 
@@ -537,10 +506,10 @@
     max-width: 560px;
     margin: 32px auto;
     padding: 16px 18px;
-    color: #92400e;
-    background: #fffbeb;
-    border: 1px solid #fcd34d;
-    border-radius: var(--radius-md, 8px);
+    color: var(--color-warning);
+    background: var(--color-warning-light);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-md);
 }
 
 .pdf-out-of-range p {
@@ -550,7 +519,7 @@
 }
 
 .pdf-out-of-range code {
-    font-family: var(--font-mono, ui-monospace, monospace);
+    font-family: var(--font-mono);
     font-size: 0.75rem;
 }
 

@@ -185,6 +185,20 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
         if (!model && defaultModel) setModel(defaultModel);
     }, [defaultModel, model]);
 
+    // Escape closes the panel (the request keeps running server-side while
+    // loading; the proposal is picked up again the next time it opens).
+    useEffect(() => {
+        if (!open) return undefined;
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [open, onClose]);
+
     const validation = useMemo(
         () => validationSummary(proposal?.validation),
         [proposal],
@@ -329,6 +343,9 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                         <Loader2 className="animate-spin" size={28} />
                         <p>Sending the section JSON and PDF pages to the model…</p>
                         <p className="ai-fix-hint">This usually takes under a minute.</p>
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>
+                            Close and keep working — the proposal will be here when you reopen
+                        </button>
                     </div>
                 )}
 

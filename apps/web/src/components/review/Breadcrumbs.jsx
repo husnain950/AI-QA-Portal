@@ -82,7 +82,7 @@ const Breadcrumbs = ({ section }) => {
     };
 
     return (
-        <div className="breadcrumbs-container" onClick={(e) => e.stopPropagation()}>
+        <nav className="breadcrumbs-container" aria-label="Section hierarchy" onClick={(e) => e.stopPropagation()}>
             {items.map((item, idx) => {
                 const regexStr = `^(?:${abbrs[item.type] || item.type})\\s*`;
                 const displayCode = item.code
@@ -92,7 +92,7 @@ const Breadcrumbs = ({ section }) => {
 
                 return (
                     <React.Fragment key={idx}>
-                        {idx > 0 && <ChevronRight size={12} className="breadcrumb-separator" />}
+                        {idx > 0 && <ChevronRight size={12} className="breadcrumb-separator" aria-hidden="true" />}
                         <div 
                             className="breadcrumb-item" 
                             title={`${item.code}${item.heading ? ': ' + item.heading : ''}`}
@@ -108,7 +108,7 @@ const Breadcrumbs = ({ section }) => {
                     </React.Fragment>
                 );
             })}
-        </div>
+        </nav>
     );
 };
 
