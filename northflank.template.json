@@ -1,7 +1,7 @@
 {
   "apiVersion": "v1.2",
   "name": "fbr-qa-staging",
-  "description": "Staging environment for the FBR Corpus QA portal: FastAPI backend + nginx-served SPA (proxies /api and /uploads to the backend over the project's private network).",
+  "description": "Staging environment for the FBR Corpus QA portal: FastAPI backend and nginx-served SPA (proxies /api and /uploads to the backend over the project's private network).",
   "arguments": {
     "branch": "cursor/qa-portal-ui-revamp-420b",
     "region": "us-central",
@@ -22,7 +22,7 @@
           "ref": "project",
           "spec": {
             "name": "fbr-qa-staging",
-            "description": "FBR Corpus QA portal — staging",
+            "description": "FBR Corpus QA portal staging",
             "color": "#4f5be7",
             "region": "${args.region}"
           }
