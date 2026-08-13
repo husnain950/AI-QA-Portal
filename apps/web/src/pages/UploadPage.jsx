@@ -183,84 +183,106 @@ const UploadPage = () => {
     };
 
     return (
-        <AppShell title="Upload Document Pair" showBackButton={true} scrollable={true}>
-            <div className="upload-container glass-panel" style={{ padding: 40, marginTop: 40, border: '1px solid var(--color-border)' }}>
-                <h2 style={{ marginBottom: 24, fontSize: '1.5rem', fontFamily: 'var(--font-heading)' }}>
-                    Upload QA Review Pair
-                </h2>
+        <AppShell title="Upload" showBackButton={true} scrollable={true}>
+            <div className="upload-container surface-panel">
+                <h2 className="upload-title">Upload QA review pair</h2>
+                <p className="upload-sub">
+                    The PDF is the fixed source render; the JSON is the parsed structure to review against it.
+                </p>
 
                 {error && (
-                    <div className="flex align-center gap-2 p-3" style={{ backgroundColor: 'var(--color-error-light)', color: 'var(--color-error)', borderRadius: 'var(--radius-sm)', marginBottom: 20, fontSize: '0.85rem' }}>
-                        <AlertCircle size={16} />
+                    <div className="upload-error" role="alert">
+                        <AlertCircle size={16} aria-hidden="true" />
                         <span>{error}</span>
                     </div>
                 )}
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    {/* PDF Dropzone */}
-                    <div>
-                        <span className="form-label">PDF File (Original Render)</span>
-                        <div 
-                            className={`dropzone ${isPdfDragActive ? 'active' : ''}`}
-                            onClick={() => pdfInputRef.current.click()}
-                            onDragEnter={handlePdfDrag}
-                            onDragOver={handlePdfDrag}
-                            onDragLeave={handlePdfDrag}
-                            onDrop={handlePdfDrop}
-                        >
-                            <input 
-                                type="file" 
-                                ref={pdfInputRef} 
-                                style={{ display: 'none' }} 
-                                accept="application/pdf"
-                                onChange={handlePdfChange}
-                            />
-                            <UploadCloud size={32} style={{ color: pdfFile ? 'var(--color-success)' : 'var(--color-text-muted)' }} />
-                            {pdfFile ? (
-                                <div className="dropzone-file-selected">
-                                    <CheckCircle2 size={16} />
-                                    <span>{pdfFile.name} ({(pdfFile.size / (1024*1024)).toFixed(2)} MB)</span>
-                                </div>
-                            ) : (
-                                <span className="dropzone-text">Click or drop the PDF file here</span>
-                            )}
+                    <div className="upload-dropzones">
+                        {/* PDF Dropzone */}
+                        <div>
+                            <span className="form-label">PDF file (original render)</span>
+                            <div
+                                className={`dropzone ${isPdfDragActive ? 'active' : ''}`}
+                                onClick={() => pdfInputRef.current.click()}
+                                onDragEnter={handlePdfDrag}
+                                onDragOver={handlePdfDrag}
+                                onDragLeave={handlePdfDrag}
+                                onDrop={handlePdfDrop}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        pdfInputRef.current.click();
+                                    }
+                                }}
+                                aria-label="Choose or drop the PDF file"
+                            >
+                                <input
+                                    type="file"
+                                    ref={pdfInputRef}
+                                    style={{ display: 'none' }}
+                                    accept="application/pdf"
+                                    onChange={handlePdfChange}
+                                />
+                                <UploadCloud size={30} style={{ color: pdfFile ? 'var(--color-success)' : 'var(--color-text-muted)' }} />
+                                {pdfFile ? (
+                                    <div className="dropzone-file-selected">
+                                        <CheckCircle2 size={16} />
+                                        <span>{pdfFile.name} ({(pdfFile.size / (1024*1024)).toFixed(2)} MB)</span>
+                                    </div>
+                                ) : (
+                                    <span className="dropzone-text">Click or drop the PDF file here</span>
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* JSON Dropzone */}
-                    <div>
-                        <span className="form-label">JSON File (Parsed Structure)</span>
-                        <div 
-                            className={`dropzone ${isJsonDragActive ? 'active' : ''}`}
-                            onClick={() => jsonInputRef.current.click()}
-                            onDragEnter={handleJsonDrag}
-                            onDragOver={handleJsonDrag}
-                            onDragLeave={handleJsonDrag}
-                            onDrop={handleJsonDrop}
-                        >
-                            <input 
-                                type="file" 
-                                ref={jsonInputRef} 
-                                style={{ display: 'none' }} 
-                                accept=".json"
-                                onChange={handleJsonChange}
-                            />
-                            <UploadCloud size={32} style={{ color: jsonFile ? (jsonStats?.isValid ? 'var(--color-success)' : 'var(--color-error)') : 'var(--color-text-muted)' }} />
-                            {jsonFile ? (
-                                <div className="dropzone-file-selected" style={{ color: jsonStats?.isValid ? 'var(--color-success)' : 'var(--color-error)' }}>
-                                    {jsonStats?.isValid ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                                    <span>{jsonFile.name} ({(jsonFile.size / (1024*1024)).toFixed(2)} MB)</span>
-                                </div>
-                            ) : (
-                                <span className="dropzone-text">Click or drop the enriched JSON file here</span>
-                            )}
+                        {/* JSON Dropzone */}
+                        <div>
+                            <span className="form-label">JSON file (parsed structure)</span>
+                            <div
+                                className={`dropzone ${isJsonDragActive ? 'active' : ''}`}
+                                onClick={() => jsonInputRef.current.click()}
+                                onDragEnter={handleJsonDrag}
+                                onDragOver={handleJsonDrag}
+                                onDragLeave={handleJsonDrag}
+                                onDrop={handleJsonDrop}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        jsonInputRef.current.click();
+                                    }
+                                }}
+                                aria-label="Choose or drop the JSON file"
+                            >
+                                <input
+                                    type="file"
+                                    ref={jsonInputRef}
+                                    style={{ display: 'none' }}
+                                    accept=".json"
+                                    onChange={handleJsonChange}
+                                />
+                                <UploadCloud size={30} style={{ color: jsonFile ? (jsonStats?.isValid ? 'var(--color-success)' : 'var(--color-error)') : 'var(--color-text-muted)' }} />
+                                {jsonFile ? (
+                                    <div className="dropzone-file-selected" style={{ color: jsonStats?.isValid ? 'var(--color-success)' : 'var(--color-error)' }}>
+                                        {jsonStats?.isValid ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                                        <span>{jsonFile.name} ({(jsonFile.size / (1024*1024)).toFixed(2)} MB)</span>
+                                    </div>
+                                ) : (
+                                    <span className="dropzone-text">Click or drop the enriched JSON file here</span>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     {/* Document Display Name */}
                     <div className="form-group">
-                        <label className="form-label">Display Name</label>
+                        <label className="form-label" htmlFor="upload-doc-name">Display name</label>
                         <input
+                            id="upload-doc-name"
                             type="text"
                             className="form-input"
                             placeholder="e.g. Income Tax Ordinance, 2001 (Amended 2018)"
@@ -271,25 +293,18 @@ const UploadPage = () => {
                     </div>
 
                     {/* JSON Validation Panel */}
-                    {jsonValidating && <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Validating JSON schema...</div>}
+                    {jsonValidating && (
+                        <div className="upload-validating">Validating JSON schema…</div>
+                    )}
                     {jsonStats && (
-                        <div 
-                            className="glass-panel" 
-                            style={{ 
-                                padding: 16, 
-                                fontSize: '0.85rem', 
-                                border: '1px solid',
-                                borderColor: jsonStats.isValid ? 'var(--color-success)' : 'var(--color-error)',
-                                backgroundColor: jsonStats.isValid ? 'var(--color-success-light)' : 'var(--color-error-light)'
-                            }}
-                        >
-                            <h4 style={{ marginBottom: 8, display: 'flex', align: 'center', gap: 6, color: jsonStats.isValid ? 'var(--color-success)' : 'var(--color-error)' }}>
+                        <div className={`upload-validation ${jsonStats.isValid ? 'is-valid' : 'is-invalid'}`}>
+                            <h4>
                                 {jsonStats.isValid ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
                                 <span>{jsonStats.message}</span>
                             </h4>
                             {jsonStats.isValid && (
-                                <ul style={{ marginLeft: 16 }}>
-                                    <li>Detected <strong>{jsonStats.chaptersCount}</strong> Chapters, <strong>{jsonStats.schedulesCount}</strong> Schedules</li>
+                                <ul>
+                                    <li>Detected <strong>{jsonStats.chaptersCount}</strong> chapters, <strong>{jsonStats.schedulesCount}</strong> schedules</li>
                                     <li>Found <strong>{jsonStats.sectionsCount}</strong> sections (<strong>{jsonStats.sectionsWithHtml}</strong> containing HTML content)</li>
                                     <li>Found <strong>{jsonStats.footnoteCount}</strong> footnotes</li>
                                 </ul>
@@ -298,20 +313,19 @@ const UploadPage = () => {
                     )}
 
                     {/* Action buttons */}
-                    <button 
-                        type="submit" 
-                        className="btn btn-primary"
-                        style={{ marginTop: 12, padding: '12px' }}
+                    <button
+                        type="submit"
+                        className="btn btn-primary upload-submit"
                         disabled={uploading || !pdfFile || !jsonFile || !documentName.trim() || (jsonStats && !jsonStats.isValid)}
                     >
                         {uploading ? (
                             <>
                                 <Loader2 className="animate-spin" size={18} />
-                                <span>Processing Files & Splitting Sections...</span>
+                                <span>Processing files & splitting sections…</span>
                             </>
                         ) : (
                             <>
-                                <span>Upload and Start Review</span>
+                                <span>Upload and start review</span>
                                 <ChevronRight size={18} />
                             </>
                         )}
