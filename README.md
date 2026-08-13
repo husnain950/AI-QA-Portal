@@ -106,6 +106,18 @@ the two services (`crx-api`, `crx-web`) in the `qa-pdf-portal` project. It is ap
 template in Northflank; the deploy workflow does not run it, it only builds and deploys the services
 the template created.
 
+### Deploying without GitHub Actions
+
+Northflank has its own CI/CD that watches the repo directly, so deploys do not have to go through
+GitHub Actions at all. On each service in the Northflank dashboard, point the Git source at `main`
+and turn on the **CI** and **CD** toggles in the service header. Every push to `main` then builds and
+rolls out on its own.
+
+The two mechanisms coexist safely: `tools/northflank_deploy.py` detects a service running in that
+mode (its deployment reports `buildSHA: "latest"`) and lets Northflank perform the rollout instead of
+pinning a build itself. Use `python tools/northflank_deploy.py check` to see which mode each service
+is in.
+
 ## Schema migrations
 
 API boot runs a versioned migrator (`schema_version` + `backend/migrations/m0001_initial.py`). Idempotent `CREATE IF NOT EXISTS` / guarded ALTERs remain so legacy DBs upgrade cleanly.
