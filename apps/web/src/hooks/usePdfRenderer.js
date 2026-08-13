@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+// Importing the worker evaluates it and sets globalThis.pdfjsWorker. pdf.js then
+// uses that in-process handler instead of fetching /assets/pdf.worker.min-*.mjs,
+// which the preview host returns as HTTP 500.
+import 'pdfjs-dist/build/pdf.worker.min.mjs';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'bundled';
 
 export const PDF_LOAD_TIMEOUT_MS = 30_000;
 

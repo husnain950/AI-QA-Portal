@@ -10,8 +10,8 @@ vi.mock('pdfjs-dist', () => ({
     getDocument: getDocumentMock,
 }));
 
-vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?url', () => ({
-    default: 'mock-worker.js',
+vi.mock('pdfjs-dist/build/pdf.worker.min.mjs', () => ({
+    WorkerMessageHandler: {},
 }));
 
 import { usePdfDocument } from '../hooks/usePdfRenderer';
