@@ -169,11 +169,16 @@ export default function TriagePage() {
         try {
             await api.patch(`/findings/${finding.id}/status`, { triage, note });
             undoRef.current = async () => {
-                await api.patch(`/findings/${finding.id}/status`, {
-                    triage: prev.triage,
-                    note: prev.triage_note || '',
-                });
-                await load();
+                try {
+                    await api.patch(`/findings/${finding.id}/status`, {
+                        triage: prev.triage,
+                        note: prev.triage_note || '',
+                    });
+                    await load();
+                    pushToast({ type: 'info', message: 'Finding restored' });
+                } catch (err) {
+                    pushToast({ type: 'error', message: err.message || 'Undo failed' });
+                }
             };
             pushToast({
                 type: 'success',
@@ -203,14 +208,20 @@ export default function TriagePage() {
             }
         }
         undoRef.current = async () => {
+            let restoreFailed = 0;
             for (const p of previous) {
                 try {
                     await api.patch(`/findings/${p.id}/status`, { triage: p.triage, note: p.note });
                 } catch {
-                    // best-effort restore
+                    restoreFailed += 1;
                 }
             }
             await load();
+            if (restoreFailed) {
+                pushToast({ type: 'error', message: `Could not restore ${restoreFailed} finding${restoreFailed === 1 ? '' : 's'}` });
+            } else {
+                pushToast({ type: 'info', message: `Restored ${previous.length} finding${previous.length === 1 ? '' : 's'}` });
+            }
         };
         if (failed) {
             pushToast({ type: 'error', message: `${failed} of ${targets.length} updates failed — reloading` });
@@ -245,8 +256,13 @@ export default function TriagePage() {
             const res = await api.post(`/variants/${encodeURIComponent(finding.variant_key)}/approve`, {});
             const n = res.granted || res.count || finding.blast_radius || 1;
             undoRef.current = async () => {
-                await api.delete(`/variants/${encodeURIComponent(finding.variant_key)}/approve`);
-                await load();
+                try {
+                    await api.delete(`/variants/${encodeURIComponent(finding.variant_key)}/approve`);
+                    await load();
+                    pushToast({ type: 'info', message: 'Variant approval undone' });
+                } catch (err) {
+                    pushToast({ type: 'error', message: err.message || 'Undo failed' });
+                }
             };
             pushToast({
                 type: 'success',

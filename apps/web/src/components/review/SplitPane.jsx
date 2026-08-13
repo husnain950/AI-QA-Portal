@@ -14,6 +14,9 @@ const SplitPane = ({ left, right }) => {
 
     const startResize = (e) => {
         e.preventDefault();
+        // Route all pointer events to the handle for the whole drag, even when
+        // the cursor crosses the PDF canvas or leaves the window.
+        e.currentTarget.setPointerCapture?.(e.pointerId);
         setIsResizing(true);
     };
 
