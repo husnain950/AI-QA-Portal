@@ -1,5 +1,6 @@
 import os
 import shutil
+from pathlib import Path
 
 import aiosqlite
 
@@ -9,6 +10,11 @@ BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.environ.get("UPLOAD_DIR", os.path.join(BACKEND_DIR, "uploads"))
 SEED_DB_PATH = os.path.join(BACKEND_DIR, "seed_data", "qa_portal.db")
 SEED_UPLOAD_DIR = os.path.join(BACKEND_DIR, "seed_uploads")
+
+SEED_CORPUS_ORDINANCE = Path(
+    os.environ.get("SEED_CORPUS_ORDINANCE", "/seed/corpus/ordinance")
+)
+SEED_CORPUS_ACTS = Path(os.environ.get("SEED_CORPUS_ACTS", "/seed/corpus/acts"))
 
 
 def seed_runtime_files() -> None:
@@ -87,7 +93,95 @@ async def merge_seed_footnote_html() -> None:
         await destination.commit()
 
 
+_BOOTSTRAP_DONE = False
+
+
+def _find_seed_path(label: str) -> Path | None:
+    """Locate usable corpus for auto-seeding (baked image path, then mounted volume)."""
+    candidates = [
+        SEED_CORPUS_ORDINANCE if label == "ordinance" else SEED_CORPUS_ACTS,
+        Path(os.environ.get("CORPUS_ORDINANCE", ""))
+        if label == "ordinance"
+        else Path(os.environ.get("CORPUS_ACTS", "")),
+    ]
+    for path in candidates:
+        if path and path.is_dir() and (path / "output").is_dir():
+            if any(path.glob("output/*.json")):
+                return path
+    return None
+
+
+async def _auto_seed_if_empty() -> None:
+    """Seed corpus on first boot when DB has no documents.
+
+    Checks two locations in priority order:
+      1. Baked seed inside image (/seed/corpus/{ordinance,acts})
+      2. Mounted corpus volumes (CORPUS_ORDINANCE / CORPUS_ACTS env vars)
+
+    Either source works — the first available one with output/*.json wins.
+    """
+    ordinance_path = _find_seed_path("ordinance")
+    acts_path = _find_seed_path("acts")
+
+    if not ordinance_path and not acts_path:
+        return
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM documents") as cur:
+            count = (await cur.fetchone())[0]
+
+    if count > 0:
+        return
+
+    print("[runtime] empty database detected — auto-seeding from corpus...")
+
+    from backend.services.corpus_sync import sync_one, _record_sync
+
+    combined = {"ordinance": {}, "acts": {}, "failed": 0, "unmatched": 0}
+
+    if ordinance_path:
+        print(f"[runtime]   ordinance source: {ordinance_path}")
+        part = await sync_one(
+            "ordinance",
+            ordinance_path,
+            dry_run=False,
+            force=False,
+            strict=False,
+            metrics=True,
+            pdf_dir=None,
+        )
+        combined["ordinance"] = part
+        combined["failed"] += int(part.get("failed", 0) or 0)
+        added = int(part.get("added", 0) or 0) + int(part.get("updated", 0) or 0)
+        print(f"[runtime]   ordinance: {added} documents synced")
+
+    if acts_path:
+        print(f"[runtime]   acts source: {acts_path}")
+        part = await sync_one(
+            "acts",
+            acts_path,
+            dry_run=False,
+            force=False,
+            strict=False,
+            metrics=True,
+            pdf_dir=None,
+        )
+        combined["acts"] = part
+        combined["failed"] += int(part.get("failed", 0) or 0)
+        added = int(part.get("added", 0) or 0) + int(part.get("updated", 0) or 0)
+        print(f"[runtime]   acts: {added} documents synced")
+
+    status = "ok" if combined["failed"] == 0 else "failed"
+    await _record_sync(combined, status)
+    print(f"[runtime] auto-seed complete (status={status})")
+
+
 async def bootstrap_runtime() -> None:
+    global _BOOTSTRAP_DONE
+    if _BOOTSTRAP_DONE:
+        return
+    _BOOTSTRAP_DONE = True
+
     seed_runtime_files()
     await init_db()
     await merge_seed_footnote_html()
@@ -104,3 +198,5 @@ async def bootstrap_runtime() -> None:
             f"[runtime] blob migration: moved {report['moved']}, "
             f"deduped {report['deduped']}, missing {len(report['missing'])}"
         )
+
+    await _auto_seed_if_empty()

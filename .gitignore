@@ -25,6 +25,12 @@ data/ocr_cache/*
 !data/ocr_cache/.gitkeep
 data/corpora/*
 !data/corpora/README.md
+
+# Seed corpus (built locally by `make seed-archive`, baked into Docker image).
+# Too large for git (~500MB+ with PDFs); built before `make deploy-prod`.
+data/seed/*
+!data/seed/.gitkeep
+!data/seed/README.md
 apps/api/backend/data/*
 !apps/api/backend/data/.gitkeep
 apps/api/backend/uploads/*

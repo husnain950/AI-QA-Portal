@@ -12,6 +12,8 @@ services:
       UPLOAD_DIR: /app/data/uploads
       CORPUS_ORDINANCE: /data/corpus/ordinance
       CORPUS_ACTS: /data/corpus/acts
+      SEED_CORPUS_ORDINANCE: /data/corpus/ordinance
+      SEED_CORPUS_ACTS: /data/corpus/acts
     volumes:
       - ./data/db:/app/data/db
       - ./data/uploads:/app/data/uploads
