@@ -139,7 +139,7 @@ describe('issues chrome wording', () => {
         expect(screen.queryByRole('button', { name: /Issues \(/ })).not.toBeInTheDocument();
     });
 
-    it('TOC ❌ tooltip distinguishes auto quality flag vs reviewer flagged', () => {
+    it('TOC flagged icon tooltip distinguishes auto quality flag vs reviewer flagged', () => {
         useDocumentStore.setState({
             sections: [
                 {
@@ -170,7 +170,7 @@ describe('issues chrome wording', () => {
             </MemoryRouter>,
         );
 
-        const flags = screen.getAllByText('❌');
+        const flags = screen.getAllByTitle(/Auto quality flag|Reviewer flagged/);
         expect(flags[0]).toHaveAttribute('title', 'Auto quality flag');
         expect(flags[1]).toHaveAttribute('title', 'Reviewer flagged');
     });

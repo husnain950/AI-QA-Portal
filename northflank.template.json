@@ -1,0 +1,120 @@
+{
+  "apiVersion": "v1.2",
+  "name": "fbr-qa-staging",
+  "description": "Redeploy FBR Corpus QA portal api and web into the existing free-plan project qa-pdf-portal (branch args.branch).",
+  "arguments": {
+    "branch": "cursor/qa-portal-ui-revamp-420b",
+    "plan": "nf-compute-10",
+    "projectId": "qa-pdf-portal"
+  },
+  "options": {
+    "autorun": false,
+    "concurrencyPolicy": "queue"
+  },
+  "spec": {
+    "kind": "Workflow",
+    "spec": {
+      "type": "sequential",
+      "context": {
+        "projectId": "${args.projectId}"
+      },
+      "steps": [
+        {
+          "kind": "CombinedService",
+          "ref": "api",
+          "spec": {
+            "name": "crx-api",
+            "billing": {
+              "deploymentPlan": "${args.plan}",
+              "buildPlan": "nf-compute-400-16"
+            },
+            "vcsData": {
+              "projectType": "github",
+              "projectUrl": "https://github.com/husnain950/AI-QA-Portal",
+              "projectBranch": "${args.branch}",
+              "accountLogin": "husnain950"
+            },
+            "buildSettings": {
+              "dockerfile": {
+                "buildEngine": "kaniko",
+                "dockerFilePath": "/apps/api/Dockerfile",
+                "dockerWorkDir": "/",
+                "useCache": false
+              }
+            },
+            "deployment": {
+              "instances": 1,
+              "docker": {
+                "configType": "default"
+              }
+            },
+            "runtimeEnvironment": {
+              "DATABASE_PATH": "/app/data/db/qa_portal.db",
+              "UPLOAD_DIR": "/app/data/uploads",
+              "CORPUS_ORDINANCE": "/data/corpus/ordinance",
+              "CORPUS_ACTS": "/data/corpus/acts",
+              "PYTHONPATH": "/app",
+              "PYTHONUNBUFFERED": "1"
+            },
+            "buildArguments": {},
+            "ports": [
+              {
+                "name": "p01",
+                "internalPort": 8000,
+                "protocol": "HTTP",
+                "public": false
+              }
+            ]
+          }
+        },
+        {
+          "kind": "CombinedService",
+          "ref": "web",
+          "spec": {
+            "name": "crx-web",
+            "billing": {
+              "deploymentPlan": "${args.plan}",
+              "buildPlan": "nf-compute-400-16"
+            },
+            "vcsData": {
+              "projectType": "github",
+              "projectUrl": "https://github.com/husnain950/AI-QA-Portal",
+              "projectBranch": "${args.branch}",
+              "accountLogin": "husnain950"
+            },
+            "buildSettings": {
+              "dockerfile": {
+                "buildEngine": "kaniko",
+                "dockerFilePath": "/apps/web/Dockerfile.prod",
+                "dockerWorkDir": "/",
+                "useCache": false
+              }
+            },
+            "buildArguments": {
+              "VITE_API_URL": "/api",
+              "VITE_STATIC_URL": ""
+            },
+            "deployment": {
+              "instances": 1,
+              "docker": {
+                "configType": "default"
+              }
+            },
+            "runtimeEnvironment": {
+              "API_HOST": "crx-api",
+              "API_PORT": "8000"
+            },
+            "ports": [
+              {
+                "name": "p01",
+                "internalPort": 80,
+                "protocol": "HTTP",
+                "public": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

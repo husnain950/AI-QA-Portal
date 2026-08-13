@@ -24,6 +24,19 @@
     color: var(--color-text-primary);
 }
 
+.annotation-popover-quote {
+    font-size: var(--text-xs);
+    font-style: italic;
+    color: var(--color-text-secondary);
+    margin-bottom: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    border-left: 2px solid var(--color-accent);
+    padding-left: 6px;
+}
+
 .form-group {
     margin-bottom: 12px;
 }

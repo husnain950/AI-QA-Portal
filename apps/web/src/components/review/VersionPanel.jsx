@@ -6,11 +6,11 @@ import {
     History,
     Loader2,
     RotateCcw,
-    X,
 } from 'lucide-react';
 
 import { versionsApi } from '../../utils/api';
 import DiffView from '../diff/DiffView';
+import Drawer from '../ui/Drawer';
 import { useUiStore } from '../../stores/uiStore';
 import {
     BODY_GATE,
@@ -181,19 +181,14 @@ const VersionPanel = ({ documentId, open, onClose, onChanged }) => {
         }
     };
 
-    if (!open) return null;
-
     return (
-        <aside className="version-panel" aria-label="Version history">
-            <header className="version-panel-header">
-                <h3>
-                    <History size={16} /> JSON versions
-                </h3>
-                <button type="button" onClick={onClose} aria-label="Close version history">
-                    <X size={16} />
-                </button>
-            </header>
-
+        <Drawer
+            open={open}
+            onClose={onClose}
+            title="JSON versions"
+            icon={<History size={16} />}
+            className="version-panel-drawer"
+        >
             <p className="version-panel-hint">
                 The PDF is fixed. Each entry is a parse of it — push a corrected JSON
                 without re-uploading the source.
@@ -262,7 +257,11 @@ const VersionPanel = ({ documentId, open, onClose, onChanged }) => {
                             <CarryoverSummary stats={version.stats} />
 
                             <div className="version-actions">
-                                <button type="button" onClick={() => showDiff(version)}>
+                                <button
+                                    type="button"
+                                    className="btn btn-xs btn-secondary"
+                                    onClick={() => showDiff(version)}
+                                >
                                     <FileClock size={13} />
                                     {selectedId === version.id
                                         ? 'Hide changes'
@@ -271,6 +270,7 @@ const VersionPanel = ({ documentId, open, onClose, onChanged }) => {
                                 {!version.is_active && (
                                     <button
                                         type="button"
+                                        className="btn btn-xs btn-secondary"
                                         onClick={() => activate(version)}
                                         disabled={busyId === version.id}
                                     >
@@ -295,7 +295,7 @@ const VersionPanel = ({ documentId, open, onClose, onChanged }) => {
             {!loading && versions.length === 0 && (
                 <p className="version-diff-empty">No versions recorded yet.</p>
             )}
-        </aside>
+        </Drawer>
     );
 };
 

@@ -1,10 +1,73 @@
 /* --- Review Bottom Toolbar --- */
 .review-toolbar {
-    height: 64px;
+    min-height: 48px;
     background-color: var(--color-bg-secondary);
     border-top: 1px solid var(--color-border);
-    padding: 0 24px;
+    padding: 6px 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.review-toolbar-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    min-width: 130px;
+}
+
+.review-toolbar-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.review-toolbar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.review-toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--color-border);
+    margin: 0 2px;
+}
+
+.review-toolbar-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* Active status buttons */
+.review-status-approved {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    color: #ffffff;
+}
+
+.review-status-approved:hover {
+    background: var(--color-success);
+    filter: brightness(1.06);
+}
+
+.review-status-flagged {
+    background: var(--color-error);
+    border-color: var(--color-error);
+    color: #ffffff;
+}
+
+.review-status-flagged:hover {
+    background: var(--color-error);
+    filter: brightness(1.06);
 }

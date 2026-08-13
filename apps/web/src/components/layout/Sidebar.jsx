@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Trash2 } from 'lucide-react';
+import { Search, Trash2, CheckCircle2, XCircle } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
 import { useDocumentStore } from '../../stores/documentStore';
 import { useReviewStore } from '../../stores/reviewStore';
@@ -13,19 +13,19 @@ import { editionDateFromName } from '../../utils/editions';
 const Sidebar = ({ documentId }) => {
     const navigate = useNavigate();
     const { sidebarTab, setSidebarTab } = useUiStore();
-    const { 
+    const {
         sections,
         activeDocument,
-        activeSection, 
-        searchResults, 
-        search, 
+        activeSection,
+        searchResults,
+        search,
         clearSearch,
-        loading 
+        loading
     } = useDocumentStore();
-    const { 
-        globalAnnotations, 
-        fetchGlobalAnnotations, 
-        toggleAnnotationStatus, 
+    const {
+        globalAnnotations,
+        fetchGlobalAnnotations,
+        toggleAnnotationStatus,
         deleteAnnotation,
         updateAnnotation,
         viewMode,
@@ -104,7 +104,7 @@ const Sidebar = ({ documentId }) => {
     // Construct TOC tree with headers
     const renderTocTree = () => {
         if (sections.length === 0) {
-            return <div className="p-4" style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>No sections found.</div>;
+            return <div className="toc-empty">No sections found.</div>;
         }
 
         const normalizedQuery = tocQuery.trim().toLocaleLowerCase();
@@ -133,7 +133,7 @@ const Sidebar = ({ documentId }) => {
         let lastChapter = null;
         let lastPart = null;
         let lastDivision = null;
-        
+
         const nodes = [];
         visibleSections.forEach((sec) => {
             if (sec.chapter_code !== lastChapter) {
@@ -181,27 +181,29 @@ const Sidebar = ({ documentId }) => {
             const ocrd = sectionWasOcrd(sec, activeDocument?.provenance?.pages_ocred);
             const qualityFlags = normalizeQualityFlags(sec.quality_flags);
             nodes.push(
-                <div 
-                    key={`sec-${sec.id}`} 
+                <div
+                    key={`sec-${sec.id}`}
                     className={`toc-node level-section ${isActive ? 'active' : ''}`}
                     onClick={() => handleSectionClick(sec.id)}
                 >
                     <span className="toc-node-status-container">
-                        {sec.review_status === 'approved' ? (
-                            <span className="toc-status-emoji">✅</span>
+                        {sec.review_status === 'approved' || sec.review_status === 'approved_inherited' ? (
+                            <span className="toc-status-icon is-approved" title="Approved">
+                                <CheckCircle2 size={13} aria-hidden="true" />
+                            </span>
                         ) : sec.review_status === 'has_issues' ? (
                             <span
-                                className="toc-status-emoji"
+                                className="toc-status-icon is-flagged"
                                 title={
                                     hasCriticalQualityFlags(sec.quality_flags)
                                         ? 'Auto quality flag'
                                         : 'Reviewer flagged'
                                 }
                             >
-                                ❌
+                                <XCircle size={13} aria-hidden="true" />
                             </span>
                         ) : (
-                            <span className={`toc-node-status ${sec.review_status || 'pending'}`} />
+                            <span className={`toc-node-status ${sec.review_status || 'pending'}`} title="Pending" />
                         )}
                     </span>
                     <span className="toc-node-label">
@@ -221,7 +223,7 @@ const Sidebar = ({ documentId }) => {
                         )}
                     </span>
                     {sec.annotation_count > 0 && (
-                        <span style={{ fontSize: '0.7rem', padding: '1px 5px', borderRadius: 4, backgroundColor: 'var(--color-error-light)', color: 'var(--color-error)', fontWeight: 700, marginLeft: 'auto', flexShrink: 0 }}>
+                        <span className="toc-annotation-count" title={`${sec.annotation_count} open notes`}>
                             {sec.annotation_count}
                         </span>
                     )}
@@ -259,7 +261,7 @@ const Sidebar = ({ documentId }) => {
     };
 
     return (
-        <div ref={sidebarRef} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div ref={sidebarRef} className="sidebar-inner">
             {/* Tabs */}
             <div className="toc-tabs">
                 {activeDocument && (
@@ -271,19 +273,19 @@ const Sidebar = ({ documentId }) => {
                             : ` · ${editionDateFromName(activeDocument.name).label}`}
                     </div>
                 )}
-                <button 
+                <button
                     className={`toc-tab ${sidebarTab === 'toc' ? 'active' : ''}`}
                     onClick={() => setSidebarTab('toc')}
                 >
                     TOC
                 </button>
-                <button 
+                <button
                     className={`toc-tab ${sidebarTab === 'search' ? 'active' : ''}`}
                     onClick={() => setSidebarTab('search')}
                 >
                     Search
                 </button>
-                <button 
+                <button
                     className={`toc-tab ${sidebarTab === 'annotations' ? 'active' : ''}`}
                     onClick={() => setSidebarTab('annotations')}
                 >
@@ -299,23 +301,24 @@ const Sidebar = ({ documentId }) => {
 
                 {sidebarTab === 'search' && (
                     <div className="search-container flex flex-col gap-3">
-                        <div className="flex align-center gap-2 p-2" style={{ backgroundColor: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}>
-                            <Search size={16} style={{ color: 'var(--color-text-muted)' }} />
-                            <input 
-                                type="text"
-                                placeholder="Search section text..."
+                        <label className="sidebar-search-box" htmlFor="sidebar-search-input">
+                            <Search size={15} aria-hidden="true" />
+                            <span className="sr-only">Search section text</span>
+                            <input
+                                id="sidebar-search-input"
+                                type="search"
+                                placeholder="Search section text…"
                                 value={localQuery}
                                 onChange={(e) => setLocalQuery(e.target.value)}
-                                style={{ background: 'transparent', border: 'none', width: '100%', fontSize: '0.85rem', color: 'var(--color-text-primary)' }}
                             />
-                        </div>
+                        </label>
 
-                        {loading.search && <div className="p-4" style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Searching...</div>}
-                        
+                        {loading.search && <div className="sidebar-muted-note">Searching…</div>}
+
                         <div className="search-results-list">
                             {!loading.search && searchResults.map(res => (
-                                <div 
-                                    key={res.section_id} 
+                                <div
+                                    key={res.section_id}
                                     className="search-result-card"
                                     onClick={() => handleSectionClick(res.section_id)}
                                 >
@@ -325,14 +328,14 @@ const Sidebar = ({ documentId }) => {
                                     <div className="search-result-chapter">
                                         {res.chapter_code || 'Schedules'}
                                     </div>
-                                    <div 
+                                    <div
                                         className="search-result-snippet"
                                         dangerouslySetInnerHTML={{ __html: res.snippet }}
                                     />
                                 </div>
                             ))}
                             {localQuery && !loading.search && searchResults.length === 0 && (
-                                <div style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: 12 }}>
+                                <div className="sidebar-muted-note" style={{ textAlign: 'center' }}>
                                     No matches found.
                                 </div>
                             )}
@@ -342,34 +345,34 @@ const Sidebar = ({ documentId }) => {
 
                 {sidebarTab === 'annotations' && (
                     <div className="annotation-list">
-                        <div className="issues-subtabs flex" style={{ padding: '0 8px 12px 8px', gap: 8, borderBottom: '1px solid var(--color-border)' }}>
+                        <div className="issues-subtabs">
                             <button
-                                className={`btn ${issuesSubTab === 'open' ? 'btn-primary' : 'btn-secondary'}`}
-                                style={{ padding: '4px 12px', fontSize: '0.75rem', flex: 1, height: 28 }}
+                                className={`issues-subtab ${issuesSubTab === 'open' ? 'active' : ''}`}
                                 onClick={() => setIssuesSubTab('open')}
+                                aria-pressed={issuesSubTab === 'open'}
                             >
                                 Open ({openIssues.length})
                             </button>
                             <button
-                                className={`btn ${issuesSubTab === 'resolved' ? 'btn-primary' : 'btn-secondary'}`}
-                                style={{ padding: '4px 12px', fontSize: '0.75rem', flex: 1, height: 28 }}
+                                className={`issues-subtab ${issuesSubTab === 'resolved' ? 'active' : ''}`}
                                 onClick={() => setIssuesSubTab('resolved')}
+                                aria-pressed={issuesSubTab === 'resolved'}
                             >
                                 Resolved ({resolvedIssues.length})
                             </button>
                             <button
-                                className={`btn ${issuesSubTab === 'stale' ? 'btn-primary' : 'btn-secondary'}`}
-                                style={{ padding: '4px 12px', fontSize: '0.75rem', flex: 1, height: 28 }}
+                                className={`issues-subtab ${issuesSubTab === 'stale' ? 'active' : ''}`}
                                 onClick={() => setIssuesSubTab('stale')}
+                                aria-pressed={issuesSubTab === 'stale'}
                                 title="Findings whose text changed or disappeared in a newer JSON version"
                             >
                                 Recheck ({staleIssues.length})
                             </button>
                         </div>
-                        
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 8px', overflowY: 'auto', flex: 1 }}>
+
+                        <div className="annotation-cards">
                             {visibleIssues.length === 0 ? (
-                                <div style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', padding: 12, textAlign: 'center' }}>
+                                <div className="sidebar-muted-note" style={{ textAlign: 'center' }}>
                                     {issuesSubTab === 'stale'
                                         ? 'No notes need rechecking.'
                                         : `No ${issuesSubTab} notes.`}
@@ -384,31 +387,31 @@ const Sidebar = ({ documentId }) => {
                                         : orphanCode
                                             ? `Sec ${orphanCode} (removed)`
                                             : `Section${a.footnote_id ? ' · Footnote' : ''}`;
-                                    
+
                                     return (
-                                        <div 
-                                            key={a.id} 
-                                            className="annotation-card" 
+                                        <div
+                                            key={a.id}
+                                            className="annotation-card"
                                             data-severity={a.severity}
-                                            style={{ position: 'relative', cursor: 'pointer', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}
                                             onClick={() => handleSectionClick(a.section_id)}
                                         >
-                                            <div className="flex align-center gap-2" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                <input 
+                                            <div className="annotation-card-head">
+                                                <input
                                                     type="checkbox"
                                                     checked={a.status === 'resolved'}
                                                     onChange={(e) => {
                                                         e.stopPropagation();
                                                         toggleAnnotationStatus(a.id, a.status);
                                                     }}
-                                                    style={{ cursor: 'pointer', width: 14, height: 14 }}
-                                                    title={a.status === 'open' ? "Mark Resolved" : "Re-open"}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    title={a.status === 'open' ? 'Mark resolved' : 'Re-open'}
+                                                    aria-label={a.status === 'open' ? 'Mark resolved' : 'Re-open'}
                                                 />
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
+                                                <span className="annotation-card-section">
                                                     {sectionLabel}
                                                 </span>
-                                                <button 
-                                                    className="annotation-delete-btn" 
+                                                <button
+                                                    className="annotation-delete-btn"
                                                     onClick={async (e) => {
                                                         e.stopPropagation();
                                                         const ok = await confirmDialog({
@@ -418,10 +421,10 @@ const Sidebar = ({ documentId }) => {
                                                         });
                                                         if (ok) deleteAnnotation(a.id);
                                                     }}
-                                                    style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center' }}
-                                                    title="Delete annotation"
+                                                    title="Delete note"
+                                                    aria-label="Delete note"
                                                 >
-                                                    <Trash2 size={12} style={{ color: 'var(--color-text-muted)' }} />
+                                                    <Trash2 size={12} />
                                                 </button>
                                             </div>
 
@@ -432,8 +435,8 @@ const Sidebar = ({ documentId }) => {
                                                     {a.section_id ? (
                                                         <button
                                                             type="button"
-                                                            className="btn btn-secondary"
-                                                            style={{ marginTop: 8, padding: '4px 8px', fontSize: '0.7rem' }}
+                                                            className="btn btn-xs btn-secondary"
+                                                            style={{ marginTop: 8 }}
                                                             onClick={async (e) => {
                                                                 e.stopPropagation();
                                                                 try {
@@ -464,15 +467,17 @@ const Sidebar = ({ documentId }) => {
                                                 </div>
                                             )}
 
-                                            <div className="annotation-card-text" style={{ fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--color-text-primary)' }}>
+                                            <div className="annotation-card-text">
                                                 "{a.highlighted_text}"
                                             </div>
-                                            <div className="annotation-card-description" style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                                            <div className="annotation-card-description">
                                                 {a.issue_description || 'No description'}
                                             </div>
-                                            <div className="annotation-card-meta" style={{ fontSize: '0.7rem', display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                                            <div className="annotation-card-meta">
                                                 <span>{a.reviewer_name || 'QA'}</span>
-                                                <span>{new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span title={new Date(a.created_at).toLocaleString()}>
+                                                    {new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
                                             </div>
                                         </div>
                                     );

@@ -13,11 +13,18 @@ export default function NewVersionButton({
     className = 'btn btn-secondary',
     style,
     label = 'New JSON version',
+    hideButton = false,
+    triggerRef = null,
 }) {
     const inputRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const pushToast = useUiStore((s) => s.pushToast);
     const promptDialog = useUiStore((s) => s.promptDialog);
+
+    // Let external UI (e.g. an overflow menu item) open the file picker.
+    if (triggerRef) {
+        triggerRef.current = () => inputRef.current?.click();
+    }
 
     const onFile = async (e) => {
         const file = e.target.files?.[0];
@@ -69,17 +76,19 @@ export default function NewVersionButton({
                 style={{ display: 'none' }}
                 onChange={onFile}
             />
-            <button
-                type="button"
-                className={className}
-                style={style}
-                disabled={loading || !documentId}
-                onClick={() => inputRef.current?.click()}
-                title="Add a new JSON version for this document (the PDF stays as it is)"
-            >
-                {loading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                <span>{label}</span>
-            </button>
+            {!hideButton && (
+                <button
+                    type="button"
+                    className={className}
+                    style={style}
+                    disabled={loading || !documentId}
+                    onClick={() => inputRef.current?.click()}
+                    title="Add a new JSON version for this document (the PDF stays as it is)"
+                >
+                    {loading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                    <span>{label}</span>
+                </button>
+            )}
         </>
     );
 }

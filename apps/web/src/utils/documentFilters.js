@@ -23,7 +23,13 @@ const DEFAULT_FACETS = {
     sourceKind: '',
     health: '',
     review: '',
+    flagged: '',
 };
+
+function matchesFlagged(document, flagged) {
+    if (!flagged) return true;
+    return (document.stats?.has_issues || 0) > 0;
+}
 
 function matchesLane(document, corpusLane) {
     if (!corpusLane) return true;
@@ -126,7 +132,8 @@ export const filterDocuments = (documents, queryOrOptions, legacySourceFilter) =
             && matchesLane(document, facets.corpusLane)
             && matchesSourceKind(document, facets.sourceKind)
             && matchesHealth(document, facets.health)
-            && matchesReview(document, facets.review);
+            && matchesReview(document, facets.review)
+            && matchesFlagged(document, facets.flagged);
     });
 
     return sortDocuments(filtered, sort);

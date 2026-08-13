@@ -1,4 +1,118 @@
 /* --- HTML Panel Styles --- */
+.html-panel-header {
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-block: 6px;
+}
+
+.html-panel-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.html-panel-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.raw-mode-pad {
+    padding: 16px;
+}
+
+.raw-pre {
+    margin: 0;
+    padding: 14px;
+    background-color: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary);
+    overflow-x: auto;
+    line-height: 1.5;
+    user-select: text;
+}
+
+/* Footnote hover/click popovers */
+.fn-popover {
+    position: absolute;
+    z-index: 200;
+}
+
+.fn-popover-hover {
+    transform: translate(-50%, -100%);
+    pointer-events: none;
+}
+
+.fn-popover-click {
+    transform: translateX(-50%);
+    z-index: 210;
+}
+
+.fn-popover-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    box-shadow: var(--shadow-lg);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary);
+    max-width: 280px;
+    animation: popFade 0.1s ease-out;
+}
+
+.fn-popover-click .fn-popover-card {
+    max-width: 320px;
+    padding: 12px 14px;
+}
+
+.fn-popover-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+}
+
+.fn-popover-marker {
+    font-weight: 700;
+    color: var(--color-accent);
+    margin-bottom: 2px;
+}
+
+.fn-popover-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-xs);
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.fn-popover-close:hover {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+}
+
+.fn-popover-text {
+    white-space: pre-wrap;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+}
+
 .html-renderer-container {
     background-color: var(--color-bg-secondary);
     border-radius: var(--radius-md);

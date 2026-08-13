@@ -29,12 +29,16 @@
     .grid-cols-2, .grid-cols-3, .grid-cols-4 { grid-template-columns: 1fr; }
 }
 
-/* Glassmorphism Panel card */
-.glass-panel {
-    background: var(--color-surface-glass);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--color-surface-glass-border);
-    box-shadow: var(--shadow-glass);
+/* Spinner (used by Loader2 icons app-wide) */
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Surface panel card (legacy name kept from the glassmorphism era) */
+.glass-panel,
+.surface-panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
     border-radius: var(--radius-md);
 }

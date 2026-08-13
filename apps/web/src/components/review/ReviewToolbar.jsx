@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, AlertTriangle, ArrowLeft, ArrowRight, Loader2, Clock, Sparkles } from 'lucide-react';
 import { useDocumentStore } from '../../stores/documentStore';
@@ -34,27 +34,30 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
     const aiProposals = useAiFixStore((s) => s.proposals);
 
     const targetSection = sectionProp || activeSection;
-    if (!targetSection || !activeDocument) return null;
+    const isPrimaryToolbar = sectionProp === null;
 
-    const aiFixed = hasApprovedFix(aiProposals, targetSection.id);
+    const aiFixed = targetSection ? hasApprovedFix(aiProposals, targetSection.id) : false;
 
-    const currentIndex = sections.findIndex((s) => s.id === targetSection.id);
+    const currentIndex = targetSection
+        ? sections.findIndex((s) => s.id === targetSection.id)
+        : -1;
     const hasPrev = currentIndex > 0;
     const hasNext = currentIndex >= 0 && currentIndex < sections.length - 1;
-    const qualityReasons = formatQualityFlagList(targetSection.quality_flags);
+    const qualityFlagsValue = targetSection?.quality_flags;
     // Approve gate: any flag (incl. page_range_out_of_bounds) needs confirm.
-    const needsQualityOverride = hasAnyQualityFlags(targetSection.quality_flags);
-    const status = targetSection.review_status;
+    const needsQualityOverride = targetSection ? hasAnyQualityFlags(targetSection.quality_flags) : false;
+    const status = targetSection?.review_status;
 
-    const navigateToSection = (index) => {
+    const navigateToSection = useCallback((index) => {
         if (index < 0 || index >= sections.length) return;
         const targetSec = sections[index];
         navigate(`/review/${activeDocument.id}/${targetSec.id}`);
-    };
+    }, [sections, navigate, activeDocument?.id]);
 
-    const handleApprove = async () => {
+    const handleApprove = useCallback(async () => {
+        if (!targetSection || !activeDocument) return;
         if (needsQualityOverride) {
-            const listed = qualityReasons.map((r) => `• ${r}`).join('\n');
+            const listed = formatQualityFlagList(qualityFlagsValue).map((r) => `• ${r}`).join('\n');
             const confirmed = await confirmDialog({
                 title: 'Override parse-quality flags?',
                 message: `${listed}\n\nApprove this section anyway?`,
@@ -70,45 +73,73 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
         } catch (e) {
             pushToast({ type: 'error', message: `Failed to update status: ${e.message}` });
         }
-    };
+    }, [
+        targetSection, activeDocument, needsQualityOverride, qualityFlagsValue,
+        confirmDialog, updateSectionStatus, hasNext, navigateToSection, currentIndex, pushToast,
+    ]);
 
-    const handleFlag = async () => {
+    const handleFlag = useCallback(async () => {
+        if (!targetSection || !activeDocument) return;
         try {
             await updateSectionStatus(activeDocument.id, targetSection.id, 'has_issues');
         } catch (e) {
             pushToast({ type: 'error', message: `Failed to update status: ${e.message}` });
         }
-    };
+    }, [targetSection, activeDocument, updateSectionStatus, pushToast]);
 
-    const handlePending = async () => {
+    const handlePending = useCallback(async () => {
+        if (!targetSection || !activeDocument) return;
         try {
             await updateSectionStatus(activeDocument.id, targetSection.id, 'pending');
         } catch (e) {
             pushToast({ type: 'error', message: `Failed to update status: ${e.message}` });
         }
-    };
+    }, [targetSection, activeDocument, updateSectionStatus, pushToast]);
+
+    // Status shortcuts (A approve / F flag / P pending) for the section-view toolbar.
+    useEffect(() => {
+        if (!isPrimaryToolbar || !targetSection) return undefined;
+        const onKey = (e) => {
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            if (e.target.matches?.('input, textarea, select') || e.target.isContentEditable) return;
+            // Ignore while a dialog/modal is open (confirm, AI fix, palette…).
+            if (aiFixOpen || document.querySelector('dialog[open], .cp-overlay')) return;
+            if (e.key === 'a' || e.key === 'A') {
+                e.preventDefault();
+                handleApprove();
+            } else if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                handleFlag();
+            } else if (e.key === 'p' || e.key === 'P') {
+                e.preventDefault();
+                handlePending();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isPrimaryToolbar, targetSection, aiFixOpen, handleApprove, handleFlag, handlePending]);
+
+    if (!targetSection || !activeDocument) return null;
+
+    const isApproved = status === 'approved' || status === 'approved_inherited';
 
     return (
-        <div className="review-toolbar glass-panel" style={{ gap: 12, overflow: 'hidden', padding: '0 16px' }}>
-            <div className="flex align-center gap-2" style={{ flexShrink: 0 }}>
+        <div className="review-toolbar">
+            <div className="review-toolbar-status">
                 {loading.activeSection ? (
                     <Loader2 className="animate-spin" size={14} style={{ color: 'var(--color-accent)' }} />
                 ) : (
                     <>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
-                            Status:
-                        </span>
+                        <span className="review-toolbar-label">Status</span>
                         <span
                             className={`badge badge-${status === 'has_issues' ? 'flagged' : status === 'approved_inherited' ? 'approved' : status}`}
-                            style={{ fontSize: '0.75rem', padding: '3px 8px', whiteSpace: 'nowrap' }}
                         >
                             {status === 'has_issues' ? 'flagged' : status === 'approved_inherited' ? 'inherited' : status}
                         </span>
                         {aiFixed && (
                             <span
-                                className="badge ai-fix-badge"
+                                className="chip chip-accent"
                                 title="An approved AI fix is applied to this section"
-                                style={{ fontSize: '0.7rem', padding: '3px 8px', whiteSpace: 'nowrap' }}
                             >
                                 <Sparkles size={11} /> AI fixed
                             </span>
@@ -117,70 +148,41 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
                 )}
             </div>
 
-            <div className="flex align-center gap-2" style={{ justifyContent: 'center', flex: 1 }}>
+            <div className="review-toolbar-actions">
                 <button
-                    className={`btn ${status === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{
-                        padding: '6px 12px',
-                        fontSize: '0.8rem',
-                        backgroundColor: status === 'pending' ? 'var(--color-border)' : 'transparent',
-                        borderColor: 'var(--color-border)',
-                        color: status === 'pending' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                        whiteSpace: 'nowrap',
-                    }}
+                    className={`btn btn-sm btn-secondary ${status === 'pending' ? 'is-selected' : ''}`}
                     onClick={handlePending}
                     disabled={loading.activeSection}
-                    title="Mark Section as Pending"
+                    title="Mark section as pending (P)"
                 >
                     <Clock size={14} />
                     <span>Pending</span>
                 </button>
 
                 <button
-                    className={`btn ${status === 'approved' || status === 'approved_inherited' ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{
-                        padding: '6px 12px',
-                        fontSize: '0.8rem',
-                        backgroundColor: status === 'approved' || status === 'approved_inherited' ? 'var(--color-success)' : 'transparent',
-                        borderColor: status === 'approved' || status === 'approved_inherited' ? 'var(--color-success)' : 'var(--color-border)',
-                        color: status === 'approved' || status === 'approved_inherited' ? '#ffffff' : 'var(--color-text-secondary)',
-                        whiteSpace: 'nowrap',
-                    }}
+                    className={`btn btn-sm ${isApproved ? 'review-status-approved' : 'btn-secondary'}`}
                     onClick={handleApprove}
                     disabled={loading.activeSection}
-                    title="Approve Section & Move Next"
+                    title="Approve section & move next (A)"
                 >
                     <Check size={14} />
                     <span>Approve</span>
                 </button>
 
                 <button
-                    className={`btn ${status === 'has_issues' ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{
-                        padding: '6px 12px',
-                        fontSize: '0.8rem',
-                        backgroundColor: status === 'has_issues' ? 'var(--color-error)' : 'transparent',
-                        borderColor: status === 'has_issues' ? 'var(--color-error)' : 'var(--color-border)',
-                        color: status === 'has_issues' ? '#ffffff' : 'var(--color-text-secondary)',
-                        whiteSpace: 'nowrap',
-                    }}
+                    className={`btn btn-sm ${status === 'has_issues' ? 'review-status-flagged' : 'btn-secondary'}`}
                     onClick={handleFlag}
                     disabled={loading.activeSection}
-                    title="Flag Section"
+                    title="Flag section (F)"
                 >
                     <AlertTriangle size={14} />
                     <span>Flag</span>
                 </button>
 
+                <span className="review-toolbar-divider" aria-hidden="true" />
+
                 <button
-                    className="btn btn-secondary"
-                    style={{
-                        padding: '6px 12px',
-                        fontSize: '0.8rem',
-                        borderColor: 'var(--color-border)',
-                        color: 'var(--color-text-secondary)',
-                        whiteSpace: 'nowrap',
-                    }}
+                    className="btn btn-sm btn-secondary"
                     onClick={() => setAiFixOpen(true)}
                     disabled={loading.activeSection}
                     title="Send this section's JSON + PDF pages to the AI for a proposed fix"
@@ -190,23 +192,23 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
                 </button>
             </div>
 
-            <div className="flex align-center gap-1" style={{ flexShrink: 0 }}>
+            <div className="review-toolbar-nav">
                 <button
                     className="btn btn-secondary btn-icon"
-                    style={{ width: 32, height: 32 }}
                     onClick={() => navigateToSection(currentIndex - 1)}
                     disabled={!hasPrev || loading.activeSection}
-                    title="Previous Section"
+                    title="Previous section (K)"
+                    aria-label="Previous section"
                 >
                     <ArrowLeft size={14} />
                 </button>
 
                 <button
                     className="btn btn-secondary btn-icon"
-                    style={{ width: 32, height: 32 }}
                     onClick={() => navigateToSection(currentIndex + 1)}
                     disabled={!hasNext || loading.activeSection}
-                    title="Next Section"
+                    title="Next section (J)"
+                    aria-label="Next section"
                 >
                     <ArrowRight size={14} />
                 </button>

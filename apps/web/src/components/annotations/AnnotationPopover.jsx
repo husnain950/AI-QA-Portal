@@ -1,23 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { AlertCircle, Check, X } from 'lucide-react';
 
 const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
+    const rootRef = useRef(null);
+    const textareaRef = useRef(null);
     const [issueDescription, setIssueDescription] = useState('');
     const [severity, setSeverity] = useState('error'); // 'error' | 'warning' | 'info'
     const [reviewerName, setReviewerName] = useState(
         localStorage.getItem('qa-portal-reviewer-name') || ''
     );
+    const [clampedLeft, setClampedLeft] = useState(null);
 
     useEffect(() => {
-        // focus the textarea on mount
-        const textarea = document.getElementById('annotation-desc-textarea');
-        if (textarea) textarea.focus();
+        textareaRef.current?.focus();
     }, []);
+
+    // Escape cancels the annotation.
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                onCancel();
+            }
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [onCancel]);
+
+    // Clamp within the positioned ancestor so the form never renders off-screen.
+    useLayoutEffect(() => {
+        const el = rootRef.current;
+        if (!el || !coords) return;
+        const parent = el.offsetParent;
+        if (!parent) return;
+        const margin = 8;
+        const maxLeft = parent.clientWidth - el.offsetWidth - margin;
+        const next = Math.max(margin, Math.min(coords.left, Math.max(margin, maxLeft)));
+        if (next !== coords.left) setClampedLeft(next);
+    }, [coords]);
 
     const handleSave = (e) => {
         e.preventDefault();
         if (!issueDescription.trim()) return;
-        
+
         // Save reviewer name in localStorage for convenience
         if (reviewerName.trim()) {
             localStorage.setItem('qa-portal-reviewer-name', reviewerName.trim());
@@ -33,42 +58,47 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
     if (!coords) return null;
 
     return (
-        <div 
-            className="annotation-popover glass-panel" 
-            style={{ 
-                top: coords.top, 
-                left: coords.left,
+        <div
+            ref={rootRef}
+            className="annotation-popover surface-panel"
+            role="dialog"
+            aria-label="Report parsing issue"
+            style={{
+                top: coords.top,
+                left: clampedLeft ?? coords.left,
                 position: 'absolute'
             }}
             onClick={(e) => e.stopPropagation()} // Avoid triggering deselect in HTML panel
         >
             <div className="annotation-popover-title flex align-center gap-2">
                 <AlertCircle size={16} style={{ color: 'var(--color-accent)' }} />
-                <span>Report Parsing Issue</span>
+                <span>Report parsing issue</span>
             </div>
 
-            <div style={{ fontSize: '0.75rem', fontStyle: 'italic', color: 'var(--color-text-secondary)', marginBottom: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', borderLeft: '2px solid var(--color-accent)', paddingLeft: 6 }}>
+            <div className="annotation-popover-quote" title={selectionText}>
                 Selected: "{selectionText}"
             </div>
 
             <form onSubmit={handleSave}>
                 <div className="form-group">
-                    <label className="form-label">Severity</label>
-                    <select 
+                    <label className="form-label" htmlFor="annotation-severity">Severity</label>
+                    <select
+                        id="annotation-severity"
                         className="form-select"
                         value={severity}
                         onChange={(e) => setSeverity(e.target.value)}
                     >
-                        <option value="error">Critical Error</option>
-                        <option value="warning">Warning / Minor mismatch</option>
-                        <option value="info">Info / Formatting note</option>
+                        <option value="error">Critical error</option>
+                        <option value="warning">Warning / minor mismatch</option>
+                        <option value="info">Info / formatting note</option>
                     </select>
                 </div>
 
                 <div className="form-group">
-                    <label className="form-label">Description</label>
+                    <label className="form-label" htmlFor="annotation-desc-textarea">Description</label>
                     <textarea
                         id="annotation-desc-textarea"
+                        ref={textareaRef}
                         className="form-textarea"
                         placeholder="What is wrong with this parsed HTML?"
                         value={issueDescription}
@@ -78,8 +108,9 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
                 </div>
 
                 <div className="form-group">
-                    <label className="form-label">Reviewer Initials</label>
+                    <label className="form-label" htmlFor="annotation-reviewer">Reviewer initials</label>
                     <input
+                        id="annotation-reviewer"
                         type="text"
                         className="form-input"
                         placeholder="e.g. QA-1"
@@ -89,19 +120,18 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
                 </div>
 
                 <div className="form-actions">
-                    <button 
-                        type="button" 
-                        className="btn btn-secondary" 
-                        style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                    <button
+                        type="button"
+                        className="btn btn-sm btn-secondary"
                         onClick={onCancel}
+                        title="Cancel (Esc)"
                     >
                         <X size={14} />
                         <span>Cancel</span>
                     </button>
-                    <button 
-                        type="submit" 
-                        className="btn btn-primary"
-                        style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                    <button
+                        type="submit"
+                        className="btn btn-sm btn-primary"
                         disabled={!issueDescription.trim()}
                     >
                         <Check size={14} />

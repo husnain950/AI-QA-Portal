@@ -5,7 +5,23 @@ import AnnotationPopover from '../annotations/AnnotationPopover';
 import FootnotePanel from '../footnotes/FootnotePanel';
 import { formatQualityFlagList } from '../../utils/qualityFlags';
 import { useUiStore } from '../../stores/uiStore';
-import { Copy, Check, Code, Eye, AlignLeft, AlertTriangle } from 'lucide-react';
+import SegmentedControl from '../ui/SegmentedControl';
+import EmptyState from '../ui/EmptyState';
+import { Copy, Check, Code, Eye, AlignLeft, AlertTriangle, Braces, FileQuestion, X } from 'lucide-react';
+
+const MODE_TITLES = {
+    rendered: 'Parsed HTML Content',
+    plain: 'Extracted Plain Text',
+    html: 'Raw HTML Markup',
+    json: 'Raw Section JSON',
+};
+
+const MODE_HINTS = {
+    rendered: 'Highlight text in this pane to report discrepancies',
+    plain: 'Punctuation-faithful extracted text',
+    html: 'Raw HTML markup code',
+    json: 'Raw JSON data for this section',
+};
 
 const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags }) => {
     const qualityReasons = formatQualityFlagList(
@@ -51,29 +67,29 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                 cite.setAttribute('data-footnote-text', titleText);
                 cite.removeAttribute('title'); // Disable default slow native browser tooltip
             }
-            
-            const handleMouseEnter = () => {
-                const text = cite.getAttribute('data-footnote-text') || '';
-                const rect = cite.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                
+
+            const popupCoords = (rect, containerRect, halfPopupWidth) => {
                 const centerOfMarker = rect.left - containerRect.left + (rect.width / 2);
-                const halfPopupWidth = 150; // 140px (half of max-width 280) + 10px safety margin
-                
                 let boundedLeft = centerOfMarker;
                 if (boundedLeft < halfPopupWidth) {
                     boundedLeft = halfPopupWidth;
                 } else if (boundedLeft > containerRect.width - halfPopupWidth) {
                     boundedLeft = Math.max(halfPopupWidth, containerRect.width - halfPopupWidth);
                 }
-                
+                return boundedLeft;
+            };
+
+            const handleMouseEnter = () => {
+                const text = cite.getAttribute('data-footnote-text') || '';
+                const rect = cite.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
                 setHoverFootnote({
                     text,
                     marker: cite.textContent,
                     coords: {
                         top: rect.top - containerRect.top - 8,
-                        left: boundedLeft
-                    }
+                        left: popupCoords(rect, containerRect, 150),
+                    },
                 });
             };
 
@@ -87,24 +103,13 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                 const text = cite.getAttribute('data-footnote-text') || '';
                 const rect = cite.getBoundingClientRect();
                 const containerRect = container.getBoundingClientRect();
-                
-                const centerOfMarker = rect.left - containerRect.left + (rect.width / 2);
-                const halfPopupWidth = 170; // 160px (half of max-width 320) + 10px safety margin
-                
-                let boundedLeft = centerOfMarker;
-                if (boundedLeft < halfPopupWidth) {
-                    boundedLeft = halfPopupWidth;
-                } else if (boundedLeft > containerRect.width - halfPopupWidth) {
-                    boundedLeft = Math.max(halfPopupWidth, containerRect.width - halfPopupWidth);
-                }
-                
                 setClickFootnote({
                     text,
                     marker: cite.textContent,
                     coords: {
                         top: rect.bottom - containerRect.top + 8,
-                        left: boundedLeft
-                    }
+                        left: popupCoords(rect, containerRect, 170),
+                    },
                 });
             };
 
@@ -129,7 +134,7 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                 mark.setAttribute('data-annotation-id', annot.id);
                 mark.setAttribute('data-severity', annot.severity);
                 mark.setAttribute('title', `Issue: ${annot.issue_description || 'No description'}`);
-                
+
                 try {
                     range.surroundContents(mark);
                 } catch {
@@ -223,7 +228,7 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
             textToCopy = htmlContent;
         }
         if (!textToCopy) return;
-        
+
         const copyToClipboard = async (text) => {
             // 1. Try modern Clipboard API first
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -234,7 +239,7 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                     console.warn('Modern clipboard API failed, trying fallback method...', err);
                 }
             }
-            
+
             // 2. Fallback using a temporary textarea
             const textarea = document.createElement('textarea');
             textarea.value = text;
@@ -243,11 +248,11 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
             textarea.style.top = '0';
             textarea.setAttribute('readonly', ''); // Prevent visual keyboard on mobile
             document.body.appendChild(textarea);
-            
+
             const activeEl = document.activeElement;
             textarea.select();
             textarea.setSelectionRange(0, 99999); // Safe selection range for iOS
-            
+
             try {
                 const successful = document.execCommand('copy');
                 if (!successful) {
@@ -268,81 +273,36 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
             })
-            .catch((err) => {
-                console.error('All copy methods failed: ', err);
+            .catch(() => {
+                pushToast({ type: 'error', message: 'Copy to clipboard failed' });
             });
     };
 
     return (
-        <div className="flex flex-col height-100" style={{ height: '100%' }} onClick={handleCancelAnnotation}>
-            <div className="panel-header glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
-                <div className="flex flex-col">
-                    <span className="panel-title">
-                        {paneMode === 'rendered' && 'Parsed HTML Content'}
-                        {paneMode === 'plain' && 'Extracted Plain Text'}
-                        {paneMode === 'html' && 'Raw HTML Markup'}
-                        {paneMode === 'json' && 'Raw Section JSON'}
-                    </span>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                        {paneMode === 'rendered' && 'Highlight text in this pane to report discrepancies'}
-                        {paneMode === 'plain' && 'Viewing punctuation-faithful extracted text'}
-                        {paneMode === 'html' && 'Viewing raw HTML markup code'}
-                        {paneMode === 'json' && 'Viewing raw JSON data for this section'}
-                    </span>
+        <div className="flex flex-col" style={{ height: '100%' }} onClick={handleCancelAnnotation}>
+            <div className="panel-header html-panel-header">
+                <div className="html-panel-title" title={MODE_HINTS[paneMode]}>
+                    <span className="panel-title">{MODE_TITLES[paneMode]}</span>
                 </div>
-                <div className="flex align-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button 
-                        className={`btn ${paneMode === 'rendered' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-                        onClick={() => setPaneMode('rendered')}
-                        title="Switch to Rendered HTML View"
-                    >
-                        <Eye size={14} />
-                        <span>Rendered</span>
-                    </button>
+                <div className="html-panel-controls" onClick={(e) => e.stopPropagation()}>
+                    <SegmentedControl
+                        ariaLabel="Content view mode"
+                        value={paneMode}
+                        onChange={setPaneMode}
+                        options={[
+                            { value: 'rendered', label: 'Rendered', icon: <Eye size={13} />, title: 'Rendered HTML — highlight text to report issues' },
+                            { value: 'plain', label: 'Plain Text', icon: <AlignLeft size={13} />, title: 'Punctuation-faithful extracted text' },
+                            { value: 'html', label: 'Raw HTML', icon: <Code size={13} />, title: 'Raw HTML markup' },
+                            { value: 'json', label: 'Raw JSON', icon: <Braces size={13} />, title: 'Raw section JSON' },
+                        ]}
+                    />
                     <button
-                        className={`btn ${paneMode === 'plain' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-                        onClick={() => setPaneMode('plain')}
-                        title="Switch to Plain Text View"
-                    >
-                        <AlignLeft size={14} />
-                        <span>Plain Text</span>
-                    </button>
-                    <button 
-                        className={`btn ${paneMode === 'html' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-                        onClick={() => setPaneMode('html')}
-                        title="Switch to Raw HTML Code View"
-                    >
-                        <Code size={14} />
-                        <span>Raw HTML</span>
-                    </button>
-                    <button 
-                        className={`btn ${paneMode === 'json' ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-                        onClick={() => setPaneMode('json')}
-                        title="Switch to Raw JSON View"
-                    >
-                        <Code size={14} />
-                        <span>Raw JSON</span>
-                    </button>
-                    <button 
-                        className="btn btn-secondary"
-                        style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+                        className="btn btn-sm btn-secondary"
                         onClick={handleCopyContent}
                         title={`Copy ${paneMode === 'json' ? 'JSON' : paneMode === 'plain' ? 'plain text' : 'HTML'} to clipboard`}
                     >
                         {copied ? <Check size={14} style={{ color: 'var(--color-success)' }} /> : <Copy size={14} />}
-                        <span>
-                            {copied
-                                ? 'Copied!'
-                                : paneMode === 'json'
-                                    ? 'Copy JSON'
-                                    : paneMode === 'plain'
-                                        ? 'Copy Text'
-                                        : 'Copy HTML'}
-                        </span>
+                        <span>{copied ? 'Copied!' : 'Copy'}</span>
                     </button>
                 </div>
             </div>
@@ -365,10 +325,20 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                         </div>
                     </div>
                 )}
-                <div 
-                    ref={containerRef} 
+
+                {paneMode === 'rendered' && !htmlContent && (
+                    <EmptyState
+                        compact
+                        icon={<FileQuestion size={32} />}
+                        title="No parsed HTML"
+                        message="This leaf has no HTML content in the active JSON version. Check the plain-text view or the raw JSON."
+                    />
+                )}
+
+                <div
+                    ref={containerRef}
                     className="html-renderer-container"
-                    style={{ display: paneMode === 'rendered' ? 'block' : 'none' }}
+                    style={{ display: paneMode === 'rendered' && htmlContent ? 'block' : 'none' }}
                     onClick={(e) => e.stopPropagation()} // Stop bubble up to prevent clearing selection
                 />
 
@@ -381,51 +351,23 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                 )}
 
                 {paneMode === 'html' && (
-                    <div className="html-renderer-container raw-mode" style={{ padding: 24 }}>
-                        <pre style={{ 
-                            margin: 0, 
-                            padding: 16, 
-                            backgroundColor: 'var(--color-bg-primary)', 
-                            border: '1px solid var(--color-border)', 
-                            borderRadius: 'var(--radius-md)', 
-                            whiteSpace: 'pre-wrap', 
-                            wordBreak: 'break-all', 
-                            fontFamily: 'monospace', 
-                            fontSize: '0.8rem', 
-                            color: 'var(--color-text-primary)',
-                            overflowX: 'auto',
-                            lineHeight: 1.5,
-                            userSelect: 'text'
-                        }}>
+                    <div className="html-renderer-container raw-mode raw-mode-pad">
+                        <pre className="raw-pre">
                             {htmlContent}
                         </pre>
                     </div>
                 )}
 
                 {paneMode === 'json' && (
-                    <div className="html-renderer-container raw-mode" style={{ padding: 24 }}>
-                        <pre style={{ 
-                            margin: 0, 
-                            padding: 16, 
-                            backgroundColor: 'var(--color-bg-primary)', 
-                            border: '1px solid var(--color-border)', 
-                            borderRadius: 'var(--radius-md)', 
-                            whiteSpace: 'pre-wrap', 
-                            wordBreak: 'break-all', 
-                            fontFamily: 'monospace', 
-                            fontSize: '0.8rem', 
-                            color: 'var(--color-text-primary)',
-                            overflowX: 'auto',
-                            lineHeight: 1.5,
-                            userSelect: 'text'
-                        }}>
+                    <div className="html-renderer-container raw-mode raw-mode-pad">
+                        <pre className="raw-pre">
                             {JSON.stringify(section || { id: sectionId, html_content: htmlContent, footnotes }, null, 2)}
                         </pre>
                     </div>
                 )}
 
                 {popoverCoords && selectionData && paneMode === 'rendered' && (
-                    <AnnotationPopover 
+                    <AnnotationPopover
                         selectionText={selectionData.text}
                         coords={popoverCoords}
                         onSave={handleSaveAnnotation}
@@ -434,27 +376,13 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                 )}
 
                 {hoverFootnote && paneMode === 'rendered' && (
-                    <div style={{
-                        position: 'absolute',
-                        top: hoverFootnote.coords.top,
-                        left: hoverFootnote.coords.left,
-                        transform: 'translate(-50%, -100%)',
-                        zIndex: 200,
-                        pointerEvents: 'none'
-                    }}>
-                        <div style={{
-                            backgroundColor: 'var(--color-bg-secondary)',
-                            border: '1px solid var(--color-border-strong)',
-                            borderRadius: 'var(--radius-sm)',
-                            padding: '8px 12px',
-                            boxShadow: 'var(--shadow-md)',
-                            fontSize: '0.8rem',
-                            color: 'var(--color-text-primary)',
-                            maxWidth: 280,
-                            animation: 'popFade 0.1s ease-out'
-                        }}>
-                            <div style={{ fontWeight: 800, color: 'var(--color-accent)', marginBottom: 2 }}>Footnote {hoverFootnote.marker}</div>
-                            <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'var(--font-mono)' }}>
+                    <div
+                        className="fn-popover fn-popover-hover"
+                        style={{ top: hoverFootnote.coords.top, left: hoverFootnote.coords.left }}
+                    >
+                        <div className="fn-popover-card">
+                            <div className="fn-popover-marker">Footnote {hoverFootnote.marker}</div>
+                            <div className="fn-popover-text">
                                 {hoverFootnote.text
                                     ? hoverFootnote.text.split('\n')[0].trim().slice(0, 200) +
                                       (hoverFootnote.text.split('\n')[0].trim().length > 200 || hoverFootnote.text.includes('\n') ? '…' : '')
@@ -466,55 +394,33 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                 )}
 
                 {clickFootnote && paneMode === 'rendered' && (
-                    <div 
+                    <div
                         id="footnote-click-popup"
-                        style={{
-                            position: 'absolute',
-                            top: clickFootnote.coords.top,
-                            left: clickFootnote.coords.left,
-                            transform: 'translateX(-50%)',
-                            zIndex: 210
-                        }}
+                        className="fn-popover fn-popover-click"
+                        style={{ top: clickFootnote.coords.top, left: clickFootnote.coords.left }}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div style={{
-                            backgroundColor: 'var(--color-bg-secondary)',
-                            border: '1px solid var(--color-border-strong)',
-                            borderRadius: 'var(--radius-md)',
-                            padding: '16px',
-                            boxShadow: 'var(--shadow-lg)',
-                            fontSize: '0.85rem',
-                            color: 'var(--color-text-primary)',
-                            maxWidth: 320,
-                            animation: 'popFade 0.15s ease-out'
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 16 }}>
-                                <span style={{ fontWeight: 800, color: 'var(--color-accent)' }}>Footnote {clickFootnote.marker}</span>
-                                <button 
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: 'var(--color-text-muted)',
-                                        cursor: 'pointer',
-                                        fontSize: '1.2rem',
-                                        lineHeight: '1',
-                                        fontWeight: 'bold',
-                                        padding: '2px 6px'
-                                    }}
+                        <div className="fn-popover-card">
+                            <div className="fn-popover-head">
+                                <span className="fn-popover-marker">Footnote {clickFootnote.marker}</span>
+                                <button
+                                    type="button"
+                                    className="fn-popover-close"
+                                    aria-label="Close footnote"
                                     onClick={() => setClickFootnote(null)}
                                 >
-                                    &times;
+                                    <X size={14} />
                                 </button>
                             </div>
-                            <div style={{ lineHeight: 1.5, color: 'var(--color-text-secondary)', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-mono)' }}>{clickFootnote.text}</div>
+                            <div className="fn-popover-text">{clickFootnote.text}</div>
                         </div>
                     </div>
                 )}
 
                 {paneMode === 'rendered' && (
                     <div onClick={(e) => e.stopPropagation()}>
-                        <FootnotePanel 
-                            footnotes={footnotes} 
+                        <FootnotePanel
+                            footnotes={footnotes}
                             annotations={annotations}
                             onFootnoteSelect={handleFootnoteSelect}
                         />
@@ -539,7 +445,7 @@ const createRangeFromOffsets = (container, startOffset, endOffset) => {
     let node;
     while ((node = walker.nextNode())) {
         const length = node.textContent.length;
-        
+
         if (!startNode && currentOffset + length >= startOffset) {
             startNode = node;
             startCharOffset = startOffset - currentOffset;
