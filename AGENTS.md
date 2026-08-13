@@ -45,6 +45,21 @@ Run the API and web dev servers directly (do NOT rely on `make up`, which uses D
   smoke (`tools/run_tests_smoke.py`) + `apps/web` vite build. The web unit suite is separate:
   `cd apps/web && npm run test` (vitest, ~93 tests). All pass on a clean setup.
 
+### CI/CD
+- GitHub Actions runs `.github/workflows/ci.yml` on every PR and push to `main`, then
+  `.github/workflows/deploy-northflank.yml` builds and deploys the commit to Northflank via
+  `tools/northflank_deploy.py`.
+- The backend ruff step is deliberately `continue-on-error` because of the pre-existing findings
+  described above; only `tools/northflank_deploy.py` and `tools/tests` are lint-gated.
+- Deploys need `NORTHFLANK_API_TOKEN` as a GitHub Actions repository secret. A token in `.env` is
+  only usable for local runs of the script.
+- `python tools/northflank_deploy.py enable-cicd` switches deploys over to Northflank's own CI/CD,
+  which needs no GitHub Actions at all. Useful when Actions is unavailable.
+- `pytest tools/tests` covers the deploy script against an in-process fake Northflank API
+  (`tools/tests/fake_northflank.py`), so it can be exercised with no token and no network.
+- Workflow YAML is checked with [actionlint](https://github.com/rhysd/actionlint); run
+  `actionlint` from the repo root after editing anything under `.github/workflows/`.
+
 ### AI Fix feature
 - The "AI Fix" action requires all three `OPENPATHS_*` env vars; without them the endpoint
   returns 503 by design. It is optional and not needed for core review/annotation flows.

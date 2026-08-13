@@ -74,6 +74,56 @@ Dev Compose uses Vite. For a static nginx SPA:
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
 ```
 
+## CI/CD
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | every PR and push to `main` | API pytest, pipeline import smoke, web lint/vitest/build |
+| [`.github/workflows/deploy-northflank.yml`](.github/workflows/deploy-northflank.yml) | CI succeeding on `main`, or manual dispatch | builds the merged commit on Northflank and rolls it out |
+
+Deploys run [`tools/northflank_deploy.py`](tools/northflank_deploy.py), which talks to the
+Northflank REST API using only the standard library. For each service it starts a build of the
+exact commit, waits for that build to finish, and then deploys it — unless the service already has
+Northflank's own continuous deployment enabled, in which case Northflank rolls the build out.
+
+### Enabling deploys
+
+`NORTHFLANK_API_TOKEN` must exist as a **GitHub Actions repository secret** (Settings → Secrets and
+variables → Actions). A token in your local `.env` only works for local runs; GitHub Actions cannot
+read it, because `.env` is gitignored. Optional repository *variables* override the defaults:
+`NORTHFLANK_PROJECT_ID` (default `qa-pdf-portal`) and `NORTHFLANK_TEAM_ID`.
+
+Run it locally against the token in your `.env`:
+
+```bash
+python tools/northflank_deploy.py check                     # report project/service state
+python tools/northflank_deploy.py deploy --sha "$(git rev-parse HEAD)"
+python tools/northflank_deploy.py deploy --dry-run          # resolve config, change nothing
+```
+
+[`northflank.template.json`](northflank.template.json) is the infrastructure-as-code definition of
+the two services (`crx-api`, `crx-web`) in the `qa-pdf-portal` project. It is applied by running the
+template in Northflank; the deploy workflow does not run it, it only builds and deploys the services
+the template created.
+
+### Deploying without GitHub Actions
+
+Northflank has its own CI/CD that watches the repo directly, so deploys do not have to go through
+GitHub Actions at all. Either flip the **CI** and **CD** toggles in each service's header in the
+Northflank dashboard, or do both services at once with your local token:
+
+```bash
+python tools/northflank_deploy.py enable-cicd --set-branch --branch main
+```
+
+That clears `disabledCI` so Northflank builds every new commit on `main`, and sets each deployment's
+`buildSHA` to `latest` so it rolls each successful build out. `--set-branch` also repoints the
+services at `main`; drop it to leave the watched branch alone.
+
+The two mechanisms coexist safely: `tools/northflank_deploy.py deploy` detects a service running in
+that mode and lets Northflank perform the rollout instead of pinning a build itself. Use
+`python tools/northflank_deploy.py check` to see which mode each service is in.
+
 ## Schema migrations
 
 API boot runs a versioned migrator (`schema_version` + `backend/migrations/m0001_initial.py`). Idempotent `CREATE IF NOT EXISTS` / guarded ALTERs remain so legacy DBs upgrade cleanly.

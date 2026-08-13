@@ -3,7 +3,7 @@
   "name": "fbr-qa-staging",
   "description": "Redeploy FBR Corpus QA portal api and web into the existing free-plan project qa-pdf-portal (branch args.branch).",
   "arguments": {
-    "branch": "cursor/qa-portal-ui-revamp-420b",
+    "branch": "main",
     "plan": "nf-compute-10",
     "projectId": "qa-pdf-portal"
   },
