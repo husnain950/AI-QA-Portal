@@ -1,0 +1,130 @@
+{
+  "apiVersion": "v1.2",
+  "name": "fbr-qa-staging",
+  "description": "Staging environment for the FBR Corpus QA portal: FastAPI backend + nginx-served SPA (proxies /api and /uploads to the backend over the project's private network).",
+  "arguments": {
+    "branch": "cursor/qa-portal-ui-revamp-420b",
+    "region": "us-central",
+    "plan": "nf-compute-20"
+  },
+  "options": {
+    "autorun": false,
+    "concurrencyPolicy": "queue"
+  },
+  "spec": {
+    "kind": "Workflow",
+    "spec": {
+      "type": "sequential",
+      "context": {},
+      "steps": [
+        {
+          "kind": "Project",
+          "ref": "project",
+          "spec": {
+            "name": "fbr-qa-staging",
+            "description": "FBR Corpus QA portal — staging",
+            "color": "#4f5be7",
+            "region": "${args.region}"
+          }
+        },
+        {
+          "kind": "Workflow",
+          "spec": {
+            "type": "sequential",
+            "context": {
+              "projectId": "${refs.project.id}"
+            },
+            "steps": [
+              {
+                "kind": "CombinedService",
+                "ref": "api",
+                "spec": {
+                  "name": "api",
+                  "billing": {
+                    "deploymentPlan": "${args.plan}",
+                    "buildPlan": "nf-compute-400-16"
+                  },
+                  "vcsData": {
+                    "projectType": "github",
+                    "projectUrl": "https://github.com/husnain950/AI-QA-Portal",
+                    "projectBranch": "${args.branch}"
+                  },
+                  "buildSettings": {
+                    "dockerfile": {
+                      "buildEngine": "kaniko",
+                      "dockerFilePath": "/apps/api/Dockerfile",
+                      "dockerWorkDir": "/",
+                      "useCache": false
+                    }
+                  },
+                  "deployment": {
+                    "instances": 1,
+                    "docker": {
+                      "configType": "default"
+                    }
+                  },
+                  "runtimeEnvironment": {},
+                  "buildArguments": {},
+                  "ports": [
+                    {
+                      "name": "api",
+                      "internalPort": 8000,
+                      "protocol": "HTTP",
+                      "public": false
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "CombinedService",
+                "ref": "web",
+                "spec": {
+                  "name": "web",
+                  "billing": {
+                    "deploymentPlan": "${args.plan}",
+                    "buildPlan": "nf-compute-400-16"
+                  },
+                  "vcsData": {
+                    "projectType": "github",
+                    "projectUrl": "https://github.com/husnain950/AI-QA-Portal",
+                    "projectBranch": "${args.branch}"
+                  },
+                  "buildSettings": {
+                    "dockerfile": {
+                      "buildEngine": "kaniko",
+                      "dockerFilePath": "/apps/web/Dockerfile.prod",
+                      "dockerWorkDir": "/",
+                      "useCache": false
+                    }
+                  },
+                  "buildArguments": {
+                    "VITE_API_URL": "/api",
+                    "VITE_STATIC_URL": ""
+                  },
+                  "deployment": {
+                    "instances": 1,
+                    "docker": {
+                      "configType": "default"
+                    }
+                  },
+                  "runtimeEnvironment": {
+                    "API_HOST": "api",
+                    "API_PORT": "8000"
+                  },
+                  "ports": [
+                    {
+                      "name": "web",
+                      "internalPort": 80,
+                      "protocol": "HTTP",
+                      "public": true
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
