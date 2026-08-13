@@ -5,8 +5,13 @@
     padding: 0;
 }
 
+html {
+    font-size: 16px;
+}
+
 body {
     font-family: var(--font-body);
+    font-size: var(--text-md);
     background-color: var(--color-bg-primary);
     color: var(--color-text-primary);
     line-height: 1.5;
@@ -33,6 +38,27 @@ input, button, select, textarea {
     outline: none;
 }
 
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    box-shadow: var(--focus-ring);
+}
+
+button:focus-visible {
+    box-shadow: var(--focus-ring);
+}
+
+::selection {
+    background: var(--color-accent-light);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
     width: 8px;
@@ -50,4 +76,17 @@ input, button, select, textarea {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--color-border-strong);
+}
+
+/* Screen-reader-only helper */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }

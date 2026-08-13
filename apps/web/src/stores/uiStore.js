@@ -57,13 +57,9 @@ export const useUiStore = create((set, get) => {
         pushToast: ({ type = 'info', message, durationMs = 8000, onUndo = null } = {}) => {
             const id = ++toastSeq;
             set((state) => ({
-                toasts: [...state.toasts, { id, type, message, onUndo }],
+                // Cap the stack so a burst of toasts never covers the screen.
+                toasts: [...state.toasts, { id, type, message, onUndo, durationMs }].slice(-4),
             }));
-            if (durationMs > 0) {
-                setTimeout(() => {
-                    get().dismissToast(id);
-                }, durationMs);
-            }
             return id;
         },
 
@@ -80,7 +76,9 @@ export const useUiStore = create((set, get) => {
 
         closeDialog: (result) => {
             const dialog = get().dialog;
-            if (dialog?.resolve) dialog.resolve(Boolean(result));
+            // Prompt dialogs resolve with the entered string (or null on cancel);
+            // confirm dialogs resolve with a boolean.
+            if (dialog?.resolve) dialog.resolve(dialog.prompt ? result : Boolean(result));
             set({ dialog: null });
         },
 

@@ -1,53 +1,54 @@
 /* --- UI Dialog & Toast --- */
 .ui-dialog {
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 0;
-    background: var(--color-bg-elevated, var(--color-bg-primary));
+    background: var(--color-surface);
     color: var(--color-text-primary);
-    max-width: min(420px, 92vw);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    max-width: min(440px, 92vw);
+    box-shadow: var(--shadow-lg);
 }
 
 .ui-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.45);
+    background: rgba(9, 12, 18, 0.5);
 }
 
 .ui-dialog-body {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 20px;
+    gap: var(--space-3);
+    padding: var(--space-5);
 }
 
 .ui-dialog-title {
     margin: 0;
-    font-size: 1.05rem;
-    font-weight: 650;
+    font-size: var(--text-lg);
+    font-weight: 700;
 }
 
 .ui-dialog-message {
     margin: 0;
     white-space: pre-wrap;
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     color: var(--color-text-secondary);
-    line-height: 1.45;
+    line-height: 1.5;
 }
 
 .ui-dialog-input {
     width: 100%;
-    padding: 8px 10px;
-    border-radius: 6px;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--color-border);
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
+    font-size: var(--text-sm);
 }
 
 .ui-dialog-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-    margin-top: 4px;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
 }
 
 .toast-host {
@@ -57,7 +58,7 @@
     z-index: 10000;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-2);
     max-width: min(420px, 92vw);
 }
 
@@ -65,13 +66,27 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--color-bg-elevated, var(--color-bg-secondary));
+    padding: 9px 12px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-    font-size: 0.85rem;
+    box-shadow: var(--shadow-lg);
+    font-size: var(--text-sm);
+    animation: toast-in 0.18s ease-out;
 }
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.toast-icon {
+    flex-shrink: 0;
+    color: var(--color-info);
+}
+
+.toast-success .toast-icon { color: var(--color-success); }
+.toast-error .toast-icon { color: var(--color-error); }
 
 .toast-error {
     border-color: var(--color-error);
@@ -79,21 +94,28 @@
 
 .toast-message {
     flex: 1;
+    line-height: 1.4;
 }
 
 .toast-undo {
-    background: transparent;
-    border: none;
-    color: var(--color-accent);
-    font-weight: 650;
-    cursor: pointer;
+    flex-shrink: 0;
 }
 
 .toast-dismiss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
     background: transparent;
     border: none;
-    color: var(--color-text-secondary);
+    border-radius: var(--radius-xs);
+    color: var(--color-text-muted);
     cursor: pointer;
-    font-size: 1.1rem;
-    line-height: 1;
+}
+
+.toast-dismiss:hover {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
 }
