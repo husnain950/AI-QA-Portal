@@ -1,4 +1,19 @@
 /* --- PDF Panel Styles --- */
+.pdf-panel-header {
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-block: 6px;
+}
+
+.pdf-panel-header .panel-title {
+    white-space: nowrap;
+}
+
+.pdf-page-nav {
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
 .pdf-scroll-container {
     width: 100%;
     height: 100%;

@@ -269,28 +269,28 @@
 }
 
 .document-tag.tag-native {
-    color: #1f6b4a;
-    border-color: color-mix(in srgb, #1f6b4a 35%, var(--color-border));
-    background: color-mix(in srgb, #1f6b4a 10%, var(--color-bg-secondary));
+    color: var(--color-success);
+    border-color: color-mix(in srgb, var(--color-success) 35%, var(--color-border));
+    background: var(--color-success-light);
 }
 
 .document-tag.tag-scanned {
-    color: #8a4b12;
-    border-color: color-mix(in srgb, #8a4b12 35%, var(--color-border));
-    background: color-mix(in srgb, #8a4b12 10%, var(--color-bg-secondary));
+    color: var(--color-warning);
+    border-color: color-mix(in srgb, var(--color-warning) 35%, var(--color-border));
+    background: var(--color-warning-light);
 }
 
 .document-tag.tag-mixed {
-    color: #215a8f;
-    border-color: color-mix(in srgb, #215a8f 35%, var(--color-border));
-    background: color-mix(in srgb, #215a8f 10%, var(--color-bg-secondary));
+    color: var(--color-info);
+    border-color: color-mix(in srgb, var(--color-info) 35%, var(--color-border));
+    background: var(--color-info-light);
 }
 
 .document-tag.tag-provisional,
 .document-tag.tag-needs-review {
-    color: #8b2e2e;
-    border-color: color-mix(in srgb, #8b2e2e 35%, var(--color-border));
-    background: color-mix(in srgb, #8b2e2e 10%, var(--color-bg-secondary));
+    color: var(--color-error);
+    border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-border));
+    background: var(--color-error-light);
 }
 
 .review-provenance-banner {
@@ -300,8 +300,8 @@
     gap: 12px;
     padding: 8px 14px;
     margin: 0 0 8px;
-    border: 1px solid color-mix(in srgb, #8b2e2e 35%, var(--color-border));
-    background: color-mix(in srgb, #8b2e2e 8%, var(--color-bg-secondary));
+    border: 1px solid color-mix(in srgb, var(--color-error) 35%, var(--color-border));
+    background: var(--color-error-light);
     color: var(--color-text-primary);
     border-radius: var(--radius-md);
     font-size: 0.82rem;
@@ -457,9 +457,9 @@
     font-weight: 800;
     letter-spacing: 0.03em;
     text-transform: uppercase;
-    color: #8a4b12;
-    border: 1px solid color-mix(in srgb, #8a4b12 35%, var(--color-border));
-    background: color-mix(in srgb, #8a4b12 10%, var(--color-bg-secondary));
+    color: var(--color-warning);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 35%, var(--color-border));
+    background: var(--color-warning-light);
 }
 
 .toc-quality-mark {
@@ -467,5 +467,5 @@
     margin-left: 4px;
     font-size: 0.58rem;
     font-weight: 700;
-    color: var(--color-error, #8b2e2e);
+    color: var(--color-error);
 }
