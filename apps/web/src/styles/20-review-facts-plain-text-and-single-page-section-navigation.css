@@ -124,15 +124,6 @@
 }
 
 @media (max-width: 900px) {
-    .library-head {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .library-controls {
-        justify-content: flex-start;
-    }
-
     .document-search {
         flex: 1 1 280px;
     }
@@ -148,7 +139,6 @@
 }
 
 @media (max-width: 620px) {
-    .library-controls,
     .source-filters {
         width: 100%;
     }
@@ -157,32 +147,13 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .document-card,
-    .document-info {
-        min-width: 0;
-    }
-
     .document-card {
-        flex-direction: column;
+        min-width: 0;
     }
 
     .stats-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
-        margin-bottom: 28px;
-    }
-
-    .stat-card {
-        padding: 16px;
-    }
-
-    .stat-value {
-        font-size: 1.55rem;
-    }
-
-    .progress-ring-container {
-        align-self: center;
-        margin-top: 12px;
     }
 
     .document-search {

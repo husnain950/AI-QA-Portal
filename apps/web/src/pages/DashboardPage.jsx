@@ -1,8 +1,15 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UploadCloud, FileText, CheckCircle, Clock, Trash2, Download, Loader2, Search, RefreshCw, Database, AlertTriangle } from 'lucide-react';
+import {
+    UploadCloud, FileText, Trash2, Download, Loader2, Search,
+    RefreshCw, Database, AlertTriangle, LayoutGrid, Rows3, Upload, ChevronDown,
+} from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
 import NewVersionButton from '../components/review/NewVersionButton';
+import DropdownMenu from '../components/ui/DropdownMenu';
+import EmptyState from '../components/ui/EmptyState';
+import Skeleton from '../components/ui/Skeleton';
+import SegmentedControl from '../components/ui/SegmentedControl';
 import { useDocumentStore } from '../stores/documentStore';
 import DocumentHealth from '../components/dashboard/DocumentHealth';
 import DocumentTags from '../components/dashboard/DocumentTags';
@@ -17,7 +24,53 @@ const EMPTY_FACETS = {
     sourceKind: '',
     health: '',
     review: '',
+    flagged: '',
 };
+
+const VIEW_KEY = 'qa-portal-library-view';
+
+function timeAgo(iso) {
+    if (!iso) return null;
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+}
+
+/** Row-level actions shared by list and card layouts. */
+function DocumentActions({ doc, onDelete, onExport, onNewVersion }) {
+    const newVersionTrigger = useRef(null);
+    return (
+        <div className="doc-actions" onClick={(e) => e.stopPropagation()}>
+            <NewVersionButton
+                documentId={doc.id}
+                documentName={doc.name}
+                hideButton
+                triggerRef={newVersionTrigger}
+                onSuccess={onNewVersion}
+            />
+            <DropdownMenu
+                ariaLabel={`Actions for ${doc.name}`}
+                items={[
+                    { key: 'json', label: 'Export report (JSON)', icon: Download, onSelect: () => onExport(doc.id, 'json') },
+                    { key: 'csv', label: 'Export report (CSV)', icon: Download, onSelect: () => onExport(doc.id, 'csv') },
+                    {
+                        key: 'version',
+                        label: 'Upload new JSON version…',
+                        icon: Upload,
+                        title: 'Add a new JSON version (the PDF stays as it is)',
+                        onSelect: () => newVersionTrigger.current?.(),
+                    },
+                    { type: 'separator' },
+                    { key: 'delete', label: 'Delete document…', icon: Trash2, danger: true, onSelect: () => onDelete(doc.id, doc.name) },
+                ]}
+            />
+        </div>
+    );
+}
 
 const DashboardPage = () => {
     const navigate = useNavigate();
@@ -25,16 +78,31 @@ const DashboardPage = () => {
     const pushToast = useUiStore((s) => s.pushToast);
     const confirmDialog = useUiStore((s) => s.confirmDialog);
 
-    const [successMessage, setSuccessMessage] = useState('');
     const [documentQuery, setDocumentQuery] = useState('');
     const [facets, setFacets] = useState(EMPTY_FACETS);
     const [sort, setSort] = useState('name');
-    const [viewMode, setViewMode] = useState('grouped');
+    const [layout, setLayout] = useState(() => {
+        try {
+            return window.localStorage?.getItem(VIEW_KEY) || 'list';
+        } catch {
+            return 'list';
+        }
+    });
     const [corpusStatus, setCorpusStatus] = useState(null);
     const [syncing, setSyncing] = useState(false);
+    const [collapsedFamilies, setCollapsedFamilies] = useState(() => new Set());
 
     const setFacet = (key, value) => {
         setFacets((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const setLayoutPersisted = (value) => {
+        setLayout(value);
+        try {
+            window.localStorage?.setItem(VIEW_KEY, value);
+        } catch {
+            // localStorage unavailable
+        }
     };
 
     const refreshCorpusStatus = useCallback(async () => {
@@ -57,11 +125,11 @@ const DashboardPage = () => {
             const summary = await corpusApi.sync({ metrics: true });
             const ord = summary.ordinance || {};
             const acts = summary.acts || {};
-            setSuccessMessage(
-                `Corpus sync finished — Ordinance imported ${ord.imported ?? 0} / skipped ${ord.skipped ?? 0}; `
-                + `Acts imported ${acts.imported ?? 0} / skipped ${acts.skipped ?? 0}.`
-            );
-            setTimeout(() => setSuccessMessage(''), 8000);
+            pushToast({
+                type: 'success',
+                message: `Corpus sync finished — Ordinance imported ${ord.imported ?? 0} / skipped ${ord.skipped ?? 0}; `
+                    + `Acts imported ${acts.imported ?? 0} / skipped ${acts.skipped ?? 0}.`,
+            });
             await fetchDocuments();
             await refreshCorpusStatus();
         } catch (err) {
@@ -71,8 +139,7 @@ const DashboardPage = () => {
         }
     };
 
-    const handleDelete = async (docId, name, e) => {
-        e.stopPropagation();
+    const handleDelete = async (docId, name) => {
         const ok = await confirmDialog({
             title: 'Delete document?',
             message: `Delete "${name}"? This removes annotations, footnotes validation, and source files.`,
@@ -81,12 +148,26 @@ const DashboardPage = () => {
         if (!ok) return;
         try {
             await deleteDocument(docId);
+            pushToast({ type: 'success', message: `Deleted "${name}"` });
         } catch (err) {
             pushToast({ type: 'error', message: 'Failed to delete document: ' + err.message });
         }
     };
 
-    // Calculate aggregated metrics
+    const handleExport = (docId, format) => {
+        window.open(api.getDownloadUrl(`/documents/${docId}/export?format=${format}`));
+    };
+
+    const handleNewVersion = useCallback(async () => {
+        pushToast({ type: 'success', message: 'New JSON version is active. Open the document to see what changed.' });
+        fetchDocuments();
+    }, [pushToast, fetchDocuments]);
+
+    const handleReviewClick = (docId) => {
+        navigate(`/review/${docId}`);
+    };
+
+    // Aggregated metrics
     const totalDocs = documents.length;
     const totalSections = documents.reduce((sum, doc) => sum + doc.total_sections, 0);
     const totalIssues = documents.reduce((sum, doc) => sum + (doc.stats?.has_issues || 0), 0);
@@ -102,16 +183,22 @@ const DashboardPage = () => {
         [filteredDocuments, sort],
     );
     const facetsActive = Boolean(
-        facets.corpusLane || facets.sourceKind || facets.health || facets.review || documentQuery.trim(),
+        facets.corpusLane || facets.sourceKind || facets.health || facets.review
+        || facets.flagged || documentQuery.trim(),
     );
 
-    const handleExport = (docId, format, e) => {
-        e.stopPropagation();
-        window.open(api.getDownloadUrl(`/documents/${docId}/export?format=${format}`));
+    const clearFilters = () => {
+        setFacets(EMPTY_FACETS);
+        setDocumentQuery('');
     };
 
-    const handleReviewClick = (docId) => {
-        navigate(`/review/${docId}`);
+    const toggleFamily = (familyKey) => {
+        setCollapsedFamilies((prev) => {
+            const next = new Set(prev);
+            if (next.has(familyKey)) next.delete(familyKey);
+            else next.add(familyKey);
+            return next;
+        });
     };
 
     const FacetGroup = ({ label, ariaLabel, value, onChange, options }) => (
@@ -133,308 +220,291 @@ const DashboardPage = () => {
         </div>
     );
 
-    const renderDocumentCard = (doc) => {
+    const docCompletion = (doc) => {
         const reviewedCount = doc.stats?.reviewed || 0;
         const totalCount = doc.total_sections;
-        const compPercent = totalCount > 0 ? Math.round((reviewedCount / totalCount) * 100) : 0;
-        const isPending = compPercent === 0;
-        const strokeDashoffset = 251.2 - (251.2 * compPercent) / 100;
+        return totalCount > 0 ? Math.round((reviewedCount / totalCount) * 100) : 0;
+    };
+
+    const renderDocumentRow = (doc) => {
+        const compPercent = docCompletion(doc);
         const edition = editionDateFromName(doc.name);
         const lane = doc.corpus_lane || (doc.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
+        const flaggedCount = doc.stats?.has_issues || 0;
+
+        return (
+            <div
+                key={doc.id}
+                className="doc-row"
+                onClick={() => handleReviewClick(doc.id)}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleReviewClick(doc.id);
+                }}
+            >
+                <div className="doc-row-main">
+                    <div className="doc-row-title">
+                        <span className={`source-badge lane-${lane}`}>{laneLabel(lane)}</span>
+                        {!edition.unknown && (
+                            <span className="edition-year-badge" title="Edition year">{edition.label}</span>
+                        )}
+                        <h3 className="doc-row-name" title={doc.name}>{doc.name}</h3>
+                        <DocumentTags provenance={doc.provenance} compact />
+                    </div>
+                    <div className="doc-row-meta">
+                        <span>{doc.total_sections.toLocaleString()} sections</span>
+                        <span>{doc.total_pages} pages</span>
+                        <span title="JSON versions of this parse (the PDF is fixed)">
+                            {doc.version_count ?? 1} version{(doc.version_count ?? 1) === 1 ? '' : 's'}
+                        </span>
+                        {flaggedCount > 0 && (
+                            <span className="doc-row-flagged" title={`${flaggedCount} flagged sections`}>
+                                <AlertTriangle size={11} aria-hidden="true" />
+                                {flaggedCount} flagged
+                            </span>
+                        )}
+                        <DocumentHealth health={doc.health} />
+                    </div>
+                </div>
+                <div className="doc-row-progress" title={`${doc.stats?.reviewed || 0} of ${doc.total_sections} sections reviewed`}>
+                    <span className="progress-bar">
+                        <span
+                            className={`progress-bar-fill ${compPercent === 100 ? 'is-complete' : ''}`}
+                            style={{ width: `${compPercent}%` }}
+                        />
+                    </span>
+                    <span className="doc-row-percent">{compPercent}%</span>
+                </div>
+                <div className="doc-row-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => handleReviewClick(doc.id)}
+                    >
+                        {compPercent === 0 ? 'Start review' : 'Continue'}
+                    </button>
+                    <DocumentActions
+                        doc={doc}
+                        onDelete={handleDelete}
+                        onExport={handleExport}
+                        onNewVersion={handleNewVersion}
+                    />
+                </div>
+            </div>
+        );
+    };
+
+    const renderDocumentCard = (doc) => {
+        const compPercent = docCompletion(doc);
+        const edition = editionDateFromName(doc.name);
+        const lane = doc.corpus_lane || (doc.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
+        const flaggedCount = doc.stats?.has_issues || 0;
 
         return (
             <div
                 key={doc.id}
                 className="document-card"
                 onClick={() => handleReviewClick(doc.id)}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleReviewClick(doc.id);
+                }}
             >
-                <div className="document-info">
-                    <div>
-                        <div className="document-title-row">
-                            <span className={`source-badge lane-${lane}`}>
-                                {laneLabel(lane)}
-                            </span>
-                            {!edition.unknown && (
-                                <span className="edition-year-badge" title="Edition year">
-                                    {edition.label}
-                                </span>
-                            )}
-                            <DocumentTags provenance={doc.provenance} compact />
-                            <h3 className="document-name">{doc.name}</h3>
-                        </div>
-                        <div className="document-meta flex align-center gap-2">
-                            <Clock size={12} />
-                            <span>Uploaded on {new Date(doc.uploaded_at).toLocaleDateString()}</span>
-                        </div>
-
-                        <div className="document-stats-summary">
-                            <span className="document-stat-item">
-                                <strong>{doc.total_sections}</strong> sections
-                            </span>
-                            <span className="document-stat-item">
-                                <strong>{doc.total_pages}</strong> pages
-                            </span>
+                <div className="document-card-head">
+                    <span className={`source-badge lane-${lane}`}>{laneLabel(lane)}</span>
+                    {!edition.unknown && (
+                        <span className="edition-year-badge" title="Edition year">{edition.label}</span>
+                    )}
+                    <DocumentTags provenance={doc.provenance} compact />
+                    <DocumentActions
+                        doc={doc}
+                        onDelete={handleDelete}
+                        onExport={handleExport}
+                        onNewVersion={handleNewVersion}
+                    />
+                </div>
+                <h3 className="document-name" title={doc.name}>{doc.name}</h3>
+                <div className="document-card-stats">
+                    <span>{doc.total_sections.toLocaleString()} sections</span>
+                    <span>{doc.total_pages} pages</span>
+                    <span>{doc.version_count ?? 1} version{(doc.version_count ?? 1) === 1 ? '' : 's'}</span>
+                    {flaggedCount > 0 && (
+                        <span className="doc-row-flagged">
+                            <AlertTriangle size={11} aria-hidden="true" />
+                            {flaggedCount} flagged
+                        </span>
+                    )}
+                </div>
+                <DocumentHealth health={doc.health} />
+                <div className="document-card-footer">
+                    <div className="doc-row-progress" title={`${doc.stats?.reviewed || 0} of ${doc.total_sections} sections reviewed`}>
+                        <span className="progress-bar">
                             <span
-                                className="document-stat-item"
-                                title="JSON versions of this parse (the PDF is fixed)"
-                            >
-                                <strong>{doc.version_count ?? 1}</strong>{' '}
-                                {doc.version_count === 1 ? 'version' : 'versions'}
-                            </span>
-                        </div>
-
-                        <DocumentHealth health={doc.health} />
-                    </div>
-
-                    <div className="flex gap-2" style={{ marginTop: 12 }}>
-                        <button
-                            className="btn btn-primary"
-                            style={{ padding: '8px 14px', fontSize: '0.85rem' }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleReviewClick(doc.id);
-                            }}
-                        >
-                            {isPending ? 'Start Review' : 'Continue Review'}
-                        </button>
-
-                        <button
-                            className="btn btn-secondary"
-                            style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                            onClick={(e) => handleExport(doc.id, 'json', e)}
-                            title="Export report as JSON"
-                        >
-                            <Download size={14} />
-                            <span>JSON</span>
-                        </button>
-
-                        <button
-                            className="btn btn-secondary"
-                            style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                            onClick={(e) => handleExport(doc.id, 'csv', e)}
-                            title="Export report as CSV"
-                        >
-                            <Download size={14} />
-                            <span>CSV</span>
-                        </button>
-
-                        <span
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ marginLeft: 'auto', display: 'inline-flex' }}
-                        >
-                            <NewVersionButton
-                                documentId={doc.id}
-                                documentName={doc.name}
-                                className="btn btn-secondary"
-                                style={{ padding: '8px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}
-                                onSuccess={async () => {
-                                    setSuccessMessage('New JSON version is active. Open the document to see what changed.');
-                                    setTimeout(() => setSuccessMessage(''), 6000);
-                                    fetchDocuments();
-                                }}
+                                className={`progress-bar-fill ${compPercent === 100 ? 'is-complete' : ''}`}
+                                style={{ width: `${compPercent}%` }}
                             />
                         </span>
-
-                        <button
-                            className="btn btn-danger"
-                            style={{ padding: '8px 12px' }}
-                            onClick={(e) => handleDelete(doc.id, doc.name, e)}
-                            title="Delete Document"
-                        >
-                            <Trash2 size={14} />
-                        </button>
+                        <span className="doc-row-percent">{compPercent}%</span>
                     </div>
-                </div>
-
-                <div className="progress-ring-container">
-                    <svg className="progress-ring-svg" width="90" height="90">
-                        <circle className="progress-ring-bg" cx="45" cy="45" r="36" />
-                        <circle
-                            className="progress-ring-bar"
-                            cx="45"
-                            cy="45"
-                            r="36"
-                            style={{
-                                strokeDashoffset,
-                                stroke: compPercent === 100 ? 'var(--color-success)' : 'var(--color-accent)',
-                            }}
-                        />
-                    </svg>
-                    <div className="progress-ring-text">{compPercent}%</div>
+                    <button
+                        className="btn btn-sm btn-primary"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleReviewClick(doc.id);
+                        }}
+                    >
+                        {compPercent === 0 ? 'Start review' : 'Continue'}
+                    </button>
                 </div>
             </div>
         );
     };
 
-    return (
-        <AppShell 
-            title="Library"
-            scrollable={true}
-            actions={
-                <div className="flex gap-2 align-center">
-                    <button
-                        className="btn btn-secondary"
-                        onClick={handleCorpusSync}
-                        disabled={syncing || corpusStatus?.sync_running}
-                        title="Sync Ordinance + Acts from configured corpus mounts"
-                    >
-                        {syncing || corpusStatus?.sync_running ? (
-                            <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                            <RefreshCw size={16} />
-                        )}
-                        <span>{syncing ? 'Syncing…' : 'Sync corpus'}</span>
-                    </button>
-                    <button className="btn btn-primary" onClick={() => navigate('/upload')}>
-                        <UploadCloud size={16} />
-                        <span>Upload Document</span>
-                    </button>
-                </div>
-            }
-        >
-            <div className="dashboard-container">
-                {successMessage && (
-                    <div className="flex align-center gap-2 p-3" style={{ 
-                        backgroundColor: 'var(--color-success-light)', 
-                        color: 'var(--color-success)', 
-                        borderRadius: 'var(--radius-sm)', 
-                        marginBottom: 24, 
-                        fontSize: '0.85rem',
-                        border: '1px solid var(--color-success)',
-                        display: 'flex',
-                        alignItems: 'center'
-                    }}>
-                        <CheckCircle size={16} />
-                        <span>{successMessage}</span>
-                    </div>
-                )}
+    const renderDocuments = (docs) => (
+        layout === 'list'
+            ? <div className="doc-rows">{docs.map((doc) => renderDocumentRow(doc))}</div>
+            : <div className="document-grid">{docs.map((doc) => renderDocumentCard(doc))}</div>
+    );
 
-                {corpusStatus && (
-                    <section
-                        className="glass-panel"
-                        style={{
-                            padding: '14px 18px',
-                            marginBottom: 20,
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: 16,
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                        }}
-                    >
-                        <div className="flex align-center gap-2" style={{ gap: 10 }}>
-                            <Database size={16} style={{ color: 'var(--color-accent)' }} />
-                            <div>
-                                <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                                    Pipeline health
-                                    {corpusStatus.last_status ? (
-                                        <span style={{
-                                            marginLeft: 8,
-                                            color: corpusStatus.last_status === 'ok'
-                                                ? 'var(--color-success)'
-                                                : 'var(--color-warning)',
-                                        }}>
-                                            · last sync {corpusStatus.last_status}
-                                        </span>
+    return (
+        <AppShell title="Library" scrollable>
+            <div className="dashboard-container">
+                <header className="library-header">
+                    <div className="library-header-text">
+                        <h1>Library</h1>
+                        <p>
+                            {totalDocs.toLocaleString()} documents · {totalSections.toLocaleString()} sections
+                            {corpusStatus && (
+                                <span className="library-sync-meta">
+                                    <Database size={12} aria-hidden="true" />
+                                    {corpusStatus.last_sync_at ? (
+                                        <>
+                                            last sync{' '}
+                                            <span
+                                                className={corpusStatus.last_status === 'ok'
+                                                    ? 'sync-status-ok'
+                                                    : 'sync-status-warn'}
+                                            >
+                                                {corpusStatus.last_status || 'unknown'}
+                                            </span>{' '}
+                                            <span title={new Date(corpusStatus.last_sync_at).toLocaleString()}>
+                                                {timeAgo(corpusStatus.last_sync_at)}
+                                            </span>
+                                        </>
                                     ) : (
-                                        <span style={{ marginLeft: 8, color: 'var(--color-text-muted)' }}>
-                                            · never synced
-                                        </span>
+                                        'never synced'
                                     )}
-                                </div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                                    {corpusStatus.last_sync_at
-                                        ? `Last sync ${new Date(corpusStatus.last_sync_at).toLocaleString()}`
-                                        : 'Run Sync corpus (or make sync) to load Ordinance + Acts JSON'}
                                     {' · '}
                                     Ordinance {corpusStatus.ordinance_configured ? 'mounted' : 'missing'}
                                     {' / '}
                                     Acts {corpusStatus.acts_configured ? 'mounted' : 'missing'}
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                )}
+                                </span>
+                            )}
+                        </p>
+                    </div>
+                    <div className="library-header-actions">
+                        <button
+                            className="btn btn-secondary"
+                            onClick={handleCorpusSync}
+                            disabled={syncing || corpusStatus?.sync_running}
+                            title="Sync Ordinance + Acts from configured corpus mounts"
+                        >
+                            {syncing || corpusStatus?.sync_running ? (
+                                <Loader2 size={15} className="animate-spin" />
+                            ) : (
+                                <RefreshCw size={15} />
+                            )}
+                            <span>{syncing ? 'Syncing…' : 'Sync corpus'}</span>
+                        </button>
+                        <button className="btn btn-primary" onClick={() => navigate('/upload')}>
+                            <UploadCloud size={15} />
+                            <span>Upload document</span>
+                        </button>
+                    </div>
+                </header>
 
-                {/* Stats Summary Grid */}
                 <section className="stats-grid">
-                    <div className="stat-card">
+                    <button
+                        type="button"
+                        className={`stat-card ${!facetsActive ? '' : 'stat-card-dim'}`}
+                        onClick={clearFilters}
+                        title="Show all documents"
+                    >
                         <div className="stat-value">{totalDocs}</div>
-                        <div className="stat-label">Uploaded Documents</div>
-                    </div>
-                    <div className="stat-card">
+                        <div className="stat-label">Documents</div>
+                    </button>
+                    <div className="stat-card stat-card-static">
                         <div className="stat-value">{totalSections.toLocaleString()}</div>
-                        <div className="stat-label">Total Sections</div>
+                        <div className="stat-label">Total sections</div>
                     </div>
-                    <div className="stat-card">
+                    <button
+                        type="button"
+                        className={`stat-card ${facets.flagged ? 'stat-card-active' : ''}`}
+                        onClick={() => setFacet('flagged', facets.flagged ? '' : 'flagged')}
+                        title="Show only documents with flagged sections"
+                        aria-pressed={Boolean(facets.flagged)}
+                    >
                         <div className="stat-value" style={{ color: totalIssues > 0 ? 'var(--color-warning)' : 'inherit' }}>
                             {totalIssues}
                         </div>
                         <div className="stat-label">Flagged sections</div>
-                    </div>
-                    <div className="stat-card">
+                    </button>
+                    <button
+                        type="button"
+                        className={`stat-card ${facets.review === 'in_progress' ? 'stat-card-active' : ''}`}
+                        onClick={() => setFacet('review', facets.review === 'in_progress' ? '' : 'in_progress')}
+                        title="Show documents still in progress"
+                        aria-pressed={facets.review === 'in_progress'}
+                    >
                         <div className="stat-value" style={{ color: 'var(--color-success)' }}>
                             {overallCompletion}%
                         </div>
-                        <div className="stat-label">Overall Completion</div>
-                    </div>
+                        <div className="stat-label">Overall completion</div>
+                    </button>
                 </section>
 
-                <section className="library-head">
-                    <div>
-                        <span className="library-kicker">Legal review library</span>
-                        <h2>Acts and editions</h2>
-                        <p>
-                            Showing {filteredDocuments.length.toLocaleString()} of {documents.length.toLocaleString()} documents
-                            {viewMode === 'grouped' ? ` · ${familyGroups.length} statute families` : ''}
-                        </p>
-                    </div>
-                    <div className="library-controls">
-                        <label className="document-search" htmlFor="document-filter">
-                            <Search size={16} aria-hidden="true" />
-                            <span className="sr-only">Filter documents</span>
-                            <input
-                                id="document-filter"
-                                type="search"
-                                value={documentQuery}
-                                onChange={(event) => setDocumentQuery(event.target.value)}
-                                placeholder="Find an Act or edition…"
-                                autoComplete="off"
-                            />
-                        </label>
-                        <div className="source-filters" role="group" aria-label="Library layout">
-                            <button
-                                type="button"
-                                className={`source-filter ${viewMode === 'grouped' ? 'active' : ''}`}
-                                onClick={() => setViewMode('grouped')}
-                                aria-pressed={viewMode === 'grouped'}
-                            >
-                                Grouped
-                            </button>
-                            <button
-                                type="button"
-                                className={`source-filter ${viewMode === 'flat' ? 'active' : ''}`}
-                                onClick={() => setViewMode('flat')}
-                                aria-pressed={viewMode === 'flat'}
-                            >
-                                Flat
-                            </button>
-                        </div>
-                        <label className="library-sort" htmlFor="document-sort">
-                            <span className="sr-only">Sort documents</span>
-                            <select
-                                id="document-sort"
-                                value={sort}
-                                onChange={(event) => setSort(event.target.value)}
-                            >
-                                <option value="name">Sort: Name</option>
-                                <option value="newest">Sort: Newest</option>
-                                <option value="pages">Sort: Pages</option>
-                                <option value="health">Sort: Health</option>
-                                <option value="completion">Sort: Completion</option>
-                            </select>
-                        </label>
-                    </div>
+                <section className="library-controls-row">
+                    <label className="document-search" htmlFor="document-filter">
+                        <Search size={15} aria-hidden="true" />
+                        <span className="sr-only">Filter documents</span>
+                        <input
+                            id="document-filter"
+                            type="search"
+                            value={documentQuery}
+                            onChange={(event) => setDocumentQuery(event.target.value)}
+                            placeholder="Find an Act or edition…"
+                            autoComplete="off"
+                        />
+                    </label>
+                    <span className="library-result-count">
+                        {filteredDocuments.length.toLocaleString()} of {documents.length.toLocaleString()}
+                        {` · ${familyGroups.length} famil${familyGroups.length === 1 ? 'y' : 'ies'}`}
+                    </span>
+                    <SegmentedControl
+                        ariaLabel="Library layout"
+                        value={layout}
+                        onChange={setLayoutPersisted}
+                        options={[
+                            { value: 'list', label: 'List', icon: <Rows3 size={13} /> },
+                            { value: 'cards', label: 'Cards', icon: <LayoutGrid size={13} /> },
+                        ]}
+                    />
+                    <label className="library-sort" htmlFor="document-sort">
+                        <span className="sr-only">Sort documents</span>
+                        <select
+                            id="document-sort"
+                            className="ui-select"
+                            value={sort}
+                            onChange={(event) => setSort(event.target.value)}
+                        >
+                            <option value="name">Sort: Name</option>
+                            <option value="newest">Sort: Newest</option>
+                            <option value="pages">Sort: Pages</option>
+                            <option value="health">Sort: Health</option>
+                            <option value="completion">Sort: Completion</option>
+                        </select>
+                    </label>
                 </section>
 
                 <section className="library-facets library-facets-sticky" aria-label="Document facets">
@@ -485,11 +555,8 @@ const DashboardPage = () => {
                     {facetsActive && (
                         <button
                             type="button"
-                            className="btn btn-secondary facet-clear"
-                            onClick={() => {
-                                setFacets(EMPTY_FACETS);
-                                setDocumentQuery('');
-                            }}
+                            className="btn btn-sm btn-secondary facet-clear"
+                            onClick={clearFilters}
                         >
                             Clear filters
                         </button>
@@ -497,69 +564,99 @@ const DashboardPage = () => {
                 </section>
 
                 {loading.documents ? (
-                    <div style={{ textAlign: 'center', padding: 48, color: 'var(--color-text-muted)' }}>
-                        Loading documents...
+                    <div className="doc-rows" aria-label="Loading documents">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="doc-row doc-row-skeleton">
+                                <div className="doc-row-main">
+                                    <Skeleton width={`${50 - (i % 3) * 8}%`} height={15} />
+                                    <Skeleton width={`${34 - (i % 2) * 6}%`} height={11} />
+                                </div>
+                                <Skeleton width={120} height={10} />
+                                <Skeleton width={90} height={26} />
+                            </div>
+                        ))}
                     </div>
                 ) : documents.length === 0 ? (
-                    <div className="glass-panel" style={{ padding: '60px 20px', textAlign: 'center', border: '1px dashed var(--color-border)' }}>
-                        <FileText size={48} style={{ color: 'var(--color-text-muted)', marginBottom: 16 }} />
-                        <h3 style={{ marginBottom: 8 }}>Corpus is empty</h3>
-                        <p style={{ color: 'var(--color-text-secondary)', marginBottom: 12, fontSize: '0.9rem', maxWidth: 520, marginLeft: 'auto', marginRight: 'auto' }}>
-                            Seed from the configured Ordinance + Acts pipeline output, then review side-by-side.
-                            Closed loop: convert → sync → review → export QA → import findings.
-                        </p>
-                        <p style={{ color: 'var(--color-text-muted)', marginBottom: 24, fontSize: '0.8rem' }}>
-                            Prefer <code>make sync</code> on the host, or use Sync corpus when mounts are available.
-                        </p>
-                        <div className="flex gap-2" style={{ justifyContent: 'center' }}>
-                            <button
-                                className="btn btn-primary"
-                                onClick={handleCorpusSync}
-                                disabled={syncing || (!corpusStatus?.ordinance_configured && !corpusStatus?.acts_configured)}
-                            >
-                                {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                                <span>Sync corpus now</span>
-                            </button>
-                            <button className="btn btn-secondary" onClick={() => navigate('/upload')}>
-                                <UploadCloud size={16} />
-                                <span>Upload PDF + JSON</span>
-                            </button>
-                        </div>
-                    </div>
+                    <EmptyState
+                        icon={<FileText size={44} />}
+                        title="Corpus is empty"
+                        message="Seed from the configured Ordinance + Acts pipeline output, then review side-by-side. Closed loop: convert → sync → review → export QA → import findings."
+                    >
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleCorpusSync}
+                            disabled={syncing || (!corpusStatus?.ordinance_configured && !corpusStatus?.acts_configured)}
+                        >
+                            {syncing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                            <span>Sync corpus now</span>
+                        </button>
+                        <button className="btn btn-secondary" onClick={() => navigate('/upload')}>
+                            <UploadCloud size={15} />
+                            <span>Upload PDF + JSON</span>
+                        </button>
+                    </EmptyState>
                 ) : filteredDocuments.length === 0 ? (
-                    <div className="glass-panel library-empty">
-                        <Search size={32} aria-hidden="true" />
-                        <h3>No matching documents</h3>
-                        <p>Try another title or clear a facet filter.</p>
-                    </div>
-                ) : viewMode === 'grouped' ? (
+                    <EmptyState
+                        icon={<Search size={36} />}
+                        title="No matching documents"
+                        message="Try another title or clear a facet filter."
+                    >
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={clearFilters}>
+                            Clear filters
+                        </button>
+                    </EmptyState>
+                ) : (
                     <div className="family-groups">
-                        {familyGroups.map((group) => (
-                            <section key={group.familyKey} className="family-group">
-                                <header className="family-group-header">
-                                    <div>
-                                        <h3>{group.title}</h3>
+                        {familyGroups.map((group) => {
+                            const collapsed = collapsedFamilies.has(group.familyKey);
+                            const groupReviewed = group.editions.reduce((sum, d) => sum + (d.stats?.reviewed || 0), 0);
+                            const groupSections = group.editions.reduce((sum, d) => sum + (d.total_sections || 0), 0);
+                            const groupPct = groupSections ? Math.round((groupReviewed / groupSections) * 100) : 0;
+                            return (
+                                <section key={group.familyKey} className="family-group">
+                                    <header className="family-group-header">
+                                        <button
+                                            type="button"
+                                            className="family-group-toggle"
+                                            onClick={() => toggleFamily(group.familyKey)}
+                                            aria-expanded={!collapsed}
+                                        >
+                                            <ChevronDown
+                                                size={15}
+                                                className={`family-group-chevron ${collapsed ? 'collapsed' : ''}`}
+                                                aria-hidden="true"
+                                            />
+                                            <h3>{group.title}</h3>
+                                        </button>
                                         <p>
                                             {group.editions.length} edition{group.editions.length === 1 ? '' : 's'}
                                             {group.latestYear ? ` · latest ${group.latestYear}` : ''}
                                         </p>
-                                    </div>
-                                    {group.outsideGate && (
-                                        <span className="family-group-health family-group-health-fail">
-                                            <AlertTriangle size={13} />
-                                            Outside gate
-                                        </span>
-                                    )}
-                                </header>
-                                <div className="document-grid">
-                                    {group.editions.map((doc) => renderDocumentCard(doc))}
-                                </div>
-                            </section>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="document-grid">
-                        {filteredDocuments.map((doc) => renderDocumentCard(doc))}
+                                        <div className="family-group-side">
+                                            {group.outsideGate && (
+                                                <span className="chip chip-danger">
+                                                    <AlertTriangle size={12} aria-hidden="true" />
+                                                    Outside gate
+                                                </span>
+                                            )}
+                                            <span
+                                                className="family-group-progress"
+                                                title={`${groupReviewed.toLocaleString()} of ${groupSections.toLocaleString()} sections reviewed`}
+                                            >
+                                                <span className="progress-bar">
+                                                    <span
+                                                        className={`progress-bar-fill ${groupPct === 100 ? 'is-complete' : ''}`}
+                                                        style={{ width: `${groupPct}%` }}
+                                                    />
+                                                </span>
+                                                {groupPct}%
+                                            </span>
+                                        </div>
+                                    </header>
+                                    {!collapsed && renderDocuments(group.editions)}
+                                </section>
+                            );
+                        })}
                     </div>
                 )}
             </div>
