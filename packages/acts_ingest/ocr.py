@@ -457,18 +457,6 @@ def align(tess: list[dict], rapid: list[dict], pageno: int = 1,
             prefer_alt = (not agreed and alt and alt_conf > conf
                           and not _ran_columns_together(alt, w["text"]))
             if prefer_alt and _is_glued_run(alt) and not _is_glued_run(w["text"]):
-                # #region agent log
-                try:
-                    import json as _json, time as _time
-                    open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
-                        _json.dumps({"sessionId": "661395", "hypothesisId": "C",
-                                     "location": "ocr.py:align", "message": "reject_glued_alt",
-                                     "data": {"alt": (alt or "")[:50], "own": (w.get("text") or "")[:50],
-                                              "alt_conf": alt_conf, "own_conf": conf},
-                                     "timestamp": int(_time.time() * 1000)}) + "\n")
-                except Exception:
-                    pass
-                # #endregion
                 prefer_alt = False
             if prefer_alt:
                 # higher-confidence reading wins -- but the token still
