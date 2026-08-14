@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
-// Importing the worker evaluates it and sets globalThis.pdfjsWorker. pdf.js then
-// uses that in-process handler instead of fetching /assets/pdf.worker.min-*.mjs,
-// which the preview host returns as HTTP 500.
-import 'pdfjs-dist/build/pdf.worker.min.mjs';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'bundled';
+import { loadPdfjs } from './pdfjsLoader';
 
 export const PDF_LOAD_TIMEOUT_MS = 30_000;
 
@@ -60,6 +54,10 @@ export const usePdfDocument = (pdfUrl, { timeoutMs = PDF_LOAD_TIMEOUT_MS } = {})
             setNumPages(0);
 
             try {
+                const pdfjsLib = await loadPdfjs();
+                // The engine chunk can outlive the effect that asked for it.
+                if (isCancelled) return;
+
                 loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
                 const timeoutPromise = new Promise((_, reject) => {
                     timeoutId = setTimeout(() => {
