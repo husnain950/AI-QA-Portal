@@ -21,13 +21,24 @@ codes that the body splitter uses to find section boundaries.
 from __future__ import annotations
 
 import re
-
-from .grammar import (CODE, CODE_TOC, PAGE_TOC, CHAPTER_RE,  # noqa: F401
-                      DIVISION_RE, PART_RE, SCHEDULE_RE, TABLE_RE,
-                      code_sort_key, norm_code, page_num, spaced, unspace)
 from dataclasses import dataclass, field
 from typing import Optional
 
+from .grammar import (  # noqa: F401
+    CHAPTER_RE,
+    CODE,
+    CODE_TOC,
+    DIVISION_RE,
+    PAGE_TOC,
+    PART_RE,
+    SCHEDULE_RE,
+    TABLE_RE,
+    code_sort_key,
+    norm_code,
+    page_num,
+    spaced,
+    unspace,
+)
 
 # ---- line classification regexes -------------------------------------------
 

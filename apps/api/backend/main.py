@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -17,8 +18,6 @@ from backend.routes import (
     timeline,
     variants,
 )
-import os
-
 from backend.runtime import UPLOAD_DIR, bootstrap_runtime
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)

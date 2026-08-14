@@ -24,7 +24,6 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
-
 # ---- line classification regexes -------------------------------------------
 
 # A section row:  "12.   Salary                                   48"

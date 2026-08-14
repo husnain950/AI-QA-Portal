@@ -20,10 +20,8 @@ import re
 from dataclasses import dataclass, field
 from statistics import median as _median
 
-from .footnotes import (BRACKETS_ONLY_RE, all_markers_anonymous,
-                        ref_sort_key)
+from .footnotes import BRACKETS_ONLY_RE, all_markers_anonymous, ref_sort_key
 from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX
-
 
 # em dash / en dash that separates a heading from its text
 DASHES = "—–-"
@@ -434,7 +432,8 @@ def _strip_first_li_heading_bold(html: str) -> str:
         return html
     # #region agent log
     try:
-        import json as _json, time as _time
+        import json as _json
+        import time as _time
         open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
             _json.dumps({"sessionId": "661395", "hypothesisId": "B", "location": "builder.py:_strip_first_li_heading_bold",
                          "message": "stripped_first_li_bold_marker", "data": {"marker": m.group(2)},
@@ -794,6 +793,7 @@ def _merge_continuation_tables(rows):
     its words never masquerade as a header.
     """
     import html as _h
+
     from .tables import render_structure
     out = []
     for kind, plain, html in rows:
@@ -1217,7 +1217,8 @@ def _candidate_code(line) -> str | None:
         ):
             # #region agent log
             try:
-                import json as _json, time as _time
+                import json as _json
+                import time as _time
                 open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
                     _json.dumps({"sessionId": "661395", "hypothesisId": "A", "location": "builder.py:_candidate_code",
                                  "message": "paren_section_code", "data": {"code": m.group(1), "head": head[:80]},
@@ -2578,7 +2579,8 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
         if nxt:
             # #region agent log
             try:
-                import json as _json, time as _time
+                import json as _json
+                import time as _time
                 open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
                     _json.dumps({"sessionId": "661395", "hypothesisId": "D", "location": "builder.py:_build_one",
                                  "message": "attach_footnote_next_page",
@@ -2590,7 +2592,8 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
         # #region agent log
         if entry.code == "155Q" or (marker == "4" and entry.code in ("155Q", "156")):
             try:
-                import json as _json, time as _time
+                import json as _json
+                import time as _time
                 open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
                     _json.dumps({"sessionId": "661395", "runId": "fn-155Q", "hypothesisId": "H",
                                  "location": "builder.py:_build_one:attach",

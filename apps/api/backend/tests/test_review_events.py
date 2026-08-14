@@ -1,11 +1,9 @@
 """Tests for review_events table: append-only triggers and record helper."""
 
-import pytest
-import pytest_asyncio
 import aiosqlite
+import pytest
 
 from backend.services import events
-from backend.tests.conftest import runtime_sandbox
 
 
 @pytest.mark.asyncio

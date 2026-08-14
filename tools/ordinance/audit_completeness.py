@@ -80,6 +80,7 @@ def source_from_cache(cache: str):
 
 def source_from_pdf(pdf_path: str):
     import pdfplumber
+
     from fbr_ingest.pagemodel import build_page_model
     from fbr_ingest.pipeline import _detect_toc_page_count
     pdf = pdfplumber.open(pdf_path)
@@ -98,7 +99,6 @@ def source_from_pdf(pdf_path: str):
 
 
 def output_text(doc: dict):
-    import json as _j
 
     body_parts, foot_parts = [], []
 

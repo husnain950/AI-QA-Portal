@@ -32,8 +32,8 @@ def main() -> int:
 
     # Minimal structural smoke: discover + pipeline symbols exist.
     try:
-        import fbr_ingest.pipeline  # noqa: F401
         import acts_ingest.pipeline  # noqa: F401
+        import fbr_ingest.pipeline  # noqa: F401
         print("OK pipeline modules importable")
     except Exception as err:
         errors.append(str(err))

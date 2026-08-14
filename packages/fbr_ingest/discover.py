@@ -37,9 +37,15 @@ from __future__ import annotations
 
 import re
 
-from .builder import (_DOTFORM_RE, _STRUCT_DECOR_RE, _bold_title,
-                      _code_token_index, _dotless_candidate_code,
-                      _find_heading_split, is_structural_boundary)
+from .builder import (
+    _DOTFORM_RE,
+    _STRUCT_DECOR_RE,
+    _bold_title,
+    _code_token_index,
+    _dotless_candidate_code,
+    _find_heading_split,
+    is_structural_boundary,
+)
 from .footnotes import BRACKETS_ONLY_RE
 from .toc import Node, SectionEntry, _chapter_numeral, _clean_heading, _join_heading
 

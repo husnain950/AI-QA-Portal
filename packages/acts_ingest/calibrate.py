@@ -506,8 +506,9 @@ def calibrate(pdf, sample: int = 36) -> Calibration:
 
 def _demo() -> None:
     """Self-check: the invariants that make a Calibration usable at all."""
-    import pdfplumber
     import sys
+
+    import pdfplumber
 
     for path in sys.argv[1:] or []:
         with pdfplumber.open(path) as pdf:

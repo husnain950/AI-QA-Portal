@@ -1,18 +1,15 @@
 """Tests for services/detectors.py — at least heading_only + fingerprint stability."""
 
-import pytest
-import pytest_asyncio
 import aiosqlite
+import pytest
 
 from backend.services.detectors import (
     DETECTOR_VERSION,
-    Finding,
-    _detect_heading_only,
     _detect_glyph_split,
-    family_key,
+    _detect_heading_only,
     edition_date,
+    family_key,
 )
-from backend.tests.conftest import runtime_sandbox
 
 
 def test_family_key_strips_year():

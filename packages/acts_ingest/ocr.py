@@ -168,7 +168,7 @@ def _rapid_engine():
     """The RapidOCR session, built once per process (~4s of model load)."""
     global _ENGINE
     if _ENGINE is None:
-        from rapidocr_onnxruntime import RapidOCR      # lazy: heavy import
+        from rapidocr_onnxruntime import RapidOCR  # lazy: heavy import
         _ENGINE = RapidOCR()
     return _ENGINE
 
@@ -459,7 +459,8 @@ def align(tess: list[dict], rapid: list[dict], pageno: int = 1,
             if prefer_alt and _is_glued_run(alt) and not _is_glued_run(w["text"]):
                 # #region agent log
                 try:
-                    import json as _json, time as _time
+                    import json as _json
+                    import time as _time
                     open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
                         _json.dumps({"sessionId": "661395", "hypothesisId": "C",
                                      "location": "ocr.py:align", "message": "reject_glued_alt",

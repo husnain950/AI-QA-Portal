@@ -135,7 +135,7 @@ async def _auto_seed_if_empty() -> None:
 
     print("[runtime] empty database detected — auto-seeding from corpus...")
 
-    from backend.services.corpus_sync import sync_one, _record_sync
+    from backend.services.corpus_sync import _record_sync, sync_one
 
     combined = {"ordinance": {}, "acts": {}, "failed": 0, "unmatched": 0}
 
