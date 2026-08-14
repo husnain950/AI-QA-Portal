@@ -562,22 +562,6 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
                 or _bold_title(words, _code_token_index(words), doc_has_bold)
             )
             if (last_key is None or key > last_key) and title_ok:
-                # #region agent log
-                if is_amendment and not _bold_title(
-                    words, _code_token_index(words), doc_has_bold
-                ):
-                    try:
-                        import json as _json
-                        import time as _time
-                        open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
-                            _json.dumps({"sessionId": "661395", "hypothesisId": "E",
-                                         "location": "discover.py:dotform",
-                                         "message": "amendment_skip_bold_gate",
-                                         "data": {"code": code, "page": ref.page},
-                                         "timestamp": int(_time.time() * 1000)}) + "\n")
-                    except Exception:
-                        pass
-                # #endregion
                 split = _find_heading_split(body_refs[idx:idx + 4],
                                             min(4, len(body_refs) - idx))
                 if split is not None:

@@ -72,20 +72,6 @@ def cover_footnote_collector_pages(leaves, pages, has_body, has_notes) -> int:
         prev = last.get("end_page") or 0
         if prev >= note_end:
             continue
-        # #region agent log
-        try:
-            import json as _json
-            import time as _time
-            open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
-                _json.dumps({"sessionId": "661395", "runId": "customs-gap", "hypothesisId": "G",
-                             "location": "pipeline.py:cover_footnote_collector_pages",
-                             "message": "extend_end_page_through_collectors",
-                             "data": {"code": last.get("code"), "from": prev, "to": note_end,
-                                      "collectors": collectors[:12], "body_run": [bodies[0], bodies[-1]]},
-                             "timestamp": int(_time.time() * 1000)}) + "\n")
-        except Exception:
-            pass
-        # #endregion
         last["end_page"] = note_end
         n_ext += 1
     return n_ext
