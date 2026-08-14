@@ -27,15 +27,34 @@ Run the API and web dev servers directly (do NOT rely on `make up`, which uses D
 
 ### Seeding data (the portal is empty without it)
 - Real corpora under `data/corpora/` are gitignored and NOT present in a fresh clone, so
-  `make sync` has nothing to load and the dashboard starts empty. This is expected.
-- To get a usable document without corpora, upload a PDF + matching structure JSON via the
-  UI "Upload" page or `POST /api/documents/upload` (multipart fields: `pdf`, `json_file`,
-  `name`). The JSON schema is `{"metadata": {...}, "chapters": [{"sections": [{code, heading,
-  start_page, end_page, html, plain_text, footnotes}]}], "schedules": []}` — see
-  `apps/api/backend/tests/conftest.py::sample_document` for a minimal valid example.
+ `make sync` has nothing to load and the dashboard starts empty. This is expected.
+- **Preferred:** `make seed-fixtures` generates a micro-corpus (3 acts, 10 pages, real text
+ PDFs) with `tools/fixture_corpus.py` and loads it through the normal acts sync, so the
+ documents get `source_type='acts_corpus'` exactly like real ones. Needs no private data and
+ no running API. Output lands in `data/fixtures/` (gitignored); re-running is idempotent.
+- Alternatively upload a PDF + matching structure JSON via the UI "Upload" page or
+ `POST /api/documents/upload` (multipart fields: `pdf`, `json_file`, `name`). Note this
+ creates `source_type='upload'` documents. The JSON schema is `{"metadata": {...},
+ "chapters": [{"sections": [{code, heading, start_page, end_page, html, plain_text,
+ footnotes}]}], "schedules": []}` — see `apps/api/backend/tests/conftest.py::sample_document`.
 - A blank/synthetic PDF is accepted for structural testing, but the in-browser PDF.js viewer
-  cannot render blank/1-bit pages (shows a "did not render" message). The parsed-HTML pane and
-  the annotation workflow still work fully; use a real text PDF if you need the PDF pane to render.
+ cannot render blank/1-bit pages (shows a "did not render" message). The parsed-HTML pane and
+ the annotation workflow still work fully; use a real text PDF if you need the PDF pane to
+ render — this is why `tools/fixture_corpus.py` writes a genuine text layer instead of using
+ `pypdf.add_blank_page()`.
+
+### Review-page smoke test
+- `cd apps/web && npm run smoke` (`scripts/visual_smoke.mjs`) drives Playwright over the
+ dashboard and each target review page, asserting the PDF canvas rendered non-blank and the
+ parsed-HTML pane has content. It exits non-zero on any failure.
+- Needs a running API and web server. Override with `PORTAL_API` (default
+ `http://127.0.0.1:8000/api`) and `PORTAL_BASE` (default `http://127.0.0.1:5173`).
+- Targets come from `SMOKE_TARGETS`, defaulting to `data/fixtures/acts/smoke_targets.json`
+ written by `make seed-fixtures`. With no manifest it falls back to the real corpus editions,
+ so a synced private corpus behaves as before.
+- First run needs `npx playwright install chromium` (~115 MB); it is not in the VM snapshot.
+- The `smoke` CI job runs this on every PR: seed fixtures, start both servers, run the smoke,
+ and upload the report plus screenshots as an artifact.
 
 ### Lint / test / build
 - Backend lint: `.venv/bin/ruff check` (config in `pyproject.toml`). Note: the repo currently
