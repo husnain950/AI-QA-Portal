@@ -28,6 +28,13 @@ from .grammar import (CODE, CODE_TOC, PAGE_TOC, CHAPTER_RE,  # noqa: F401
 from dataclasses import dataclass, field
 from typing import Optional
 
+# em dash / en dash / hyphen -- same set as builder.HEAD_SPLIT_RE
+_DASHES = "—–-"
+# Same idiom as builder._find_heading_split: operative body glued after ".-".
+_TOC_BODY_AFTER_DASH_RE = re.compile(
+    rf"[.,]\s*[{re.escape(_DASHES)}]\s+(?=[A-Za-z(])"
+)
+
 
 # ---- line classification regexes -------------------------------------------
 
@@ -205,12 +212,75 @@ def _chapter_numeral(raw: str) -> str:
     return _arabic_to_roman(int(raw)) if raw.isdigit() else raw
 
 
+def _truncate_heading_body_bleed(text: str) -> str:
+    """Drop operative body text glued onto a TOC heading after a statutory dash.
+
+    The body builder splits at ``.-`` / ``.—``; the TOC parser used to keep the
+    whole span, so a row like ``12. Power to appoint public warehouse.- At any
+    warehousing station... 45`` stored the opening body as the heading.
+    """
+    m = _TOC_BODY_AFTER_DASH_RE.search(text)
+    if m is None:
+        return text
+    return text[: m.start()].rstrip(" .,;:")
+
+
 def _clean_heading(text: str) -> str:
     text = re.sub(r"\s+", " ", text).strip()
+    text = _truncate_heading_body_bleed(text)
     # keep a TRAILING hyphen: it marks a hyphenated compound broken across a TOC
     # line ("...of a Non-" + "resident Person" -> "Non-resident Person").  Only
     # leading dashes and trailing dots/em-dashes are decorative.
     return text.lstrip(" .-—").rstrip(" .—")
+
+
+def _shared_prefix_words(a: str, b: str) -> int:
+    aw, bw = a.split(), b.split()
+    n = 0
+    while n < len(aw) and n < len(bw) and aw[n].lower() == bw[n].lower():
+        n += 1
+    return n
+
+
+def _is_legitimate_duplicate_pair(a: SectionEntry, b: SectionEntry) -> bool:
+    """True when two same-code rows are both real (omitted + re-inserted)."""
+    ha = (a.heading or "").strip().lower()
+    hb = (b.heading or "").strip().lower()
+    if any(token in ha or token in hb for token in ("omitted", "***", "repealed")):
+        return True
+    # Distinct titles with little shared prefix -> re-insertion under old number
+    if ha and hb and _shared_prefix_words(ha, hb) < 3:
+        return True
+    return False
+
+
+def _dedupe_toc_sections(sections: list[SectionEntry]) -> list[SectionEntry]:
+    """Drop phantom duplicate-code rows superseded by a cleaner sibling."""
+    if len(sections) < 2:
+        return sections
+
+    by_code: dict[str, list[SectionEntry]] = {}
+    for entry in sections:
+        by_code.setdefault(entry.code, []).append(entry)
+
+    order = {id(entry): index for index, entry in enumerate(sections)}
+    drop: set[int] = set()
+    for entries in by_code.values():
+        if len(entries) < 2:
+            continue
+        if any(
+            _is_legitimate_duplicate_pair(a, b)
+            for i, a in enumerate(entries)
+            for b in entries[i + 1 :]
+        ):
+            continue
+        # Same title family: keep the first row in TOC order (the real entry).
+        first = min(entries, key=lambda entry: order[id(entry)])
+        for entry in entries:
+            if entry is not first:
+                drop.add(id(entry))
+
+    return [entry for entry in sections if id(entry) not in drop]
 
 
 def _join_heading(prev: str, cont: str) -> str:
@@ -544,6 +614,7 @@ def parse_toc(lines: list[str]):
         elif nxt_page:
             e.printed_page = nxt_page
     ordered_sections = [e for e in ordered_sections if e.printed_page]
+    ordered_sections = _dedupe_toc_sections(ordered_sections)
 
     return chapters, schedules, ordered_sections
 
@@ -664,6 +735,42 @@ def _demo() -> None:
         [("CHAPTER I", "PRELIMINARY")], [(c.code, c.heading) for c in chapters]
     got = {e.code: e.printed_page for e in secs}
     assert got == {"1": 1, "142": 106, "10": 12}, got
+
+    # --- Customs Act 1969 (30.06.2007): body text glued onto a TOC heading ----
+    # Verbatim shape from the edition's contents: section 12's title and opening
+    # body landed on one row, producing a duplicate "Section 12" in the portal
+    # with body prose in the sidebar title.
+    customs_s12_bleed = [
+        "        CHAPTER III",
+        "        DECLARATION OF PORTS, AIRPORTS AND WAREHOUSING STATIONS",
+        "        11.  Power to declare warehousing stations.              35",
+        "        12.  Power to appoint or licence public warehouses.     35",
+        "        13.  Power to license private warehouses.               36",
+        "        14.  Licensing of warehouses in special areas.          36",
+        "        12.  Power to appoint public warehouse.- At any warehousing station, the Collector of Customs may, from time to time, appoint   52",
+    ]
+    _ch, _sch, bleed_secs = parse_toc(customs_s12_bleed)
+    bleed_codes = [e.code for e in bleed_secs]
+    assert bleed_codes == ["11", "12", "13", "14"], bleed_codes
+    s12 = next(e for e in bleed_secs if e.code == "12")
+    assert s12.heading == "Power to appoint or licence public warehouses", \
+        repr(s12.heading)
+    assert s12.printed_page == 35, s12.printed_page
+
+    # --- Legitimate duplicate-code rows must both survive --------------------
+    legit_dup = [
+        "        CHAPTER XVI",
+        "        236Y.  Omitted                                           401",
+        "        236Y.  Recovery of tax by the department                 415",
+    ]
+    _ch, _sch, dup_secs = parse_toc(legit_dup)
+    assert [e.code for e in dup_secs] == ["236Y", "236Y"], \
+        [e.code for e in dup_secs]
+    assert [e.heading for e in dup_secs] == [
+        "Omitted",
+        "Recovery of tax by the department",
+    ], [e.heading for e in dup_secs]
+
     print("toc self-check passed")
 
 
