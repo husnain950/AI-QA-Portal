@@ -1,4 +1,4 @@
-.PHONY: up down build sync seed test test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote
+.PHONY: up down build sync seed seed-fixtures test test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ifneq (,$(wildcard $(ROOT)/.venv/bin/python))
@@ -34,6 +34,12 @@ sync:
 	$(PYTHON) tools/sync_corpus.py --metrics
 
 seed: sync
+
+# Populate a fresh clone with a generated micro-corpus, for review-page smoke tests
+# and local UI work. Independent of `sync`, which needs the private data/corpora/.
+seed-fixtures:
+	$(PYTHON) tools/fixture_corpus.py
+	$(PYTHON) tools/sync_corpus.py --acts $(ROOT)/data/fixtures/acts --acts-only
 
 convert-ordinance:
 	@test -n "$(PDF)" || (echo "Usage: make convert-ordinance PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
