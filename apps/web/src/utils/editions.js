@@ -4,7 +4,7 @@
  */
 
 const DATE_PATTERNS = [
-    /(?:amended|upto|up\s*to|as\s+on|dated).{0,40}?(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4})/i,
+    /(?:amended|upto|up\s*to|as\s+on|dated).{0,40}?(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/i,
     /(?:amended|upto|up\s*to|as\s+on|dated).{0,40}?\b((?:19|20)\d{2})\b/i,
     /\b(20\d{2})\s*[-–]\s*(\d{2})\b/, // 2011-12 — before bare year
     /\b(20\d{2}|19\d{2})\b/,
@@ -68,8 +68,8 @@ export function editionDateFromName(name) {
             return { year, sortKey: year, label: String(year), unknown: false };
         }
         const token = m[1];
-        if (/^\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}$/.test(token)) {
-            const parts = token.split(/[.\/-]/);
+        if (/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(token)) {
+            const parts = token.split(/[./-]/);
             let year = Number(parts[2]);
             if (year < 100) year += 2000;
             return { year, sortKey: year, label: String(year), unknown: false };

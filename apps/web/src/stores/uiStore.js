@@ -9,7 +9,7 @@ const getInitialTheme = () => {
 
             const systemPrefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches;
             return systemPrefersDark ? 'dark' : 'light';
-        } catch (e) {
+        } catch {
             return 'light';
         }
     }
@@ -49,7 +49,7 @@ export const useUiStore = create((set, get) => {
             const newTheme = state.theme === 'light' ? 'dark' : 'light';
             try {
                 window.localStorage?.setItem('qa-portal-theme', newTheme);
-            } catch (e) {}
+            } catch {}
             if (typeof document !== 'undefined') {
                 document.documentElement.setAttribute('data-theme', newTheme);
             }
