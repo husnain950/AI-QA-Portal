@@ -22,10 +22,20 @@ STORAGE_PATH="/app/data"
 HTTP_PORT=8000
 ENV_FILE="${ROOT}/.env"
 
-# Load .env for OPENPATHS keys etc. if present
+# Load .env for OPENPATHS keys etc. if present. Strip host-relative corpus/db
+# paths so they cannot override the image defaults (/data/corpus/..., /app/data).
 ENV_FLAG=""
+FILTERED_ENV=""
 if [[ -f "$ENV_FILE" ]]; then
-  ENV_FLAG="--env-file $ENV_FILE"
+  FILTERED_ENV="$(mktemp)"
+  trap 'rm -f "$FILTERED_ENV"' EXIT
+  if [[ -x "$ROOT/.venv/bin/python" ]]; then
+    FILTER_PYTHON="$ROOT/.venv/bin/python"
+  else
+    FILTER_PYTHON="python3"
+  fi
+  "$FILTER_PYTHON" "$ROOT/tools/filter_deploy_env.py" "$ENV_FILE" "$FILTERED_ENV"
+  ENV_FLAG="--env-file $FILTERED_ENV"
 fi
 
 # Build the seed archive (PDFs + JSONs) so the image includes corpus data.
