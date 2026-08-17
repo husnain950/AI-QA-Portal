@@ -48,45 +48,83 @@ def text_sha(plain_text: str) -> str:
     return hashlib.sha256(_norm_text(plain_text).encode()).hexdigest()
 
 
-async def rebuild(db: aiosqlite.Connection) -> Dict[str, Any]:
-    """Rebuild section_variants from current sections + documents."""
-    await db.execute("DELETE FROM section_variants;")
-
-    async with db.execute(
-        """
+async def _section_rows(
+    db: aiosqlite.Connection,
+    document_id: Optional[str] = None,
+) -> List[aiosqlite.Row]:
+    query = """
         SELECT s.id, s.document_id, s.section_code, s.plain_text, s.html_content,
                d.name AS doc_name
         FROM sections s
         JOIN documents d ON d.id = s.document_id
+    """
+    params: List[Any] = []
+    if document_id:
+        query += " WHERE s.document_id = ?"
+        params.append(document_id)
+    async with db.execute(query, params) as cursor:
+        return await cursor.fetchall()
+
+
+async def _insert_variant(db: aiosqlite.Connection, row: aiosqlite.Row) -> None:
+    fk = family_key(row["doc_name"])
+    ed = edition_date(row["doc_name"])
+    plain = row["plain_text"] or ""
+    html = row["html_content"] or ""
+    vk = compute_variant_key(fk, row["section_code"], plain, html)
+    await db.execute(
         """
-    ) as cursor:
-        rows = await cursor.fetchall()
+        INSERT OR IGNORE INTO section_variants
+            (variant_key, section_id, document_id, family_key, section_code,
+             edition_date, text_sha, html_shape)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            vk,
+            row["id"],
+            row["document_id"],
+            fk,
+            row["section_code"],
+            ed,
+            text_sha(plain),
+            _html_shape(html),
+        ),
+    )
 
-    inserted = 0
+
+async def rebuild_document(
+    db: aiosqlite.Connection, document_id: str
+) -> Dict[str, Any]:
+    """Reindex one document's variant rows. Does not commit — callers own the txn."""
+    await db.execute(
+        "DELETE FROM section_variants WHERE document_id = ?",
+        (document_id,),
+    )
+    rows = await _section_rows(db, document_id)
     for row in rows:
-        fk = family_key(row["doc_name"])
-        ed = edition_date(row["doc_name"])
-        plain = row["plain_text"] or ""
-        html = row["html_content"] or ""
+        await _insert_variant(db, row)
+    return {"inserted": len(rows)}
 
-        vk = compute_variant_key(fk, row["section_code"], plain, html)
-        t_sha = text_sha(plain)
-        h_shape = _html_shape(html)
 
-        await db.execute(
-            """
-            INSERT OR IGNORE INTO section_variants
-                (variant_key, section_id, document_id, family_key, section_code,
-                 edition_date, text_sha, html_shape)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (vk, row["id"], row["document_id"], fk, row["section_code"],
-             ed, t_sha, h_shape),
-        )
-        inserted += 1
-
+async def rebuild(db: aiosqlite.Connection) -> Dict[str, Any]:
+    """Rebuild section_variants from current sections + documents."""
+    await db.execute("DELETE FROM section_variants;")
+    rows = await _section_rows(db)
+    for row in rows:
+        await _insert_variant(db, row)
     await db.commit()
-    return {"inserted": inserted}
+    return {"inserted": len(rows)}
+
+
+async def rebuild_if_empty(db: aiosqlite.Connection) -> Optional[Dict[str, Any]]:
+    """Full rebuild when sections exist but the variants table was never filled."""
+    async with db.execute("SELECT COUNT(*) FROM sections") as cursor:
+        n_sections = int((await cursor.fetchone())[0])
+    async with db.execute("SELECT COUNT(*) FROM section_variants") as cursor:
+        n_variants = int((await cursor.fetchone())[0])
+    if n_sections > 0 and n_variants == 0:
+        return await rebuild(db)
+    return None
 
 
 async def get_variants(

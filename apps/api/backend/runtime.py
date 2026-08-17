@@ -176,6 +176,17 @@ async def _auto_seed_if_empty() -> None:
     print(f"[runtime] auto-seed complete (status={status})")
 
 
+async def _rebuild_variants_if_empty() -> None:
+    """Fill section_variants when documents were uploaded without a corpus sync."""
+    from backend.services.variants import rebuild_if_empty
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        summary = await rebuild_if_empty(db)
+    if summary:
+        print(f"[runtime] rebuilt section_variants ({summary['inserted']} rows)")
+
+
 async def bootstrap_runtime() -> None:
     global _BOOTSTRAP_DONE
     if _BOOTSTRAP_DONE:
@@ -200,3 +211,4 @@ async def bootstrap_runtime() -> None:
         )
 
     await _auto_seed_if_empty()
+    await _rebuild_variants_if_empty()
