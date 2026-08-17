@@ -16,6 +16,7 @@ import DocumentTags from '../components/dashboard/DocumentTags';
 import { api, corpusApi } from '../utils/api';
 import { facetCounts, filterDocuments, groupDocumentsByFamily } from '../utils/documentFilters';
 import { LANE_ORDER, laneLabel } from '../utils/corpusLanes';
+import { CORPUS_MOUNT_HINT, describeCorpusSync } from '../utils/corpusStatus';
 import { editionDateFromName } from '../utils/editions';
 import { useUiStore } from '../stores/uiStore';
 
@@ -91,6 +92,8 @@ const DashboardPage = () => {
     const [corpusStatus, setCorpusStatus] = useState(null);
     const [syncing, setSyncing] = useState(false);
     const [collapsedFamilies, setCollapsedFamilies] = useState(() => new Set());
+    const syncMeta = corpusStatus ? describeCorpusSync(corpusStatus) : null;
+    const mountsUnavailable = Boolean(syncMeta && !syncMeta.canSync);
 
     const setFacet = (key, value) => {
         setFacets((prev) => ({ ...prev, [key]: value }));
@@ -375,30 +378,28 @@ const DashboardPage = () => {
                         <h1>Library</h1>
                         <p>
                             {totalDocs.toLocaleString()} documents · {totalSections.toLocaleString()} sections
-                            {corpusStatus && (
-                                <span className="library-sync-meta">
+                            {syncMeta && (
+                                <span className="library-sync-meta" title={CORPUS_MOUNT_HINT}>
                                     <Database size={12} aria-hidden="true" />
-                                    {corpusStatus.last_sync_at ? (
+                                    {syncMeta.syncKind === 'recorded' ? (
                                         <>
                                             last sync{' '}
                                             <span
-                                                className={corpusStatus.last_status === 'ok'
+                                                className={syncMeta.lastStatus === 'ok'
                                                     ? 'sync-status-ok'
                                                     : 'sync-status-warn'}
                                             >
-                                                {corpusStatus.last_status || 'unknown'}
+                                                {syncMeta.lastStatus || 'unknown'}
                                             </span>{' '}
-                                            <span title={new Date(corpusStatus.last_sync_at).toLocaleString()}>
-                                                {timeAgo(corpusStatus.last_sync_at)}
+                                            <span title={new Date(syncMeta.lastSyncAt).toLocaleString()}>
+                                                {timeAgo(syncMeta.lastSyncAt)}
                                             </span>
                                         </>
                                     ) : (
-                                        'never synced'
+                                        syncMeta.syncLabel
                                     )}
                                     {' · '}
-                                    Ordinance {corpusStatus.ordinance_configured ? 'mounted' : 'missing'}
-                                    {' / '}
-                                    Acts {corpusStatus.acts_configured ? 'mounted' : 'missing'}
+                                    {syncMeta.mountsLabel}
                                 </span>
                             )}
                         </p>
@@ -407,8 +408,10 @@ const DashboardPage = () => {
                         <button
                             className="btn btn-secondary"
                             onClick={handleCorpusSync}
-                            disabled={syncing || corpusStatus?.sync_running}
-                            title="Sync Ordinance + Acts from configured corpus mounts"
+                            disabled={syncing || corpusStatus?.sync_running || mountsUnavailable}
+                            title={mountsUnavailable
+                                ? 'Pipeline mounts are not on this host — upload PDF+JSON or bake a seed image'
+                                : 'Sync Ordinance + Acts from configured corpus mounts'}
                         >
                             {syncing || corpusStatus?.sync_running ? (
                                 <Loader2 size={15} className="animate-spin" />
@@ -585,7 +588,7 @@ const DashboardPage = () => {
                         <button
                             className="btn btn-primary"
                             onClick={handleCorpusSync}
-                            disabled={syncing || (!corpusStatus?.ordinance_configured && !corpusStatus?.acts_configured)}
+                            disabled={syncing || mountsUnavailable}
                         >
                             {syncing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
                             <span>Sync corpus now</span>

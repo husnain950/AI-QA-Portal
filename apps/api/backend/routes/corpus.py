@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from backend.database import get_db
 from backend.services.corpus_sync import (
+    corpus_root_configured,
     default_acts_path,
     default_ordinance_path,
     run_corpus_sync,
@@ -26,6 +27,7 @@ _sync_running = False
 class CorpusStatus(BaseModel):
     ordinance_path: str
     acts_path: str
+    # Pipeline-mount health (dir + output/*.json), not document count.
     ordinance_configured: bool
     acts_configured: bool
     last_sync_at: Optional[str] = None
@@ -76,8 +78,8 @@ async def corpus_status(db: aiosqlite.Connection = Depends(get_db)):
     return CorpusStatus(
         ordinance_path=str(ordinance),
         acts_path=str(acts),
-        ordinance_configured=ordinance.is_dir(),
-        acts_configured=acts.is_dir(),
+        ordinance_configured=corpus_root_configured(ordinance),
+        acts_configured=corpus_root_configured(acts),
         last_sync_at=last_sync_at,
         last_status=last_status,
         ordinance_docs=ordinance_docs,
@@ -96,15 +98,21 @@ async def trigger_sync(body: SyncRequest = SyncRequest()):
 
     ordinance = default_ordinance_path()
     acts = default_acts_path()
-    if not body.acts_only and not ordinance.is_dir():
+    if not body.acts_only and not corpus_root_configured(ordinance):
         raise HTTPException(
             status_code=400,
-            detail=f"Ordinance corpus path missing: {ordinance}",
+            detail=(
+                "Ordinance pipeline mount not on this host "
+                f"(need output/*.json at {ordinance})"
+            ),
         )
-    if not body.ordinance_only and not acts.is_dir():
+    if not body.ordinance_only and not corpus_root_configured(acts):
         raise HTTPException(
             status_code=400,
-            detail=f"Acts corpus path missing: {acts}",
+            detail=(
+                "Acts pipeline mount not on this host "
+                f"(need output/*.json at {acts})"
+            ),
         )
 
     async with _sync_lock:

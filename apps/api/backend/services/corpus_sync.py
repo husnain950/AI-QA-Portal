@@ -47,6 +47,21 @@ def default_acts_path() -> Path:
     )
 
 
+def corpus_root_configured(path: Path) -> bool:
+    """True when ``path`` is a usable pipeline corpus (dir with ``output/*.json``).
+
+    The Library subtitle's Ordinance/Acts flags use this — it is mount health,
+    not whether documents already exist in SQLite. An empty Docker placeholder
+    directory does not count.
+    """
+    if not path or not path.is_dir():
+        return False
+    output = path / "output"
+    if not output.is_dir():
+        return False
+    return any(output.glob("*.json"))
+
+
 async def _record_sync(summary: Dict[str, Any], status: str) -> None:
     ordinance = int(summary.get("ordinance", {}).get("imported", 0) or 0) + int(
         summary.get("ordinance", {}).get("skipped", 0) or 0
