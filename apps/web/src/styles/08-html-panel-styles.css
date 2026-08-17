@@ -166,9 +166,77 @@
     font-family: var(--font-heading);
 }
 
-.html-renderer-container h4 {
-    font-size: 1.1rem;
-    color: var(--color-accent);
+.html-renderer-container h4.section-heading:first-child {
+    margin-top: 0;
+}
+
+.html-renderer-container h4.section-heading {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1.4;
+}
+
+.html-renderer-container .act-title {
+    text-align: center;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin: 0.15em 0;
+    color: var(--color-text-primary);
+}
+
+.html-renderer-container .act-long-title {
+    text-align: center;
+    font-style: italic;
+    margin: 0.75em 1.5em 1.25em;
+    line-height: 1.55;
+    color: var(--color-text-primary);
+}
+
+.html-renderer-container .recital {
+    text-indent: 1.5em;
+    margin-bottom: 0.75em;
+}
+
+.html-renderer-container .enacting-clause,
+.html-renderer-container .enacting-formula {
+    margin: 1em 0;
+}
+
+.html-renderer-container .enacting-formula {
+    font-weight: 600;
+}
+
+.html-renderer-container .proviso,
+.html-renderer-container .explanation,
+.html-renderer-container .defn {
+    display: block;
+    margin: 0.5em 0 0.5em 1.5em;
+}
+
+.html-renderer-container .formula {
+    display: block;
+    text-align: center;
+    margin: 0.5em 0;
+}
+
+.html-renderer-container table.fbr-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.25em 0;
+    font-size: 0.88rem;
+}
+
+.html-renderer-container ol.subsection {
+    list-style: none;
+    padding-left: 0;
+}
+
+.html-renderer-container ol.subsection > li {
+    margin-bottom: 0.65em;
 }
 
 .html-renderer-container p {
