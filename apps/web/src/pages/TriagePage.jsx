@@ -7,7 +7,8 @@ import {
 import AppShell from '../components/layout/AppShell';
 import EmptyState from '../components/ui/EmptyState';
 import Skeleton from '../components/ui/Skeleton';
-import StatusChip, { TRIAGE_TONES } from '../components/ui/StatusChip';
+import StatusChip from '../components/ui/StatusChip';
+import { TRIAGE_TONES } from '../components/ui/statusTones';
 import DropdownMenu from '../components/ui/DropdownMenu';
 import { api } from '../utils/api';
 import { formatSectionLabel } from '../utils/tocLabels';
