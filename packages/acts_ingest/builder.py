@@ -357,6 +357,53 @@ OL_STYLE = {
               'padding-left: 0; margin-left: 5.5em;">'),
 }
 
+# Gazette / nested-Act preamble lines that must not merge into a neighbour.
+# Finance Act host clauses reprint a whole Act after "There is hereby enacted
+# ... in the manner as follows:-", so the centred "AN" / "ACT" / long title and
+# the WHEREAS recitals sit in the preamble (or in that host section).  Merging
+# them produced one run-on <p> — Foreign Assets (Declaration and Repatriation)
+# Act, 2018, the leaf that opens "11. Foreign Assets ...".
+_GAZETTE_TITLE_RE = re.compile(
+    r"^(?:THE\s+)?(?:AN|ACT|ORDINANCE|A\s+BILL)$", re.I)
+_GAZETTE_LONG_TITLE_RE = re.compile(
+    r"^to\s+(?:provide|amend|consolidate|levy|give|make|further|enact)\b", re.I)
+_GAZETTE_RECITAL_RE = re.compile(r"^(?:AND\s+)?WHEREAS\b", re.I)
+_GAZETTE_ENACTING_IT_RE = re.compile(r"^It\s+is\s+hereby\s+enacted\b", re.I)
+_GAZETTE_ENACTING_THERE_RE = re.compile(
+    r"^There\s+is\s+hereby\s+enacted\b", re.I)
+_GAZETTE_TABLE_CAPTION_RE = re.compile(r"^TABLES?$", re.I)
+_HOST_CLAUSE_HEAD_RE = re.compile(r"^\d+[A-Z]{0,3}\.")
+GAZETTE_KINDS = (
+    "act-title", "act-long-title", "recital",
+    "enacting-formula", "enacting-clause",
+)
+
+
+def _gazette_block_class(plain: str) -> str | None:
+    """CSS class for a gazette title / recital / enacting line, else None."""
+    s = (plain or "").strip()
+    if not s:
+        return None
+    if _GAZETTE_TITLE_RE.match(s) or _GAZETTE_TABLE_CAPTION_RE.match(s):
+        return "act-title"
+    if _GAZETTE_LONG_TITLE_RE.match(s):
+        return "act-long-title"
+    if _GAZETTE_RECITAL_RE.match(s):
+        return "recital"
+    if _GAZETTE_ENACTING_IT_RE.match(s):
+        return "enacting-formula"
+    if _GAZETTE_ENACTING_THERE_RE.match(s):
+        return "enacting-clause"
+    return None
+
+
+def _p(html: str, cls: str | None = None) -> str:
+    if not (html or "").strip():
+        return ""
+    if cls:
+        return f'<p class="{cls}">{html}</p>'
+    return f"<p>{html}</p>"
+
 
 def _build_html(heading_html: str, content: list[tuple[str, str, str]]) -> str:
     """content = list of (kind, plain, html) rows already rendered."""
@@ -368,6 +415,21 @@ def _build_html(heading_html: str, content: list[tuple[str, str, str]]) -> str:
         if kind == "table":
             out.append(htm)
             i += 1
+            continue
+        if kind in GAZETTE_KINDS:
+            buf = [htm]
+            i += 1
+            # Short centred titles stay one line; recitals / long titles / the
+            # enacting formula wrap, so absorb following plain text until the
+            # next structural line.
+            if kind != "act-title":
+                while (i < n and content[i][0] == "text"
+                       and _gazette_block_class(content[i][1]) is None):
+                    buf.append(content[i][2])
+                    i += 1
+            para = " ".join(x for x in buf if x)
+            if para.strip():
+                out.append(_p(para, kind))
             continue
         if kind == "subhead":
             # a standalone bold rule-heading / sub-heading: its own <p> block.
@@ -453,45 +515,134 @@ def _line_is_bold_title(line) -> bool:
     return bool(ws) and all("Bold" in (w.fontname or "") for w in ws)
 
 
+def _preamble_heading_split(pre_refs):
+    """Heading dash on a host-clause opener (``11. Foreign Assets ...—``).
+
+    Only when the preamble itself starts with a numbered clause; otherwise a
+    later ``It is hereby enacted as follows:—`` dash would swallow AN/ACT/WHEREAS
+    into the <h4>.
+    """
+    if not pre_refs:
+        return None
+    first = pre_refs[0].line.text().strip()
+    if not _HOST_CLAUSE_HEAD_RE.match(first):
+        return None
+    return _find_heading_split(pre_refs, min(4, len(pre_refs)))
+
+
 def _build_preamble_html(pre_refs, footnote_map, off_fn):
     """Assemble the enacting preamble into ``(html, plain_text)``.
 
-    Unlike the document-wide ``_build_html``, a fully-bold line (the centred
-    long-title lines ``AN`` / ``ORDINANCE`` / ``To consolidate and amend ...``)
-    is emitted as its OWN standalone ``<p>``: it never glues onto the preceding
-    publication note and never absorbs the following ``WHEREAS ...`` recitals.
-    Consecutive regular-weight lines merge into prose paragraphs, as before.
-    Kept preamble-local so the shared ``_classify`` / ``_build_html`` /
-    ``_is_allcaps`` heuristics (used by every section and schedule) stay
-    untouched.
+    Gazette structure is preserved as separate blocks rather than one run-on
+    paragraph:
+
+      * a host-clause heading (``11. Foreign Assets ... Act, 2018.—``) as
+        ``<h4 class="section-heading">`` when a heading dash is present
+      * centred short titles (``AN`` / ``ACT`` / ``ORDINANCE``)
+      * the long title (``to provide for ...``)
+      * each WHEREAS recital
+      * the enacting formula (``It is hereby enacted as follows:—``)
+
+    Fully-bold title lines still never glue onto neighbouring prose.  Wrapped
+    recitals / long titles / enacting clauses fold their continuation lines.
     """
     out: list[str] = []
     plains: list[str] = []
     buf: list[str] = []          # pending regular-weight prose fragments
+    block_cls: str | None = None
+    block_html: list[str] = []
+
+    def flush_block():
+        nonlocal block_cls
+        if block_html:
+            para = " ".join(x for x in block_html if x)
+            tag = _p(para, block_cls)
+            if tag:
+                out.append(tag)
+            block_html.clear()
+        block_cls = None
 
     def flush():
+        flush_block()
         if buf:
             para = " ".join(x for x in buf if x)
             if para.strip():
                 out.append(f"<p>{para}</p>")
             buf.clear()
 
+    def start_block(html: str, cls: str):
+        nonlocal block_cls
+        flush()
+        if cls == "act-title":
+            tag = _p(html, cls)
+            if tag:
+                out.append(tag)
+            return
+        block_cls = cls
+        block_html.append(html)
+
+    start = 0
+    split = _preamble_heading_split(pre_refs)
+    if split is not None:
+        d, before_words, after_words = split
+        page = pre_refs[d].page
+        off = off_fn(page)
+        head_parts = []
+        for li in range(d):
+            _, hh = _render_heading_words(
+                sorted(pre_refs[li].line.words, key=lambda w: w.x0),
+                pre_refs[li].page, footnote_map, off_fn(pre_refs[li].page))
+            if hh.strip():
+                head_parts.append(hh)
+        _, hh = _render_heading_words(before_words, page, footnote_map, off)
+        if hh.strip():
+            head_parts.append(hh)
+        heading = re.sub(r"</?strong>", "", " ".join(head_parts))
+        heading = re.sub(r"\s{2,}", " ", heading).strip()
+        if heading:
+            out.append(f'<h4 class="section-heading">{heading}</h4>')
+        rp, rh = _render_words(after_words, page, footnote_map, off)
+        if rh.strip():
+            cls = _gazette_block_class(rp)
+            # The dash often splits mid-sentence ("—There is" / "hereby enacted"),
+            # so the first fragment never matches the full enacting-clause regex.
+            if cls is None and re.match(r"^There\s+is\b", rp.strip(), re.I):
+                cls = "enacting-clause"
+            if cls:
+                start_block(rh, cls)
+            else:
+                buf.append(rh)
+        start = d + 1
+
     for r in pre_refs:
+        line = r.line
+        if getattr(line, "is_table", False):
+            plains.append(line.text())
+        else:
+            plain, _html_line = _render_line(line, r.page, footnote_map,
+                                             off_fn(r.page))
+            if plain.strip():
+                plains.append(plain)
+
+    for r in pre_refs[start:]:
         line = r.line
         if getattr(line, "is_table", False):
             flush()
             out.append(line.html)
-            plains.append(line.text())
             continue
         plain, html = _render_line(line, r.page, footnote_map, off_fn(r.page))
         if not html.strip():
             continue
-        plains.append(plain)
-        if _line_is_bold_title(line):
-            flush()
-            out.append(f"<p>{html}</p>")
-        else:
-            buf.append(html)
+        cls = _gazette_block_class(plain)
+        if cls is None and _line_is_bold_title(line):
+            cls = "act-title"
+        if cls:
+            start_block(html, cls)
+            continue
+        if block_cls:
+            block_html.append(html)
+            continue
+        buf.append(html)
     flush()
     return "\n".join(out), "\n".join(p for p in plains if p.strip()).strip()
 
@@ -1147,6 +1298,9 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
             # becomes its own block instead of merging into a neighbour
             if subheads and kind in ("text", "htext") and _is_subheading(r.line, plain):
                 kind = "subhead"
+            gcls = _gazette_block_class(plain)
+            if gcls and kind in ("text", "htext", "subhead"):
+                kind = gcls
             rows.append((kind, plain, html))
             geoms.append((r.line, r.page))
             prev_plain = plain
@@ -2420,7 +2574,8 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
         else:
             rp, rh = _render_words(after_words, seg[d].page, footnote_map, page_offset)
             if rp.strip():
-                remainder_rows.append((_classify(rp), rp, rh))
+                remainder_rows.append((
+                    _gazette_block_class(rp) or _classify(rp), rp, rh))
 
             # Render the <h4> from the real PDF body heading: the full head lines
             # 0..d-1 plus the pre-dash words on line d.  This surfaces
@@ -2671,3 +2826,57 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
         footnotes=fns,
         ocr_review=ocr_review,
     )
+
+
+def _demo() -> None:
+    """Pure-function pin: gazette preamble HTML must not glue titles into recitals."""
+    assert _gazette_block_class("AN") == "act-title"
+    assert _gazette_block_class("ACT") == "act-title"
+    assert _gazette_block_class("ORDINANCE") == "act-title"
+    assert _gazette_block_class("to provide for declaration") == "act-long-title"
+    assert _gazette_block_class("WHEREAS there is") == "recital"
+    assert _gazette_block_class("AND WHEREAS it is expedient") == "recital"
+    assert _gazette_block_class("It is hereby enacted as follows:—") == "enacting-formula"
+    assert _gazette_block_class(
+        "There is hereby enacted Foreign Assets") == "enacting-clause"
+    assert _gazette_block_class("TABLE") == "act-title"
+    assert _gazette_block_class("(1) This Act") is None
+
+    html = _build_html(
+        '<h4 class="section-heading">11. Foreign Assets (Declaration and '
+        'Repatriation) Act, 2018.—</h4>',
+        [
+            ("enacting-clause",
+             "There is hereby enacted ... as follows:-",
+             "There is hereby enacted Foreign Assets (Declaration and "
+             "Repatriation) Act, 2018, in the manner as follows:-"),
+            ("act-title", "AN", "AN"),
+            ("act-title", "ACT", "ACT"),
+            ("act-long-title", "to provide for declaration",
+             "to provide for declaration and repatriation of assets and "
+             "income held outside Pakistan"),
+            ("recital", "WHEREAS there is a large scale",
+             "WHEREAS there is a large scale non-reporting and under-reporting "
+             "of assets"),
+            ("text", "and income held outside Pakistan;",
+             "and income held outside Pakistan;"),
+            ("recital", "AND WHEREAS it is expedient",
+             "AND WHEREAS it is expedient to provide for declaration and "
+             "repatriation of assets and income held outside Pakistan for the "
+             "purposes hereinafter appearing;"),
+            ("enacting-formula", "It is hereby enacted as follows:—",
+             "It is hereby enacted as follows:—"),
+        ],
+    )
+    assert '<p class="act-title">AN</p>' in html, html
+    assert '<p class="act-title">ACT</p>' in html, html
+    assert 'class="act-long-title"' in html, html
+    assert html.count('class="recital"') == 2, html
+    assert "and income held outside Pakistan;" in html
+    assert "Pakistan WHEREAS" not in html, html
+    assert "appearing; It is hereby" not in html, html
+    print("builder self-check passed")
+
+
+if __name__ == "__main__":
+    _demo()

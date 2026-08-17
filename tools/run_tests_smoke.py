@@ -39,6 +39,13 @@ def main() -> int:
         errors.append(str(err))
         print(f"FAIL pipeline import: {err}")
 
+    try:
+        from acts_ingest.builder import _demo as acts_builder_demo
+        acts_builder_demo()
+    except Exception as err:
+        errors.append(f"acts_ingest.builder: {err}")
+        print(f"FAIL acts_ingest.builder self-check: {err}")
+
     if errors:
         print(f"Smoke failed ({len(errors)} error(s))")
         return 1
