@@ -37,13 +37,19 @@ from __future__ import annotations
 
 import re
 
-from .grammar import (CODE, CODE_SUFFIXED, MARKER_PREFIX,  # noqa: F401
-                      code_sort_key as _grammar_code_sort_key)
-
-from .builder import (_DOTFORM_RE, _HEADING_DASH_RE, _STRUCT_DECOR_RE,
-                      _bold_title, _code_token_index, _dotless_candidate_code,
-                      _find_heading_split, is_structural_boundary)
+from .builder import (
+    _DOTFORM_RE,
+    _HEADING_DASH_RE,
+    _STRUCT_DECOR_RE,
+    _bold_title,
+    _code_token_index,
+    _dotless_candidate_code,
+    _find_heading_split,
+    is_structural_boundary,
+)
 from .footnotes import BRACKETS_ONLY_RE
+from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX  # noqa: F401
+from .grammar import code_sort_key as _grammar_code_sort_key
 from .toc import Node, SectionEntry, _chapter_numeral, _clean_heading, _join_heading
 
 

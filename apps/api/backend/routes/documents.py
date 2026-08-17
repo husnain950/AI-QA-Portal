@@ -224,14 +224,14 @@ async def upload_document(
     try:
         # Streamed, not buffered: a large PDF must not be held in memory at once.
         pdf_filename = await blob_store.store_upload(pdf, "pdf")
-    except Exception as e:
+    except Exception:
         logger.exception("PDF store failed")
         raise HTTPException(status_code=500, detail="Failed to save PDF file")
 
     try:
         json_content_bytes = await json_file.read()
         json_content = json_content_bytes.decode("utf-8")
-    except Exception as e:
+    except Exception:
         logger.exception("JSON file read failed")
         raise HTTPException(status_code=500, detail="Failed to read JSON file")
 
@@ -242,7 +242,7 @@ async def upload_document(
     # Parse before any row is written: an unparseable JSON is not a document.
     try:
         parse_json_document(json_content, document_id=doc_id)
-    except Exception as e:
+    except Exception:
         logger.exception("JSON parse failed on upload")
         raise HTTPException(status_code=400, detail="Failed to parse JSON document")
 
@@ -273,7 +273,7 @@ async def upload_document(
     except HTTPException:
         await db.rollback()
         raise
-    except Exception as e:
+    except Exception:
         await db.rollback()
         logger.exception("Database write failed during upload")
         raise HTTPException(status_code=500, detail="Database write failed")
@@ -421,7 +421,7 @@ async def delete_document(document_id: str, db: aiosqlite.Connection = Depends(g
         await db.execute("PRAGMA foreign_keys = ON;")
         await db.execute("DELETE FROM documents WHERE id = ?", (document_id,))
         await db.commit()
-    except Exception as e:
+    except Exception:
         await db.rollback()
         logger.exception("Database deletion failed")
         raise HTTPException(status_code=500, detail="Database deletion failed")
@@ -478,7 +478,7 @@ async def _add_version(
     json_bytes = await json_file.read()
     try:
         json_bytes.decode("utf-8")
-    except UnicodeDecodeError as e:
+    except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="JSON file is not valid UTF-8")
 
     try:
@@ -495,11 +495,11 @@ async def _add_version(
     except ReviewConflict as conflict:
         await db.rollback()
         raise HTTPException(status_code=409, detail=str(conflict))
-    except (ValueError, KeyError, TypeError) as e:
+    except (ValueError, KeyError, TypeError):
         await db.rollback()
         logger.exception("JSON parse failed on replace")
         raise HTTPException(status_code=400, detail="Failed to parse JSON document")
-    except Exception as e:
+    except Exception:
         await db.rollback()
         logger.exception("Database update failed on replace-json")
         raise HTTPException(status_code=500, detail="Database update failed")
@@ -578,7 +578,7 @@ async def activate_document_version(
             status_code=410,
             detail="The stored JSON for this version is missing from upload storage.",
         )
-    except Exception as e:
+    except Exception:
         await db.rollback()
         logger.exception("Version activation failed")
         raise HTTPException(status_code=500, detail="Activation failed")

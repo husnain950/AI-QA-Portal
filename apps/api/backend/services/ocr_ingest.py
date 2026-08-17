@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Tuple
 
 import aiosqlite
 
-from backend.services.detectors import Finding, family_key
+from backend.services.detectors import family_key
 
 logger = logging.getLogger(__name__)
 

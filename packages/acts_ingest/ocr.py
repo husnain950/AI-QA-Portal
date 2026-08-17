@@ -168,7 +168,7 @@ def _rapid_engine():
     """The RapidOCR session, built once per process (~4s of model load)."""
     global _ENGINE
     if _ENGINE is None:
-        from rapidocr_onnxruntime import RapidOCR      # lazy: heavy import
+        from rapidocr_onnxruntime import RapidOCR  # lazy: heavy import
         _ENGINE = RapidOCR()
     return _ENGINE
 

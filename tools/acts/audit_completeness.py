@@ -214,8 +214,9 @@ def source_from_cache(cache: str):
 
 def source_from_pdf(pdf_path: str):
     import pdfplumber
-    from acts_ingest.pagemodel import build_page_model
+
     from acts_ingest.calibrate import calibrate
+    from acts_ingest.pagemodel import build_page_model
     pdf = pdfplumber.open(pdf_path)
     body, foot = [], []
     # Skip exactly the TOC pages the pipeline itself skips, and zone each page
@@ -237,7 +238,6 @@ def source_from_pdf(pdf_path: str):
 
 
 def output_text(doc: dict):
-    import json as _j
 
     body_parts, foot_parts = [], []
 

@@ -27,11 +27,11 @@ the floor decision is not valid, and every report it writes says so at the top.
 from __future__ import annotations
 
 import argparse
+import functools
 import glob
 import os
 import re
 import sys
-import functools
 import time
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
@@ -186,7 +186,7 @@ def write_exclusions(rows: list, partial: bool) -> str:
         "engine's self-report: on a degraded scan Tesseract reports 95 on a "
         "token it got wrong, and only a second recogniser exposes that.",
         "",
-        f"| file | pages | OCR pages | blank | tokens | agreement | low-conf | verdict |",
+        "| file | pages | OCR pages | blank | tokens | agreement | low-conf | verdict |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for r in sorted(rows, key=lambda r: -r["fid"].mean_agreement):
@@ -216,7 +216,7 @@ def write_exclusions(rows: list, partial: bool) -> str:
                 f"- mean agreement **{f.mean_agreement:.2f}%**, "
                 f"low-confidence **{f.low_conf_share:.2f}%**",
                 f"- fails: {f.reason}",
-                f"- worst pages (page, agreement%, tokens): "
+                "- worst pages (page, agreement%, tokens): "
                 + ", ".join(f"({p}, {a}, {n})" for p, a, n in worst),
                 f"- {len(f.disagreements)} flagged tokens, {len(f.repairs)} "
                 f"enumerator repairs, {len(f.missed)} lines Tesseract dropped "

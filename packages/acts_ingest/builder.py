@@ -20,10 +20,8 @@ import re
 from dataclasses import dataclass, field
 from statistics import median as _median
 
-from .footnotes import (BRACKETS_ONLY_RE, all_markers_anonymous,
-                        ref_sort_key)
+from .footnotes import BRACKETS_ONLY_RE, all_markers_anonymous, ref_sort_key
 from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX
-
 
 # em dash / en dash that separates a heading from its text
 DASHES = "—–-"
@@ -935,6 +933,7 @@ def _merge_continuation_tables(rows):
     its words never masquerade as a header.
     """
     import html as _h
+
     from .tables import render_structure
     out = []
     for kind, plain, html in rows:

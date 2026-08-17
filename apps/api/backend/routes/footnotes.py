@@ -95,7 +95,7 @@ async def update_footnote_status(
         await db.commit()
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         await db.rollback()
         raise HTTPException(status_code=500, detail="Failed to update footnote status")
 

@@ -30,7 +30,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from tests.loader import iter_all_leaves            # noqa: E402
+from tests.loader import iter_all_leaves  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FLOOR = 200
