@@ -95,6 +95,12 @@ jobs:
   smoke:
     name: Review-page smoke
     runs-on: ubuntu-latest
+    env:
+      DATABASE_PATH: ${{ github.workspace }}/data/db/qa_portal.db
+      UPLOAD_DIR: ${{ github.workspace }}/data/uploads
+      PYTHONPATH: ${{ github.workspace }}/apps/api:${{ github.workspace }}/packages
+      VITE_API_URL: http://127.0.0.1:8000/api
+      VITE_STATIC_URL: http://127.0.0.1:8000
     steps:
       - uses: actions/checkout@v4
 
@@ -135,8 +141,6 @@ jobs:
             sleep 1
           done
           echo "API did not become healthy"; cat /tmp/api.log; exit 1
-        env:
-          PYTHONPATH: ${{ github.workspace }}/apps/api:${{ github.workspace }}/packages
 
       - name: Start the web server
         run: |
