@@ -25,8 +25,11 @@ if _ROOT not in sys.path:
 
 import pdfplumber  # noqa: E402
 
-from acts_ingest.builder import (LineRef, _candidate_code,  # noqa: E402
-                                 _dotless_candidate_code)
+from acts_ingest.builder import (  # noqa: E402
+    LineRef,
+    _candidate_code,
+    _dotless_candidate_code,
+)
 from acts_ingest.calibrate import calibrate  # noqa: E402
 from acts_ingest.pagemodel import build_page_model  # noqa: E402
 from acts_ingest.pipeline import _page_starts_schedules, _toc_lines  # noqa: E402

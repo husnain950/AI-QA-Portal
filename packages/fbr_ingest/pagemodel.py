@@ -661,7 +661,7 @@ def _extract_body_tables(page, body_lines, sep_top):
     tables below the separator rule) are returned as ``(top, bottom)`` bboxes
     for :func:`fbr_ingest.footnotes.parse_footnotes` to render as fn-tables.
     """
-    from .tables import render_grid, is_header_signature
+    from .tables import render_grid
     try:
         found = page.find_tables()
     except Exception:

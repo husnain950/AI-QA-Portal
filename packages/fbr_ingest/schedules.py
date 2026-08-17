@@ -20,8 +20,12 @@ from __future__ import annotations
 
 import re
 
-from .builder import (LineRef, _build_html, _classify, _render_line,
-                      content_rows_with_tables)
+from .builder import (
+    LineRef,
+    _build_html,
+    _render_line,
+    content_rows_with_tables,
+)
 from .footnotes import ref_sort_key
 
 _ORD_LIST = ["FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH", "SIXTH", "SEVENTH",

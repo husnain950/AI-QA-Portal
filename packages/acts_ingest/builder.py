@@ -20,10 +20,8 @@ import re
 from dataclasses import dataclass, field
 from statistics import median as _median
 
-from .footnotes import (BRACKETS_ONLY_RE, all_markers_anonymous,
-                        ref_sort_key)
+from .footnotes import BRACKETS_ONLY_RE, all_markers_anonymous, ref_sort_key
 from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX
-
 
 # em dash / en dash that separates a heading from its text
 DASHES = "—–-"
@@ -494,16 +492,6 @@ def _strip_first_li_heading_bold(html: str) -> str:
     m = _FIRST_LI_BOLD_MARKER.match(html, first_li)
     if not m:
         return html
-    # #region agent log
-    try:
-        import json as _json, time as _time
-        open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
-            _json.dumps({"sessionId": "661395", "hypothesisId": "B", "location": "builder.py:_strip_first_li_heading_bold",
-                         "message": "stripped_first_li_bold_marker", "data": {"marker": m.group(2)},
-                         "timestamp": int(_time.time() * 1000)}) + "\n")
-    except Exception:
-        pass
-    # #endregion
     return html[:m.start()] + m.group(1) + m.group(2) + " <strong>" + html[m.end():]
 
 
@@ -945,6 +933,7 @@ def _merge_continuation_tables(rows):
     its words never masquerade as a header.
     """
     import html as _h
+
     from .tables import render_structure
     out = []
     for kind, plain, html in rows:
@@ -1369,16 +1358,6 @@ def _candidate_code(line) -> str | None:
         if rest[:1] not in "\"“'‘" and re.match(
             r"[A-Z][^.]{1,80}\.\s*[—–―─-]", rest
         ):
-            # #region agent log
-            try:
-                import json as _json, time as _time
-                open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
-                    _json.dumps({"sessionId": "661395", "hypothesisId": "A", "location": "builder.py:_candidate_code",
-                                 "message": "paren_section_code", "data": {"code": m.group(1), "head": head[:80]},
-                                 "timestamp": int(_time.time() * 1000)}) + "\n")
-            except Exception:
-                pass
-            # #endregion
             return m.group(1)
     return None
 
@@ -2730,37 +2709,6 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
         if not local and not nxt and cited_footnotes:
             collector = [fn for fn in (cited_footnotes.get(pg) or [])
                          if fn.marker == marker]
-        if nxt:
-            # #region agent log
-            try:
-                import json as _json, time as _time
-                open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
-                    _json.dumps({"sessionId": "661395", "hypothesisId": "D", "location": "builder.py:_build_one",
-                                 "message": "attach_footnote_next_page",
-                                 "data": {"cite_page": pg, "marker": marker, "n": len(nxt)},
-                                 "timestamp": int(_time.time() * 1000)}) + "\n")
-            except Exception:
-                pass
-            # #endregion
-        # #region agent log
-        if entry.code == "155Q" or (marker == "4" and entry.code in ("155Q", "156")):
-            try:
-                import json as _json, time as _time
-                open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
-                    _json.dumps({"sessionId": "661395", "runId": "fn-155Q", "hypothesisId": "H",
-                                 "location": "builder.py:_build_one:attach",
-                                 "message": "cite_resolve",
-                                 "data": {"code": entry.code, "cite_page": pg, "marker": marker,
-                                          "n_local": len(local), "n_nxt": len(nxt),
-                                          "n_collector": len(collector),
-                                          "local_pages": [getattr(fn, "pdf_page", None) for fn in local[:3]],
-                                          "nxt_pages": [getattr(fn, "pdf_page", None) for fn in nxt[:3]],
-                                          "collector_pages": [getattr(fn, "pdf_page", None) for fn in collector[:3]],
-                                          "cite_pages": sorted(cite_pages)[:20]},
-                                 "timestamp": int(_time.time() * 1000)}) + "\n")
-            except Exception:
-                pass
-        # #endregion
         for fn in local or nxt or collector:
             # The ref names the page the NOTE is printed on, not the page that
             # cites it.  Those coincide in a bottom-of-page layout, but the

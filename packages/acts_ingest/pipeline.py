@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import re
-from dataclasses import asdict
 
 import pdfplumber
 
 from .builder import LineRef, build_sections
 from .calibrate import calibrate
 from .discover import _omission_codes
-from .footnotes import (BRACKETS_ONLY_RE, all_markers_anonymous,
-                        parse_footnotes, ref_sort_key)
+from .footnotes import (
+    BRACKETS_ONLY_RE,
+    all_markers_anonymous,
+    parse_footnotes,
+    ref_sort_key,
+)
 from .pagemodel import build_page_model
-from .schedules import build_schedules, _kind, _sched_ordinal
+from .schedules import _kind, _sched_ordinal, build_schedules
 from .toc import Node, parse_toc
 
 # A TOC row that already reads as a body-less placeholder ("Omitted by the
@@ -69,19 +72,6 @@ def cover_footnote_collector_pages(leaves, pages, has_body, has_notes) -> int:
         prev = last.get("end_page") or 0
         if prev >= note_end:
             continue
-        # #region agent log
-        try:
-            import json as _json, time as _time
-            open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
-                _json.dumps({"sessionId": "661395", "runId": "customs-gap", "hypothesisId": "G",
-                             "location": "pipeline.py:cover_footnote_collector_pages",
-                             "message": "extend_end_page_through_collectors",
-                             "data": {"code": last.get("code"), "from": prev, "to": note_end,
-                                      "collectors": collectors[:12], "body_run": [bodies[0], bodies[-1]]},
-                             "timestamp": int(_time.time() * 1000)}) + "\n")
-        except Exception:
-            pass
-        # #endregion
         last["end_page"] = note_end
         n_ext += 1
     return n_ext
@@ -497,6 +487,7 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
             # line was claimed above -- the rendered bracket itself, so every
             # attached footnote keeps a visible <sup> citation.
             import html as _h
+
             from .builder import _build_html as _bhtml
             from .builder import _render_line
             exp = entry.printed_page + offset
@@ -651,7 +642,7 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         "schedules": schedules_out,
     }
     # the enacting preamble (text before section 1: "AN ORDINANCE ... WHEREAS ...")
-    from .builder import preamble_refs, _build_preamble_html
+    from .builder import _build_preamble_html, preamble_refs
     pre = preamble_refs(body_refs, ordered_sections, containers)
     if pre:
         pre_html, pre_plain = _build_preamble_html(pre, footnote_map, lambda p: offset)
@@ -905,8 +896,8 @@ def body_chapter_headings(body_refs) -> dict:
     section heading always does).  At most three lines, so a mis-zoned page can
     never fold a paragraph into a chapter title.
     """
-    from .grammar import CHAPTER_RE
     from .builder import _candidate_code, is_structural_boundary
+    from .grammar import CHAPTER_RE
 
     out: dict = {}
     for i, ref in enumerate(body_refs):

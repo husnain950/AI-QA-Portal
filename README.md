@@ -41,6 +41,19 @@ Open http://localhost:5173 — dashboard should list Ordinance + Acts editions.
 
 Corpora are vendored under `data/corpora/` (gitignored). Optional refresh from a sibling CC-FBR tree: `make vendor-corpora`.
 
+### Without the corpora
+
+A fresh clone has no `data/corpora/`, so `make sync` has nothing to load and the dashboard
+starts empty. For UI work and review-page smoke tests, generate a micro-corpus instead:
+
+```bash
+make seed-fixtures     # 3 small acts with real text PDFs, via tools/fixture_corpus.py
+cd apps/web && npm run smoke
+```
+
+The fixtures are generated rather than committed, so they are byte-identical everywhere and
+no binaries live in git. They are a test scaffold, not a stand-in for the real corpus.
+
 ### Environment
 
 See [`.env.example`](.env.example). Important knobs:
@@ -65,6 +78,7 @@ Compose mounts `./data/corpora/...` **read-only** into the API container. Large 
 | `make up` / `down` | Docker Compose stack |
 | `make vendor-corpora` | Optional re-copy from sibling CC-FBR |
 | `make sync` | Sync Ordinance + Acts (`--metrics`) |
+| `make seed-fixtures` | Generate + load a micro-corpus (no private data needed) |
 | `make convert-ordinance PDF=…` | Run `fbr_ingest` |
 | `make convert-acts PDF=…` | Run `acts_ingest` |
 | `make test` | API pytest + pipeline smoke + `npm run build` |
@@ -82,7 +96,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | every PR and push to `main` | API pytest, pipeline import smoke, web lint/vitest/build |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | every PR and push to `main` | API pytest, pipeline import smoke, web lint/vitest/build, review-page smoke |
 | [`.github/workflows/deploy-northflank.yml`](.github/workflows/deploy-northflank.yml) | CI succeeding on `main`, or manual dispatch | builds the merged commit on Northflank and rolls it out |
 
 Deploys run [`tools/northflank_deploy.py`](tools/northflank_deploy.py), which talks to the

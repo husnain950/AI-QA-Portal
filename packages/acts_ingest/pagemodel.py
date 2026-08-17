@@ -1135,7 +1135,7 @@ def _extract_body_tables(page, body_lines, sep_top, folio=None,
     tables below the separator rule) are returned as ``(top, bottom)`` bboxes
     for :func:`acts_ingest.footnotes.parse_footnotes` to render as fn-tables.
     """
-    from .tables import render_grid, is_header_signature
+    from .tables import render_grid
     try:
         found = page.find_tables()
     except Exception:
@@ -1214,19 +1214,6 @@ def _extract_body_tables(page, body_lines, sep_top, folio=None,
                 or (_line_max_size(ln) >= 11.0
                     and _BARE_STRUCT_RE.match(ln.text().strip()))
                 or _is_clause_heading_line(ln)):
-            # #region agent log
-            if k is not None and _is_clause_heading_line(ln):
-                try:
-                    import json as _json, time as _time
-                    open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
-                        _json.dumps({"sessionId": "661395", "hypothesisId": "F",
-                                     "location": "pagemodel.py:_extract_body_tables",
-                                     "message": "keep_clause_heading_from_table",
-                                     "data": {"text": (ln.text() or "")[:80]},
-                                     "timestamp": int(_time.time() * 1000)}) + "\n")
-                except Exception:
-                    pass
-            # #endregion
             kept.append(ln)
         else:
             swallowed_words[k].extend(ln.words)

@@ -24,7 +24,6 @@ reviewing is visible in the diff instead of buried in a threshold.
 import argparse
 import json
 import pathlib
-import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "output"

@@ -154,6 +154,7 @@ def _edges_by_gap(words, gap=18.0) -> list[float]:
 
 
 import re as _re
+
 # a substituted table may open with the "TABLE" keyword OR straight into an
 # "S#" / "S. No." / "Sr. No." header row.
 _FN_TABLE_HEADER = _re.compile(r"^S(\s*#|r?\.?\s*No\.?)", _re.IGNORECASE)
@@ -876,6 +877,7 @@ def _fit_grid_to_records(cells, recs):
     grid does not faithfully represent the run even after trimming.
     """
     from collections import Counter
+
     from .pagemodel import normalize_text
 
     def toks(text):
@@ -940,7 +942,7 @@ def _render_fn_grid(cells, rowcells=None) -> str:
     "(1) (2) ..." numbering row are header-styled.
     """
     from .pagemodel import normalize_text
-    from .tables import _normalise_grid, _is_numbering_cells
+    from .tables import _is_numbering_cells, _normalise_grid
     rows = _normalise_grid(cells, rowcells)
     if not rows:
         return ""

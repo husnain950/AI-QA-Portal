@@ -1,6 +1,19 @@
 /**
- * Stratified visual smoke for PDF-QA Portal review pages.
- * Checks dashboard loads, opens representative acts, verifies PDF canvas + HTML pane.
+ * Stratified visual smoke for the QA Portal review pages.
+ * Checks the dashboard loads, opens representative acts, verifies PDF canvas + HTML pane.
+ *
+ * Needs a running API and web server:
+ *   PORTAL_API   default http://127.0.0.1:8000/api
+ *   PORTAL_BASE  default http://127.0.0.1:5173  (vite's default port)
+ *
+ * Targets come from a manifest so a fresh clone can run this against the generated
+ * fixture corpus (`make seed-fixtures`) instead of the private one:
+ *   SMOKE_TARGETS  default <repo>/data/fixtures/acts/smoke_targets.json
+ * When that file is absent the script falls back to the real corpus editions below, so
+ * running against a synced private corpus behaves exactly as it always did.
+ *
+ * Exits non-zero when any target fails. It previously recorded failures and still
+ * exited 0, which would have made it a no-op as a CI gate.
  */
 import { chromium } from 'playwright';
 import fs from 'fs';
@@ -8,11 +21,15 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const BASE = 'http://127.0.0.1:5174';
-const API = 'http://127.0.0.1:8000/api';
+const REPO_ROOT = path.resolve(__dirname, '../../..');
+const BASE = (process.env.PORTAL_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '');
+const API = (process.env.PORTAL_API || 'http://127.0.0.1:8000/api').replace(/\/$/, '');
+const TARGETS_FILE = process.env.SMOKE_TARGETS
+  || path.join(REPO_ROOT, 'data/fixtures/acts/smoke_targets.json');
 const OUT = path.join(__dirname, 'visual_smoke_report.json');
 
-const TARGETS = [
+/** Editions of the private corpus, used when no fixture manifest is present. */
+const CORPUS_TARGETS = [
   { nameIncludes: 'Finance Act 2024', page: 11 },
   { nameIncludes: 'Finance Act 2025', page: 50 },
   { nameIncludes: 'Finance Act, 2021', page: 40 },
@@ -23,8 +40,25 @@ const TARGETS = [
   { nameIncludes: 'The Tax Laws (Amendment) Act, 2024', page: 8 },
 ];
 
+function loadTargets() {
+  if (fs.existsSync(TARGETS_FILE)) {
+    const manifest = JSON.parse(fs.readFileSync(TARGETS_FILE, 'utf-8'));
+    const targets = manifest.targets || [];
+    if (targets.length) return { targets, source: TARGETS_FILE };
+  }
+  return { targets: CORPUS_TARGETS, source: 'built-in corpus editions' };
+}
+
 async function getDocs() {
-  const res = await fetch(`${API}/documents`);
+  let res;
+  try {
+    res = await fetch(`${API}/documents`);
+  } catch (err) {
+    throw new Error(
+      `cannot reach the API at ${API} (${err.message}). Start it, or set PORTAL_API.`,
+    );
+  }
+  if (!res.ok) throw new Error(`GET ${API}/documents returned HTTP ${res.status}`);
   return res.json();
 }
 
@@ -57,6 +91,17 @@ async function checkDoc(page, doc, samplePage) {
   } catch (e) {
     result.ok = false;
     result.errors.push('pdf_canvas_missing:' + e.message);
+  }
+
+  // A page pdf.js draws blank is reported by the UI rather than thrown, so the canvas
+  // existing is not on its own proof the PDF rendered.
+  if (await page.getByTestId('pdf-page-blank').count()) {
+    result.ok = false;
+    result.errors.push('pdf_page_blank');
+  }
+  if (await page.getByTestId('pdf-doc-error').count()) {
+    result.ok = false;
+    result.errors.push('pdf_doc_error');
   }
 
   const main = page.locator('main, .review-layout, #root').first();
@@ -95,8 +140,19 @@ async function checkDoc(page, doc, samplePage) {
   return result;
 }
 
+const { targets: TARGETS, source: targetsSource } = loadTargets();
+console.error(`targets: ${TARGETS.length} from ${targetsSource}`);
+console.error(`web: ${BASE}  api: ${API}`);
+
 const docs = await getDocs();
 const acts = docs.filter((d) => d.source_type === 'acts_corpus');
+if (!acts.length) {
+  throw new Error(
+    `the API has no acts_corpus documents (${docs.length} document(s) total). `
+    + 'Run `make seed-fixtures` for a generated corpus, or `make sync` for the real one.',
+  );
+}
+
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
@@ -125,6 +181,9 @@ for (const t of TARGETS) {
 
 await browser.close();
 const report = {
+  base: BASE,
+  api: API,
+  targets_source: targetsSource,
   dashboard: dash,
   results,
   passed: results.filter((r) => r.ok).length,
@@ -132,3 +191,10 @@ const report = {
 };
 fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));
+
+const failed = report.failed + (dash.ok ? 0 : 1);
+if (failed) {
+  console.error(`\nvisual smoke FAILED: ${report.failed}/${results.length} target(s)`
+    + `${dash.ok ? '' : ' plus the dashboard check'}`);
+}
+process.exit(failed ? 1 : 0);

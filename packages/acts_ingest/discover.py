@@ -37,13 +37,19 @@ from __future__ import annotations
 
 import re
 
-from .grammar import (CODE, CODE_SUFFIXED, MARKER_PREFIX,  # noqa: F401
-                      code_sort_key as _grammar_code_sort_key)
-
-from .builder import (_DOTFORM_RE, _HEADING_DASH_RE, _STRUCT_DECOR_RE,
-                      _bold_title, _code_token_index, _dotless_candidate_code,
-                      _find_heading_split, is_structural_boundary)
+from .builder import (
+    _DOTFORM_RE,
+    _HEADING_DASH_RE,
+    _STRUCT_DECOR_RE,
+    _bold_title,
+    _code_token_index,
+    _dotless_candidate_code,
+    _find_heading_split,
+    is_structural_boundary,
+)
 from .footnotes import BRACKETS_ONLY_RE
+from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX  # noqa: F401
+from .grammar import code_sort_key as _grammar_code_sort_key
 from .toc import Node, SectionEntry, _chapter_numeral, _clean_heading, _join_heading
 
 
@@ -556,21 +562,6 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
                 or _bold_title(words, _code_token_index(words), doc_has_bold)
             )
             if (last_key is None or key > last_key) and title_ok:
-                # #region agent log
-                if is_amendment and not _bold_title(
-                    words, _code_token_index(words), doc_has_bold
-                ):
-                    try:
-                        import json as _json, time as _time
-                        open("/Users/muhammad.husnain/Downloads/code/crx/.cursor/debug-661395.log", "a").write(
-                            _json.dumps({"sessionId": "661395", "hypothesisId": "E",
-                                         "location": "discover.py:dotform",
-                                         "message": "amendment_skip_bold_gate",
-                                         "data": {"code": code, "page": ref.page},
-                                         "timestamp": int(_time.time() * 1000)}) + "\n")
-                    except Exception:
-                        pass
-                # #endregion
                 split = _find_heading_split(body_refs[idx:idx + 4],
                                             min(4, len(body_refs) - idx))
                 if split is not None:

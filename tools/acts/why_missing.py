@@ -42,6 +42,7 @@ def source_lines(pdf_path: str):
     differently from the gate measures the difference between two page models.
     """
     import pdfplumber
+
     from acts_ingest.calibrate import calibrate
     from acts_ingest.pagemodel import build_page_model
 

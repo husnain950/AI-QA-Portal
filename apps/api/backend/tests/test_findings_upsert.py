@@ -1,12 +1,10 @@
 """Tests for findings upsert — dismissal survives score/version bump."""
 
-import pytest
-import pytest_asyncio
 import aiosqlite
+import pytest
 
-from backend.services.detectors import Finding
 from backend.services import findings_store
-from backend.tests.conftest import runtime_sandbox
+from backend.services.detectors import Finding
 
 
 @pytest.mark.asyncio

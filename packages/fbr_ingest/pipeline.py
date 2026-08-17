@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import re
-from dataclasses import asdict
 
 import pdfplumber
 
 from .builder import LineRef, build_sections
 from .discover import _omission_codes
-from .footnotes import (BRACKETS_ONLY_RE, all_markers_anonymous,
-                        parse_footnotes, ref_sort_key)
+from .footnotes import (
+    BRACKETS_ONLY_RE,
+    all_markers_anonymous,
+    parse_footnotes,
+    ref_sort_key,
+)
 from .pagemodel import build_page_model
-from .schedules import build_schedules, _kind
+from .schedules import _kind, build_schedules
 from .toc import Node, parse_toc
 
 # A TOC row that already reads as a body-less placeholder ("Omitted by the
@@ -175,6 +178,7 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
             # line was claimed above -- the rendered bracket itself, so every
             # attached footnote keeps a visible <sup> citation.
             import html as _h
+
             from .builder import _build_html as _bhtml
             from .builder import _render_line
             exp = entry.printed_page + offset
@@ -275,7 +279,7 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         "schedules": schedules_out,
     }
     # the enacting preamble (text before section 1: "AN ORDINANCE ... WHEREAS ...")
-    from .builder import preamble_refs, _build_preamble_html
+    from .builder import _build_preamble_html, preamble_refs
     pre = preamble_refs(body_refs, ordered_sections)
     if pre:
         pre_html, pre_plain = _build_preamble_html(pre, footnote_map, lambda p: offset)

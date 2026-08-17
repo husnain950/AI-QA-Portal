@@ -1,12 +1,9 @@
 """Tests for approval inheritance — approve variant ≥3, content change revokes."""
 
-import pytest
-import pytest_asyncio
 import aiosqlite
+import pytest
 
 from backend.services import variants
-from backend.services.document_store import apply_parsed_document
-from backend.tests.conftest import runtime_sandbox
 
 
 async def _setup_variant_group(db, count=3):

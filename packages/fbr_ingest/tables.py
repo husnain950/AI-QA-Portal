@@ -699,7 +699,8 @@ def _has_col0(words, bounds):
 def _group_logical_rows(region_refs, bounds):
     from collections import Counter
     from dataclasses import replace
-    from .pagemodel import cite_sentinel, _true_table_marker
+
+    from .pagemodel import _true_table_marker, cite_sentinel
 
     # Same marker test as the grid-table path: relative to the table's own
     # dominant size and capped below 100.  Bare ``is_marker`` is absolute
