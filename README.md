@@ -96,7 +96,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | every PR and push to `main` | API pytest, pipeline import smoke, web lint/vitest/build |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | every PR and push to `main` | API pytest, pipeline import smoke, web lint/vitest/build, review-page smoke |
 | [`.github/workflows/deploy-northflank.yml`](.github/workflows/deploy-northflank.yml) | CI succeeding on `main`, or manual dispatch | builds the merged commit on Northflank and rolls it out |
 
 Deploys run [`tools/northflank_deploy.py`](tools/northflank_deploy.py), which talks to the
