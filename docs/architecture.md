@@ -12,6 +12,8 @@
 
 Source PDFs + pipeline JSON live under `data/corpora/` (`CORPUS_ORDINANCE` / `CORPUS_ACTS`, gitignored). Conversion may also write under `data/output/`. Sync content-addresses PDF/JSON into `UPLOAD_DIR` and indexes sections in SQLite. Optional `make vendor-corpora` refreshes from a sibling CC-FBR tree.
 
+The Library header's Ordinance/Acts line is that mount check (`output/*.json` on disk), not the document list. Remote seed via `push_corpus` creates `source_type=upload` rows and leaves `corpus_sync_state.last_sync_at` null.
+
 ## Version workflow
 
 One static PDF per document; each corrected JSON is a new `document_versions` row with leaf diffs and annotation re-anchoring. Pipeline health badges come from ingested Acts_fbr reports (`--metrics`), never recomputed in the portal.

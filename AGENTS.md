@@ -28,6 +28,11 @@ Run the API and web dev servers directly (do NOT rely on `make up`, which uses D
 ### Seeding data (the portal is empty without it)
 - Real corpora under `data/corpora/` are gitignored and NOT present in a fresh clone, so
   `make sync` has nothing to load and the dashboard starts empty. This is expected.
+- The Library subtitle (`never synced` / `seeded by upload` · `pipeline mounts not on this
+  host`) reports whether the Ordinance and Acts **pipeline directories** exist on the API
+  host (`CORPUS_ORDINANCE` / `CORPUS_ACTS` with `output/*.json`). It is not a count of
+  documents. A production instance filled by `make push-remote` still shows
+  `seeded by upload` because that path never writes `corpus_sync_state`.
 - To get a usable document without corpora, upload a PDF + matching structure JSON via the
   UI "Upload" page or `POST /api/documents/upload` (multipart fields: `pdf`, `json_file`,
   `name`). The JSON schema is `{"metadata": {...}, "chapters": [{"sections": [{code, heading,

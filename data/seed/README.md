@@ -48,3 +48,12 @@ make push-remote BASE_URL=https://your-portal.code.run
    image, `bootstrap_runtime()` runs corpus sync automatically.
 
 3. **Subsequent deploys** find existing data in the volume and skip seeding.
+
+`make push-remote` is the fallback when the image has no baked seed: it uploads PDF+JSON
+over HTTP as `source_type=upload` and does **not** write `corpus_sync_state`. The Library
+subtitle then reads `seeded by upload · pipeline mounts not on this host` instead of
+`last sync ok`. That is mount health, not an empty library.
+
+`tools/deploy_coderun.sh` filters `CORPUS_*`, `DATABASE_PATH`, and `UPLOAD_DIR` out of
+`--env-file` so local host paths cannot override the image defaults
+(`/data/corpus/ordinance`, `/data/corpus/acts`, `/seed/corpus/...`, `/app/data/...`).

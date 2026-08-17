@@ -16,6 +16,10 @@ data/corpora/acts/
 
 Defaults: `CORPUS_ORDINANCE=./data/corpora/ordinance`, `CORPUS_ACTS=./data/corpora/acts`.
 
+These are host-local. A deployed API without these trees on disk is expected: the Library
+subtitle reports pipeline-mount health (`output/*.json` present), not whether documents
+were uploaded some other way.
+
 Refresh from a sibling CC-FBR tree (optional):
 
 ```bash

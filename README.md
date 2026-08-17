@@ -52,6 +52,10 @@ See [`.env.example`](.env.example). Important knobs:
 | `CORPUS_ORDINANCE` | `./data/corpora/ordinance` (`output/*.json` + Ordinance PDFs) |
 | `CORPUS_ACTS` | `./data/corpora/acts` (`output/*.json` + `Acts/**`) |
 
+These `CORPUS_*` / `DATABASE_PATH` / `UPLOAD_DIR` values are **host-local**. Compose and the API image override them inside the container (`/data/corpus/...`, `/app/data/...`). `make deploy-prod` strips them from `--env-file` so a local `.env` cannot make production report missing mounts.
+
+The Library subtitle (`last sync` / `seeded by upload` / `pipeline mounts not on this host`) is **pipeline-mount health** — whether those directories exist on the API host with `output/*.json` — not whether Ordinance or Acts documents are already in the library. `make push-remote` fills the library as uploads and does not record a corpus sync.
+
 Compose mounts `./data/corpora/...` **read-only** into the API container. Large blobs stay out of git.
 
 ### Make targets
