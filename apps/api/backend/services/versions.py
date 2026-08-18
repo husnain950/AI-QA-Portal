@@ -188,6 +188,10 @@ async def create_version(
         ),
     )
 
+    from backend.services.variants import rebuild_document
+
+    await rebuild_document(db, document_id)
+
     row = await get_version(db, document_id, _version_id(document_id, version_no))
     return row, {"status": "created", "version_no": version_no, "stats": stats}
 
@@ -252,6 +256,9 @@ async def activate_version(
             document_id,
         ),
     )
+    from backend.services.variants import rebuild_document
+
+    await rebuild_document(db, document_id)
     return {
         "status": "activated",
         "version_no": target["version_no"],

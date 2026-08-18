@@ -26,7 +26,9 @@ function App() {
           <Route path="/library" element={<DashboardPage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/review/:documentId/:sectionId?" element={<ReviewPage />} />
+          <Route path="/timeline" element={<TimelinePage />} />
           <Route path="/timeline/:family/:sectionCode" element={<TimelinePage />} />
+          <Route path="/timeline/*" element={<TimelinePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

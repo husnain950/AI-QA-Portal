@@ -24,7 +24,8 @@ import VersionPanel from '../components/review/VersionPanel';
 import { formatLeafIdentity } from '../utils/tocLabels';
 import { TAG_NEEDS_REVIEW, TAG_PROVISIONAL } from '../utils/documentTags';
 import { laneLabel } from '../utils/corpusLanes';
-import { editionDateFromName, familyKeyFromName } from '../utils/editions';
+import { editionDateFromName } from '../utils/editions';
+import { timelinePath } from '../utils/timeline';
 
 const ReviewPage = () => {
     const { documentId, sectionId } = useParams();
@@ -269,8 +270,6 @@ const ReviewPage = () => {
     const edition = editionDateFromName(activeDocument.name);
     const lane = activeDocument.corpus_lane
         || (activeDocument.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
-    const familyKey = familyKeyFromName(activeDocument.name);
-
     return (
         <AppShell
             title={activeDocument.name}
@@ -332,14 +331,12 @@ const ReviewPage = () => {
                             </select>
                         </label>
                     )}
-                    {activeSection?.section_code && (
+                    {activeSection?.id && (
                         <button
                             type="button"
                             className="btn btn-sm btn-secondary"
                             title="Open family timeline for this section"
-                            onClick={() => navigate(
-                                `/timeline/${encodeURIComponent(familyKey)}/${encodeURIComponent(activeSection.section_code)}`,
-                            )}
+                            onClick={() => navigate(timelinePath({ sectionId: activeSection.id }))}
                         >
                             <GitBranch size={13} />
                             <span>Timeline</span>

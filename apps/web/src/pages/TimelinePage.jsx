@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { GitBranch, ExternalLink, AlertTriangle, Loader2 } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
 import DiffView from '../components/diff/DiffView';
@@ -7,6 +7,7 @@ import EmptyState from '../components/ui/EmptyState';
 import StatusChip from '../components/ui/StatusChip';
 import { api } from '../utils/api';
 import { formatSectionLabel } from '../utils/tocLabels';
+import { parseTimelineParams, timelineApiPath, timelinePath } from '../utils/timeline';
 
 const EVENT_LABELS = {
     unchanged: 'Unchanged',
@@ -23,8 +24,15 @@ const EVENT_TONES = {
 };
 
 export default function TimelinePage() {
-    const { family, sectionCode } = useParams();
+    const params = useParams();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { sectionId, family, code: sectionCode } = parseTimelineParams({
+        searchParams,
+        pathFamily: params.family,
+        pathCode: params.sectionCode,
+        splat: params['*'],
+    });
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -33,14 +41,24 @@ export default function TimelinePage() {
     const [qCode, setQCode] = useState(sectionCode || '');
 
     useEffect(() => {
+        setQFamily(family || '');
+        setQCode(sectionCode || '');
+    }, [family, sectionCode]);
+
+    useEffect(() => {
         let cancelled = false;
         setLoading(true);
         setError('');
+        setData(null);
+        if (!sectionId && !(family && sectionCode)) {
+            setLoading(false);
+            return () => {
+                cancelled = true;
+            };
+        }
         (async () => {
             try {
-                const res = await api.get(
-                    `/timeline/${encodeURIComponent(family)}/${encodeURIComponent(sectionCode)}`,
-                );
+                const res = await api.get(timelineApiPath({ sectionId, family, code: sectionCode }));
                 if (!cancelled) setData(res);
             } catch (err) {
                 if (!cancelled) setError(err.message || 'Failed to load timeline');
@@ -51,9 +69,21 @@ export default function TimelinePage() {
         return () => {
             cancelled = true;
         };
-    }, [family, sectionCode]);
+    }, [sectionId, family, sectionCode]);
+
+    useEffect(() => {
+        if (!data) return;
+        if (data.family_label || data.family) {
+            setQFamily((prev) => prev || data.family_label || data.family || '');
+        }
+        if (data.section_code) {
+            setQCode((prev) => prev || data.section_code);
+        }
+    }, [data]);
 
     const events = data?.events || [];
+    const headingFamily = data?.family_label || family || 'Timeline';
+    const headingCode = data?.section_code || sectionCode;
 
     return (
         <AppShell title="Timeline" scrollable showBackButton backTo="/">
@@ -62,8 +92,13 @@ export default function TimelinePage() {
                     <div>
                         <h1 className="tl-title">
                             <GitBranch size={18} aria-hidden="true" />
-                            {data?.family_label || family} ·{' '}
-                            {formatSectionLabel(sectionCode, data?.section_heading)}
+                            {headingFamily}
+                            {headingCode ? (
+                                <>
+                                    {' · '}
+                                    {formatSectionLabel(headingCode, data?.section_heading)}
+                                </>
+                            ) : null}
                         </h1>
                         <p className="tl-sub">
                             Edition changelog — runs of identical text collapse into one band.
@@ -74,7 +109,7 @@ export default function TimelinePage() {
                         onSubmit={(e) => {
                             e.preventDefault();
                             if (qFamily && qCode) {
-                                navigate(`/timeline/${encodeURIComponent(qFamily)}/${encodeURIComponent(qCode)}`);
+                                navigate(timelinePath({ family: qFamily, code: qCode }));
                             }
                         }}
                     >

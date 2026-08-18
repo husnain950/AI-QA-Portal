@@ -13,6 +13,7 @@ import DropdownMenu from '../components/ui/DropdownMenu';
 import { api } from '../utils/api';
 import { formatSectionLabel } from '../utils/tocLabels';
 import { editionDateFromName } from '../utils/editions';
+import { timelinePath } from '../utils/timeline';
 import { useUiStore } from '../stores/uiStore';
 
 const TRIAGE_FILTERS = [
@@ -470,9 +471,11 @@ export default function TriagePage() {
                                         key: 'timeline',
                                         label: 'Open section timeline',
                                         icon: GitBranch,
-                                        onSelect: () => navigate(
-                                            `/timeline/${encodeURIComponent(f.family_key || 'x')}/${encodeURIComponent(f.section_code || '')}`,
-                                        ),
+                                        onSelect: () => navigate(timelinePath({
+                                            sectionId: f.section_id,
+                                            family: f.family_key,
+                                            code: f.section_code,
+                                        })),
                                     },
                                     {
                                         key: 'export',
@@ -521,9 +524,11 @@ export default function TriagePage() {
                                 <button
                                     type="button"
                                     className="btn btn-xs btn-secondary"
-                                    onClick={() => navigate(
-                                        `/timeline/${encodeURIComponent(f.family_key || 'x')}/${encodeURIComponent(f.section_code || '')}`,
-                                    )}
+                                    onClick={() => navigate(timelinePath({
+                                        sectionId: f.section_id,
+                                        family: f.family_key,
+                                        code: f.section_code,
+                                    }))}
                                 >
                                     <GitBranch size={12} />
                                     Timeline
