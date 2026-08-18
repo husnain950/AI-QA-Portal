@@ -1,6 +1,10 @@
 import { getReviewerName, setReviewerName } from './reviewer';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Empty/unset in a prod build means same-origin — nginx proxies /uploads/ to the API.
+// The localhost fallback is dev-only; baking it into a prod bundle sends every
+// viewer's PDF request to their own machine.
+const STATIC_BASE = import.meta.env.VITE_STATIC_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
 export { getReviewerName, setReviewerName };
 
@@ -66,7 +70,7 @@ export const api = {
             .split('/')
             .map(encodeURIComponent)
             .join('/');
-        return `${import.meta.env.VITE_STATIC_URL || 'http://localhost:8000'}/uploads/${encoded}`;
+        return `${STATIC_BASE}/uploads/${encoded}`;
     }
 };
 
