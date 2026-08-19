@@ -47,7 +47,50 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Backfill provenance for portal documents")
     p.add_argument("--limit", type=int, default=0, help="Stop after N documents (0 = all)")
     p.add_argument("--dry-run", action="store_true", help="Derive provenance, but do not update")
+    p.add_argument(
+        "--base-url",
+        default="",
+        help="Drive a DEPLOYED portal over HTTP instead of the local database",
+    )
+    p.add_argument(
+        "--page-size", type=int, default=10, help="Documents per request in --base-url mode"
+    )
     return p
+
+
+def run_remote(base_url: str, page_size: int) -> int:
+    """Walk `POST /api/documents/reinfer-provenance` until it reports no more pages.
+
+    A deployment's database and blobs live inside its container, so the local path below
+    cannot reach them. The route does the same re-derivation there; this only pages
+    through it, because sampling every PDF takes minutes and the API runs one worker.
+    """
+    import json as _json
+    import urllib.parse
+    import urllib.request
+
+    base = base_url.rstrip("/")
+    after = None
+    processed = 0
+    changed: list[dict] = []
+    while True:
+        url = f"{base}/api/documents/reinfer-provenance?limit={page_size}"
+        if after:
+            url += f"&after={urllib.parse.quote(after)}"
+        request = urllib.request.Request(url, data=b"", method="POST")
+        with urllib.request.urlopen(request, timeout=600) as response:
+            payload = _json.load(response)
+        processed += payload["processed"]
+        changed.extend(payload["changed"])
+        print(f"  processed {processed}, {len(changed)} reclassified so far", flush=True)
+        after = payload["next"]
+        if not after:
+            break
+
+    print(f"\nprocessed {processed} documents, {len(changed)} reclassified", flush=True)
+    for item in changed:
+        print(f"  {item['from']} -> {item['to']}  {item['id']}", flush=True)
+    return 0
 
 
 async def count_by_kind(db) -> Counter[str]:
@@ -62,6 +105,8 @@ async def count_by_kind(db) -> Counter[str]:
 
 async def main() -> int:
     args = build_parser().parse_args()
+    if args.base_url:
+        return run_remote(args.base_url, args.page_size)
 
     async for db in get_db():
         before = await count_by_kind(db)

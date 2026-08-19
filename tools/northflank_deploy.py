@@ -23,10 +23,23 @@ beyond the interpreter itself.
 Northflank's own continuous integration and deployment so Northflank watches the
 repository directly and redeploys on every push.
 
+`backup` is unrelated to building. It snapshots the persistent volume that holds the
+API's SQLite database and blob uploads, then prunes to the newest `--keep` -- Northflank
+offers neither a retention setting nor a schedule for volume backups, so both live here.
+
+It cannot run on the current plan: Northflank answers that endpoint with `403 Feature
+disabled for your account`. It is kept because it is the right mechanism and starts
+working the moment the feature is enabled. Until then the backup that actually runs is
+`tools/snapshot_review.py` (`make backup-remote`, and
+`.github/workflows/backup-review-state.yml` daily), which captures review state over the
+portal's own export API -- less than a volume snapshot, but it covers the one thing
+nothing else can rebuild.
+
 Usage:
     python tools/northflank_deploy.py check
     python tools/northflank_deploy.py deploy --sha "$GITHUB_SHA"
     python tools/northflank_deploy.py enable-cicd --set-branch
+    python tools/northflank_deploy.py backup --keep 7
 
 Configuration is read from CLI flags, then environment variables, then `.env`,
 then the defaults baked into `northflank.template.json`:
@@ -48,6 +61,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
@@ -58,6 +72,12 @@ ENV_PATH = REPO_ROOT / ".env"
 DEFAULT_API_HOST = "https://api.northflank.com"
 DEFAULT_SERVICES = ("crx-api", "crx-web")
 DEFAULT_BRANCH = "main"
+
+# The persistent volume holding the API's SQLite DB and blob uploads. Northflank has no
+# retention or schedule API for volume backups, so `backup` prunes to DEFAULT_KEEP_BACKUPS
+# itself -- otherwise a daily cron grows without bound.
+DEFAULT_VOLUME = "crx-api-data"
+DEFAULT_KEEP_BACKUPS = 7
 
 # Build states from GET /v1/projects/{p}/services/{s}/build/{b}.
 SUCCESS_STATUS = "SUCCESS"
@@ -124,6 +144,8 @@ class Config:
     timeout: float = 2700.0
     deploy: bool = True
     dry_run: bool = False
+    volume: str = DEFAULT_VOLUME
+    keep: int = DEFAULT_KEEP_BACKUPS
 
 
 @dataclass
@@ -232,6 +254,20 @@ class NorthflankClient:
     def patch_service(self, project_id: str, service_type: str, service_id: str, body: dict) -> dict:
         path = f"{self._projects_base}/{project_id}/services/{service_type}/{service_id}"
         return self.request("PATCH", path, body).get("data", {})
+
+    def _backups_path(self, project_id: str, volume_id: str, suffix: str = "") -> str:
+        return f"{self._projects_base}/{project_id}/volumes/{volume_id}/backups{suffix}"
+
+    def create_volume_backup(self, project_id: str, volume_id: str, name: str) -> dict:
+        path = self._backups_path(project_id, volume_id)
+        return self.request("POST", path, {"name": name}).get("data", {})
+
+    def list_volume_backups(self, project_id: str, volume_id: str) -> list[dict]:
+        path = self._backups_path(project_id, volume_id)
+        return self.request("GET", path).get("data", {}).get("backups", [])
+
+    def delete_volume_backup(self, project_id: str, volume_id: str, backup_id: str) -> None:
+        self.request("DELETE", self._backups_path(project_id, volume_id, f"/{backup_id}"))
 
 
 def _read_error_body(exc: urllib.error.HTTPError) -> str:
@@ -390,6 +426,59 @@ def check_services(
     return results
 
 
+def backup_volume(
+    client: NorthflankClient, config: Config, log: Callable[[str], None]
+) -> str | None:
+    """Snapshot the API's persistent volume, then prune to `config.keep` newest.
+
+    A volume survives redeploys but not deletion, corruption, or a bad migration, and
+    `push_corpus` cannot rebuild review state -- re-uploading resets every section to
+    pending.
+
+    Restore by creating a volume with `source: {"type": "volume",
+    "sourceId": "<volume>/<backupId>"}`.
+
+    Plan-gated as of writing; see the module docstring and `tools/snapshot_review.py`.
+    """
+    # Northflank caps backup names at 39 characters; this is 18.
+    name = f"auto-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}"
+
+    if config.dry_run:
+        log(f"[dry-run] POST backup '{name}' on volume '{config.volume}'")
+        log(f"[dry-run] then prune to the {config.keep} newest")
+        return None
+
+    try:
+        created = client.create_volume_backup(config.project_id, config.volume, name)
+    except NorthflankError as exc:
+        # Volume backups are plan-gated. Say so, and name the fallback that works, rather
+        # than leaving a bare "HTTP 403: Feature disabled for your account".
+        if "403" not in str(exc):
+            raise
+        raise NorthflankError(
+            "Northflank volume backups are not enabled for this account (HTTP 403). "
+            "Upgrade the plan or ask Northflank support to enable the feature; this "
+            "command then works unchanged. Until then use `make backup-remote`, which "
+            "snapshots review state over the portal's own export API "
+            "(tools/snapshot_review.py)."
+        ) from exc
+    backup_id = created.get("id") or created.get("backupId") or ""
+    log(f"{config.volume}: created backup '{name}' {backup_id}".rstrip())
+
+    backups = client.list_volume_backups(config.project_id, config.volume)
+    # Newest first. Missing createdAt sorts last so an undated row is never kept over a
+    # dated one, and is pruned before anything we can prove is recent.
+    backups.sort(key=lambda item: item.get("createdAt") or "", reverse=True)
+
+    stale = backups[config.keep :]
+    for item in stale:
+        client.delete_volume_backup(config.project_id, config.volume, item["id"])
+        log(f"{config.volume}: pruned {item['id']} ({item.get('createdAt', 'undated')})")
+
+    log(f"{config.volume}: {len(backups) - len(stale)} backup(s) retained")
+    return backup_id
+
+
 def enable_cicd(
     client: NorthflankClient,
     config: Config,
@@ -481,6 +570,8 @@ def build_config(args: argparse.Namespace, environ: dict[str, str]) -> Config:
         timeout=args.timeout,
         deploy=not args.no_deploy,
         dry_run=args.dry_run,
+        volume=args.volume or DEFAULT_VOLUME,
+        keep=args.keep,
     )
 
 
@@ -499,10 +590,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "command",
         nargs="?",
         default="deploy",
-        choices=("deploy", "check", "enable-cicd"),
+        choices=("deploy", "check", "enable-cicd", "backup"),
         help=(
             "'deploy' builds and rolls out a commit; 'check' only reports service state; "
-            "'enable-cicd' hands continuous build and deploy over to Northflank"
+            "'enable-cicd' hands continuous build and deploy over to Northflank; "
+            "'backup' snapshots the API's persistent volume and prunes old snapshots"
         ),
     )
     parser.add_argument("--sha", default="", help="Commit SHA to build (defaults to the branch head)")
@@ -525,6 +617,17 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         action="store_true",
         help="With enable-cicd, also repoint each service at --branch",
     )
+    parser.add_argument(
+        "--volume",
+        default=DEFAULT_VOLUME,
+        help=f"With backup, the volume to snapshot (default {DEFAULT_VOLUME})",
+    )
+    parser.add_argument(
+        "--keep",
+        type=int,
+        default=DEFAULT_KEEP_BACKUPS,
+        help=f"With backup, how many snapshots to retain (default {DEFAULT_KEEP_BACKUPS})",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Resolve config and services, change nothing")
     parser.add_argument("--env-file", default=str(ENV_PATH), help="Env file to read defaults from")
     return parser.parse_args(argv)
@@ -545,6 +648,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.command == "check":
             check_services(client, config, log)
+            return 0
+
+        if args.command == "backup":
+            backup_volume(client, config, log)
             return 0
 
         if args.command == "enable-cicd":

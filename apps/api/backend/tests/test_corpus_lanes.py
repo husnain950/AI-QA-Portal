@@ -1,3 +1,11 @@
+import io
+
+import aiosqlite
+import pytest
+from fastapi import UploadFile
+from pypdf import PdfWriter
+
+from backend.routes.documents import replace_json, upload_document
 from backend.services.corpus_lanes import (
     LANE_CUSTOMS,
     LANE_FINANCE,
@@ -9,6 +17,8 @@ from backend.services.corpus_lanes import (
     classify_lane,
 )
 from backend.services.editions import family_key_from_name
+
+from .conftest import sample_document
 
 
 def test_classify_manual_upload():
@@ -55,3 +65,71 @@ def test_family_key_normalization():
         "Income Tax Ordinance 2001 - amended upto 30th June 2025"
     ) == "income tax ordinance, 2001"
     assert family_key_from_name("Finance Act, 2025") == "finance act"
+
+
+@pytest.mark.asyncio
+async def test_upload_and_replace_json_carry_an_explicit_lane(runtime_sandbox):
+    """``push_corpus`` re-seeds a deployment whose docs are all ``source_type=upload``.
+
+    ``classify_lane`` can only answer ``manual`` for those, so the lane has to travel
+    with the request or the Library's Source facet stays a single dead bucket.
+    """
+    writer = PdfWriter()
+    writer.add_blank_page(width=612, height=792)
+    buffer = io.BytesIO()
+    writer.write(buffer)
+    pdf_bytes = buffer.getvalue()
+
+    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys = ON")
+
+        created = await upload_document(
+            pdf=UploadFile(filename="act.pdf", file=io.BytesIO(pdf_bytes)),
+            json_file=UploadFile(
+                filename="act.json", file=io.BytesIO(sample_document().encode())
+            ),
+            name="Customs Act, 1969",
+            corpus_lane=LANE_CUSTOMS,
+            db=db,
+        )
+        assert created.corpus_lane == LANE_CUSTOMS, "upload must honour the lane"
+
+        # A garbage lane is ignored rather than stored, so the facet stays a closed set.
+        bad = await upload_document(
+            pdf=UploadFile(filename="b.pdf", file=io.BytesIO(pdf_bytes)),
+            json_file=UploadFile(
+                filename="b.json", file=io.BytesIO(sample_document().encode())
+            ),
+            name="Whatever Act",
+            corpus_lane="not-a-lane",
+            db=db,
+        )
+        assert bad.corpus_lane == LANE_MANUAL
+
+        refreshed = await replace_json(
+            document_id=created.id,
+            json_file=UploadFile(
+                filename="act.json",
+                file=io.BytesIO(sample_document(second_text="Refreshed").encode()),
+            ),
+            note="Corpus refresh from push_corpus.",
+            reviewer_name=None,
+            corpus_lane=LANE_SALES_TAX,
+            db=db,
+        )
+        assert refreshed.corpus_lane == LANE_SALES_TAX, "refresh must move the lane"
+
+        # Omitted on a later refresh: keep what is stored, never fall back to manual.
+        kept = await replace_json(
+            document_id=created.id,
+            json_file=UploadFile(
+                filename="act.json",
+                file=io.BytesIO(sample_document(second_text="Again").encode()),
+            ),
+            note=None,
+            reviewer_name=None,
+            corpus_lane=None,
+            db=db,
+        )
+        assert kept.corpus_lane == LANE_SALES_TAX

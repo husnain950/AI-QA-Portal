@@ -20,9 +20,10 @@ from backend.models import (
     VersionResponse,
 )
 from backend.services import blob_store, versions
-from backend.services.corpus_lanes import classify_lane, normalize_lane
+from backend.services.corpus_lanes import LANE_MANUAL, classify_lane, normalize_lane
 from backend.services.document_provenance import (
     backfill_provenance_row,
+    deserialize_provenance,
 )
 from backend.services.document_store import ReviewConflict, document_status
 from backend.services.editions import (
@@ -205,11 +206,75 @@ _DOC_STATS_SELECT = """
     ) as open_annotations
 """
 
+@router.post("/reinfer-provenance")
+async def reinfer_provenance(
+    limit: int = Query(10, ge=1, le=100),
+    after: Optional[str] = Query(None),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    """Re-derive provenance for rows whose JSON carries no OCR block.
+
+    The PDF-scan fallback in ``document_provenance`` sits behind
+    ``force_native_reinfer`` because opening every PDF on every Library request would
+    be far too slow. That leaves a deployment with no way to reach it: the batch tool
+    (``tools/backfill_provenance.py``) needs local access to the database and the blobs,
+    and a deployment's are inside the container. This is that trigger over HTTP.
+
+    Paged by ``id`` rather than run whole, because sampling ~8 pages of every PDF takes
+    minutes and this API runs one uvicorn worker -- a single request would hold it for
+    the duration and time out at the proxy. Callers pass ``after`` back until ``next``
+    comes back null. Re-running is harmless: a document already carrying OCR provenance
+    is returned untouched.
+    """
+    query = (
+        "SELECT id, pdf_filename, json_filename, total_pages, provenance FROM documents "
+        "WHERE json_filename IS NOT NULL AND json_filename != '' "
+    )
+    params: tuple = ()
+    if after:
+        query += "AND id > ? "
+        params = (after,)
+    query += "ORDER BY id LIMIT ?"
+    params = (*params, limit)
+
+    async with db.execute(query, params) as cursor:
+        rows = await cursor.fetchall()
+
+    changed: list[dict] = []
+    for row in rows:
+        before = deserialize_provenance(row["provenance"])
+        provenance = await backfill_provenance_row(
+            db,
+            document_id=row["id"],
+            json_filename=row["json_filename"],
+            total_pages=row["total_pages"],
+            existing_raw=row["provenance"],
+            pdf_path=blob_store.blob_path(row["pdf_filename"]),
+            force_native_reinfer=True,
+        )
+        if provenance is None:
+            continue
+        was = before.source_kind if before else None
+        if was != provenance.source_kind:
+            changed.append(
+                {"id": row["id"], "from": was, "to": provenance.source_kind}
+            )
+    await db.commit()
+
+    return {
+        "processed": len(rows),
+        "changed": changed,
+        # Null once a page comes back short, which is how the caller knows to stop.
+        "next": rows[-1]["id"] if len(rows) == limit else None,
+    }
+
+
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
     pdf: UploadFile = File(...),
     json_file: UploadFile = File(...),
     name: str = Form(...),
+    corpus_lane: Optional[str] = Form(None),
     db: aiosqlite.Connection = Depends(get_db)
 ):
     # Validate file formats
@@ -260,7 +325,14 @@ async def upload_document(
                 source_hash, corpus_lane
             ) VALUES (?, ?, ?, '', 0, ?, ?, 'pending', 'upload', NULL, NULL, ?)
             """,
-            (doc_id, name, pdf_filename, total_pages, uploaded_at, "manual"),
+            (
+                doc_id,
+                name,
+                pdf_filename,
+                total_pages,
+                uploaded_at,
+                normalize_lane(corpus_lane) or LANE_MANUAL,
+            ),
         )
         # Version 1 writes the sections, footnotes and the active-version row, through
         # exactly the same path every later version takes.
@@ -514,6 +586,7 @@ async def replace_json(
     json_file: UploadFile = File(...),
     note: Optional[str] = Form(None),
     reviewer_name: Optional[str] = Form(None),
+    corpus_lane: Optional[str] = Form(None),
     db: aiosqlite.Connection = Depends(get_db),
 ):
     """Add a JSON version and make it active.
@@ -521,8 +594,18 @@ async def replace_json(
     ACT-corpus documents are no longer refused here. The 409 this used to raise existed
     because a replacement overwrote history in place; versions make the operation
     reversible, and ``sync_acts`` reconciles by content hash either way.
+
+    ``corpus_lane`` is optional and only ever set, never cleared: ``push_corpus`` knows
+    the lane of the corpus it is re-seeding from, and a document that arrived over
+    ``/upload`` has no other way to leave the Manual bucket.
     """
     await _add_version(db, document_id, json_file, note, reviewer_name)
+    lane = normalize_lane(corpus_lane)
+    if lane:
+        await db.execute(
+            "UPDATE documents SET corpus_lane = ? WHERE id = ?", (lane, document_id)
+        )
+        await db.commit()
     return await _document_response_by_id(db, document_id)
 
 

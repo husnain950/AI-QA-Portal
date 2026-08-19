@@ -3,6 +3,7 @@
 from email import message_from_bytes
 
 from backend import push_corpus
+from backend.services import blob_store
 
 
 def _parts(body: bytes, content_type: str):
@@ -61,7 +62,7 @@ def test_multipart_uses_a_fresh_boundary_each_call(tmp_path):
 def test_risky_documents_are_ordered_first():
     """The largest documents must go while a crash is still free.
 
-    On a deployment without persistent storage, a document that OOMs the container
+    On a deployment without a persistent volume, a document that OOMs the container
     destroys everything already uploaded. Sending the risky ones last -- which is what
     ascending size does -- put failure exactly where it cost the most: 89 of 91
     documents were lost that way, twice. They now go first, against an empty database.
@@ -86,3 +87,36 @@ def test_plan_order_handles_an_all_small_corpus():
     risky, rest = push_corpus.plan_order(pending, 15 * mb)
     assert risky == []
     assert [item[1] for item in rest] == ["a", "b"]
+
+
+def test_plan_refresh_splits_by_content_hash(tmp_path):
+    """A deployment serving a stale parse must be detected from the list alone."""
+    same = tmp_path / "same.json"
+    same.write_text('{"metadata": {"ocr": {"pages": 3}}}', encoding="utf-8")
+    drifted = tmp_path / "drifted.json"
+    drifted.write_text('{"metadata": {"ocr": {"pages": 9}}}', encoding="utf-8")
+    fresh = tmp_path / "fresh.json"
+    fresh.write_text("{}", encoding="utf-8")
+
+    local = [
+        (10, "Identical Act", "a.pdf", str(same), "customs"),
+        (20, "Stale Act", "b.pdf", str(drifted), "finance"),
+        (30, "New Act", "c.pdf", str(fresh), "sales_tax"),
+    ]
+    remote = {
+        "Identical Act": {
+            "id": "id-1",
+            "json_filename": f"json/{blob_store.sha256_file(same)}.json",
+        },
+        # Production still holds the parse from before the OCR metadata existed.
+        "Stale Act": {"id": "id-2", "json_filename": "json/" + "0" * 64 + ".json"},
+    }
+
+    to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
+    assert [item[1] for item in to_upload] == ["New Act"], "absent -> upload"
+    assert to_refresh == [(  # id first, so the caller can address replace-json
+        "id-2", 20, "Stale Act", "b.pdf", str(drifted), "finance",
+    )]
+    assert not any(item[2] == "Identical Act" for item in to_refresh), (
+        "matching content hash must not cost a new version"
+    )

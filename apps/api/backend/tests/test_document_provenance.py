@@ -17,6 +17,7 @@ from backend.services.document_provenance import (
     backfill_provenance_row,
     derive_from_json_content,
     derive_from_metadata,
+    deserialize_provenance,
     section_intersects_ocr,
 )
 from backend.tests.conftest import sample_document
@@ -319,3 +320,92 @@ async def test_backfill_provenance_reinferences_native_when_json_has_no_ocr(
         assert proven is not None
         assert proven.source_kind == SOURCE_KIND_SCANNED
         assert proven.pages_ocred == [1, 2, 3]
+
+
+@pytest.mark.asyncio
+async def test_reinfer_provenance_route_pages_and_is_idempotent(
+    runtime_sandbox, monkeypatch
+):
+    """The route is the only way a *deployment* can reach the PDF fallback.
+
+    ``tools/backfill_provenance.py`` needs local access to the database and blobs, and a
+    deployment's are inside its container, so without this the fallback is unreachable
+    in production and every scanned act stays labelled native-digital.
+
+    Paging is the part worth pinning: sampling every PDF takes minutes against one
+    uvicorn worker, so the route hands back a cursor instead of running the whole
+    corpus in one request. A short page must end the walk, and a second pass must
+    change nothing.
+    """
+    import acts_ingest.pagemodel as pagemodel
+    from backend.routes.documents import reinfer_provenance
+    from backend.services import blob_store
+
+    monkeypatch.setattr(pagemodel, "_page_is_scan", lambda page, **_: True)
+
+    payload = json.dumps({"metadata": {"total_pages": 3}, "chapters": []}).encode("utf-8")
+    json_name = blob_store.store_bytes(payload, "json")
+
+    # One document carries real pipeline OCR provenance; the heuristic must not touch it.
+    ocr_payload = json.dumps(
+        {
+            "metadata": {
+                "total_pages": 3,
+                "ocr": {"pages": 3, "pages_ocred": [1, 2, 3], "mean_agreement": 0.97},
+            },
+            "chapters": [],
+        }
+    ).encode("utf-8")
+    ocr_json_name = blob_store.store_bytes(ocr_payload, "json")
+
+    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys = ON")
+        for index in range(3):
+            await db.execute(
+                """
+                INSERT INTO documents (
+                    id, name, pdf_filename, json_filename, total_sections, total_pages,
+                    uploaded_at, status, source_type
+                ) VALUES (?, ?, ?, ?, 0, 3, '2026-01-01T00:00:00Z', 'pending', 'upload')
+                """,
+                (
+                    f"doc-{index}",
+                    f"Act {index}",
+                    blob_store.store_bytes(_pdf_bytes(pages=3), "pdf"),
+                    ocr_json_name if index == 2 else json_name,
+                ),
+            )
+        await db.commit()
+
+        # limit=2 over 3 rows: a full page returns a cursor, the short page ends it.
+        first = await reinfer_provenance(limit=2, after=None, db=db)
+        assert first["processed"] == 2
+        assert first["next"] == "doc-1", "a full page must hand back a cursor"
+        assert [c["to"] for c in first["changed"]] == [
+            SOURCE_KIND_SCANNED,
+            SOURCE_KIND_SCANNED,
+        ]
+
+        second = await reinfer_provenance(limit=2, after=first["next"], db=db)
+        assert second["processed"] == 1
+        assert second["next"] is None, "a short page must end the walk"
+        # doc-2 had no stored provenance, so filling it in counts as a change -- but the
+        # verdict has to come from its JSON OCR block, not the PDF heuristic. The tag
+        # and the agreement figure below are what tell those two apart.
+        assert second["changed"] == [
+            {"id": "doc-2", "from": None, "to": SOURCE_KIND_SCANNED}
+        ]
+
+        async with db.execute(
+            "SELECT id, provenance FROM documents ORDER BY id"
+        ) as cursor:
+            stored = {r["id"]: deserialize_provenance(r["provenance"]) for r in await cursor.fetchall()}
+        assert stored["doc-0"].source_kind == SOURCE_KIND_SCANNED
+        assert TAG_PDF_INFERRED in stored["doc-0"].tags
+        # The pipeline's own verdict keeps its evidence and gains no inferred tag.
+        assert stored["doc-2"].mean_agreement == 0.97
+        assert TAG_PDF_INFERRED not in stored["doc-2"].tags
+
+        again = await reinfer_provenance(limit=100, after=None, db=db)
+        assert again["changed"] == [], "re-running must be a no-op"

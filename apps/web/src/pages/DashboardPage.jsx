@@ -75,7 +75,7 @@ function DocumentActions({ doc, onDelete, onExport, onNewVersion }) {
 
 const DashboardPage = () => {
     const navigate = useNavigate();
-    const { documents, fetchDocuments, deleteDocument, loading } = useDocumentStore();
+    const { documents, documentsError, fetchDocuments, deleteDocument, loading } = useDocumentStore();
     const pushToast = useUiStore((s) => s.pushToast);
     const confirmDialog = useUiStore((s) => s.confirmDialog);
 
@@ -579,6 +579,17 @@ const DashboardPage = () => {
                             </div>
                         ))}
                     </div>
+                ) : documentsError ? (
+                    <EmptyState
+                        icon={<AlertTriangle size={44} />}
+                        title="Couldn't load the corpus"
+                        message={`The API didn't respond (${documentsError}). This is a load failure, not an empty corpus — the documents are still there.`}
+                    >
+                        <button className="btn btn-primary" onClick={fetchDocuments}>
+                            <RefreshCw size={15} />
+                            <span>Retry</span>
+                        </button>
+                    </EmptyState>
                 ) : documents.length === 0 ? (
                     <EmptyState
                         icon={<FileText size={44} />}

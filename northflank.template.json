@@ -1,7 +1,7 @@
 {
   "apiVersion": "v1.2",
   "name": "fbr-qa-staging",
-  "description": "Redeploy FBR Corpus QA portal api and web into the existing free-plan project qa-pdf-portal (branch args.branch).",
+  "description": "Redeploy FBR Corpus QA portal api and web into the existing free-plan project qa-pdf-portal (branch args.branch), with the crx-api persistent volume at /app/data.",
   "arguments": {
     "branch": "main",
     "plan": "nf-compute-10",
@@ -19,6 +19,31 @@
         "projectId": "${args.projectId}"
       },
       "steps": [
+        {
+          "kind": "Volume",
+          "ref": "api-data",
+          "updateMode": "patch",
+          "spec": {
+            "name": "crx-api-data",
+            "mounts": [
+              {
+                "volumeMountPath": "",
+                "containerMountPath": "/app/data"
+              }
+            ],
+            "spec": {
+              "storageSize": 6144,
+              "storageClassName": "nvme",
+              "accessMode": "ReadWriteOnce"
+            },
+            "attachedObjects": [
+              {
+                "id": "crx-api",
+                "type": "service"
+              }
+            ]
+          }
+        },
         {
           "kind": "CombinedService",
           "ref": "api",

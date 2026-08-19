@@ -1,4 +1,4 @@
-.PHONY: up down build sync seed seed-fixtures test test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backfill-provenance
+.PHONY: up down build sync seed seed-fixtures test test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backup-remote backfill-provenance
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ifneq (,$(wildcard $(ROOT)/.venv/bin/python))
@@ -30,8 +30,9 @@ health:
 vendor-corpora:
 	bash $(ROOT)/tools/bootstrap_corpora.sh
 
+# BASE_URL drives a deployment over HTTP; without it, the local database.
 backfill-provenance:
-	$(PYTHON) tools/backfill_provenance.py
+	$(PYTHON) tools/backfill_provenance.py $(if $(BASE_URL),--base-url "$(BASE_URL)",)
 
 sync:
 	$(PYTHON) tools/sync_corpus.py --metrics
@@ -111,3 +112,9 @@ deploy-prod: seed-archive
 push-remote:
 	@test -n "$(BASE_URL)" || (echo "Usage: make push-remote BASE_URL=https://your-portal.code.run"; exit 1)
 	$(PYTHON) -m backend.push_corpus --base-url "$(BASE_URL)"
+
+# Backs up review state, which push-remote cannot rebuild -- re-uploading resets every
+# section to pending. Volume snapshots would be better but Northflank gates that API.
+backup-remote:
+	@test -n "$(BASE_URL)" || (echo "Usage: make backup-remote BASE_URL=https://your-portal.code.run"; exit 1)
+	$(PYTHON) tools/snapshot_review.py --base-url "$(BASE_URL)" $(if $(OUT),--out "$(OUT)",)
