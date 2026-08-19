@@ -9,6 +9,8 @@ export const useDocumentStore = create((set, get) => ({
     pageSections: [], // Used in Page View mode
     searchResults: [],
     searchQuery: '',
+    // Set when /documents fails, so an empty list can be told apart from a failed load.
+    documentsError: null,
     
     loading: {
         documents: false,
@@ -22,9 +24,10 @@ export const useDocumentStore = create((set, get) => ({
         set((state) => ({ loading: { ...state.loading, documents: true } }));
         try {
             const data = await api.get('/documents');
-            set({ documents: data });
+            set({ documents: data, documentsError: null });
         } catch (e) {
             console.error('Failed to fetch documents', e);
+            set({ documentsError: e.message || 'Request failed' });
         } finally {
             set((state) => ({ loading: { ...state.loading, documents: false } }));
         }

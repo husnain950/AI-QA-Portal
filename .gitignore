@@ -23,6 +23,8 @@ data/output/*
 !data/output/.gitkeep
 data/ocr_cache/*
 !data/ocr_cache/.gitkeep
+# Review snapshots (tools/snapshot_review.py); CI keeps them as workflow artifacts.
+data/backups/
 data/corpora/*
 !data/corpora/README.md
 

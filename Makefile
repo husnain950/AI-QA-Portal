@@ -1,4 +1,4 @@
-.PHONY: up down build sync seed seed-fixtures test test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote
+.PHONY: up down build sync seed seed-fixtures test test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backup-remote
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ifneq (,$(wildcard $(ROOT)/.venv/bin/python))
@@ -108,3 +108,9 @@ deploy-prod: seed-archive
 push-remote:
 	@test -n "$(BASE_URL)" || (echo "Usage: make push-remote BASE_URL=https://your-portal.code.run"; exit 1)
 	$(PYTHON) -m backend.push_corpus --base-url "$(BASE_URL)"
+
+# Backs up review state, which push-remote cannot rebuild -- re-uploading resets every
+# section to pending. Volume snapshots would be better but Northflank gates that API.
+backup-remote:
+	@test -n "$(BASE_URL)" || (echo "Usage: make backup-remote BASE_URL=https://your-portal.code.run"; exit 1)
+	$(PYTHON) tools/snapshot_review.py --base-url "$(BASE_URL)" $(if $(OUT),--out "$(OUT)",)

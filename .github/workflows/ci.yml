@@ -35,7 +35,7 @@ jobs:
         run: ruff check --output-format=github
 
       - name: Lint tooling (blocking)
-        run: ruff check tools/northflank_deploy.py tools/tests
+        run: ruff check tools/northflank_deploy.py tools/snapshot_review.py tools/tests
 
       - name: Pytest
         run: pytest apps/api/backend/tests tools/tests -q

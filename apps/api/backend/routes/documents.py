@@ -20,7 +20,7 @@ from backend.models import (
     VersionResponse,
 )
 from backend.services import blob_store, versions
-from backend.services.corpus_lanes import classify_lane, normalize_lane
+from backend.services.corpus_lanes import LANE_MANUAL, classify_lane, normalize_lane
 from backend.services.document_provenance import (
     backfill_provenance_row,
 )
@@ -208,6 +208,7 @@ async def upload_document(
     pdf: UploadFile = File(...),
     json_file: UploadFile = File(...),
     name: str = Form(...),
+    corpus_lane: Optional[str] = Form(None),
     db: aiosqlite.Connection = Depends(get_db)
 ):
     # Validate file formats
@@ -258,7 +259,14 @@ async def upload_document(
                 source_hash, corpus_lane
             ) VALUES (?, ?, ?, '', 0, ?, ?, 'pending', 'upload', NULL, NULL, ?)
             """,
-            (doc_id, name, pdf_filename, total_pages, uploaded_at, "manual"),
+            (
+                doc_id,
+                name,
+                pdf_filename,
+                total_pages,
+                uploaded_at,
+                normalize_lane(corpus_lane) or LANE_MANUAL,
+            ),
         )
         # Version 1 writes the sections, footnotes and the active-version row, through
         # exactly the same path every later version takes.
@@ -512,6 +520,7 @@ async def replace_json(
     json_file: UploadFile = File(...),
     note: Optional[str] = Form(None),
     reviewer_name: Optional[str] = Form(None),
+    corpus_lane: Optional[str] = Form(None),
     db: aiosqlite.Connection = Depends(get_db),
 ):
     """Add a JSON version and make it active.
@@ -519,8 +528,18 @@ async def replace_json(
     ACT-corpus documents are no longer refused here. The 409 this used to raise existed
     because a replacement overwrote history in place; versions make the operation
     reversible, and ``sync_acts`` reconciles by content hash either way.
+
+    ``corpus_lane`` is optional and only ever set, never cleared: ``push_corpus`` knows
+    the lane of the corpus it is re-seeding from, and a document that arrived over
+    ``/upload`` has no other way to leave the Manual bucket.
     """
     await _add_version(db, document_id, json_file, note, reviewer_name)
+    lane = normalize_lane(corpus_lane)
+    if lane:
+        await db.execute(
+            "UPDATE documents SET corpus_lane = ? WHERE id = ?", (lane, document_id)
+        )
+        await db.commit()
     return await _document_response_by_id(db, document_id)
 
 

@@ -12,11 +12,20 @@ function withReviewer(headers = {}) {
     return { ...headers, 'X-Reviewer': getReviewerName() };
 }
 
+// The API runs one uvicorn worker on a small compute plan, so a cold or busy container
+// makes the proxy return 502/503/504 before it answers. Retrying an idempotent GET once
+// is the difference between a working Library and a page that claims the corpus is empty.
+const TRANSIENT = new Set([502, 503, 504]);
+
 export const api = {
     async get(path) {
-        const res = await fetch(`${API_BASE}${path}`, { headers: withReviewer() });
+        let res = await fetch(`${API_BASE}${path}`, { headers: withReviewer() });
+        if (TRANSIENT.has(res.status)) {
+            await new Promise((r) => setTimeout(r, 1500));
+            res = await fetch(`${API_BASE}${path}`, { headers: withReviewer() });
+        }
         if (!res.ok) {
-            const err = await res.json().catch(() => ({ detail: 'Network error' }));
+            const err = await res.json().catch(() => ({ detail: `API returned ${res.status}` }));
             throw new Error(err.detail || 'API request failed');
         }
         return res.json();

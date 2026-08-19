@@ -124,6 +124,41 @@ the two services (`crx-api`, `crx-web`) in the `qa-pdf-portal` project. It is ap
 template in Northflank; the deploy workflow does not run it, it only builds and deploys the services
 the template created.
 
+### Persistence
+
+`crx-api` has a 6 GB nvme volume mounted at `/app/data`, which is where `DATABASE_PATH`
+(`/app/data/db/qa_portal.db`) and `UPLOAD_DIR` (`/app/data/uploads`) point. **The SQLite database
+and every uploaded blob survive redeploys and image rebuilds.** Verified: documents uploaded
+2026-08-13 were still served after a full rebuild on 2026-08-18.
+
+The volume is declared as the first step of `northflank.template.json` with
+`updateMode: "patch"`, mirroring the live volume field-for-field so re-running the template is a
+no-op against the existing one. It used to exist only as a hand-made resource in the Northflank UI,
+which meant rebuilding the project from the template produced a silently ephemeral service. Check
+the template's plan view reports **no change** on that step before applying it.
+
+A volume is not a backup — it survives redeploys, not deletion, corruption, or a bad migration:
+
+```bash
+make backup-remote BASE_URL=https://p01--crx-web--m4hljdfnbvqq.code.run
+```
+
+That writes `data/backups/review-snapshot-<timestamp>.json` via
+[`tools/snapshot_review.py`](tools/snapshot_review.py), and
+[`.github/workflows/backup-review-state.yml`](.github/workflows/backup-review-state.yml) runs it
+daily, keeping each snapshot as a 90-day workflow artifact.
+
+It backs up **review state specifically**, because that is the only thing nothing else can rebuild:
+`make push-remote` re-uploads documents but the upload route inserts every row as `pending`, so it
+resets each section's `review_status` and carries no annotations. Detector `findings` are omitted —
+they are machine output that a re-sync regenerates.
+
+Restoring is not automated: there is no import route yet, so the snapshot preserves the data rather
+than offering one-click rollback. Full-fidelity volume snapshots would cover all of this and are
+already implemented as `python tools/northflank_deploy.py backup`, but Northflank answers that
+endpoint with `403 Feature disabled for your account` on the current plan; the command starts
+working the moment the feature is enabled.
+
 ### Deploying without GitHub Actions
 
 Northflank has its own CI/CD that watches the repo directly, so deploys do not have to go through

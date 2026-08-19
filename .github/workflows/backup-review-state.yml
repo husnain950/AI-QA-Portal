@@ -1,0 +1,63 @@
+name: Backup review state
+
+# Reviewer work is the one thing no other tool can rebuild: `make push-remote` re-uploads
+# documents but the upload route resets every section to `pending` and carries no
+# annotations. Northflank's volume backup API would cover this and more, but it returns
+# `403 Feature disabled for your account` on the current plan -- so this snapshots the
+# review state over the portal's own export endpoint instead.
+#
+# No Northflank token needed: it reads the public portal, not the platform API.
+on:
+  schedule:
+    # 03:17 UTC daily. Off the hour because shared runners queue on the hour.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Portal base URL to snapshot
+        required: false
+        type: string
+
+concurrency:
+  group: backup-review-state
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: Snapshot review state
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: ${{ inputs.base_url || vars.PORTAL_BASE_URL || 'https://p01--crx-web--m4hljdfnbvqq.code.run' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Snapshot
+        run: python tools/snapshot_review.py --base-url "$BASE_URL" --out snapshot
+
+      # Retention lives here rather than in the script: artifacts expire on their own, so
+      # there is no pruning code to get wrong.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: review-snapshot
+          path: snapshot/*.json
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Review state snapshot"
+            echo ""
+            echo "- Portal: \`$BASE_URL\`"
+            for file in snapshot/*.json; do
+              [ -e "$file" ] || continue
+              echo "- Documents: \`$(python -c "import json,sys;d=json.load(open(sys.argv[1]));print(d['document_count'])" "$file")\`"
+              echo "- Missing: \`$(python -c "import json,sys;d=json.load(open(sys.argv[1]));print(len(d['failed']))" "$file")\`"
+              echo "- Size: \`$(du -h "$file" | cut -f1)\`"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
