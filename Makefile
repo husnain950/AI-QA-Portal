@@ -1,4 +1,4 @@
-.PHONY: up down build sync seed seed-fixtures test test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backup-remote
+.PHONY: up down build sync seed seed-fixtures test test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backup-remote backfill-provenance
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ifneq (,$(wildcard $(ROOT)/.venv/bin/python))
@@ -29,6 +29,9 @@ health:
 
 vendor-corpora:
 	bash $(ROOT)/tools/bootstrap_corpora.sh
+
+backfill-provenance:
+	$(PYTHON) tools/backfill_provenance.py
 
 sync:
 	$(PYTHON) tools/sync_corpus.py --metrics

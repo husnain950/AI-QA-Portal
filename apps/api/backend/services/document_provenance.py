@@ -26,6 +26,11 @@ KNOWN_SOURCE_KINDS = frozenset(
 
 TAG_PROVISIONAL = "ocr-provisional"
 TAG_NEEDS_REVIEW = "ocr-needs-review"
+TAG_PDF_INFERRED = "pdf-inferred"
+
+# Keep aligned with the "fast enough to schedule OCR" sampling strategy in
+# `tools/acts/convert_all.py`.
+PDF_SAMPLE_PAGES = 8
 
 
 def _as_int(value: Any) -> Optional[int]:
@@ -86,6 +91,7 @@ def classify_source_kind(
 def derive_from_metadata(
     metadata: Optional[Dict[str, Any]],
     total_pages: Optional[int] = None,
+    pdf_path: Optional[str] = None,
 ) -> DocumentProvenance:
     """Build provenance from pipeline ``metadata`` (and optional PDF page count)."""
     meta = metadata if isinstance(metadata, dict) else {}
@@ -94,11 +100,103 @@ def derive_from_metadata(
         pages = _as_int(meta.get("total_pages"))
 
     ocr_raw = meta.get("ocr")
-    ocr = ocr_raw if isinstance(ocr_raw, dict) else None
+    ocr_present = isinstance(ocr_raw, dict)
+    ocr = ocr_raw if ocr_present else None
 
     explicit = meta.get("source_kind")
     if not isinstance(explicit, str):
         explicit = None
+
+    # When JSON has no OCR block at all, fall back to a lightweight PDF scan
+    # heuristic so the portal can still classify documents for facets.
+    #
+    # If JSON explicitly declares a known `source_kind`, treat it as ground
+    # truth and never override it with PDF inference.
+    if not ocr_present and pdf_path and explicit not in KNOWN_SOURCE_KINDS:
+        # Import lazily so deployments that never use the fallback don't need
+        # `pdfplumber` at import time.
+        try:
+            import pdfplumber  # type: ignore
+
+            from acts_ingest.pagemodel import _page_is_scan
+        except Exception:
+            # If the dependency is missing or the PDF can't be parsed, keep the
+            # safe default: native-digital.
+            return DocumentProvenance(
+                source_kind=SOURCE_KIND_NATIVE,
+                tags=[SOURCE_KIND_NATIVE],
+                ocr_pages=None,
+                ocr_total_pages=pages,
+                mean_agreement=None,
+                floor=None,
+                pages_ocred=[],
+            )
+
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                n_pages = len(pdf.pages)
+                if pages is None and n_pages > 0:
+                    pages = n_pages
+                if not n_pages:
+                    return DocumentProvenance(
+                        source_kind=SOURCE_KIND_NATIVE,
+                        tags=[SOURCE_KIND_NATIVE],
+                        ocr_pages=None,
+                        ocr_total_pages=pages,
+                        mean_agreement=None,
+                        floor=None,
+                        pages_ocred=[],
+                    )
+
+                # Sample pages evenly across the document. This is tuned for
+                # scan-heavy acts: it's fast, and (empirically) misclassifies
+                # a tiny fraction of truly-mixed PDFs.
+                step = max(1, n_pages // PDF_SAMPLE_PAGES)
+                idx = list(range(0, n_pages, step))[:PDF_SAMPLE_PAGES]
+                pages_ocred = [i + 1 for i in idx if _page_is_scan(pdf.pages[i])]
+
+                if not pages_ocred:
+                    return DocumentProvenance(
+                        source_kind=SOURCE_KIND_NATIVE,
+                        tags=[SOURCE_KIND_NATIVE],
+                        ocr_pages=None,
+                        ocr_total_pages=pages,
+                        mean_agreement=None,
+                        floor=None,
+                        pages_ocred=[],
+                    )
+
+                ratio = len(pages_ocred) / len(idx) if idx else 0.0
+                source_kind = (
+                    SOURCE_KIND_SCANNED if ratio >= OCR_FULL_RATIO else SOURCE_KIND_MIXED
+                )
+
+                tags = [source_kind]
+                # Let reviewers distinguish "pipeline OCR provenance" from "PDF-inferred"
+                # classification.
+                tags.append(TAG_PDF_INFERRED)
+
+                return DocumentProvenance(
+                    source_kind=source_kind,
+                    tags=tags,
+                    ocr_pages=len(pages_ocred) or None,
+                    ocr_total_pages=pages,
+                    mean_agreement=None,
+                    floor=None,
+                    pages_ocred=pages_ocred,
+                )
+        except Exception:
+            # If the PDF heuristic fails (corrupt file, pdfplumber failure, etc),
+            # keep the safe default.
+            return DocumentProvenance(
+                source_kind=SOURCE_KIND_NATIVE,
+                tags=[SOURCE_KIND_NATIVE],
+                ocr_pages=None,
+                ocr_total_pages=pages,
+                mean_agreement=None,
+                floor=None,
+                pages_ocred=[],
+            )
 
     source_kind = classify_source_kind(
         ocr=ocr,
@@ -152,6 +250,7 @@ def derive_from_metadata(
 def derive_from_json_content(
     content: str | bytes,
     total_pages: Optional[int] = None,
+    pdf_path: Optional[str] = None,
 ) -> DocumentProvenance:
     if isinstance(content, bytes):
         content = content.decode("utf-8")
@@ -160,6 +259,7 @@ def derive_from_json_content(
     return derive_from_metadata(
         metadata if isinstance(metadata, dict) else {},
         total_pages=total_pages,
+        pdf_path=pdf_path,
     )
 
 
@@ -209,13 +309,40 @@ async def backfill_provenance_row(
     json_filename: str,
     total_pages: Optional[int],
     existing_raw: Any = None,
+    pdf_path: Optional[str] = None,
+    force_native_reinfer: bool = False,
 ) -> Optional[DocumentProvenance]:
     """Return stored provenance, deriving and persisting it when missing."""
     from backend.services import blob_store
 
     existing = deserialize_provenance(existing_raw)
     if existing is not None:
-        return existing
+        # If the stored provenance already looks derived from OCR metadata, keep it.
+        if existing.pages_ocred:
+            return existing
+
+        # If JSON includes an OCR block, it's ground truth and should win over
+        # PDF heuristics.
+        if json_filename:
+            try:
+                path = blob_store.blob_path(json_filename)
+                with open(path, "r", encoding="utf-8") as handle:
+                    content = handle.read()
+                data = json.loads(content)
+                metadata = data.get("metadata") if isinstance(data, dict) else None
+                ocr_present = isinstance(metadata, dict) and isinstance(metadata.get("ocr"), dict)
+                if ocr_present:
+                    return existing
+            except Exception:
+                # If the JSON can't be parsed, don't rewrite what we already have.
+                return existing
+
+        # Only re-infer native-digital rows when explicitly requested (typically
+        # by the one-time batch backfill tool).
+        if not force_native_reinfer:
+            return existing
+        if existing.source_kind != SOURCE_KIND_NATIVE:
+            return existing
 
     if not json_filename:
         return None
@@ -228,7 +355,11 @@ async def backfill_provenance_row(
         return None
 
     try:
-        provenance = derive_from_json_content(content, total_pages=total_pages)
+        provenance = derive_from_json_content(
+            content,
+            total_pages=total_pages,
+            pdf_path=pdf_path,
+        )
     except (json.JSONDecodeError, TypeError, ValueError):
         return None
 

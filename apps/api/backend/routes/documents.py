@@ -119,12 +119,14 @@ async def _resolve_provenance(
 ) -> Optional[DocumentProvenance]:
     keys = row.keys() if hasattr(row, "keys") else []
     raw = row["provenance"] if "provenance" in keys else None
+    pdf_path = blob_store.blob_path(row["pdf_filename"]) if "pdf_filename" in keys else None
     return await backfill_provenance_row(
         db,
         document_id=row["id"],
         json_filename=row["json_filename"],
         total_pages=row["total_pages"],
         existing_raw=raw,
+        pdf_path=pdf_path,
     )
 
 
