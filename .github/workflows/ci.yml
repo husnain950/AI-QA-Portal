@@ -95,6 +95,9 @@ jobs:
   smoke:
     name: Review-page smoke
     runs-on: ubuntu-latest
+    # Default is 6 hours. Without this, a stuck apt/Playwright download holds
+    # the PR check — and the post-merge deploy — until a human cancels it.
+    timeout-minutes: 10
     env:
       DATABASE_PATH: ${{ github.workspace }}/data/db/qa_portal.db
       UPLOAD_DIR: ${{ github.workspace }}/data/uploads
@@ -123,8 +126,20 @@ jobs:
         run: npm ci
         working-directory: apps/web
 
+      # GitHub-hosted ubuntu-latest already has Chromium's shared libraries
+      # (libasound, libatk, libgbm, …). `install --with-deps` then apt-installs
+      # CJK/X11 font packages this smoke test does not need. Fetching those
+      # from the Ubuntu archive has taken 30+ minutes (11 kB/s) and has hung
+      # for hours on apt lock, blocking CI and the main deploy.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/web/package-lock.json') }}
+
       - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 3
+        run: npx playwright install chromium
         working-directory: apps/web
 
       # No private corpus in CI, so generate a micro-corpus and load it through the
