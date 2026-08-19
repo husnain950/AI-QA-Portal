@@ -30,8 +30,9 @@ health:
 vendor-corpora:
 	bash $(ROOT)/tools/bootstrap_corpora.sh
 
+# BASE_URL drives a deployment over HTTP; without it, the local database.
 backfill-provenance:
-	$(PYTHON) tools/backfill_provenance.py
+	$(PYTHON) tools/backfill_provenance.py $(if $(BASE_URL),--base-url "$(BASE_URL)",)
 
 sync:
 	$(PYTHON) tools/sync_corpus.py --metrics
