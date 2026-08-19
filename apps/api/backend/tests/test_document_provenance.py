@@ -12,7 +12,9 @@ from backend.services.document_provenance import (
     SOURCE_KIND_NATIVE,
     SOURCE_KIND_SCANNED,
     TAG_NEEDS_REVIEW,
+    TAG_PDF_INFERRED,
     TAG_PROVISIONAL,
+    backfill_provenance_row,
     derive_from_json_content,
     derive_from_metadata,
     section_intersects_ocr,
@@ -124,6 +126,82 @@ def _pdf_bytes(pages: int = 3) -> bytes:
     return buffer.getvalue()
 
 
+def _pdf_path_from_bytes(pdf_bytes: bytes, *, suffix: str = ".pdf"):
+    import tempfile
+
+    tf = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+    tf.write(pdf_bytes)
+    tf.close()
+    return tf.name
+
+
+def test_pdf_fallback_infers_scanned_when_no_ocr(monkeypatch):
+    # Force the scan heuristic to consider every sampled page as scan-heavy.
+    import acts_ingest.pagemodel as pagemodel
+
+    monkeypatch.setattr(pagemodel, "_page_is_scan", lambda page, **_: True)
+
+    pdf_path = _pdf_path_from_bytes(_pdf_bytes(pages=3))
+    try:
+        payload = json.dumps({"metadata": {"total_pages": 3}, "chapters": []})
+        provenance = derive_from_json_content(payload, total_pages=3, pdf_path=pdf_path)
+        assert provenance.source_kind == SOURCE_KIND_SCANNED
+        assert TAG_PDF_INFERRED in provenance.tags
+        assert provenance.pages_ocred == [1, 2, 3]
+    finally:
+        import os
+
+        os.unlink(pdf_path)
+
+
+def test_pdf_fallback_infers_mixed_when_partial_scan(monkeypatch):
+    # Mark the first 2/3 pages as scan-heavy => 0.66 ratio => mixed-ocr.
+    import acts_ingest.pagemodel as pagemodel
+
+    def infer(page, **_):
+        return page.page_number <= 2
+
+    monkeypatch.setattr(pagemodel, "_page_is_scan", infer)
+
+    pdf_path = _pdf_path_from_bytes(_pdf_bytes(pages=3))
+    try:
+        payload = json.dumps({"metadata": {"total_pages": 3}, "chapters": []})
+        provenance = derive_from_json_content(payload, total_pages=3, pdf_path=pdf_path)
+        assert provenance.source_kind == SOURCE_KIND_MIXED
+        assert TAG_PDF_INFERRED in provenance.tags
+        assert provenance.pages_ocred == [1, 2]
+    finally:
+        import os
+
+        os.unlink(pdf_path)
+
+
+def test_json_ocr_block_wins_over_pdf_inference(monkeypatch):
+    import acts_ingest.pagemodel as pagemodel
+
+    monkeypatch.setattr(pagemodel, "_page_is_scan", lambda page, **_: True)
+
+    pdf_path = _pdf_path_from_bytes(_pdf_bytes(pages=3))
+    try:
+        payload = json.dumps(
+            {
+                "metadata": {
+                    "total_pages": 3,
+                    # OCR block present but says "no OCR pages" => native-digital.
+                    "ocr": {"pages": 0, "pages_ocred": [], "needs_review_tokens": 0},
+                },
+                "chapters": [],
+            }
+        )
+        provenance = derive_from_json_content(payload, total_pages=3, pdf_path=pdf_path)
+        assert provenance.source_kind == SOURCE_KIND_NATIVE
+        assert TAG_PDF_INFERRED not in provenance.tags
+    finally:
+        import os
+
+        os.unlink(pdf_path)
+
+
 @pytest.mark.asyncio
 async def test_list_documents_includes_provenance(runtime_sandbox):
     payload = json.loads(sample_document())
@@ -160,3 +238,84 @@ async def test_list_documents_includes_provenance(runtime_sandbox):
         assert match.provenance is not None
         assert match.provenance.source_kind == SOURCE_KIND_MIXED
         assert match.provenance.pages_ocred == [1]
+
+
+@pytest.mark.asyncio
+async def test_upload_document_uses_pdf_fallback_provenance(runtime_sandbox, monkeypatch):
+    import acts_ingest.pagemodel as pagemodel
+
+    monkeypatch.setattr(pagemodel, "_page_is_scan", lambda page, **_: True)
+
+    json_text = sample_document()
+
+    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys = ON")
+        created = await upload_document(
+            pdf=UploadFile(filename="act.pdf", file=io.BytesIO(_pdf_bytes(pages=3))),
+            json_file=UploadFile(filename="act.json", file=io.BytesIO(json_text.encode())),
+            name="OCR Act",
+            db=db,
+        )
+        assert created.provenance is not None
+        assert created.provenance.source_kind == SOURCE_KIND_SCANNED
+        assert TAG_PDF_INFERRED in created.provenance.tags
+
+
+@pytest.mark.asyncio
+async def test_backfill_provenance_reinferences_native_when_json_has_no_ocr(
+    runtime_sandbox, monkeypatch
+):
+    import acts_ingest.pagemodel as pagemodel
+    from backend.models import DocumentProvenance
+    from backend.services import blob_store
+    from backend.services.document_provenance import serialize_provenance
+
+    monkeypatch.setattr(pagemodel, "_page_is_scan", lambda page, **_: True)
+
+    pdf_name = blob_store.store_bytes(_pdf_bytes(pages=3), "pdf")
+    json_content = json.dumps({"metadata": {"total_pages": 3}, "chapters": []}).encode(
+        "utf-8"
+    )
+    json_name = blob_store.store_bytes(json_content, "json")
+
+    doc_id = "backfill-doc"
+    existing = DocumentProvenance(
+        source_kind=SOURCE_KIND_NATIVE,
+        tags=[SOURCE_KIND_NATIVE],
+        ocr_pages=None,
+        ocr_total_pages=3,
+        mean_agreement=None,
+        floor=None,
+        pages_ocred=[],
+    )
+    existing_raw = serialize_provenance(existing)
+
+    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys = ON")
+        await db.execute(
+            """
+            INSERT INTO documents (
+                id, name, pdf_filename, json_filename, total_sections, total_pages,
+                uploaded_at, status, provenance
+            )
+            VALUES (?, ?, ?, ?, ?, ?, '2026-01-01', 'pending', ?)
+            """,
+            (doc_id, "Backfill Doc", pdf_name, json_name, 1, 3, existing_raw),
+        )
+        await db.commit()
+
+        pdf_path = blob_store.blob_path(pdf_name)
+        proven = await backfill_provenance_row(
+            db,
+            document_id=doc_id,
+            json_filename=json_name,
+            total_pages=3,
+            existing_raw=existing_raw,
+            pdf_path=pdf_path,
+            force_native_reinfer=True,
+        )
+        assert proven is not None
+        assert proven.source_kind == SOURCE_KIND_SCANNED
+        assert proven.pages_ocred == [1, 2, 3]

@@ -169,9 +169,11 @@ async def create_version(
             json.dumps(stats.get("carryover") or {}, ensure_ascii=False),
         ),
     )
+    pdf_filename = await _document_pdf_filename(db, document_id)
     provenance = derive_from_json_content(
         json_bytes,
         total_pages=await _document_total_pages(db, document_id),
+        pdf_path=blob_store.blob_path(pdf_filename) if pdf_filename else None,
     )
     await db.execute(
         """
@@ -208,6 +210,19 @@ async def _document_total_pages(
     return int(row["total_pages"]) if row["total_pages"] is not None else None
 
 
+async def _document_pdf_filename(
+    db: aiosqlite.Connection,
+    document_id: str,
+) -> Optional[str]:
+    async with db.execute(
+        "SELECT pdf_filename FROM documents WHERE id = ?", (document_id,)
+    ) as cursor:
+        row = await cursor.fetchone()
+    if row is None:
+        return None
+    return str(row["pdf_filename"]) if row["pdf_filename"] is not None else None
+
+
 async def activate_version(
     db: aiosqlite.Connection,
     document_id: str,
@@ -238,9 +253,11 @@ async def activate_version(
         "UPDATE document_versions SET is_active = 1 WHERE id = ?",
         (version_id,),
     )
+    pdf_filename = await _document_pdf_filename(db, document_id)
     provenance = derive_from_json_content(
         content,
         total_pages=await _document_total_pages(db, document_id),
+        pdf_path=blob_store.blob_path(pdf_filename) if pdf_filename else None,
     )
     await db.execute(
         """

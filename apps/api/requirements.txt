@@ -6,3 +6,4 @@ pypdf
 httpx2
 pypdfium2
 pillow
+pdfplumber>=0.11.0

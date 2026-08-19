@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Keep the `backend` package name so imports stay stable.
 COPY apps/api/backend /app/backend
+COPY packages/acts_ingest /app/acts_ingest
 
 RUN mkdir -p /app/data/db /app/data/uploads /data/corpus/ordinance /data/corpus/acts /seed/corpus/ordinance /seed/corpus/acts
 
