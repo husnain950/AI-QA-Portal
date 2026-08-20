@@ -33,6 +33,7 @@ import re
 import statistics
 from dataclasses import asdict, dataclass
 
+from .grammar import folio_value
 from .pagemodel import Word, _group_into_lines, normalize_text
 
 # A table-of-contents row: a section code, a title, then the printed page it
@@ -50,19 +51,39 @@ TOC_ROW_RE = re.compile(
 # sections.  Anchoring on leaders that run to END of line is what keeps this from
 # also matching body text: an omission bracket ("(d) 31[…….] 32[Provincial Sales
 # Tax levied on...") carries a leader run but continues with prose afterwards.
-TOC_LEADER_RE = re.compile(r"[.…]{5,}[\s.…]*\d{0,4}\s*$")
+# Dots are not the only leader. Income Tax Rules 2002 sets its contents with HYPHEN
+# runs ("Valuation of accommodation ---------- ------ ---"), so a dot-only pattern saw
+# no TOC at all in a 946-page document whose contents occupy pages 2-20 -- and
+# `first_body_page = toc_pages + 1` then read all nineteen of them as body.
+TOC_LEADER_RE = re.compile(r"(?:[.…]{5,}|[-_]{6,}|(?:[-_]{2,}[\s]){2,})[\s.…\-_]*\d{0,4}\s*$")
+
+
+# A contents row carrying NO rule code -- words, then the folio. The Income Tax Rules
+# contents prints most of its rows this way ("Responsibilities of the Authority 71",
+# "Valuation of conveyance 3"), and neither the coded pattern nor the leader pattern
+# sees them: measured, its contents pages scored 16-40% against a 45% floor, so a
+# 946-page document reported no TOC at all and read nineteen contents pages as body.
+#
+# Anchored at both ends and required to carry a word, so body prose does not qualify.
+# Measured on this corpus with it: contents pages 69-97%, body pages 2-5%. The
+# separation is what makes it safe -- a looser pattern would not have one.
+TOC_CODELESS_RE = re.compile(
+    r"^\s*(?=.*[A-Za-z]{3})[^\d\n].{3,90}?[\s.\-…]+\d{1,4}\s*$")
 
 
 def _is_toc_row(line: str) -> bool:
-    return bool(TOC_ROW_RE.match(line) or TOC_LEADER_RE.search(line))
+    return bool(
+        TOC_ROW_RE.match(line)
+        or TOC_LEADER_RE.search(line)
+        or TOC_CODELESS_RE.match(line)
+    )
 
-# A lone page number in a margin: Arabic (body) or Roman (front matter).
-_ARABIC_RE = re.compile(r"^\d{1,4}$")
-_ROMAN_RE = re.compile(r"^[ivxlcdm]{1,7}$", re.IGNORECASE)
+# Folio grammar lives in `grammar` -- `pagemodel` reads the same forms per page and
+# cannot import this module (this module imports it).
+_ROMAN_RE = re.compile(r"^\(?[ivxlcdm]{1,7}\)?$", re.IGNORECASE)
 
 # Heading terminators seen across the corpus: em dash, en dash, hyphen.
 _DASH_RE = re.compile(r"\.\s*(—|–|-)")
-
 # How much of the document must print a thin left-margin rule before we trust it
 # as the footnote separator.  Customs prints none (0%); Sales Tax and Federal
 # Excise print one on essentially every page.  Anything in between is ambiguous
@@ -112,6 +133,11 @@ class Calibration:
     toc_pages: int
     page_offset: int
     page_offset_support: float
+    #: How many folios the sample actually read. Distinguishes a document
+    #: that prints none (support is 0.0 because there is no evidence either
+    #: way) from one whose folios disagree with the derived offset (support
+    #: is 0.0 because the evidence contradicts it). Both were 0.0 before.
+    page_offset_samples: int
     pages_sampled: int
 
     #: every folio-normalised header line that cleared the recurrence threshold
@@ -222,9 +248,17 @@ def detect_toc_pages(pdf, max_scan: int = 40) -> int:
         end += 1
     # Extend over the TOC's final short page: contents commonly end mid-page, so
     # the tail carries only a handful of rows and falls under the ratio floor
-    # while still being TOC.  Requiring rows >= 3 stops at real body text, which
-    # matches none.
-    while end + 1 < limit and rows[end + 1] >= 3:
+    # while still being TOC.
+    #
+    # A row count alone is not enough here. The Income Tax Rules prints a body TITLE
+    # page ("GOVERNMENT OF PAKISTAN / FEDERAL BOARD OF REVENUE / ...") straight after
+    # its contents, and three of its 38 lines match the row shape -- so a `rows >= 3`
+    # tail rule swallowed it, and `first_body_page = toc_pages + 1` then started the
+    # body one page late, dropping the title block entirely.
+    #
+    # A real contents tail is SHORT but still DENSE: few lines, most of them rows.
+    # The title page is long and sparse (8%). Requiring both separates them.
+    while end + 1 < limit and rows[end + 1] >= 3 and ratio[end + 1] >= 0.20:
         end += 1
     return end + 1
 
@@ -275,15 +309,16 @@ def calibrate(pdf, sample: int = 36) -> Calibration:
             if ln.top < page_h * 0.75:
                 break
             t = ln.text().strip()
-            if _ARABIC_RE.match(t):
+            value = folio_value(t)
+            if value is not None:
                 foot_tops.append(ln.top)
                 # A folio must be a plausible page of THIS document.  One Sales
                 # Tax edition prints a four-digit reference in the bottom margin
                 # that read as page "700+" and dragged the derived offset to
                 # -688, which would have minted a wrong printed page into every
                 # footnote ref on every leaf.
-                if 1 <= int(t) <= n + 40:
-                    printed.append((i + 1, int(t)))
+                if 1 <= value <= n + 40:
+                    printed.append((i + 1, value))
                 break
             if _ROMAN_RE.match(t):
                 foot_tops.append(ln.top)
@@ -469,6 +504,7 @@ def calibrate(pdf, sample: int = 36) -> Calibration:
     # as -688).
     page_offset_support = (round(_offsets.count(page_offset) / len(_offsets), 3)
                            if _offsets else 0.0)
+    page_offset_samples = len(_offsets)
 
     heading_dash = (dash_counts.most_common(1)[0][0] if dash_counts
                     else ".—")
@@ -500,15 +536,46 @@ def calibrate(pdf, sample: int = 36) -> Calibration:
         marker_max_value=marker_max_value,
         toc_pages=toc_pages, page_offset=page_offset,
         page_offset_support=page_offset_support,
+        page_offset_samples=page_offset_samples,
         pages_sampled=sampled,
     )
 
 
 def _demo() -> None:
-    """Self-check: the invariants that make a Calibration usable at all."""
+    """Self-check: the folio and TOC grammars, then any PDF given as an argument.
+
+    The pure part runs with no arguments -- it used to be a no-op without a PDF, which
+    meant the pipeline gate exercised none of this.
+    """
     import sys
 
     import pdfplumber
+
+    # The three folio forms this corpus prints, all measured.
+    assert folio_value("226") == 226                      # Customs Rules: bare
+    assert folio_value("(104)") == 104                    # Sales Tax Rules: bracketed
+    assert folio_value("Income Tax Rules, 2002 289") == 289   # title, then folio
+    assert folio_value("Customs Rules 1969 42") == 42
+    # ... and what is NOT a folio
+    assert folio_value("Sales Tax Rules, 2006") is None   # the title's own year
+    assert folio_value("Federal Excise Rules, 2005") is None
+    assert folio_value("(i)") is None                     # roman front matter
+    assert folio_value("12 34") is None                   # two numbers, no words
+    assert folio_value("") is None
+
+    # Contents rows: dot leaders (Sales Tax) and hyphen leaders (Income Tax Rules),
+    # the latter being why a 946-page document reported toc_pages 0.
+    assert _is_toc_row("2. Definitions. ....................... 1")
+    assert _is_toc_row("Valuation of accommodation ---------- ------ ----------- 3")
+    assert _is_toc_row("13A. Acquisition of securities---------------- 11")
+    assert not _is_toc_row("the licensee shall ensure that each factory premises")
+    assert not _is_toc_row("(2) The licensee shall arrange testing for all equipment.")
+    # codeless contents rows -- most of the Income Tax Rules contents looks like this
+    assert _is_toc_row("Responsibilities of the Authority 71")
+    assert _is_toc_row("Valuation of conveyance 3")
+    assert not _is_toc_row("(f) the amount of capital expenditure incurred in the year")
+    assert not _is_toc_row("41")            # a bare folio is not a contents row
+    print("calibrate self-check passed")
 
     for path in sys.argv[1:] or []:
         with pdfplumber.open(path) as pdf:

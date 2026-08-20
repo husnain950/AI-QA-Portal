@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re as _re
+
 import re
 
 import pdfplumber
@@ -173,6 +175,50 @@ def _citation_scope(page_footnotes, pages, has_body, has_notes):
             cited[bp] = allf
     return fmap, cited
 
+
+
+#: "S.R.O. 450(I)/2001, dated 18.6.2001" and its many spacings/spellings. The number
+#: and year are what identify it; the rest of the line varies by edition.
+_SRO_RE = _re.compile(
+    r"S\.?\s?R\.?\s?O\.?\s*(?P<num>\d{1,4})\s*\(\s*(?P<series>[IVX1]+)\s*\)\s*"
+    r"[/\\_]\s*(?P<year>(?:19|20)\d{2})",
+    _re.IGNORECASE,
+)
+
+
+def _notifying_sro(refs, scan_lines: int = 400) -> str | None:
+    """The S.R.O. these rules were notified by, from the head of the body.
+
+    Only the head: an S.R.O. deeper in the document is an amendment citation, of which
+    there are hundreds (the Sales Tax Rules footnotes cite one per amendment), and
+    taking the last or the commonest would name the wrong instrument.
+    """
+    for ref in refs[:scan_lines]:
+        match = _SRO_RE.search(ref.line.text())
+        if match:
+            return (f"S.R.O. {match.group('num')}({match.group('series').upper()})"
+                    f"/{match.group('year')}")
+    return None
+
+
+def _demo() -> None:
+    """Self-check: the S.R.O. grammar, which identifies the instrument."""
+    cases = [
+        ("CUSTOMS RULES, 2001 (S.R.O.450(I)/2001, DATED 18.6.2001)", "S.R.O. 450(I)/2001"),
+        ("Notification No. S.R.O. 918(I)/2019, dated 7th August, 2019",
+         "S.R.O. 918(I)/2019"),
+        # the corpus writes the separator as an underscore in places
+        ("S.R.O406(I)_2023 - PSW Trade Data Dissemination Rules", "S.R.O. 406(I)/2023"),
+        ("SRO 1126(I)/2010 dated 27.11.2010", "S.R.O. 1126(I)/2010"),
+        ("this line mentions no notification at all", None),
+        ("section 450 of the Act", None),
+    ]
+    for text, want in cases:
+        match = _SRO_RE.search(text)
+        got = (f"S.R.O. {match.group('num')}({match.group('series').upper()})"
+               f"/{match.group('year')}") if match else None
+        assert got == want, (text, got, want)
+    print("pipeline self-check passed")
 
 def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = None,
         admit_below_floor: bool = False) -> dict:
@@ -452,9 +498,14 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         progress(f"flat act: {len(orphans)} section(s) attached to a synthetic "
                  f"root container")
         orphans = []
-    if orphans and all(getattr(e, "anchor", None) is not None
-                       and _before_first_chapter(e, chapters, body_refs)
-                       for e in orphans):
+    if orphans and all(
+        (
+            _before_first_chapter(e, chapters, body_refs)
+            if getattr(e, "anchor", None) is not None
+            else _precedes_first_chapter_in_toc(e, ordered_sections)
+        )
+        for e in orphans
+    ):
         # A section printed BEFORE the document's first chapter has no container to
         # belong to, and that is not a mis-parsed chapter row -- it is a gazette
         # that reproduces another Act.  The Public Finance Management Act 2019 PDF
@@ -582,6 +633,10 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
 
     metadata = {
         "filename": pdf_path.split("/")[-1],
+        # What KIND of instrument this is. The leaf of a rule set is a Rule, not a
+        # Section, and the portal labels leaves from one function -- without this it
+        # would have to infer the instrument from the document's title.
+        "instrument_kind": "rules",
         "total_pages": total_pages,
         "toc_pages_scanned": toc_pages,
         "chapters_count": len(chapters),
@@ -592,6 +647,14 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         # from them, and the ``calibration_sane`` invariant checks them each run.
         "calibration": cal.as_dict(),
     }
+    # The S.R.O. that notified these rules. Every rule set in this corpus is made
+    # under one, its number is the instrument's real identity (titles are
+    # inconsistent across editions -- "Sales Tax Rules 2006" and "THE SALES TAX
+    # RULES, 2006" are the same instrument), and the reviewer needs it to check an
+    # amendment against the gazette. It is printed on the first body page.
+    sro = _notifying_sro(body_refs)
+    if sro:
+        metadata["notified_by"] = sro
     if fidelity is not None:
         # File-level OCR provenance.  A consumer of a scanned edition must be
         # able to see, from the JSON alone, that this text was recognised rather
@@ -979,6 +1042,31 @@ def _before_first_chapter(entry, chapters, body_refs) -> bool:
         if ref is anchor:
             return i < first_chapter_idx
     return False
+
+
+def _precedes_first_chapter_in_toc(entry, ordered_sections) -> bool:
+    """Whether a TOC-derived entry is listed before the first entry that has a chapter.
+
+    ``_before_first_chapter`` needs a body ANCHOR, which only body-driven discovery
+    sets; a section that came from a parsed TOC has none, so that test always said no.
+    On the Acts that was harmless -- their opening sections sit inside CHAPTER I. It is
+    not harmless here: a rule set conventionally prints "1. Short title and
+    commencement" and "2. Definitions" BEFORE its first chapter, so on the Sales Tax
+    Special Procedures Rules the conversion refused outright over rule 1.
+
+    The TOC lists entries in document order, so position in that list answers the
+    question directly -- and unlike a printed page it cannot be thrown off by the
+    folio problems these documents have.
+    """
+    parented = [
+        i for i, e in enumerate(ordered_sections) if getattr(e, "parent", None) is not None
+    ]
+    if not parented:
+        return False
+    try:
+        return ordered_sections.index(entry) < parented[0]
+    except ValueError:
+        return False
 
 
 def _opens_schedules(text: str) -> bool:

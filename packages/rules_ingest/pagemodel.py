@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .grammar import is_marker_text, is_year_like
+from .grammar import folio_value, is_marker_text, is_year_like
 
 # Private-use glyph the PDF uses for the footnote asterisk. QA: "Different
 # Asterisk symbol is shown in JSON" -> normalise it to a plain "*".
@@ -801,12 +801,26 @@ def build_page_model(page, index: int, cal, pdf_path: str | None = None,
     page_w = float(page.width)
 
     def _centred_int(ln) -> int | None:
-        """The line's value if it is a centred bare integer, else None."""
+        """The folio this line carries, in any form this corpus prints, else None.
+
+        Must agree with ``calibrate.folio_value``, which derives the document's page
+        offset from the same lines: if the two read different forms, the offset comes
+        from one set of pages and the per-page number from another, and the mismatch
+        shows up as wrong footnote refs on exactly the pages where they differ.
+
+        Centring is required only of the BARE form. A running title plus a folio
+        ("Income Tax Rules, 2002    289") spans the text width and is centred by
+        accident at best; that form is identified by its shape instead.
+        """
         txt = ln.text().strip()
-        if not txt.isdigit():
+        value = folio_value(txt)
+        if value is None:
             return None
-        center = (ln.min_x0 + max(w.x1 for w in ln.words)) / 2
-        return int(txt) if abs(center - page_w / 2) < page_w * 0.30 else None
+        if txt.isdigit():
+            center = (ln.min_x0 + max(w.x1 for w in ln.words)) / 2
+            if abs(center - page_w / 2) >= page_w * 0.30:
+                return None
+        return value
 
     # 1) strip running header.  First capture a centred bare-integer page number
     #    printed in the TOP margin: the pre-2021 editions (and the old

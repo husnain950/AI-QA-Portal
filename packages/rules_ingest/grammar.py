@@ -29,13 +29,21 @@ import re
 # ---------------------------------------------------------------------------
 # section codes
 
-#: A section code: up to three digits, an optional hyphen, up to four
-#: uppercase suffix letters.  ``18``, ``18C``, ``3AAA``, ``3CCE``, ``221-A``.
-CODE = r"\d{1,3}-?[A-Z]{0,4}"
+#: A rule code: up to FOUR digits, an optional hyphen, up to four uppercase suffix
+#: letters.  ``18``, ``18C``, ``3AAA``, ``221-A``, ``150ZQC``, ``1110``.
+#:
+#: Four digits, not the Acts' three.  The Customs Rules 2001 is a compilation of
+#: forty-four separately notified rule sets under one continuous numbering, and it
+#: runs past a thousand -- 1010, 1027, 1043, 1065, 1108, 1110 are all real rules in
+#: that document.  Read with ``\d{1,3}`` the line ``1110. Application.-`` parses as
+#: code ``111`` followed by a stray ``0``, which is the same class of silent
+#: renumbering the MARKER_PREFIX docstring below describes costing the Customs Act a
+#: third of its sections.
+CODE = r"\d{1,4}-?[A-Z]{0,4}"
 
 #: Same, but requiring at least one suffix letter -- used where a bare number
 #: would be ambiguous with a list serial.
-CODE_SUFFIXED = r"\d{1,3}-?[A-Z]{1,4}"
+CODE_SUFFIXED = r"\d{1,4}-?[A-Z]{1,4}"
 
 #: The same code as printed in a table of contents, where these PDFs split
 #: digits at kerning pairs: section 142 extracts as "14 2", 222 as "22 2", and
@@ -47,7 +55,7 @@ CODE_SUFFIXED = r"\d{1,3}-?[A-Z]{1,4}"
 #: The suffix separator may also be a DOT in the older editions, which print
 #: section 14A as "14.A." -- read without it, that row does not classify at all
 #: and its title is swallowed into the previous section's heading.
-CODE_TOC = r"\d(?:\s?\d){0,2}(?:[-.]\s?[A-Z]{1,4}|[A-Z]{1,4})?"
+CODE_TOC = r"\d(?:\s?\d){0,3}(?:[-.]\s?[A-Z]{1,4}|[A-Z]{1,4})?"
 #: The printed page a TOC row ends with.  Sales Tax and Federal Excise print a
 #: RANGE for a section that spans pages ("2. Definitions……7-29", "22 Power to
 #: arrest and prosecute 35-39", "47. Reference to the High Court 106-107").
@@ -84,7 +92,7 @@ def norm_code(token: str) -> str:
 
 
 CODE_RE = re.compile(rf"^{CODE}$")
-_CODE_PARTS_RE = re.compile(r"^(\d{1,3})-?([A-Z]{0,4})$")
+_CODE_PARTS_RE = re.compile(r"^(\d{1,4})-?([A-Z]{0,4})$")
 
 
 def code_sort_key(code: str) -> tuple:
@@ -187,6 +195,49 @@ def is_year_like(marker: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# printed page numbers (folios)
+
+# The Acts print a lone integer in the bottom margin. The Rules print three forms,
+# and two of them are not lone integers at all -- measured across the corpus:
+#
+#   Customs Rules 2001        "226"                        a bare integer
+#   Sales Tax Rules 2006      "(104)"                      parenthesised
+#   Income Tax Rules 2002     "Income Tax Rules, 2002 9"   a running title, then the folio
+#
+# Reading only the bare form, Sales Tax Rules derived page offset 16 with 0% support
+# -- no evidence for it at all, and wrong: the real offset is 17. Every footnote ref
+# is minted as "{printed_page}.{n}", so that ships a plausible, wrong ref on every
+# leaf of a 224-page document.
+#
+# This lives in `grammar` because BOTH `calibrate` (deriving the document's offset)
+# and `pagemodel` (reading each page's own folio) must agree on what a folio is, and
+# `calibrate` imports `pagemodel`, so it cannot be the shared home.
+_FOLIO_BARE_RE = re.compile(r"^\(?(\d{1,4})\)?$")
+#: A running title whose last token is the folio, with real words before it. Requiring
+#: letters keeps this off a bare "12 34" and off a two-column numeric footer.
+_FOLIO_TITLED_RE = re.compile(r"^(?=.*[A-Za-z]{3}).*?\b\(?(\d{1,4})\)?$")
+
+
+def folio_value(text: str) -> int | None:
+    """The printed page number a margin line carries, in any of the three forms.
+
+    The titled form additionally refuses a YEAR. Every one of these documents titles
+    itself with its year -- "Sales Tax Rules, 2006", "Federal Excise Rules, 2005" --
+    and on a page whose footer is the title alone, the trailing token IS that year.
+    Read as a folio it sets the offset from a number in the 2000s. No document in this
+    corpus is 1,800 pages long, so nothing real is refused.
+    """
+    stripped = (text or "").strip()
+    bare = _FOLIO_BARE_RE.match(stripped)
+    if bare:
+        return int(bare.group(1))
+    titled = _FOLIO_TITLED_RE.match(stripped)
+    if titled and not is_year_like(titled.group(1)):
+        return int(titled.group(1))
+    return None
+
+
+# ---------------------------------------------------------------------------
 # structural headings
 #
 # One source for CHAPTER / PART / Division, so the body-side and TOC-side tests
@@ -257,6 +308,24 @@ def _demo() -> None:
     """Self-check: the cases that broke under the Ordinance grammar."""
     assert CODE_RE.match("3AAA") and CODE_RE.match("3CCE")
     assert CODE_RE.match("221-A") and CODE_RE.match("18C") and CODE_RE.match("2")
+
+    # Rules: four-digit codes, measured in Customs Rules 2001 (Updated 30.06.2023)
+    for code in ("1010", "1027", "1043", "1065", "1108", "1110"):
+        assert CODE_RE.match(code), code
+    assert not CODE_RE.match("11101")            # five digits is not a rule code
+    # Sales Tax Rules 2006 stacks three suffix letters on a three-digit code
+    for code in ("150ZQC", "150ZEK", "150ZER", "150ZEQ"):
+        assert CODE_RE.match(code), code
+    # ordering must stay numeric across the thousand boundary
+    assert sorted(["1000", "999", "1010A", "1010"], key=code_sort_key) == \
+        ["999", "1000", "1010", "1010A"]
+    # a four-digit code parses whole, not as three digits plus a stray
+    dot4 = re.compile(rf"^\s*{MARKER_PREFIX}\[?\s*({CODE})\s*\.")
+    for line, want in [("1110. Application.-", "1110"),
+                       ("150ZQC. Requirements to be met.", "150ZQC"),
+                       ("13ZH. General provisions", "13ZH")]:
+        m = dot4.match(line)
+        assert m and m.group(1) == want, (line, m and m.group(1), want)
 
     # hyphen folds -- 221-A and 221A are ONE section
     assert code_sort_key("221-A") == code_sort_key("221A") == (221, "A")

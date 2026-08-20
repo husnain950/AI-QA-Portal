@@ -1635,6 +1635,27 @@ def inv_calibration_sane(doc):
         bad.append(f"implausible page offset {offset}"
                    + (f" (only {support:.0%} of sampled pages agree)"
                       if support is not None else ""))
+    # A SMALL offset can be just as wrong and is not caught by magnitude. Sales Tax
+    # Rules 2006 derived offset 16 with 0% support from folios it could not read
+    # ("(104)"); the real offset is 17, so every "{printed_page}.{n}" footnote ref in
+    # the document would have been off by a page -- plausible, and wrong.
+    #
+    # Only fires when the document DOES print folios: a scan, or a document with no
+    # page numbers at all, reads none and falls back to the front-matter count, which
+    # is a principled default rather than a guess. `page_offset_samples` is what tells
+    # the two apart -- both look like 0% support.
+    samples = cal.get("page_offset_samples")
+    if (
+        offset
+        and samples is not None
+        and samples >= 3
+        and support is not None
+        and support < 0.25
+    ):
+        bad.append(
+            f"page offset {offset} contradicts the folios: {samples} were read and "
+            f"only {support:.0%} agree -- every footnote ref derives from this"
+        )
     if not cal.get("pages_sampled"):
         # ``calibrate`` samples the TEXT LAYER (``_page_lines``), which a wholly
         # scanned document does not have, so it derives nothing and the document
