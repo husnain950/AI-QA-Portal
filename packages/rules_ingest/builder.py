@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from statistics import median as _median
 
 from .footnotes import BRACKETS_ONLY_RE, all_markers_anonymous, ref_sort_key
-from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX
+from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX, is_code_like
 
 # em dash / en dash that separates a heading from its text
 DASHES = "—–-"
@@ -1339,6 +1339,18 @@ _BRACKETED_DOTLESS_RE = re.compile(
 
 
 def _candidate_code(line) -> str | None:
+    """The rule code a body line opens with, or None.
+
+    Wrapped so every caller gets the year filter: `CODE` allows four digits (Customs
+    Rules runs to 1110), which also admits a YEAR, and these documents print their own
+    year on the title line -- "SALES TAX SPECIAL PROCEDURE (WITHHOLDING) RULES, 2007"
+    produced a leaf coded 2007 sitting ahead of rule 1.
+    """
+    code = _candidate_code_raw(line)
+    return code if code is None or is_code_like(code) else None
+
+
+def _candidate_code_raw(line) -> str | None:
     head = line.text()[:40]
     m = _DOTFORM_RE.match(head)
     if m:
@@ -1419,6 +1431,11 @@ def _bold_title(words, code_i: int, doc_has_bold: bool = True) -> bool:
 
 
 def _dotless_candidate_code(line) -> str | None:
+    code = _dotless_candidate_code_raw(line)
+    return code if code is None or is_code_like(code) else None
+
+
+def _dotless_candidate_code_raw(line) -> str | None:
     """Code of a dot-less section start, or None.
 
     Without the dot the shape is much weaker, so acceptance is gated three

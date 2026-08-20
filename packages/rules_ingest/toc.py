@@ -35,6 +35,7 @@ from .grammar import (  # noqa: F401
     SCHEDULE_TOC_RE,
     TABLE_RE,
     code_sort_key,
+    is_code_like,
     norm_code,
     page_num,
     spaced,
@@ -491,6 +492,13 @@ def parse_toc(lines: list[str]):
 
         # ---- section row --------------------------------------------------
         m = SECTION_RE.match(line)
+        # A YEAR is not a rule code. `CODE` allows four digits because Customs Rules
+        # runs to 1110, which also admits the year every one of these documents prints
+        # in its own title -- "... (WITHHOLDING) RULES, 2007" opened a phantom rule
+        # 2007 ahead of rule 1, and `clause_codes_plausible` then reported the opening
+        # clauses missing.
+        if m and not in_schedules and not is_code_like(norm_code(m.group("code"))):
+            m = None
         if m and not in_schedules:
             code = norm_code(m.group("code"))
             heading = _clean_heading(m.group("heading"))
@@ -516,6 +524,8 @@ def parse_toc(lines: list[str]):
 
         # ---- a code-led section row with no page number on its line -------
         nm = SECTION_NOPAGE_RE.match(line) if not in_schedules else None
+        if nm and not is_code_like(norm_code(nm.group("code"))):
+            nm = None
         if nm:
             code = norm_code(nm.group("code"))
             prev = last_section.code if last_section is not None else None

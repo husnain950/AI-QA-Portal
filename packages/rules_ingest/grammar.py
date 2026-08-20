@@ -92,6 +92,21 @@ def norm_code(token: str) -> str:
 
 
 CODE_RE = re.compile(rf"^{CODE}$")
+
+#: The highest rule number this corpus actually reaches, plus headroom. Widening CODE
+#: to four digits let a YEAR parse as a rule: the Withholding Rules' title line
+#: "SALES TAX SPECIAL PROCEDURE (WITHHOLDING) RULES, 2007" produced a leaf coded 2007
+#: ahead of rule 1, and `clause_codes_plausible` reported the opening clauses missing.
+#: Customs Rules 2001 tops out at 1110, and no year is below 1800, so the two bands do
+#: not overlap -- the same reasoning `is_year_like` already applies to markers and
+#: folios.
+MAX_CODE_VALUE = 1799
+
+
+def is_code_like(code: str) -> bool:
+    """True when ``code`` is a plausible rule code rather than a year or a quantity."""
+    m = _CODE_PARTS_RE.match((code or "").strip().upper())
+    return bool(m) and int(m.group(1)) <= MAX_CODE_VALUE
 _CODE_PARTS_RE = re.compile(r"^(\d{1,4})-?([A-Z]{0,4})$")
 
 
@@ -333,6 +348,9 @@ def _demo() -> None:
     for code in ("1010", "1027", "1043", "1065", "1108", "1110"):
         assert CODE_RE.match(code), code
     assert not CODE_RE.match("11101")            # five digits is not a rule code
+    # a YEAR is not a rule code, though it is four digits
+    assert is_code_like("1110") and is_code_like("1") and is_code_like("150ZQC")
+    assert not is_code_like("2007") and not is_code_like("1990") and not is_code_like("2025")
     # Sales Tax Rules 2006 stacks three suffix letters on a three-digit code
     for code in ("150ZQC", "150ZEK", "150ZER", "150ZEQ"):
         assert CODE_RE.match(code), code
