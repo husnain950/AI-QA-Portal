@@ -2,9 +2,9 @@
 
 import json
 
-import aiosqlite
 import pytest
 
+from backend.database import database_connection
 from backend.routes.documents import upload_document
 from backend.routes.timeline import timeline, timeline_query
 from backend.services import variants
@@ -73,9 +73,7 @@ async def test_foreign_assets_section_id_and_review_family_key(runtime_sandbox):
     )
     assert family_key_from_name(FOREIGN_ASSETS) == "foreign assets act, 2018"
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+    async with database_connection() as db:
         await _insert_edition(
             db,
             doc_id="fa-2017",
@@ -118,8 +116,7 @@ async def test_foreign_assets_section_id_and_review_family_key(runtime_sandbox):
 
 @pytest.mark.asyncio
 async def test_upload_indexes_section_variants(runtime_sandbox):
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         created = await upload_document(
             **_upload(_pdf_bytes(), _fa_payload(SECTION_14_TEXT), name=FOREIGN_ASSETS),
             db=db,
@@ -155,8 +152,7 @@ async def test_upload_indexes_section_variants(runtime_sandbox):
 
 @pytest.mark.asyncio
 async def test_rebuild_if_empty_heals_upload_only_db(runtime_sandbox):
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         await _insert_edition(
             db,
             doc_id="fa-2018",

@@ -1,4 +1,4 @@
-.PHONY: up down build sync seed seed-fixtures test test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backup-remote backfill-provenance
+.PHONY: up down build sync seed seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backup-remote backfill-provenance
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ifneq (,$(wildcard $(ROOT)/.venv/bin/python))
@@ -23,9 +23,11 @@ build:
 logs:
 	docker compose logs -f --tail=100
 
+# Readiness covers the database, the migration revision, and the blob root. The API
+# itself needs a session for everything else, so there is nothing further to curl here.
 health:
-	@curl -sf http://localhost:$${API_PORT:-8000}/health | $(PYTHON) -m json.tool
-	@curl -sf http://localhost:$${API_PORT:-8000}/api/documents >/dev/null && echo "documents: ok"
+	@curl -sf http://localhost:$${API_PORT:-8000}/health/ready | $(PYTHON) -m json.tool
+	@curl -sf http://localhost:$${API_PORT:-8000}/health/worker | $(PYTHON) -m json.tool || echo "worker: not running"
 
 vendor-corpora:
 	bash $(ROOT)/tools/bootstrap_corpora.sh
@@ -67,7 +69,11 @@ test-pipeline:
 	$(PYTHON) tools/run_tests_smoke.py
 
 test-web:
-	cd $(ROOT)/apps/web && npm run build
+	cd $(ROOT)/apps/web && npm run lint && npm run test && npm run build
+
+# Exactly what CI gates on, in one command.
+check: test-api test-pipeline test-web
+	$(ROOT)/.venv/bin/ruff check apps/api tools 2>/dev/null || ruff check apps/api tools
 
 shell-api:
 	docker compose exec api bash

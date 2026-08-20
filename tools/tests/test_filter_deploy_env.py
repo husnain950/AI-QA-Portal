@@ -3,7 +3,8 @@ from filter_deploy_env import HOST_PATH_KEYS, filter_deploy_env, main
 
 def test_strips_host_path_keys_and_keeps_secrets():
     src = """# local paths
-DATABASE_PATH=./data/db/qa_portal.db
+DATABASE_URL=postgresql+psycopg://crx:crx@127.0.0.1:5432/crx
+INSECURE_COOKIES=1
 UPLOAD_DIR=./data/uploads
 CORPUS_ORDINANCE=./data/corpora/ordinance
 CORPUS_ACTS=./data/corpora/acts

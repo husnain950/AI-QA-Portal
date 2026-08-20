@@ -2,12 +2,12 @@
 
 import json
 
-import aiosqlite
 import pytest
 
+from backend.database import database_connection
 from backend.services import ai_fix, llm_client, overlays
 from backend.sync_acts import run_sync
-from backend.tests.conftest import sample_document, write_pair
+from backend.tests.conftest import open_connection, sample_document, write_pair
 
 FIXED_TEXT = "Second section, corrected by the model"
 FIXED_HTML = f"<p>{FIXED_TEXT}</p>"
@@ -55,9 +55,7 @@ async def synced_document(runtime_sandbox):
     source = runtime_sandbox["root"] / "export"
     write_pair(source)
     await run_sync(source)
-    db = await aiosqlite.connect(runtime_sandbox["db_path"])
-    db.row_factory = aiosqlite.Row
-    await db.execute("PRAGMA foreign_keys = ON;")
+    db = await open_connection()
     async with db.execute("SELECT id FROM documents LIMIT 1") as cursor:
         document_id = (await cursor.fetchone())["id"]
     async with db.execute(
@@ -107,10 +105,25 @@ def test_validate_leaf_blocks_bad_proposals():
         for issue in ai_fix.validate_leaf(emptied, original)
     )
 
+    # A fix may correct the text on a page; it may not decide the section covers
+    # different pages than the parse said it did.
     drifted = ai_fix.merge_proposal(original, {"start_page": 99})
     assert any(
-        issue["code"] == "page_drift"
+        issue["code"] == "page_coverage_changed"
         for issue in ai_fix.validate_leaf(drifted, original)
+    )
+
+    desynced = ai_fix.merge_proposal(original, {"plain_text": "Something else entirely"})
+    assert any(
+        issue["code"] == "html_plain_parity"
+        for issue in ai_fix.validate_leaf(desynced, original)
+    )
+
+    with_footnotes = json.loads(sample_document())["chapters"][0]["sections"][0]
+    dropped = ai_fix.merge_proposal(with_footnotes, {"footnotes": []})
+    assert any(
+        issue["code"] == "footnote_marker_conservation"
+        for issue in ai_fix.validate_leaf(dropped, with_footnotes)
     )
 
     unchanged = ai_fix.merge_proposal(original, {})
@@ -294,7 +307,9 @@ async def test_approve_creates_version_overlay_and_approval(runtime_sandbox, gat
         ) as cursor:
             section = await cursor.fetchone()
         assert section["plain_text"] == FIXED_TEXT
-        assert section["review_status"] == "approved"
+        assert section["review_status"] == "pending", (
+            "an accepted AI fix is a new version to review, not an approval"
+        )
 
         async with db.execute("SELECT * FROM section_overlays") as cursor:
             overlay_rows = [dict(row) for row in await cursor.fetchall()]
@@ -305,7 +320,9 @@ async def test_approve_creates_version_overlay_and_approval(runtime_sandbox, gat
         async with db.execute(
             "SELECT status FROM fix_proposals WHERE id = ?", (proposal["id"],)
         ) as cursor:
-            assert (await cursor.fetchone())["status"] == "approved"
+            assert (await cursor.fetchone())["status"] == "applied", (
+                "'applied' — the fix landed as a version; approval is a separate act"
+            )
     finally:
         await db.close()
 
@@ -402,15 +419,14 @@ async def test_sync_reapplies_overlay_when_pipeline_output_is_unchanged(
     # Pipeline output on disk is unchanged; force pushes it through create_version.
     await run_sync(runtime_sandbox["root"] / "export", force=True)
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             "SELECT plain_text, review_status FROM sections WHERE id = ?",
             (section_id,),
         ) as cursor:
             section = await cursor.fetchone()
         assert section["plain_text"] == FIXED_TEXT
-        assert section["review_status"] == "approved"
+        assert section["review_status"] == "pending"
         async with db.execute(
             "SELECT status FROM section_overlays"
         ) as cursor:
@@ -436,8 +452,7 @@ async def test_sync_marks_overlay_stale_when_pipeline_leaf_changed(
     )
     await run_sync(source)
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             "SELECT plain_text, review_status FROM sections WHERE id = ?",
             (section_id,),
@@ -470,8 +485,7 @@ async def test_sync_supersedes_overlay_when_pipeline_catches_up(
     )
     await run_sync(source)
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             "SELECT plain_text FROM sections WHERE id = ?", (section_id,)
         ) as cursor:

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     ChevronDown, ChevronRight, ExternalLink, GitBranch, Inbox, FileOutput,
@@ -10,7 +11,7 @@ import Skeleton from '../components/ui/Skeleton';
 import StatusChip from '../components/ui/StatusChip';
 import { TRIAGE_TONES } from '../components/ui/statusTones';
 import DropdownMenu from '../components/ui/DropdownMenu';
-import { api } from '../utils/api';
+import { api, jobsApi } from '../utils/api';
 import { formatSectionLabel } from '../utils/tocLabels';
 import { editionDateFromName } from '../utils/editions';
 import { timelinePath } from '../utils/timeline';
@@ -69,7 +70,6 @@ export default function TriagePage() {
 
     const [findings, setFindings] = useState([]);
     const [stats, setStats] = useState({ total: 0, done: 0, left: 0, by_triage: {} });
-    const [loading, setLoading] = useState(true);
     const [cursor, setCursor] = useState(0);
     const [skipped, setSkipped] = useState(() => new Set());
     const [selected, setSelected] = useState(() => new Set());
@@ -84,31 +84,86 @@ export default function TriagePage() {
     const detectorFilter = searchParams.get('detector') || '';
     const sort = searchParams.get('sort') || 'score';
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
+    const findingsQuery = useInfiniteQuery({
+        queryKey: ['findings-v2', triageFilter, detectorFilter, sort, textFilter.trim()],
+        initialPageParam: null,
+        queryFn: async ({ pageParam, signal }) => {
             const qs = new URLSearchParams();
             if (triageFilter) qs.set('triage', triageFilter);
             if (detectorFilter) qs.set('detector', detectorFilter);
-            const data = await api.get(`/findings?${qs.toString()}`);
-            const rows = data.findings || data.items || data || [];
-            setFindings(rows);
-            setStats(data.stats || { total: rows.length, done: 0, left: rows.length, by_triage: {} });
-            setSelected(new Set());
-        } catch (err) {
-            pushToast({ type: 'error', message: err.message || 'Failed to load findings' });
-            setFindings([]);
-        } finally {
-            setLoading(false);
+            if (textFilter.trim()) qs.set('q', textFilter.trim());
+            qs.set('sort', sort);
+            qs.set('limit', '200');
+            if (pageParam) qs.set('cursor', pageParam);
+            return api.get(`/v2/findings?${qs.toString()}`, { signal });
+        },
+        getNextPageParam: (page) => page.next_cursor || undefined,
+        placeholderData: (previous) => previous,
+    });
+
+    const queryData = findingsQuery.data;
+    const refetchFindings = findingsQuery.refetch;
+    const load = useCallback(async () => {
+        await refetchFindings();
+    }, [refetchFindings]);
+
+    useEffect(() => {
+        if (!queryData) return;
+        const rows = queryData.pages.flatMap((page) => page.items || []);
+        setFindings(rows);
+        setStats(queryData.pages[0]?.stats || {
+            total: queryData.pages[0]?.total || rows.length,
+            done: 0,
+            left: rows.length,
+            by_triage: {},
+        });
+        setSelected(new Set());
+    }, [queryData]);
+
+    useEffect(() => {
+        if (findingsQuery.error) {
+            pushToast({
+                type: 'error',
+                message: findingsQuery.error.message || 'Failed to load findings',
+            });
         }
-    }, [triageFilter, detectorFilter, pushToast]);
+    }, [findingsQuery.error, pushToast]);
+
+    const openFinding = useCallback(async (finding) => {
+        if (!reviewerName?.trim()) {
+            pushToast({ type: 'error', message: 'Set a reviewer name before starting a review session' });
+            return;
+        }
+        let clientSessionId = sessionStorage.getItem('crx-review-client-session');
+        if (!clientSessionId) {
+            clientSessionId = crypto.randomUUID();
+            sessionStorage.setItem('crx-review-client-session', clientSessionId);
+        }
+        try {
+            const session = await api.post('/v2/review-sessions', {
+                client_session_id: clientSessionId,
+                finding_id: finding.id,
+                filters: {
+                    detector: detectorFilter || undefined,
+                    severity: finding.severity || undefined,
+                },
+                sort: 'risk_desc',
+            });
+            await api.post(`/v2/review-assignments/${finding.id}`, {
+                client_session_id: clientSessionId,
+            });
+            const query = new URLSearchParams({
+                session: session.id,
+                finding: String(finding.id),
+            });
+            navigate(`/review/${finding.document_id}/${finding.section_id}?${query}`);
+        } catch (err) {
+            pushToast({ type: 'error', message: err.message || 'Could not start review session' });
+        }
+    }, [detectorFilter, navigate, pushToast, reviewerName]);
 
     useEffect(() => {
-        load();
-    }, [load]);
-
-    useEffect(() => {
-        if (reviewerName === 'anonymous') {
+        if (!reviewerName) {
             promptDialog({
                 title: 'Reviewer name',
                 message: 'Recorded on review events via X-Reviewer (attribution only, not authentication).',
@@ -201,41 +256,46 @@ export default function TriagePage() {
         const ids = new Set(targets.map((f) => f.id));
         setFindings((rows) => rows.map((r) => (ids.has(r.id) ? { ...r, triage } : r)));
         setSelected(new Set());
-        let failed = 0;
-        for (const f of targets) {
-            try {
-                await api.patch(`/findings/${f.id}/status`, { triage, note: '' });
-            } catch {
-                failed += 1;
-            }
+        const idempotencyKey = crypto.randomUUID();
+        try {
+            await api.post('/v2/findings/bulk-triage', {
+                items: targets.map((f) => ({
+                    id: f.id,
+                    triage,
+                    expected_prior: f.triage,
+                    note: '',
+                })),
+            }, false, { headers: { 'Idempotency-Key': idempotencyKey } });
+        } catch (err) {
+            setFindings((rows) => rows.map((row) => previous.find((p) => p.id === row.id)
+                ? { ...row, triage: previous.find((p) => p.id === row.id).triage }
+                : row));
+            pushToast({ type: 'error', message: err.message || 'Atomic bulk action failed' });
+            await load();
+            return;
         }
         undoRef.current = async () => {
-            let restoreFailed = 0;
-            for (const p of previous) {
-                try {
-                    await api.patch(`/findings/${p.id}/status`, { triage: p.triage, note: p.note });
-                } catch {
-                    restoreFailed += 1;
-                }
-            }
-            await load();
-            if (restoreFailed) {
-                pushToast({ type: 'error', message: `Could not restore ${restoreFailed} finding${restoreFailed === 1 ? '' : 's'}` });
-            } else {
+            try {
+                await api.post('/v2/findings/bulk-triage', {
+                    items: previous.map((p) => ({
+                        id: p.id,
+                        triage: p.triage,
+                        expected_prior: triage,
+                        note: p.note,
+                    })),
+                }, false, { headers: { 'Idempotency-Key': crypto.randomUUID() } });
                 pushToast({ type: 'info', message: `Restored ${previous.length} finding${previous.length === 1 ? '' : 's'}` });
+            } catch (err) {
+                pushToast({ type: 'error', message: err.message || 'Atomic undo failed' });
             }
+            await load();
         };
-        if (failed) {
-            pushToast({ type: 'error', message: `${failed} of ${targets.length} updates failed — reloading` });
-            await load();
-        } else {
-            pushToast({
-                type: 'success',
-                message: `Marked ${targets.length} finding${targets.length === 1 ? '' : 's'} as ${triage.replace(/_/g, ' ')}`,
-                onUndo: () => undoRef.current?.(),
-            });
-            await load();
-        }
+        pushToast({
+            type: 'success',
+            message: `Marked ${targets.length} finding${targets.length === 1 ? '' : 's'} as ${triage.replace(/_/g, ' ')}`,
+            onUndo: () => undoRef.current?.(),
+        });
+        await load();
     }, [flat, selected, load, pushToast]);
 
     const approveVariants = useCallback(async (finding) => {
@@ -279,8 +339,14 @@ export default function TriagePage() {
 
     const exportCase = useCallback(async (finding) => {
         try {
-            const res = await api.post(`/findings/${finding.id}/export-case`, {});
-            pushToast({ type: 'success', message: `Regression case written to ${res.path}` });
+            const result = await jobsApi.run('regression_bundle', {
+                finding_id: finding.id,
+            }, { idempotencyKey: `regression-${finding.id}-${finding.updated_at || finding.triage}` });
+            const anchor = document.createElement('a');
+            anchor.href = api.getAssetUrl(result.download_url);
+            anchor.download = `finding-${finding.id}-regression.zip`;
+            anchor.click();
+            pushToast({ type: 'success', message: 'Regression bundle is ready to download' });
         } catch (err) {
             pushToast({ type: 'error', message: err.message || 'Export failed' });
         }
@@ -326,7 +392,7 @@ export default function TriagePage() {
                 setCursor((c) => Math.max(0, c - 1));
             } else if (e.key === 'Enter' && f) {
                 e.preventDefault();
-                navigate(`/review/${f.document_id}/${f.section_id}?from=queue`);
+                openFinding(f);
             } else if (e.key === 'x' && f) {
                 e.preventDefault();
                 toggleSelected(f);
@@ -361,7 +427,7 @@ export default function TriagePage() {
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [flat, cursor, navigate, promptDialog, approveVariants, setTriage, toggleSelected, selected.size]);
+    }, [flat, cursor, openFinding, promptDialog, approveVariants, setTriage, toggleSelected, selected.size]);
 
     useEffect(() => {
         rowRefs.current[cursor]?.scrollIntoView({ block: 'nearest' });
@@ -376,6 +442,8 @@ export default function TriagePage() {
 
     const doneCount = stats.total ? stats.total - (stats.by_triage?.new ?? stats.left ?? 0) : 0;
     const donePct = stats.total ? Math.round((doneCount / stats.total) * 100) : 0;
+    const filteredTotal = findingsQuery.data?.pages[0]?.total ?? findings.length;
+    const loading = findingsQuery.isPending && findings.length === 0;
 
     const renderRow = (f) => {
         const idx = flat.indexOf(f);
@@ -460,7 +528,7 @@ export default function TriagePage() {
                                 className="btn btn-ghost btn-icon"
                                 title="Open in review (Enter)"
                                 aria-label="Open in review"
-                                onClick={() => navigate(`/review/${f.document_id}/${f.section_id}?from=queue`)}
+                                onClick={() => openFinding(f)}
                             >
                                 <ExternalLink size={14} />
                             </button>
@@ -653,6 +721,15 @@ export default function TriagePage() {
                     </div>
                 )}
 
+                <div className="tq-range" role="status" aria-live="polite">
+                    Showing {findings.length ? 1 : 0}–{findings.length} of {filteredTotal}
+                    {findingsQuery.data?.pages[0]?.refreshed_at ? (
+                        <span title={new Date(findingsQuery.data.pages[0].refreshed_at).toLocaleString()}>
+                            refreshed {new Date(findingsQuery.data.pages[0].refreshed_at).toLocaleTimeString()}
+                        </span>
+                    ) : null}
+                </div>
+
                 {loading ? (
                     <div className="tq-skeleton-list" aria-label="Loading findings">
                         {[...Array(6)].map((_, i) => (
@@ -698,6 +775,19 @@ export default function TriagePage() {
                         </details>
                     ))
                 )}
+
+                {findingsQuery.hasNextPage ? (
+                    <div className="tq-load-more">
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            disabled={findingsQuery.isFetchingNextPage}
+                            onClick={() => findingsQuery.fetchNextPage()}
+                        >
+                            {findingsQuery.isFetchingNextPage ? 'Loading…' : 'Load next 200 findings'}
+                        </button>
+                    </div>
+                ) : null}
 
                 <p className="tq-hint">
                     <kbd>J</kbd>/<kbd>K</kbd> move · <kbd>Enter</kbd> open · <kbd>X</kbd> select ·{' '}

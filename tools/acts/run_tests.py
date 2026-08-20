@@ -27,7 +27,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from tests import loader, runner
+from tests import loader, runner  # noqa: E402 (sys.path bootstrap above)
 
 
 def _default_jsons() -> list[str]:

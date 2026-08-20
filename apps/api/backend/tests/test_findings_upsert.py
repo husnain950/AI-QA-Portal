@@ -1,18 +1,15 @@
 """Tests for findings upsert — dismissal survives score/version bump."""
 
-import aiosqlite
 import pytest
 
+from backend.database import database_connection
 from backend.services import findings_store
 from backend.services.detectors import Finding
 
 
 @pytest.mark.asyncio
 async def test_upsert_inserts_new_finding(runtime_sandbox):
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+    async with database_connection() as db:
 
         await db.execute("""
             INSERT INTO documents (id, name, pdf_filename, json_filename, total_sections, total_pages, uploaded_at, status)
@@ -42,10 +39,7 @@ async def test_upsert_inserts_new_finding(runtime_sandbox):
 @pytest.mark.asyncio
 async def test_dismissal_survives_score_bump(runtime_sandbox):
     """A human triage must not be overwritten by a detector re-run."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+    async with database_connection() as db:
 
         await db.execute("""
             INSERT INTO documents (id, name, pdf_filename, json_filename, total_sections, total_pages, uploaded_at, status)
@@ -106,10 +100,7 @@ async def test_dismissal_survives_score_bump(runtime_sandbox):
 @pytest.mark.asyncio
 async def test_close_stale_only_closes_new(runtime_sandbox):
     """close_stale only closes triage='new', not human-triaged findings."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+    async with database_connection() as db:
 
         await db.execute("""
             INSERT INTO documents (id, name, pdf_filename, json_filename, total_sections, total_pages, uploaded_at, status)

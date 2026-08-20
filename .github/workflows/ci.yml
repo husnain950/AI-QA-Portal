@@ -14,6 +14,20 @@ jobs:
   api:
     name: API tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: crx
+          POSTGRES_USER: crx
+          POSTGRES_PASSWORD: crx
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crx -d crx"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
 
@@ -28,19 +42,20 @@ jobs:
       - name: Install dependencies
         run: pip install -r apps/api/requirements-dev.txt
 
-      # The repo carries a large backlog of ruff findings in the ingest
-      # pipelines, so lint is reported but does not gate merges yet.
+      # The ingest pipelines under packages/ still carry a ruff backlog, so the
+      # repo-wide run stays advisory. The API and tools are clean and gate merges.
       - name: Lint (advisory)
         continue-on-error: true
         run: ruff check --output-format=github
 
-      - name: Lint tooling (blocking)
-        run: ruff check tools/northflank_deploy.py tools/snapshot_review.py tools/tests
+      - name: Lint API and tools (blocking)
+        run: ruff check --output-format=github apps/api tools
 
       - name: Pytest
         run: pytest apps/api/backend/tests tools/tests -q
         env:
           PYTHONPATH: ${{ github.workspace }}/apps/api:${{ github.workspace }}/packages
+          TEST_DATABASE_URL: postgresql+psycopg://crx:crx@127.0.0.1:5432/crx_test
 
   pipeline:
     name: Pipeline import smoke
@@ -98,12 +113,32 @@ jobs:
     # Default is 6 hours. Without this, a stuck apt/Playwright download holds
     # the PR check — and the post-merge deploy — until a human cancels it.
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: crx
+          POSTGRES_USER: crx
+          POSTGRES_PASSWORD: crx
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crx -d crx"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     env:
-      DATABASE_PATH: ${{ github.workspace }}/data/db/qa_portal.db
+      DATABASE_URL: postgresql+psycopg://crx:crx@127.0.0.1:5432/crx
+      STORAGE_BACKEND: filesystem
       UPLOAD_DIR: ${{ github.workspace }}/data/uploads
       PYTHONPATH: ${{ github.workspace }}/apps/api:${{ github.workspace }}/packages
       VITE_API_URL: http://127.0.0.1:8000/api
       VITE_STATIC_URL: http://127.0.0.1:8000
+      # The API is on plain http here, so the session cookie cannot be Secure.
+      INSECURE_COOKIES: '1'
+      RATE_LIMITS: 'off'
+      ADMIN_EMAIL: smoke@crx.test
+      ADMIN_PASSWORD: smoke-run-password
     steps:
       - uses: actions/checkout@v4
 
@@ -152,10 +187,10 @@ jobs:
           nohup uvicorn backend.main:app --host 127.0.0.1 --port 8000 \
             > /tmp/api.log 2>&1 &
           for _ in $(seq 1 60); do
-            curl -sf http://127.0.0.1:8000/health && exit 0
+            curl -sf http://127.0.0.1:8000/health/ready && exit 0
             sleep 1
           done
-          echo "API did not become healthy"; cat /tmp/api.log; exit 1
+          echo "API did not become ready"; cat /tmp/api.log; exit 1
 
       - name: Start the web server
         run: |

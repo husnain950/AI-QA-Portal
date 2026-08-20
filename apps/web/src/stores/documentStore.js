@@ -1,5 +1,15 @@
 import { create } from 'zustand';
 import { api } from '../utils/api';
+import { queryClient } from '../queryClient';
+
+let searchController = null;
+let searchSequence = 0;
+
+const query = (queryKey, path, options = {}) => queryClient.fetchQuery({
+    queryKey,
+    queryFn: ({ signal }) => api.get(path, { signal }),
+    ...options,
+});
 
 export const useDocumentStore = create((set, get) => ({
     documents: [],
@@ -23,7 +33,7 @@ export const useDocumentStore = create((set, get) => ({
     fetchDocuments: async () => {
         set((state) => ({ loading: { ...state.loading, documents: true } }));
         try {
-            const data = await api.get('/documents');
+            const data = await query(['documents'], '/documents');
             set({ documents: data, documentsError: null });
         } catch (e) {
             console.error('Failed to fetch documents', e);
@@ -36,7 +46,7 @@ export const useDocumentStore = create((set, get) => ({
     fetchDocument: async (docId) => {
         set((state) => ({ loading: { ...state.loading, activeDocument: true } }));
         try {
-            const data = await api.get(`/documents/${docId}`);
+            const data = await query(['document', docId], `/documents/${docId}`);
             set({ activeDocument: data });
             return data;
         } catch (e) {
@@ -50,7 +60,7 @@ export const useDocumentStore = create((set, get) => ({
     fetchSections: async (docId) => {
         set((state) => ({ loading: { ...state.loading, sections: true } }));
         try {
-            const data = await api.get(`/documents/${docId}/sections`);
+            const data = await query(['sections', docId], `/documents/${docId}/sections`);
             set({ sections: data });
         } catch (e) {
             console.error('Failed to fetch sections', e);
@@ -62,7 +72,7 @@ export const useDocumentStore = create((set, get) => ({
     fetchSection: async (docId, sectionId) => {
         set((state) => ({ loading: { ...state.loading, activeSection: true } }));
         try {
-            const data = await api.get(`/documents/${docId}/sections/${sectionId}`);
+            const data = await query(['section', docId, sectionId], `/documents/${docId}/sections/${sectionId}`);
             set({ activeSection: data });
             return data;
         } catch (e) {
@@ -75,7 +85,10 @@ export const useDocumentStore = create((set, get) => ({
 
     fetchSectionsByPage: async (docId, pageNumber) => {
         try {
-            const data = await api.get(`/documents/${docId}/sections/by-page/${pageNumber}`);
+            const data = await query(
+                ['sections-by-page', docId, pageNumber],
+                `/documents/${docId}/sections/by-page/${pageNumber}`,
+            );
             set({ pageSections: data });
             return data;
         } catch (e) {
@@ -89,6 +102,8 @@ export const useDocumentStore = create((set, get) => ({
             const res = await api.patch(`/documents/${docId}/sections/${sectionId}/status`, {
                 review_status: status
             });
+            await queryClient.invalidateQueries({ queryKey: ['document', docId] });
+            await queryClient.invalidateQueries({ queryKey: ['sections', docId] });
             
             // Update active section status
             const activeSection = get().activeSection;
@@ -124,23 +139,34 @@ export const useDocumentStore = create((set, get) => ({
             return;
         }
         set((state) => ({ searchQuery: q, loading: { ...state.loading, search: true } }));
+        searchController?.abort();
+        searchController = new AbortController();
+        const sequence = ++searchSequence;
         try {
-            const data = await api.get(`/documents/${docId}/search?q=${encodeURIComponent(q)}`);
-            set({ searchResults: data });
+            const data = await api.get(
+                `/documents/${docId}/search?q=${encodeURIComponent(q)}`,
+                { signal: searchController.signal, timeoutMs: 10_000 },
+            );
+            if (sequence === searchSequence) set({ searchResults: data });
         } catch (e) {
-            console.error('Search failed', e);
+            if (e.code !== 'cancelled') console.error('Search failed', e);
         } finally {
-            set((state) => ({ loading: { ...state.loading, search: false } }));
+            if (sequence === searchSequence) {
+                set((state) => ({ loading: { ...state.loading, search: false } }));
+            }
         }
     },
 
     clearSearch: () => {
+        searchController?.abort();
+        searchSequence += 1;
         set({ searchResults: [], searchQuery: '' });
     },
 
     deleteDocument: async (docId) => {
         try {
             await api.delete(`/documents/${docId}`);
+            await queryClient.invalidateQueries({ queryKey: ['documents'] });
             set((state) => ({
                 documents: state.documents.filter(d => d.id !== docId),
                 activeDocument: state.activeDocument?.id === docId ? null : state.activeDocument

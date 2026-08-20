@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { sanitizeLegalHtml } from '../../utils/sanitizeHtml';
 import { createPortal } from 'react-dom';
 import {
     AlertTriangle,
@@ -103,7 +104,7 @@ const RenderedLeaf = ({ html, label, proposed = false }) => {
             <div
                 ref={bodyRef}
                 className={`html-renderer-container ai-fix-rendered${proposed ? ' is-proposed' : ''}`}
-                dangerouslySetInnerHTML={{ __html: html || '' }}
+                dangerouslySetInnerHTML={{ __html: sanitizeLegalHtml(html) }}
             />
         </section>
     );

@@ -1,0 +1,15 @@
+/* Presentation vocabulary emitted by the backend legal-HTML sanitizer. */
+.crx-align-center { text-align: center; }
+.crx-align-right { text-align: right; }
+.crx-align-justify { text-align: justify; }
+.crx-bold { font-weight: 700; }
+.crx-italic { font-style: italic; }
+.crx-underline { text-decoration: underline; }
+.crx-list-unstyled { list-style: none; }
+.crx-pad-zero { padding-left: 0; }
+.crx-indent-1 { margin-left: 1em; }
+.crx-indent-2 { margin-left: 2em; }
+.crx-indent-3 { margin-left: 3em; }
+.crx-indent-4 { margin-left: 4em; }
+.crx-super { vertical-align: super; font-size: 0.75em; }
+.crx-sub { vertical-align: sub; font-size: 0.75em; }

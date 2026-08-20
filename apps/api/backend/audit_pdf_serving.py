@@ -28,10 +28,14 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import aiosqlite
-
-from backend.database import DB_PATH, init_db
-from backend.runtime import UPLOAD_DIR
+from backend import runtime
+from backend.database import (
+    DATABASE_URL,
+    DatabaseConnection,
+    DatabaseRow,
+    database_connection,
+    init_db,
+)
 from backend.services.pdf_service import get_pdf_page_count
 
 OUT_OF_SCOPE = "out_of_scope"
@@ -120,17 +124,19 @@ def check_uploads_url(base_url: str, pdf_filename: str) -> Optional[str]:
 
 
 async def audit_documents(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     *,
     check_url: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    upload_dir = Path(UPLOAD_DIR)
-    rows: List[aiosqlite.Row] = []
+    # Read at call time: binding runtime.UPLOAD_DIR at import made the audit look at
+    # the real uploads directory even when the caller had pointed it elsewhere.
+    upload_dir = Path(runtime.UPLOAD_DIR)
+    rows: List[DatabaseRow] = []
     async with db.execute(
         """
         SELECT id, name, pdf_filename, total_pages, source_type, source_key
         FROM documents
-        ORDER BY name COLLATE NOCASE
+        ORDER BY lower(name), name
         """
     ) as cursor:
         rows = await cursor.fetchall()
@@ -242,8 +248,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 async def _run(args: argparse.Namespace) -> int:
     await init_db()
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         documents = await audit_documents(db, check_url=args.check_url)
 
     out_of_scope: List[Dict[str, Any]] = []
@@ -261,8 +266,8 @@ async def _run(args: argparse.Namespace) -> int:
     )
 
     report = {
-        "db_path": DB_PATH,
-        "upload_dir": UPLOAD_DIR,
+        "database": DATABASE_URL.rsplit("@", 1)[-1],
+        "upload_dir": runtime.UPLOAD_DIR,
         "document_count": len(documents),
         "status_counts": {status: status_counts.get(status, 0) for status in STATUSES},
         "documents": listed,

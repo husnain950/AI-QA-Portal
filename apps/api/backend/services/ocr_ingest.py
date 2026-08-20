@@ -11,8 +11,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-import aiosqlite
-
+from backend.database import DatabaseConnection
 from backend.services.detectors import family_key
 
 logger = logging.getLogger(__name__)
@@ -69,7 +68,7 @@ def parse_ocr_report(path: Path) -> Tuple[str, List[Dict[str, Any]]]:
 
 
 async def ingest_ocr_findings(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     reports_dir: Path,
 ) -> Dict[str, Any]:
     """Parse all ocr-disagreements-*.md and insert as findings.
@@ -151,11 +150,12 @@ async def ingest_ocr_findings(
             import json
             await db.execute(
                 """
-                INSERT OR IGNORE INTO findings
+                INSERT INTO findings
                     (section_id, document_id, detector, detector_version,
                      fingerprint, severity, score, triage,
                      first_seen_at, last_seen_at, detail_json)
                 VALUES (?, ?, 'ocr_disagree', 'report', ?, 'info', 0.3, 'new', ?, ?, ?)
+                ON CONFLICT (section_id, detector, fingerprint) DO NOTHING
                 """,
                 (section_id, document_id, fingerprint, now, now,
                  json.dumps(detail, ensure_ascii=False)),

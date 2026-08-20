@@ -47,6 +47,22 @@ describe('usePdfDocument', () => {
         expect(result.current.pdfDoc).toBeNull();
     });
 
+    it('sends credentials, because /uploads requires a session', async () => {
+        // Regression: /uploads is role-gated ("reader") by the security middleware, and
+        // in dev the blob origin differs from the page's. Without withCredentials the
+        // cross-origin fetch carries no cookie and every PDF 401s — the review-page
+        // smoke caught this as pdf_doc_error on all three fixture documents.
+        const loading = deferred();
+        getDocumentMock.mockReturnValue({ promise: loading.promise, destroy: vi.fn() });
+
+        renderHook(() => usePdfDocument('/uploads/doc.pdf'));
+
+        await waitFor(() => expect(getDocumentMock).toHaveBeenCalled());
+        expect(getDocumentMock).toHaveBeenCalledWith(
+            expect.objectContaining({ url: '/uploads/doc.pdf', withCredentials: true }),
+        );
+    });
+
     it('surfaces load rejections as errors without leaving the spinner on', async () => {
         const loading = deferred();
         const destroy = vi.fn();

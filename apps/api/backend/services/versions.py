@@ -17,8 +17,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-import aiosqlite
-
+from backend.database import DatabaseConnection, DatabaseRow
 from backend.services import blob_store
 from backend.services.document_provenance import (
     derive_from_json_content,
@@ -35,6 +34,12 @@ DIFF_CONTEXT_LINES = 2
 MAX_DIFF_LINES = 400
 
 
+class StaleVersion(Exception):
+    def __init__(self, current_version_id: str | None):
+        super().__init__("stale active version")
+        self.current_version_id = current_version_id
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -49,18 +54,19 @@ def _version_id(document_id: str, version_no: int) -> str:
 
 
 async def active_version(
-    db: aiosqlite.Connection, document_id: str
-) -> Optional[aiosqlite.Row]:
+    db: DatabaseConnection, document_id: str, *, lock: bool = False
+) -> Optional[DatabaseRow]:
+    suffix = " FOR UPDATE" if lock else ""
     async with db.execute(
-        "SELECT * FROM document_versions WHERE document_id = ? AND is_active = 1",
+        "SELECT * FROM document_versions WHERE document_id = ? AND is_active = TRUE" + suffix,
         (document_id,),
     ) as cursor:
         return await cursor.fetchone()
 
 
 async def list_versions(
-    db: aiosqlite.Connection, document_id: str
-) -> List[aiosqlite.Row]:
+    db: DatabaseConnection, document_id: str
+) -> List[DatabaseRow]:
     async with db.execute(
         """
         SELECT * FROM document_versions
@@ -73,8 +79,8 @@ async def list_versions(
 
 
 async def get_version(
-    db: aiosqlite.Connection, document_id: str, version_id: str
-) -> Optional[aiosqlite.Row]:
+    db: DatabaseConnection, document_id: str, version_id: str
+) -> Optional[DatabaseRow]:
     async with db.execute(
         "SELECT * FROM document_versions WHERE document_id = ? AND id = ?",
         (document_id, version_id),
@@ -82,7 +88,7 @@ async def get_version(
         return await cursor.fetchone()
 
 
-async def _ensure_hash(db: aiosqlite.Connection, row: aiosqlite.Row) -> str:
+async def _ensure_hash(db: DatabaseConnection, row: DatabaseRow) -> str:
     """Backfilled v1 rows carry no hash until their blob is first read.
 
     Filling it lazily keeps the migration free of file IO while still making the
@@ -98,6 +104,7 @@ async def _ensure_hash(db: aiosqlite.Connection, row: aiosqlite.Row) -> str:
         "UPDATE document_versions SET json_sha256 = ? WHERE id = ?",
         (digest, row["id"]),
     )
+
     return digest
 
 
@@ -108,7 +115,7 @@ def read_version_json(row) -> str:
 
 
 async def create_version(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     document_id: str,
     json_bytes: bytes,
     *,
@@ -116,15 +123,25 @@ async def create_version(
     note: Optional[str] = None,
     created_by: Optional[str] = None,
     mode: str = SUPERSEDE,
-) -> Tuple[aiosqlite.Row, Dict[str, Any]]:
+    expected_version_id: Optional[str] = None,
+) -> Tuple[DatabaseRow, Dict[str, Any]]:
     """Store a JSON as the document's next version and make it active.
 
     Returns ``(version_row, outcome)``. ``outcome['status']`` is ``'unchanged'`` when
     the bytes match the active version -- re-running a sync must not manufacture
     versions that say nothing.
     """
+    async with db.execute(
+        "SELECT id FROM documents WHERE id = ? FOR UPDATE", (document_id,)
+    ) as cursor:
+        if await cursor.fetchone() is None:
+            raise KeyError(document_id)
     digest = blob_store.sha256_bytes(json_bytes)
-    current = await active_version(db, document_id)
+    current = await active_version(db, document_id, lock=True)
+    if expected_version_id is not None and (
+        current is None or current["id"] != expected_version_id
+    ):
+        raise StaleVersion(current["id"] if current else None)
     if current is not None and await _ensure_hash(db, current) == digest:
         return current, {"status": "unchanged", "version_no": current["version_no"]}
 
@@ -145,7 +162,7 @@ async def create_version(
         version_no = int((await cursor.fetchone())[0]) + 1
 
     await db.execute(
-        "UPDATE document_versions SET is_active = 0 WHERE document_id = ?",
+        "UPDATE document_versions SET is_active = FALSE WHERE document_id = ?",
         (document_id,),
     )
     await db.execute(
@@ -153,7 +170,7 @@ async def create_version(
         INSERT INTO document_versions (
             id, document_id, version_no, json_filename, json_sha256, source_name,
             created_at, created_by, note, total_sections, is_active, stats_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)
         """,
         (
             _version_id(document_id, version_no),
@@ -178,7 +195,9 @@ async def create_version(
     await db.execute(
         """
         UPDATE documents
-        SET json_filename = ?, total_sections = ?, status = ?, provenance = ?
+        SET json_filename = ?, total_sections = ?, status = ?, provenance = ?,
+            signoff_stage = 'draft', signoff_reviewed_by = NULL,
+            signoff_legal_by = NULL, row_revision = row_revision + 1
         WHERE id = ?
         """,
         (
@@ -190,6 +209,18 @@ async def create_version(
         ),
     )
 
+    from backend.services.identity import persist_inferred_identity
+
+    async with db.execute("SELECT name FROM documents WHERE id = ?", (document_id,)) as cursor:
+        document_name = (await cursor.fetchone())["name"]
+    await persist_inferred_identity(db, document_id, document_name)
+
+    from backend.services.occurrences import record_version_revisions
+
+    await record_version_revisions(
+        db, document_id, _version_id(document_id, version_no)
+    )
+
     from backend.services.variants import rebuild_document
 
     await rebuild_document(db, document_id)
@@ -199,7 +230,7 @@ async def create_version(
 
 
 async def _document_total_pages(
-    db: aiosqlite.Connection, document_id: str
+    db: DatabaseConnection, document_id: str
 ) -> Optional[int]:
     async with db.execute(
         "SELECT total_pages FROM documents WHERE id = ?", (document_id,)
@@ -211,7 +242,7 @@ async def _document_total_pages(
 
 
 async def _document_pdf_filename(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     document_id: str,
 ) -> Optional[str]:
     async with db.execute(
@@ -224,17 +255,28 @@ async def _document_pdf_filename(
 
 
 async def activate_version(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     document_id: str,
     version_id: str,
     *,
     mode: str = SUPERSEDE,
+    expected_version_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Roll the document back (or forward) to an existing version.
 
     The stored blob is re-applied through the same upsert as any other ingest, so
     review state is carried the same way in both directions.
     """
+    async with db.execute(
+        "SELECT id FROM documents WHERE id = ? FOR UPDATE", (document_id,)
+    ) as cursor:
+        if await cursor.fetchone() is None:
+            raise LookupError("document not found")
+    current = await active_version(db, document_id, lock=True)
+    if expected_version_id is not None and (
+        current is None or current["id"] != expected_version_id
+    ):
+        raise StaleVersion(current["id"] if current else None)
     target = await get_version(db, document_id, version_id)
     if target is None:
         raise LookupError("version not found")
@@ -246,11 +288,11 @@ async def activate_version(
     stats = await apply_parsed_document(db, document_id, sections, footnotes, mode=mode)
 
     await db.execute(
-        "UPDATE document_versions SET is_active = 0 WHERE document_id = ?",
+        "UPDATE document_versions SET is_active = FALSE WHERE document_id = ?",
         (document_id,),
     )
     await db.execute(
-        "UPDATE document_versions SET is_active = 1 WHERE id = ?",
+        "UPDATE document_versions SET is_active = TRUE WHERE id = ?",
         (version_id,),
     )
     pdf_filename = await _document_pdf_filename(db, document_id)
@@ -262,7 +304,9 @@ async def activate_version(
     await db.execute(
         """
         UPDATE documents
-        SET json_filename = ?, total_sections = ?, status = ?, provenance = ?
+        SET json_filename = ?, total_sections = ?, status = ?, provenance = ?,
+            signoff_stage = 'draft', signoff_reviewed_by = NULL,
+            signoff_legal_by = NULL, row_revision = row_revision + 1
         WHERE id = ?
         """,
         (

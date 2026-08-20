@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import aiosqlite
+from backend.database import DatabaseConnection
 
 INVARIANTS_REPORT = "qa-invariants.json"
 CONSERVATION_REPORT = "qa-conservation.json"
@@ -101,7 +101,7 @@ def read_conservation(report: Path) -> Dict[str, Dict[str, Any]]:
     return parsed
 
 
-async def ingest(db: aiosqlite.Connection, reports_dir: Path) -> Dict[str, Any]:
+async def ingest(db: DatabaseConnection, reports_dir: Path) -> Dict[str, Any]:
     """Attach whatever measurements exist to each document's active version."""
     reports_dir = Path(reports_dir).expanduser()
     invariants = read_invariants(reports_dir / INVARIANTS_REPORT)
@@ -116,7 +116,7 @@ async def ingest(db: aiosqlite.Connection, reports_dir: Path) -> Dict[str, Any]:
         """
         SELECT d.source_key, v.id AS version_id
         FROM documents d
-        JOIN document_versions v ON v.document_id = d.id AND v.is_active = 1
+        JOIN document_versions v ON v.document_id = d.id AND v.is_active = TRUE
         WHERE d.source_key IS NOT NULL
         """
     ) as cursor:
@@ -170,7 +170,7 @@ async def ingest(db: aiosqlite.Connection, reports_dir: Path) -> Dict[str, Any]:
                 con.get("body_missing"),
                 con.get("footnote_conserved"),
                 con.get("footnote_missing"),
-                None if gate_ok is None else int(bool(gate_ok)),
+                None if gate_ok is None else bool(gate_ok),
                 measured_at,
                 json.dumps(detail, ensure_ascii=False),
             ),

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UploadCloud, AlertCircle, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
@@ -11,6 +11,7 @@ const UploadPage = () => {
     const [documentName, setDocumentName] = useState('');
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
+    const [preflight, setPreflight] = useState(null);
     
     // JSON Validation details
     const [jsonStats, setJsonStats] = useState(null);
@@ -22,6 +23,7 @@ const UploadPage = () => {
     const processPdfFile = (file) => {
         if (file && file.type === 'application/pdf') {
             setPdfFile(file);
+            setPreflight(null);
             setError('');
             // Pre-fill doc name if empty
             if (!documentName) {
@@ -36,6 +38,7 @@ const UploadPage = () => {
     const processJsonFile = (file) => {
         if (file && file.name.endsWith('.json')) {
             setJsonFile(file);
+            setPreflight(null);
             setError('');
             validateJsonLocally(file);
         } else {
@@ -169,14 +172,23 @@ const UploadPage = () => {
         const formData = new FormData();
         formData.append('pdf', pdfFile);
         formData.append('json_file', jsonFile);
-        formData.append('name', documentName.trim());
 
         try {
-            const res = await api.post('/documents/upload', formData, true);
+            const checked = await api.post('/v2/uploads/preflight', formData, true, {
+                timeoutMs: 5 * 60_000,
+            });
+            setPreflight(checked);
+            const res = await api.post('/v2/documents', {
+                token: checked.token,
+                name: documentName.trim(),
+                corpus_lane: 'manual',
+            }, false, { timeoutMs: 60_000 });
             navigate(`/review/${res.id}`);
         } catch (err) {
-            console.error(err);
-            setError(err.message || 'File upload failed. Ensure the server is running.');
+            const errors = err.details?.detail?.errors;
+            setError(Array.isArray(errors)
+                ? errors.map((item) => `${item.pointer}: ${item.message}`).join(' · ')
+                : err.message || 'File upload failed. Ensure the server is running.');
         } finally {
             setUploading(false);
         }
@@ -202,30 +214,23 @@ const UploadPage = () => {
                         {/* PDF Dropzone */}
                         <div>
                             <span className="form-label">PDF file (original render)</span>
-                            <div
+                            <input
+                                type="file"
+                                ref={pdfInputRef}
+                                className="sr-only"
+                                accept="application/pdf"
+                                onChange={handlePdfChange}
+                            />
+                            <button
+                                type="button"
                                 className={`dropzone ${isPdfDragActive ? 'active' : ''}`}
                                 onClick={() => pdfInputRef.current.click()}
                                 onDragEnter={handlePdfDrag}
                                 onDragOver={handlePdfDrag}
                                 onDragLeave={handlePdfDrag}
                                 onDrop={handlePdfDrop}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        pdfInputRef.current.click();
-                                    }
-                                }}
                                 aria-label="Choose or drop the PDF file"
                             >
-                                <input
-                                    type="file"
-                                    ref={pdfInputRef}
-                                    style={{ display: 'none' }}
-                                    accept="application/pdf"
-                                    onChange={handlePdfChange}
-                                />
                                 <UploadCloud size={30} style={{ color: pdfFile ? 'var(--color-success)' : 'var(--color-text-muted)' }} />
                                 {pdfFile ? (
                                     <div className="dropzone-file-selected">
@@ -235,36 +240,29 @@ const UploadPage = () => {
                                 ) : (
                                     <span className="dropzone-text">Click or drop the PDF file here</span>
                                 )}
-                            </div>
+                            </button>
                         </div>
 
                         {/* JSON Dropzone */}
                         <div>
                             <span className="form-label">JSON file (parsed structure)</span>
-                            <div
+                            <input
+                                type="file"
+                                ref={jsonInputRef}
+                                className="sr-only"
+                                accept=".json"
+                                onChange={handleJsonChange}
+                            />
+                            <button
+                                type="button"
                                 className={`dropzone ${isJsonDragActive ? 'active' : ''}`}
                                 onClick={() => jsonInputRef.current.click()}
                                 onDragEnter={handleJsonDrag}
                                 onDragOver={handleJsonDrag}
                                 onDragLeave={handleJsonDrag}
                                 onDrop={handleJsonDrop}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        jsonInputRef.current.click();
-                                    }
-                                }}
                                 aria-label="Choose or drop the JSON file"
                             >
-                                <input
-                                    type="file"
-                                    ref={jsonInputRef}
-                                    style={{ display: 'none' }}
-                                    accept=".json"
-                                    onChange={handleJsonChange}
-                                />
                                 <UploadCloud size={30} style={{ color: jsonFile ? (jsonStats?.isValid ? 'var(--color-success)' : 'var(--color-error)') : 'var(--color-text-muted)' }} />
                                 {jsonFile ? (
                                     <div className="dropzone-file-selected" style={{ color: jsonStats?.isValid ? 'var(--color-success)' : 'var(--color-error)' }}>
@@ -274,7 +272,7 @@ const UploadPage = () => {
                                 ) : (
                                     <span className="dropzone-text">Click or drop the enriched JSON file here</span>
                                 )}
-                            </div>
+                            </button>
                         </div>
                     </div>
 
@@ -312,6 +310,18 @@ const UploadPage = () => {
                         </div>
                     )}
 
+                    {preflight && (
+                        <div className="upload-validation is-valid" role="status">
+                            <h4><CheckCircle2 size={16} /> Server preflight passed</h4>
+                            <ul>
+                                <li>{preflight.pages} PDF pages</li>
+                                <li>{preflight.sections} reviewable sections</li>
+                                <li>{preflight.footnotes} footnotes</li>
+                                <li>Staging expires {new Date(preflight.expires_at).toLocaleString()}</li>
+                            </ul>
+                        </div>
+                    )}
+
                     {/* Action buttons */}
                     <button
                         type="submit"
@@ -321,7 +331,7 @@ const UploadPage = () => {
                         {uploading ? (
                             <>
                                 <Loader2 className="animate-spin" size={18} />
-                                <span>Processing files & splitting sections…</span>
+                                <span>Validating, staging, and committing…</span>
                             </>
                         ) : (
                             <>

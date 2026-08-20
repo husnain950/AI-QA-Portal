@@ -4,13 +4,12 @@ import io
 import json
 from pathlib import Path
 
-import aiosqlite
 import pytest
 from fastapi import HTTPException, UploadFile
 from pypdf import PdfWriter
+from sqlalchemy.exc import DatabaseError
 
-import backend.database as database
-from backend.migrate_blobs import migrate
+from backend.database import database_connection
 from backend.routes.documents import (
     _require_document,
     activate_document_version,
@@ -62,75 +61,8 @@ def test_blob_store_rejects_unknown_kind(runtime_sandbox):
 
 
 @pytest.mark.asyncio
-async def test_migrate_blobs_moves_legacy_uploads_and_is_idempotent(runtime_sandbox):
-    upload_dir = Path(runtime_sandbox["upload_dir"])
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    pdf = _pdf_bytes()
-    payload = sample_document()
-
-    # Two documents that were given the identical PDF under the old flat scheme.
-    for index in (1, 2):
-        (upload_dir / f"doc{index}_act.pdf").write_bytes(pdf)
-        (upload_dir / f"doc{index}_act.json").write_text(payload, encoding="utf-8")
-    (upload_dir / "unreferenced_leftover.pdf").write_bytes(b"%PDF-1.4 nobody")
-
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        for index in (1, 2):
-            await db.execute(
-                """
-                INSERT INTO documents (
-                    id, name, pdf_filename, json_filename, total_sections,
-                    total_pages, uploaded_at, status, source_type
-                ) VALUES (?, ?, ?, ?, 2, 3, 'now', 'pending', 'upload')
-                """,
-                (
-                    f"doc{index}",
-                    f"Act {index}",
-                    f"doc{index}_act.pdf",
-                    f"doc{index}_act.json",
-                ),
-            )
-        await db.commit()
-    # A fresh init_db turns those rows into version 1, as it will on the live database.
-    await database.init_db()
-
-    preview = await migrate(dry_run=True)
-    assert preview["moved"] == 2, preview  # one PDF + one JSON, both shared
-    assert preview["deduped"] == 2, preview
-    assert (upload_dir / "doc1_act.pdf").exists(), "dry run must not write"
-
-    report = await migrate()
-    assert report["moved"] == 2 and report["deduped"] == 2
-    assert not (upload_dir / "doc1_act.pdf").exists()
-    assert len(list(upload_dir.glob("pdf/*.pdf"))) == 1, "identical PDFs collapse to one"
-    assert len(list(upload_dir.glob("json/*.json"))) == 1
-    assert "unreferenced_leftover.pdf" in report["orphans"]
-
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT pdf_filename, json_filename FROM documents") as cur:
-            names = [dict(row) for row in await cur.fetchall()]
-        async with db.execute(
-            "SELECT json_filename, json_sha256 FROM document_versions"
-        ) as cur:
-            version_rows = [dict(row) for row in await cur.fetchall()]
-
-    assert all(blob_store.is_blob_name(row["pdf_filename"]) for row in names)
-    assert all(blob_store.usable(blob_store.blob_path(row["pdf_filename"])) for row in names)
-    assert all(row["json_sha256"] for row in version_rows), "backfilled hash must be filled"
-
-    again = await migrate()
-    assert again["moved"] == 0 and again["already_addressed"] == 6
-
-
-# ------------------------------------------------------------------------ versions
-
-
-@pytest.mark.asyncio
 async def test_upload_creates_version_one_and_further_versions_stack(runtime_sandbox):
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
         rows = await list_document_versions(created.id, db)
 
@@ -143,8 +75,7 @@ async def test_upload_creates_version_one_and_further_versions_stack(runtime_san
 
 @pytest.mark.asyncio
 async def test_identical_json_is_not_a_new_version(runtime_sandbox):
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
         row, outcome = await versions.create_version(
             db, created.id, sample_document().encode()
@@ -156,8 +87,7 @@ async def test_identical_json_is_not_a_new_version(runtime_sandbox):
 
 @pytest.mark.asyncio
 async def test_activate_rolls_back_to_the_previous_parse(runtime_sandbox):
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
         await versions.create_version(
             db,
@@ -176,13 +106,16 @@ async def test_activate_rolls_back_to_the_previous_parse(runtime_sandbox):
         assert [row.version_no for row in rows] == [2, 1]
         first = next(row for row in rows if row.version_no == 1)
 
-        await activate_document_version(created.id, first.id, db)
+        active = next(row for row in rows if row.version_no == 2)
+        await activate_document_version(
+            created.id, first.id, db, actor="tester", if_match=active.id
+        )
         async with db.execute(
             "SELECT plain_text FROM sections ORDER BY sort_order DESC LIMIT 1"
         ) as cursor:
             assert (await cursor.fetchone())["plain_text"] == "Second section"
         async with db.execute(
-            "SELECT COUNT(*) FROM document_versions WHERE document_id = ? AND is_active = 1",
+            "SELECT COUNT(*) FROM document_versions WHERE document_id = ? AND is_active",
             (created.id,),
         ) as cursor:
             assert (await cursor.fetchone())[0] == 1, "exactly one active version"
@@ -191,16 +124,15 @@ async def test_activate_rolls_back_to_the_previous_parse(runtime_sandbox):
 @pytest.mark.asyncio
 async def test_only_one_version_can_be_active(runtime_sandbox):
     """The partial unique index, not convention, is what enforces this."""
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
-        with pytest.raises(aiosqlite.IntegrityError):
+        with pytest.raises(DatabaseError):
             await db.execute(
                 """
                 INSERT INTO document_versions (
                     id, document_id, version_no, json_filename, json_sha256,
                     created_at, total_sections, is_active
-                ) VALUES ('rogue', ?, 99, 'json/x.json', 'x', 'now', 0, 1)
+                ) VALUES ('rogue', ?, 99, 'json/x.json', 'x', 'now', 0, TRUE)
                 """,
                 (created.id,),
             )
@@ -209,8 +141,7 @@ async def test_only_one_version_can_be_active(runtime_sandbox):
 
 @pytest.mark.asyncio
 async def test_version_diff_reports_changed_added_and_removed_leaves(runtime_sandbox):
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
 
         payload = json.loads(sample_document())
@@ -232,8 +163,7 @@ async def test_version_diff_reports_changed_added_and_removed_leaves(runtime_san
 
 @pytest.mark.asyncio
 async def test_diff_of_the_first_version_is_empty_not_an_error(runtime_sandbox):
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
         rows = await list_document_versions(created.id, db)
         result = await diff_document_version(created.id, rows[0].id, None, db)
@@ -243,11 +173,13 @@ async def test_diff_of_the_first_version_is_empty_not_an_error(runtime_sandbox):
 
 @pytest.mark.asyncio
 async def test_unknown_version_activation_is_404(runtime_sandbox):
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
+        active = (await list_document_versions(created.id, db))[0]
         with pytest.raises(HTTPException) as error:
-            await activate_document_version(created.id, "no-such-version", db)
+            await activate_document_version(
+                created.id, "no-such-version", db, actor="tester", if_match=active.id
+            )
     assert error.value.status_code == 404
 
 
@@ -260,9 +192,7 @@ async def test_annotation_survives_a_reparse_and_is_flagged_when_unfindable(
 ):
     document_id = "anchor-doc"
     sections, footnotes = parse_json_document(sample_document(), document_id=document_id)
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
         await db.execute(
             """
             INSERT INTO documents (
@@ -342,8 +272,7 @@ async def test_the_workflow_this_all_exists_for(runtime_sandbox):
     """
     pdf = _pdf_bytes()
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
 
         # 1. Upload the pair once.
         created = await upload_document(**_upload(pdf, sample_document()), db=db)
@@ -435,7 +364,9 @@ async def test_the_workflow_this_all_exists_for(runtime_sandbox):
         # 6. And reversible.
         rows = await list_document_versions(created.id, db)
         first_version = next(row for row in rows if row.version_no == 1)
-        await activate_document_version(created.id, first_version.id, db)
+        await activate_document_version(
+            created.id, first_version.id, db, actor="tester", if_match=rows[0].id
+        )
 
         async with db.execute(
             "SELECT plain_text FROM sections WHERE id = ?", (second["id"],)

@@ -41,19 +41,23 @@ make push-remote BASE_URL=https://your-portal.code.run
 
 ## How persistence works
 
-1. **CodeRun persistent volume** (`--storage-size 5Gi --storage-path /app/data`)
-   keeps the SQLite DB + blob uploads alive across container restarts/redeploys.
+1. **The database** is PostgreSQL — a managed addon in production, the `postgres`
+   service under Compose. It is backed up, not baked into an image; see
+   [`docs/operations.md`](../../docs/operations.md).
 
-2. **Auto-seed on first boot**: if the DB is empty and seed files exist in the
-   image, `bootstrap_runtime()` runs corpus sync automatically.
+2. **The persistent volume** at `/app/data` keeps the content-addressed blob uploads
+   alive across container restarts and redeploys.
 
-3. **Subsequent deploys** find existing data in the volume and skip seeding.
+3. **Seeding is explicit.** Boot only migrates the schema and creates the first admin;
+   it no longer runs a corpus sync on an empty database, because an implicit sync on
+   startup is indistinguishable from a hang. Enqueue one with
+   `POST /api/v2/jobs/corpus_sync`, or run `make sync` against the deployment.
 
 `make push-remote` is the fallback when the image has no baked seed: it uploads PDF+JSON
 over HTTP as `source_type=upload` and does **not** write `corpus_sync_state`. The Library
 subtitle then reads `seeded by upload · pipeline mounts not on this host` instead of
 `last sync ok`. That is mount health, not an empty library.
 
-`tools/deploy_coderun.sh` filters `CORPUS_*`, `DATABASE_PATH`, and `UPLOAD_DIR` out of
+`tools/deploy_coderun.sh` filters `CORPUS_*`, `DATABASE_URL`, and `UPLOAD_DIR` out of
 `--env-file` so local host paths cannot override the image defaults
 (`/data/corpus/ordinance`, `/data/corpus/acts`, `/seed/corpus/...`, `/app/data/...`).

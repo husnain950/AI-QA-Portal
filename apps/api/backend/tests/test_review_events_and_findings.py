@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import aiosqlite
 import pytest
 
+from backend.database import database_connection
 from backend.services import events
 from backend.services.detectors import DETECTOR_VERSION, Finding
 from backend.services.findings_store import upsert_findings
@@ -18,8 +18,7 @@ async def test_review_events_append_only(runtime_sandbox):
     write_pair(source)
     await run_sync(source)
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         eid = await events.record(
             db,
             actor="tester",
@@ -50,8 +49,7 @@ async def test_finding_dismissal_survives_score_bump(runtime_sandbox):
     write_pair(source)
     await run_sync(source)
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             "SELECT id, document_id, source_key FROM sections LIMIT 1"
         ) as cur:
@@ -59,7 +57,7 @@ async def test_finding_dismissal_survives_score_bump(runtime_sandbox):
 
         f = Finding(
             code="heading_only_body",
-            severity="medium",
+            severity="warning",
             score=10.0,
             fingerprint=f"heading_only_body:{sec['source_key']}",
             detail={"assertion": "test"},
@@ -76,7 +74,7 @@ async def test_finding_dismissal_survives_score_bump(runtime_sandbox):
 
         f2 = Finding(
             code="heading_only_body",
-            severity="high",
+            severity="error",
             score=99.0,
             fingerprint=f.fingerprint,
             detail={"assertion": "retuned"},

@@ -11,8 +11,12 @@ backend + `apps/web` Vite/React frontend). Standard commands live in `README.md`
 - Python deps install into a repo-local virtualenv at `.venv/` (gitignored). The `Makefile`
   auto-detects `.venv/bin/python`, so `make sync`, `make test-api`, etc. use it automatically.
 - The startup update script provisions `.venv` (dev + pipeline deps), runs `npm ci` in
-  `apps/web`, and creates `.env` from `.env.example` if missing. No external DB/broker is
-  needed — the app uses an embedded SQLite file under `data/db/` created + migrated on API boot.
+  `apps/web`, and creates `.env` from `.env.example` if missing.
+- A **PostgreSQL 17** instance is required: `docker compose up -d postgres` covers it, and
+  `DATABASE_URL` defaults to `postgresql+psycopg://crx:crx@127.0.0.1:5432/crx`. The backend
+  test suite needs it too — it creates and migrates its own `_test` database, or the one
+  named by `TEST_DATABASE_URL`. Blob storage is MinIO under Compose
+  (`STORAGE_BACKEND=s3`) or local files (`STORAGE_BACKEND=filesystem`, the default).
 - Non-obvious base-image dependency: creating the venv requires the system package
   `python3.12-venv` (base VM lacked `ensurepip`). It is already installed in the VM snapshot;
   if `python3 -m venv` ever fails with an `ensurepip` error, run `sudo apt-get install -y python3.12-venv`.

@@ -16,19 +16,44 @@ export default function Drawer({
     headerExtra = null,
 }) {
     const ref = useRef(null);
+    const restoreFocusRef = useRef(null);
 
     useEffect(() => {
         if (!open) return undefined;
+        restoreFocusRef.current = document.activeElement;
         ref.current?.focus();
         const onKey = (e) => {
             if (e.key === 'Escape') {
                 e.stopPropagation();
                 onClose?.();
+                return;
+            }
+            if (e.key === 'Tab') {
+                const focusable = [...(ref.current?.querySelectorAll(
+                    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+                ) || [])];
+                if (!focusable.length) {
+                    e.preventDefault();
+                    ref.current?.focus();
+                    return;
+                }
+                const first = focusable[0];
+                const last = focusable.at(-1);
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
             }
         };
         const el = ref.current;
         el?.addEventListener('keydown', onKey);
-        return () => el?.removeEventListener('keydown', onKey);
+        return () => {
+            el?.removeEventListener('keydown', onKey);
+            restoreFocusRef.current?.focus?.();
+        };
     }, [open, onClose]);
 
     if (!open) return null;

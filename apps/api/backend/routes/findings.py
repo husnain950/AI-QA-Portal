@@ -3,21 +3,14 @@
 from __future__ import annotations
 
 import json
-import logging
-import os
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from backend.database import get_db
+from backend.database import DatabaseConnection, get_db
 from backend.deps import require_reviewer
-from backend.runtime import BACKEND_DIR
-from backend.services import events, findings_store
+from backend.services import events, findings_store, jobs, review_state
 from backend.services.editions import family_key_from_name
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/findings", tags=["findings"])
 
@@ -42,7 +35,7 @@ async def list_findings(
     section_id: Optional[str] = Query(None),
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
 ):
     rows = await findings_store.list_findings(
         db,
@@ -146,7 +139,7 @@ async def list_findings(
 async def triage_finding(
     finding_id: int,
     body: dict,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
     triage = body.get("triage")
@@ -175,19 +168,21 @@ async def triage_finding(
         to_value=row.get("triage"),
         detail={"finding_id": finding_id, "note": note},
     )
+    if row.get("section_id"):
+        await review_state.refresh_section(db, row["section_id"])
     await db.commit()
     return row
 
 
-@router.post("/{finding_id}/export-case")
+@router.post("/{finding_id}/export-case", status_code=202)
 async def export_finding_case(
     finding_id: int,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
     async with db.execute(
         """
-        SELECT f.*, s.section_code, s.plain_text, d.name AS document_name, d.source_key
+        SELECT f.*, s.section_code
         FROM findings f
         JOIN sections s ON s.id = f.section_id
         JOIN documents d ON d.id = f.document_id
@@ -199,29 +194,13 @@ async def export_finding_case(
     if not row:
         raise HTTPException(status_code=404, detail="Finding not found")
     row = dict(row)
-    detail = _detail(row)
-    token = detail.get("token") or detail.get("assertion") or row["detector"]
-    case = {
-        "description": detail.get("assertion") or f"Portal finding {row['detector']}",
-        "applies_to": row.get("source_key") or row["document_name"],
-        "target": row["section_code"],
-        "check": "plain_not_contains" if row["detector"] == "glyph_split" else "plain_contains",
-        "arg": token if isinstance(token, str) else str(token),
-        "from_finding_id": finding_id,
-        "detector": row["detector"],
-        "exported_by": actor,
-    }
-
-    root = Path(BACKEND_DIR).resolve()
-    for _ in range(4):
-        if (root / "data").is_dir() or (root / "apps").is_dir():
-            break
-        root = root.parent
-    out_dir = Path(os.environ.get("CASE_EXPORT_DIR", root / "data" / "exports" / "cases"))
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"finding_{finding_id}.json"
-    out_path.write_text(json.dumps(case, indent=2) + "\n", encoding="utf-8")
-
+    job = await jobs.enqueue(
+        db,
+        "regression_bundle",
+        payload={"finding_id": finding_id},
+        actor=actor,
+        idempotency_key=f"finding-regression:{finding_id}:{row['triage']}:{row['last_seen_at']}",
+    )
     await events.record(
         db,
         actor=actor,
@@ -229,7 +208,7 @@ async def export_finding_case(
         document_id=row["document_id"],
         section_id=row["section_id"],
         version_id=await events.active_version_id(db, row["document_id"]),
-        detail={"path": str(out_path), "case": case},
+        detail={"job_id": job["id"], "format": "downloadable_zip"},
     )
     await db.commit()
-    return {"path": str(out_path), "case": case}
+    return {"job_id": job["id"], "state": job["state"]}

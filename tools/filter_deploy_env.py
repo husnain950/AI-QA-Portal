@@ -5,6 +5,11 @@ Local ``.env`` values like ``CORPUS_ORDINANCE=./data/corpora/ordinance`` overrid
 the API image defaults (``/data/corpus/ordinance``, ``/seed/corpus/...``,
 ``/app/data/...``). The Library header then reports those directories as missing
 even when the container has the intended mounts.
+
+``DATABASE_URL`` and the MinIO/S3 endpoints are stripped for a sharper reason: a local
+one points at 127.0.0.1, and shipping it would either fail to connect or, worse,
+override the managed database the platform injects. Anything development-only that would
+weaken production — ``INSECURE_COOKIES``, ``RATE_LIMITS`` — is dropped too.
 """
 
 from __future__ import annotations
@@ -20,8 +25,21 @@ HOST_PATH_KEYS = frozenset(
         "SEED_CORPUS_ORDINANCE",
         "SEED_CORPUS_ACTS",
         "DATABASE_PATH",
+        "DATABASE_URL",
         "UPLOAD_DIR",
         "OCR_CACHE_DIR",
+        "S3_ENDPOINT_URL",
+        "POSTGRES_DB",
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+        "POSTGRES_PORT",
+        "MINIO_ROOT_USER",
+        "MINIO_ROOT_PASSWORD",
+        "MINIO_PORT",
+        "MINIO_CONSOLE_PORT",
+        # Development-only switches that must never reach production.
+        "INSECURE_COOKIES",
+        "RATE_LIMITS",
     }
 )
 

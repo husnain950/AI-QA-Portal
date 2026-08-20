@@ -32,7 +32,7 @@ def _load_dotenv(path: Path) -> None:
 
 
 _load_dotenv(ROOT / ".env")
-os.environ.setdefault("DATABASE_PATH", str(ROOT / "data" / "db" / "qa_portal.db"))
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://crx:crx@127.0.0.1:5432/crx")
 os.environ.setdefault("UPLOAD_DIR", str(ROOT / "data" / "uploads"))
 
 from backend.database import get_db  # noqa: E402

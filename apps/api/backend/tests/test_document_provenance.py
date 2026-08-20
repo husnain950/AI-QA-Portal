@@ -1,11 +1,11 @@
 import io
 import json
 
-import aiosqlite
 import pytest
 from fastapi import UploadFile
 from pypdf import PdfWriter
 
+from backend.database import database_connection
 from backend.routes.documents import list_documents, upload_document
 from backend.services.document_provenance import (
     SOURCE_KIND_MIXED,
@@ -219,9 +219,7 @@ async def test_list_documents_includes_provenance(runtime_sandbox):
     }
     json_text = json.dumps(payload)
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
         created = await upload_document(
             pdf=UploadFile(filename="act.pdf", file=io.BytesIO(_pdf_bytes())),
             json_file=UploadFile(
@@ -249,9 +247,7 @@ async def test_upload_document_uses_pdf_fallback_provenance(runtime_sandbox, mon
 
     json_text = sample_document()
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
         created = await upload_document(
             pdf=UploadFile(filename="act.pdf", file=io.BytesIO(_pdf_bytes(pages=3))),
             json_file=UploadFile(filename="act.json", file=io.BytesIO(json_text.encode())),
@@ -292,9 +288,7 @@ async def test_backfill_provenance_reinferences_native_when_json_has_no_ocr(
     )
     existing_raw = serialize_provenance(existing)
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
         await db.execute(
             """
             INSERT INTO documents (
@@ -358,9 +352,7 @@ async def test_reinfer_provenance_route_pages_and_is_idempotent(
     ).encode("utf-8")
     ocr_json_name = blob_store.store_bytes(ocr_payload, "json")
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
         for index in range(3):
             await db.execute(
                 """

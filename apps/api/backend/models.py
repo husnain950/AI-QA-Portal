@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # --- Document Models ---
 
@@ -80,6 +80,7 @@ class AnnotationBase(BaseModel):
     reviewer_name: Optional[str] = None
     footnote_id: Optional[str] = None
     status: str = "open"
+    disposition: str = "open"
     # Text either side of the highlight, captured at creation time. It is what lets an
     # annotation be re-found when a new JSON version rewrites the leaf around it.
     context_before: Optional[str] = None
@@ -106,7 +107,6 @@ class AnnotationResponse(AnnotationBase):
     created_at: str
     anchor_status: str = "anchored"  # anchored | needs_recheck | orphaned
     orphan_context: Optional[dict] = None
-    disposition: str = "open"
 
 # --- Version Models ---
 
@@ -182,6 +182,8 @@ class SectionMetadataResponse(BaseModel):
     start_page: Optional[int] = None
     end_page: Optional[int] = None
     review_status: str
+    reviewer_verdict: str = "pending"
+    effective_status: str = "pending"
     annotation_count: int
     sort_order: int
     quality_flags: List[QualityFlag] = []
@@ -193,7 +195,7 @@ class SectionResponse(SectionMetadataResponse):
     footnotes: List[FootnoteResponse] = []
 
 class SectionStatusUpdate(BaseModel):
-    review_status: str # "approved" | "has_issues" | "pending"
+    review_status: str # compatibility name; accepted values are reviewer verdicts
 
 # --- AI Fix Models ---
 
@@ -231,6 +233,7 @@ class FixProposalResponse(BaseModel):
     proposed: Optional[dict] = None
     validation: List[FixValidationIssue] = []
     diff: Optional[dict] = None
+    evidence: Optional[dict] = None
 
 
 class FixApprovalResponse(BaseModel):
@@ -247,7 +250,10 @@ class SearchResultResponse(BaseModel):
     section_code: str
     section_heading: str
     chapter_code: Optional[str] = None
+    # ``snippet`` remains for the v1 frontend but is now plain text, never HTML.
     snippet: str
+    snippet_text: str
+    match_ranges: List[dict] = Field(default_factory=list)
     match_count: int
 
 # --- Export Models ---

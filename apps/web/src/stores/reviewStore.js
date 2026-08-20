@@ -39,7 +39,7 @@ export const useReviewStore = create((set, get) => ({
                 end_offset: annotationData.endOffset,
                 issue_description: annotationData.issueDescription,
                 severity: annotationData.severity,
-                reviewer_name: annotationData.reviewerName,
+                disposition: annotationData.disposition || 'open',
                 footnote_id: annotationData.footnoteId || null,
                 context_before: annotationData.contextBefore ?? null,
                 context_after: annotationData.contextAfter ?? null

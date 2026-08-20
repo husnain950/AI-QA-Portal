@@ -1,18 +1,16 @@
 """Tests for review_events table: append-only triggers and record helper."""
 
-import aiosqlite
 import pytest
+from sqlalchemy.exc import DatabaseError
 
+from backend.database import database_connection
 from backend.services import events
 
 
 @pytest.mark.asyncio
 async def test_review_events_append_only(runtime_sandbox):
     """Triggers prevent UPDATE and DELETE on review_events."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+    async with database_connection() as db:
 
         row_id = await events.record(
             db,
@@ -23,13 +21,13 @@ async def test_review_events_append_only(runtime_sandbox):
         await db.commit()
         assert row_id is not None
 
-        with pytest.raises(aiosqlite.IntegrityError):
+        with pytest.raises(DatabaseError):
             await db.execute(
                 "UPDATE review_events SET actor = 'hacker' WHERE id = ?",
                 (row_id,),
             )
 
-        with pytest.raises(aiosqlite.IntegrityError):
+        with pytest.raises(DatabaseError):
             await db.execute(
                 "DELETE FROM review_events WHERE id = ?", (row_id,)
             )
@@ -38,10 +36,7 @@ async def test_review_events_append_only(runtime_sandbox):
 @pytest.mark.asyncio
 async def test_record_on_approve(runtime_sandbox):
     """Event is recorded with from/to values."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+    async with database_connection() as db:
 
         await events.record(
             db,
@@ -72,10 +67,7 @@ async def test_record_on_approve(runtime_sandbox):
 @pytest.mark.asyncio
 async def test_record_with_detail(runtime_sandbox):
     """detail_json round-trips correctly."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+    async with database_connection() as db:
 
         import json
         detail = {"disposition": "source_defect", "note": "PDF is garbled"}

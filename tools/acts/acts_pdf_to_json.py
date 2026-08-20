@@ -32,7 +32,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from acts_ingest import run
+from acts_ingest import run  # noqa: E402 (sys.path bootstrap above)
 
 
 def main(argv=None) -> int:

@@ -1,4 +1,4 @@
-"""Content-addressed storage for the PDF and JSON blobs under ``UPLOAD_DIR``.
+"""Content-addressed filesystem and private S3 storage.
 
 A source PDF never changes, so it is stored once under its own sha256 and shared by
 every row that points at it; only the JSON is versioned.  Names are stored *relative*
@@ -17,15 +17,275 @@ import hashlib
 import os
 import re
 import shutil
-from typing import Optional
+from collections.abc import Iterator
+from dataclasses import dataclass
+from typing import Optional, Protocol
 
-import aiosqlite
+import boto3
+from botocore.client import Config
+from botocore.exceptions import ClientError
 
 from backend import runtime
+from backend.database import DatabaseConnection
 
-SUFFIXES = {"pdf": ".pdf", "json": ".json"}
-_BLOB_NAME_RE = re.compile(r"^(pdf|json)/[0-9a-f]{64}\.(pdf|json)$")
+SUFFIXES = {"pdf": ".pdf", "json": ".json", "evidence": ".zip", "render": ".png"}
+_BLOB_NAME_RE = re.compile(r"^(pdf|json|evidence|render)/[0-9a-f]{64}\.(pdf|json|zip|png)$")
 _CHUNK = 1024 * 1024
+
+
+@dataclass(frozen=True)
+class BlobStat:
+    size: int
+    etag: str
+    content_type: str
+
+
+class StorageBackend(Protocol):
+    def ready(self) -> None: ...
+
+    def put_bytes(self, key: str, data: bytes, *, content_type: str) -> None: ...
+
+    def put_file(self, key: str, source: str | os.PathLike, *, content_type: str) -> None: ...
+
+    def exists(self, key: str) -> bool: ...
+
+    def stat(self, key: str) -> BlobStat: ...
+
+    def read_range(self, key: str, start: int, end: int) -> bytes: ...
+
+    def iter_range(self, key: str, start: int, end: int) -> Iterator[bytes]: ...
+
+    def delete(self, key: str) -> bool: ...
+
+    def copy(self, source_key: str, destination_key: str, *, content_type: str) -> None: ...
+
+    def materialize(self, key: str) -> str: ...
+
+
+def _content_type(kind_or_key: str) -> str:
+    if kind_or_key == "pdf" or kind_or_key.endswith(".pdf"):
+        return "application/pdf"
+    if kind_or_key == "evidence" or kind_or_key.endswith(".zip"):
+        return "application/zip"
+    if kind_or_key == "render" or kind_or_key.endswith(".png"):
+        return "image/png"
+    return "application/json"
+
+
+class FilesystemStorage:
+    def ready(self) -> None:
+        os.makedirs(upload_root(), exist_ok=True)
+        if not os.access(upload_root(), os.R_OK | os.W_OK):
+            raise RuntimeError("filesystem blob root is not readable and writable")
+
+    def _path(self, key: str) -> str:
+        return os.path.join(upload_root(), key)
+
+    def put_bytes(self, key: str, data: bytes, *, content_type: str) -> None:
+        del content_type
+        _commit(self._path(key), lambda staged: _write_bytes(staged, data))
+
+    def put_file(self, key: str, source: str | os.PathLike, *, content_type: str) -> None:
+        del content_type
+        _commit(self._path(key), lambda staged: shutil.copy2(source, staged))
+
+    def exists(self, key: str) -> bool:
+        return usable(self._path(key))
+
+    def stat(self, key: str) -> BlobStat:
+        path = self._path(key)
+        if not usable(path):
+            raise FileNotFoundError(key)
+        return BlobStat(os.path.getsize(path), sha256_file(path), _content_type(key))
+
+    def read_range(self, key: str, start: int, end: int) -> bytes:
+        path = self._path(key)
+        with open(path, "rb") as source:
+            source.seek(start)
+            return source.read(end - start + 1)
+
+    def iter_range(self, key: str, start: int, end: int) -> Iterator[bytes]:
+        remaining = end - start + 1
+        with open(self._path(key), "rb") as source:
+            source.seek(start)
+            while remaining:
+                chunk = source.read(min(_CHUNK, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+                yield chunk
+
+    def delete(self, key: str) -> bool:
+        path = self._path(key)
+        if not os.path.exists(path):
+            return False
+        os.remove(path)
+        return True
+
+    def copy(self, source_key: str, destination_key: str, *, content_type: str) -> None:
+        del content_type
+        _commit(self._path(destination_key), lambda staged: shutil.copy2(self._path(source_key), staged))
+
+    def materialize(self, key: str) -> str:
+        return self._path(key)
+
+
+class S3Storage:
+    """Private S3-compatible storage, including Northflank's MinIO addon."""
+
+    def __init__(self) -> None:
+        endpoint = os.environ.get("S3_ENDPOINT_URL", "").strip()
+        if not endpoint:
+            raise RuntimeError("S3_ENDPOINT_URL is required when STORAGE_BACKEND=s3")
+        self.bucket = os.environ.get("S3_BUCKET", "crx-blobs")
+        self.client = boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=os.environ.get("S3_ACCESS_KEY_ID") or os.environ.get("MINIO_ACCESS_KEY"),
+            aws_secret_access_key=os.environ.get("S3_SECRET_ACCESS_KEY") or os.environ.get("MINIO_SECRET_KEY"),
+            region_name=os.environ.get("S3_REGION", "us-east-1"),
+            config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+        )
+
+    def ready(self) -> None:
+        self.client.head_bucket(Bucket=self.bucket)
+
+    def put_bytes(self, key: str, data: bytes, *, content_type: str) -> None:
+        if self.exists(key):
+            return
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=data,
+            ContentType=content_type,
+            CacheControl="public, max-age=31536000, immutable",
+            Metadata={"sha256": _digest_from_key(key)},
+        )
+
+    def put_file(self, key: str, source: str | os.PathLike, *, content_type: str) -> None:
+        if self.exists(key):
+            return
+        with open(source, "rb") as body:
+            self.client.upload_fileobj(
+                body,
+                self.bucket,
+                key,
+                ExtraArgs={
+                    "ContentType": content_type,
+                    "CacheControl": "public, max-age=31536000, immutable",
+                    "Metadata": {"sha256": _digest_from_key(key)},
+                },
+            )
+
+    def exists(self, key: str) -> bool:
+        try:
+            self.client.head_object(Bucket=self.bucket, Key=key)
+            return True
+        except ClientError as exc:
+            if exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 404:
+                return False
+            raise
+
+    def stat(self, key: str) -> BlobStat:
+        try:
+            response = self.client.head_object(Bucket=self.bucket, Key=key)
+        except ClientError as exc:
+            if exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 404:
+                raise FileNotFoundError(key) from exc
+            raise
+        digest = response.get("Metadata", {}).get("sha256") or _digest_from_key(key)
+        return BlobStat(
+            int(response["ContentLength"]),
+            digest,
+            response.get("ContentType") or _content_type(key),
+        )
+
+    def read_range(self, key: str, start: int, end: int) -> bytes:
+        response = self.client.get_object(
+            Bucket=self.bucket,
+            Key=key,
+            Range=f"bytes={start}-{end}",
+        )
+        return response["Body"].read()
+
+    def iter_range(self, key: str, start: int, end: int) -> Iterator[bytes]:
+        response = self.client.get_object(
+            Bucket=self.bucket,
+            Key=key,
+            Range=f"bytes={start}-{end}",
+        )
+        body = response["Body"]
+        try:
+            yield from body.iter_chunks(chunk_size=_CHUNK)
+        finally:
+            body.close()
+
+    def delete(self, key: str) -> bool:
+        if not self.exists(key):
+            return False
+        self.client.delete_object(Bucket=self.bucket, Key=key)
+        cached = os.path.join(upload_root(), ".cache", key)
+        if os.path.isfile(cached):
+            os.remove(cached)
+        return True
+
+    def copy(self, source_key: str, destination_key: str, *, content_type: str) -> None:
+        if self.exists(destination_key):
+            return
+        self.client.copy_object(
+            Bucket=self.bucket,
+            Key=destination_key,
+            CopySource={"Bucket": self.bucket, "Key": source_key},
+            ContentType=content_type,
+            CacheControl="public, max-age=31536000, immutable",
+            Metadata={"sha256": _digest_from_key(destination_key)},
+            MetadataDirective="REPLACE",
+        )
+
+    def materialize(self, key: str) -> str:
+        destination = os.path.join(upload_root(), ".cache", key)
+        if usable(destination):
+            return destination
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+        staged = f"{destination}.{os.getpid()}.staging"
+        try:
+            self.client.download_file(self.bucket, key, staged)
+            os.replace(staged, destination)
+        finally:
+            if os.path.exists(staged):
+                os.remove(staged)
+        return destination
+
+
+_storage: StorageBackend | None = None
+_storage_signature: tuple[str, ...] | None = None
+
+
+def get_storage() -> StorageBackend:
+    global _storage, _storage_signature
+    backend = os.environ.get("STORAGE_BACKEND", "filesystem").strip().lower()
+    signature = (
+        backend,
+        upload_root(),
+        os.environ.get("S3_ENDPOINT_URL", ""),
+        os.environ.get("S3_BUCKET", "crx-blobs"),
+        os.environ.get("S3_ACCESS_KEY_ID", ""),
+        os.environ.get("MINIO_ACCESS_KEY", ""),
+    )
+    if _storage is None or signature != _storage_signature:
+        if backend == "filesystem":
+            _storage = FilesystemStorage()
+        elif backend == "s3":
+            _storage = S3Storage()
+        else:
+            raise RuntimeError(f"unsupported STORAGE_BACKEND: {backend}")
+        _storage_signature = signature
+    return _storage
+
+
+def _digest_from_key(key: str) -> str:
+    match = _BLOB_NAME_RE.match(key or "")
+    return key.split("/", 1)[1].split(".", 1)[0] if match else hashlib.sha256(key.encode()).hexdigest()
 
 
 def upload_root() -> str:
@@ -33,8 +293,8 @@ def upload_root() -> str:
 
 
 def blob_path(rel_name: str) -> str:
-    """Absolute path for a stored name. Also accepts legacy flat names."""
-    return os.path.join(upload_root(), rel_name)
+    """Materialize a stored name and return a local path for parser compatibility."""
+    return get_storage().materialize(rel_name)
 
 
 def is_blob_name(name: str) -> bool:
@@ -91,7 +351,7 @@ def store_bytes(data: bytes, kind: str) -> str:
     if kind not in SUFFIXES:
         raise ValueError(f"unknown blob kind: {kind}")
     name = rel_name(kind, sha256_bytes(data))
-    _commit(blob_path(name), lambda staged: _write_bytes(staged, data))
+    get_storage().put_bytes(name, data, content_type=_content_type(kind))
     return name
 
 
@@ -100,7 +360,7 @@ def store_file(source: str | os.PathLike, kind: str) -> str:
     if kind not in SUFFIXES:
         raise ValueError(f"unknown blob kind: {kind}")
     name = rel_name(kind, sha256_file(source))
-    _commit(blob_path(name), lambda staged: shutil.copy2(source, staged))
+    get_storage().put_file(name, source, content_type=_content_type(kind))
     return name
 
 
@@ -116,7 +376,7 @@ async def store_upload(upload, kind: str) -> str:
     """
     if kind not in SUFFIXES:
         raise ValueError(f"unknown blob kind: {kind}")
-    directory = os.path.join(upload_root(), kind)
+    directory = os.path.join(upload_root(), ".staging", kind)
     os.makedirs(directory, exist_ok=True)
     staged = os.path.join(directory, f".incoming.{os.getpid()}.{id(upload):x}")
     digest = hashlib.sha256()
@@ -131,11 +391,8 @@ async def store_upload(upload, kind: str) -> str:
             target.flush()
             os.fsync(target.fileno())
         name = rel_name(kind, digest.hexdigest())
-        destination = blob_path(name)
-        if usable(destination):
-            os.remove(staged)      # already stored; the upload was a duplicate
-        else:
-            os.replace(staged, destination)
+        get_storage().put_file(name, staged, content_type=_content_type(kind))
+        os.remove(staged)
         return name
     except BaseException:
         if os.path.exists(staged):
@@ -151,7 +408,7 @@ def _write_bytes(path: str, data: bytes) -> None:
 
 
 async def is_referenced(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     name: str,
     *,
     ignore_document_id: Optional[str] = None,
@@ -182,7 +439,7 @@ async def is_referenced(
 
 
 async def unlink_if_unreferenced(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     name: Optional[str],
     *,
     ignore_document_id: Optional[str] = None,
@@ -192,14 +449,10 @@ async def unlink_if_unreferenced(
         return False
     if await is_referenced(db, name, ignore_document_id=ignore_document_id):
         return False
-    path = blob_path(name)
     try:
-        if os.path.exists(path):
-            os.remove(path)
-            return True
+        return get_storage().delete(name)
     except OSError:
-        pass
-    return False
+        return False
 
 
 def demo() -> None:

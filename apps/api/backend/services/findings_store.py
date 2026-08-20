@@ -7,8 +7,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-import aiosqlite
-
+from backend.database import DatabaseConnection
 from backend.services.detectors import DETECTOR_VERSION, Finding
 from backend.services.disposition import normalize_finding_triage
 
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 async def upsert_findings(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     findings: List[Tuple[str, str, Finding]],
     *,
     run_started_at: Optional[str] = None,
@@ -72,7 +71,7 @@ async def upsert_findings(
 
 
 async def close_stale(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     run_started_at: str,
     *,
     detector: Optional[str] = None,
@@ -96,7 +95,7 @@ async def close_stale(
 
 
 async def triage_finding(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     finding_id: int,
     *,
     triage: str,
@@ -127,7 +126,7 @@ async def triage_finding(
 
 
 async def list_findings(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     *,
     triage: Optional[str] = None,
     detector: Optional[str] = None,
@@ -168,7 +167,7 @@ async def list_findings(
         return [dict(row) for row in await cursor.fetchall()]
 
 
-async def seed_from_quality_flags(db: aiosqlite.Connection) -> Dict[str, int]:
+async def seed_from_quality_flags(db: DatabaseConnection) -> Dict[str, int]:
     """Create findings from existing quality_flags on sections."""
     now = datetime.now(timezone.utc).isoformat()
     async with db.execute(
@@ -218,7 +217,7 @@ async def seed_from_quality_flags(db: aiosqlite.Connection) -> Dict[str, int]:
 
 
 async def run_detectors_and_store(
-    db: aiosqlite.Connection, *, seed_flags: bool = True
+    db: DatabaseConnection, *, seed_flags: bool = True
 ) -> Dict[str, Any]:
     """Run corpus detectors, upsert findings, close stale, optionally seed flags."""
     from backend.services.detectors import run_all
@@ -241,7 +240,7 @@ async def run_detectors_and_store(
 
 # Back-compat alias used by routes
 async def set_triage(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     finding_id: int,
     triage: str,
     *,

@@ -3,14 +3,13 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 
-from backend.database import get_db
+from backend.database import DatabaseConnection, get_db
 from backend.deps import require_reviewer
 from backend.models import AnnotationCreate, AnnotationResponse, AnnotationUpdate
-from backend.services import events
+from backend.services import events, review_state
 from backend.services.disposition import normalize_disposition
 
 logger = logging.getLogger(__name__)
@@ -47,7 +46,7 @@ def _annotation_from_row(r) -> AnnotationResponse:
 
 
 @router.get("/sections/{section_id}/annotations", response_model=list[AnnotationResponse])
-async def list_annotations(section_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def list_annotations(section_id: str, db: DatabaseConnection = Depends(get_db)):
     async with db.execute("SELECT 1 FROM sections WHERE id = ?", (section_id,)) as cursor:
         if not await cursor.fetchone():
             raise HTTPException(status_code=404, detail="Section not found")
@@ -71,16 +70,43 @@ async def list_annotations(section_id: str, db: aiosqlite.Connection = Depends(g
 async def create_annotation(
     section_id: str,
     body: AnnotationCreate,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
-    async with db.execute("SELECT document_id FROM sections WHERE id = ?", (section_id,)) as cursor:
+    async with db.execute(
+        "SELECT document_id, plain_text FROM sections WHERE id = ? FOR UPDATE",
+        (section_id,),
+    ) as cursor:
         row = await cursor.fetchone()
 
     if not row:
         raise HTTPException(status_code=404, detail="Section not found")
 
     doc_id = row["document_id"]
+    anchor_text = row["plain_text"] or ""
+    if body.footnote_id:
+        async with db.execute(
+            "SELECT section_id, text FROM footnotes WHERE id = ?",
+            (body.footnote_id,),
+        ) as cursor:
+            footnote = await cursor.fetchone()
+        if not footnote or footnote["section_id"] != section_id:
+            raise HTTPException(
+                status_code=400,
+                detail="footnote_id must belong to the target section",
+            )
+        anchor_text = footnote["text"] or ""
+    if body.start_offset < 0 or body.end_offset <= body.start_offset or body.end_offset > len(anchor_text):
+        raise HTTPException(status_code=400, detail="annotation offsets are outside rendered text")
+    if anchor_text[body.start_offset : body.end_offset] != body.highlighted_text:
+        raise HTTPException(
+            status_code=400,
+            detail="highlighted_text does not match rendered text at the supplied offsets",
+        )
+    try:
+        disposition = normalize_disposition(body.disposition)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     version_id = await events.active_version_id(db, doc_id)
     annotation_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
@@ -94,25 +120,17 @@ async def create_annotation(
                 issue_description, severity, created_at, reviewer_name, status,
                 anchor_status, created_version_id, disposition
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'anchored', ?, 'open')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'anchored', ?, ?)
             """,
             (
                 annotation_id, doc_id, section_id, body.footnote_id,
                 body.highlighted_text, body.context_before, body.context_after,
                 body.start_offset, body.end_offset,
                 body.issue_description, body.severity, created_at,
-                body.reviewer_name, "open", version_id,
+                actor, "open", version_id, disposition,
             ),
         )
-
-        await db.execute(
-            "UPDATE sections SET review_status = 'has_issues' WHERE id = ?",
-            (section_id,),
-        )
-        await db.execute(
-            "UPDATE documents SET status = 'in_progress' WHERE id = ? AND status != 'in_progress'",
-            (doc_id,),
-        )
+        await review_state.refresh_section(db, section_id)
 
         await events.record(
             db,
@@ -144,10 +162,10 @@ async def create_annotation(
         issue_description=body.issue_description,
         severity=body.severity,
         created_at=created_at,
-        reviewer_name=body.reviewer_name,
+        reviewer_name=actor,
         status="open",
         anchor_status="anchored",
-        disposition="open",
+        disposition=disposition,
     )
 
 
@@ -155,7 +173,7 @@ async def create_annotation(
 async def update_annotation(
     annotation_id: str,
     body: AnnotationUpdate,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
     async with db.execute("SELECT * FROM annotations WHERE id = ?", (annotation_id,)) as cursor:
@@ -201,24 +219,8 @@ async def update_annotation(
             (issue_description, severity, status_val, anchor_status, disposition, annotation_id),
         )
 
-        if body.status is not None and existing["section_id"] is not None:
-            section_id = existing["section_id"]
-            if status_val == "open":
-                await db.execute(
-                    "UPDATE sections SET review_status = 'has_issues' WHERE id = ?",
-                    (section_id,),
-                )
-            elif status_val == "resolved":
-                async with db.execute(
-                    "SELECT COUNT(*) FROM annotations WHERE section_id = ? AND status = 'open'",
-                    (section_id,),
-                ) as cursor:
-                    open_count_r = await cursor.fetchone()
-                if open_count_r[0] == 0:
-                    await db.execute(
-                        "UPDATE sections SET review_status = 'pending' WHERE id = ? AND review_status = 'has_issues'",
-                        (section_id,),
-                    )
+        if existing["section_id"] is not None:
+            await review_state.refresh_section(db, existing["section_id"])
 
         version_id = await events.active_version_id(db, existing["document_id"])
         await events.record(
@@ -264,7 +266,7 @@ async def update_annotation(
 @router.delete("/annotations/{annotation_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_annotation(
     annotation_id: str,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
     query = """
@@ -284,39 +286,7 @@ async def delete_annotation(
         await db.execute("DELETE FROM annotations WHERE id = ?", (annotation_id,))
 
         if section_id is not None:
-            async with db.execute(
-                "SELECT COUNT(*) FROM annotations WHERE section_id = ? AND status = 'open'",
-                (section_id,),
-            ) as cursor:
-                count_r = await cursor.fetchone()
-
-            if count_r[0] == 0:
-                await db.execute(
-                    "UPDATE sections SET review_status = 'pending' WHERE id = ? AND review_status = 'has_issues'",
-                    (section_id,),
-                )
-
-        query_pending = """
-            SELECT
-                COUNT(*) as total,
-                COUNT(CASE WHEN review_status = 'pending' THEN 1 END) as pending
-            FROM sections
-            WHERE document_id = ?
-        """
-        async with db.execute(query_pending, (doc_id,)) as cursor:
-            status_r = await cursor.fetchone()
-
-        total_sections = status_r["total"]
-        pending_sections = status_r["pending"]
-
-        if pending_sections == 0:
-            doc_status = "completed"
-        elif pending_sections == total_sections:
-            doc_status = "pending"
-        else:
-            doc_status = "in_progress"
-
-        await db.execute("UPDATE documents SET status = ? WHERE id = ?", (doc_status, doc_id))
+            await review_state.refresh_section(db, section_id)
 
         version_id = await events.active_version_id(db, doc_id)
         await events.record(
@@ -340,7 +310,7 @@ async def delete_annotation(
 
 
 @router.get("/documents/{document_id}/annotations", response_model=list[AnnotationResponse])
-async def list_document_annotations(document_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def list_document_annotations(document_id: str, db: DatabaseConnection = Depends(get_db)):
     async with db.execute("SELECT 1 FROM documents WHERE id = ?", (document_id,)) as cursor:
         if not await cursor.fetchone():
             raise HTTPException(status_code=404, detail="Document not found")

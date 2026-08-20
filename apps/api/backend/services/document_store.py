@@ -2,8 +2,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple
 
-import aiosqlite
-
+from backend.database import DatabaseConnection
 from backend.services import anchoring
 from backend.services.parse_quality import (
     has_critical_flags,
@@ -86,7 +85,7 @@ def _carries_human_qa_state(row) -> bool:
     )
 
 async def _load_annotations(
-    db: aiosqlite.Connection, document_id: str
+    db: DatabaseConnection, document_id: str
 ) -> Tuple[Dict[str, List[dict]], Dict[str, List[dict]]]:
     """Live annotations for a document, grouped by section and by footnote.
 
@@ -115,7 +114,7 @@ async def _load_annotations(
 
 
 async def _reanchor_all(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     annotations: List[dict],
     new_text: str,
     report: Carryover,
@@ -146,7 +145,7 @@ async def _reanchor_all(
 
 
 async def _orphan_annotations(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     annotations: List[dict],
     context: Dict[str, Any],
     report: Carryover,
@@ -171,7 +170,7 @@ async def _orphan_annotations(
 
 
 async def apply_parsed_document(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     document_id: str,
     sections: List[Dict[str, Any]],
     footnotes: List[Dict[str, Any]],
@@ -410,8 +409,16 @@ async def apply_parsed_document(
             report,
         )
 
-    for section, final_id, review_status, _changed in resolved_sections:
+    for section, final_id, review_status, changed in resolved_sections:
         quality_flags_json = serialize_quality_flags(section.get("quality_flags"))
+        effective_status = "blocked" if review_status == "has_issues" else review_status
+        reviewer_verdict = "pending"
+        if not changed and final_id in existing_section_ids:
+            existing_row = next(row for row in existing_sections if row["id"] == final_id)
+            reviewer_verdict = existing_row.get("reviewer_verdict") or (
+                "approved" if review_status == "approved" else "pending"
+            )
+        diagnostics_json = json.dumps(section.get("sanitizer_diagnostics") or [])
         if final_id in existing_section_ids:
             await db.execute(
                 """
@@ -423,7 +430,9 @@ async def apply_parsed_document(
                     start_page = ?, end_page = ?,
                     html_content = ?, plain_text = ?,
                     sort_order = ?, review_status = ?, source_key = ?,
-                    quality_flags = ?, hierarchy_kind = ?
+                    quality_flags = ?, hierarchy_kind = ?, reviewer_verdict = ?,
+                    effective_status = ?, sanitizer_version = ?, sanitized_changed = ?,
+                    sanitizer_diagnostics = CAST(? AS jsonb)
                 WHERE id = ?
                 """,
                 (
@@ -444,6 +453,11 @@ async def apply_parsed_document(
                     section["source_key"],
                     quality_flags_json,
                     section.get("hierarchy_kind"),
+                    reviewer_verdict,
+                    effective_status,
+                    section.get("sanitizer_version"),
+                    bool(section.get("sanitized_changed")),
+                    diagnostics_json,
                     final_id,
                 ),
             )
@@ -455,8 +469,11 @@ async def apply_parsed_document(
                     part_code, part_heading, division_code, division_heading,
                     section_code, section_heading, start_page, end_page,
                     html_content, plain_text, sort_order, review_status,
-                    source_key, quality_flags, hierarchy_kind
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    source_key, quality_flags, hierarchy_kind, reviewer_verdict,
+                    effective_status, sanitizer_version, sanitized_changed,
+                    sanitizer_diagnostics
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                          ?, ?, ?, ?, CAST(? AS jsonb))
                 """,
                 (
                     final_id,
@@ -478,17 +495,24 @@ async def apply_parsed_document(
                     section["source_key"],
                     quality_flags_json,
                     section.get("hierarchy_kind"),
+                    reviewer_verdict,
+                    effective_status,
+                    section.get("sanitizer_version"),
+                    bool(section.get("sanitized_changed")),
+                    diagnostics_json,
                 ),
             )
 
     existing_footnote_ids = {row["id"] for row in existing_footnotes}
     for footnote, final_id, final_section_id, review_status, _changed in resolved_footnotes:
+        footnote_diagnostics = json.dumps(footnote.get("sanitizer_diagnostics") or [])
         if final_id in existing_footnote_ids:
             await db.execute(
                 """
                 UPDATE footnotes SET
                     section_id = ?, marker = ?, page = ?, text = ?,
-                    html_content = ?, review_status = ?
+                    html_content = ?, review_status = ?, sanitizer_version = ?,
+                    sanitized_changed = ?, sanitizer_diagnostics = CAST(? AS jsonb)
                 WHERE id = ?
                 """,
                 (
@@ -498,6 +522,9 @@ async def apply_parsed_document(
                     footnote["text"],
                     footnote.get("html_content", ""),
                     review_status,
+                    footnote.get("sanitizer_version"),
+                    bool(footnote.get("sanitized_changed")),
+                    footnote_diagnostics,
                     final_id,
                 ),
             )
@@ -506,8 +533,9 @@ async def apply_parsed_document(
                 """
                 INSERT INTO footnotes (
                     id, section_id, marker, page, text, html_content,
-                    review_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    review_status, sanitizer_version, sanitized_changed,
+                    sanitizer_diagnostics
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb))
                 """,
                 (
                     final_id,
@@ -517,6 +545,9 @@ async def apply_parsed_document(
                     footnote["text"],
                     footnote.get("html_content", ""),
                     review_status,
+                    footnote.get("sanitizer_version"),
+                    bool(footnote.get("sanitized_changed")),
+                    footnote_diagnostics,
                 ),
             )
 
@@ -570,6 +601,8 @@ async def apply_parsed_document(
 def document_status(stats: Dict[str, int]) -> str:
     if stats["total"] == 0 or stats["pending"] == stats["total"]:
         return "pending"
+    if stats.get("has_issues", 0):
+        return "blocked"
     if stats["pending"] == 0:
-        return "completed"
+        return "approved"
     return "in_progress"

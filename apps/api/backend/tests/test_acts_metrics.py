@@ -2,9 +2,9 @@
 
 import json
 
-import aiosqlite
 import pytest
 
+from backend.database import database_connection
 from backend.services import acts_metrics
 from backend.sync_acts import run_sync
 from backend.tests.conftest import write_pair
@@ -60,8 +60,7 @@ async def test_metrics_attach_to_the_active_version(runtime_sandbox):
     await run_sync(source)
 
     reports = _reports(runtime_sandbox["root"] / "reports")
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         result = await acts_metrics.ingest(db, reports)
         await db.commit()
 
@@ -93,8 +92,7 @@ async def test_ingest_is_idempotent_and_reingests_over_itself(runtime_sandbox):
     await run_sync(source)
     reports = _reports(runtime_sandbox["root"] / "reports")
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         await acts_metrics.ingest(db, reports)
         await db.commit()
 
@@ -141,8 +139,7 @@ async def test_ingest_is_idempotent_and_reingests_over_itself(runtime_sandbox):
 
 @pytest.mark.asyncio
 async def test_absent_reports_are_a_skip_not_a_failure(runtime_sandbox):
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         result = await acts_metrics.ingest(db, runtime_sandbox["root"] / "nowhere")
     assert result["status"] == "skipped"
 
@@ -156,8 +153,7 @@ async def test_editions_without_a_portal_document_are_reported_not_dropped(
     await run_sync(source)
     reports = _reports(runtime_sandbox["root"] / "reports", stem="some other edition")
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         result = await acts_metrics.ingest(db, reports)
 
     assert result["versions_updated"] == 0
@@ -174,6 +170,6 @@ async def test_sync_can_ingest_metrics_in_the_same_run(runtime_sandbox):
     assert summary["added"] == 1
     assert summary["metrics"]["versions_updated"] == 1
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
+    async with database_connection() as db:
         async with db.execute("SELECT COUNT(*) FROM version_metrics") as cursor:
             assert (await cursor.fetchone())[0] == 1

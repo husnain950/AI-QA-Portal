@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from backend.database import get_db
+from backend.database import DatabaseConnection, get_db
 from backend.deps import require_reviewer
 from backend.services import events, variants
 
@@ -21,7 +20,7 @@ async def list_variants(
     min_size: int = Query(2, ge=1),
     limit: int = Query(200, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
 ):
     rows = await variants.get_variants(
         db, family=family, section_code=section_code, limit=limit, offset=offset
@@ -33,7 +32,7 @@ async def list_variants(
 @router.get("/{variant_key}")
 async def get_variant(
     variant_key: str,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
 ):
     members = await variants.get_variant_detail(db, variant_key)
     if not members:
@@ -67,7 +66,7 @@ async def get_variant(
 @router.post("/{variant_key}/approve")
 async def approve_variant(
     variant_key: str,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
     # Triage queue may approve 1–2 edition groups; identity still holds.
@@ -106,7 +105,7 @@ async def approve_variant(
 @router.delete("/{variant_key}/approve")
 async def revoke_variant_approval(
     variant_key: str,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
     members = await variants.get_variant_detail(db, variant_key)

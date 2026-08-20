@@ -12,7 +12,7 @@ import unicodedata
 from collections import defaultdict
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
-import aiosqlite
+from backend.database import DatabaseConnection
 
 DETECTOR_VERSION = "1"
 
@@ -72,7 +72,7 @@ def _norm_text(text: str) -> str:
 _OMIT_RE = re.compile(r"\b(omitted|repealed)\b", re.IGNORECASE)
 
 
-async def _detect_regression(db: aiosqlite.Connection) -> List[Tuple[str, str, Finding]]:
+async def _detect_regression(db: DatabaseConnection) -> List[Tuple[str, str, Finding]]:
     """Sections >=300 chars in edition N-1 that dropped to <25% in edition N."""
     async with db.execute(
         """
@@ -124,7 +124,7 @@ async def _detect_regression(db: aiosqlite.Connection) -> List[Tuple[str, str, F
     return findings
 
 
-async def _detect_heading_only(db: aiosqlite.Connection) -> List[Tuple[str, str, Finding]]:
+async def _detect_heading_only(db: DatabaseConnection) -> List[Tuple[str, str, Finding]]:
     """Sections whose body is basically just the code+heading."""
     async with db.execute(
         """
@@ -158,7 +158,7 @@ async def _detect_heading_only(db: aiosqlite.Connection) -> List[Tuple[str, str,
     return findings
 
 
-async def _detect_short_vs_siblings(db: aiosqlite.Connection) -> List[Tuple[str, str, Finding]]:
+async def _detect_short_vs_siblings(db: DatabaseConnection) -> List[Tuple[str, str, Finding]]:
     """Sections <20% of the median length among siblings in same family+code group."""
     async with db.execute(
         """
@@ -214,7 +214,7 @@ _GLYPH_SPLIT_RE = re.compile(
 )
 
 
-async def _detect_glyph_split(db: aiosqlite.Connection) -> List[Tuple[str, str, Finding]]:
+async def _detect_glyph_split(db: DatabaseConnection) -> List[Tuple[str, str, Finding]]:
     """OCR artifacts where letters are isolated by spaces."""
     async with db.execute(
         "SELECT s.id, s.document_id, s.plain_text FROM sections s"
@@ -250,7 +250,7 @@ def _html_shape(html: str) -> str:
     return hashlib.sha256(shape_str.encode()).hexdigest()
 
 
-async def _detect_markup_drift(db: aiosqlite.Connection) -> List[Tuple[str, str, Finding]]:
+async def _detect_markup_drift(db: DatabaseConnection) -> List[Tuple[str, str, Finding]]:
     """Same normalized text across editions but different HTML structure."""
     async with db.execute(
         """
@@ -317,7 +317,7 @@ _DETECTOR_FNS = {
 }
 
 
-async def run_all(db: aiosqlite.Connection) -> List[Tuple[str, str, Finding]]:
+async def run_all(db: DatabaseConnection) -> List[Tuple[str, str, Finding]]:
     """Run every detector and return (section_id, document_id, Finding) triples."""
     all_findings: List[Tuple[str, str, Finding]] = []
     for name in DETECTORS:

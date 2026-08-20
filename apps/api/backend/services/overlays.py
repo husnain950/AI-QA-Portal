@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-import aiosqlite
+from backend.database import DatabaseConnection, DatabaseRow
 
 _LEAF_SEGMENTS = {"chapters", "schedules", "parts", "divisions", "sections"}
 
@@ -112,7 +112,7 @@ def _walk(source_key: str) -> List[Tuple[str, int]]:
 
 
 async def upsert_overlay(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     *,
     pdf_sha256: str,
     section_source_key: str,
@@ -154,8 +154,8 @@ async def upsert_overlay(
 
 
 async def active_overlays(
-    db: aiosqlite.Connection, pdf_sha256: str
-) -> List[aiosqlite.Row]:
+    db: DatabaseConnection, pdf_sha256: str
+) -> List[DatabaseRow]:
     async with db.execute(
         """
         SELECT * FROM section_overlays
@@ -182,7 +182,7 @@ class OverlayReport:
 
 
 async def apply_overlays(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     pdf_sha256: str,
     json_bytes: bytes,
 ) -> Tuple[bytes, OverlayReport]:
@@ -235,7 +235,7 @@ async def apply_overlays(
 
 
 async def _mark(
-    db: aiosqlite.Connection, overlay_id: str, status: str, reason: str
+    db: DatabaseConnection, overlay_id: str, status: str, reason: str
 ) -> None:
     await db.execute(
         """
@@ -248,7 +248,7 @@ async def _mark(
 
 
 async def flag_stale_sections(
-    db: aiosqlite.Connection, document_id: str, source_keys: List[str]
+    db: DatabaseConnection, document_id: str, source_keys: List[str]
 ) -> int:
     """Re-flag sections whose overlay went stale, but never clobber a human verdict."""
     flagged = 0

@@ -8,6 +8,11 @@ requires-python = ">=3.12"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# One event loop for the whole session: the async SQLAlchemy engine pools
+# connections, and a per-test loop would hand the next test a connection bound
+# to a closed loop.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["apps/api/backend/tests"]
 pythonpath = ["apps/api", "packages"]
 
