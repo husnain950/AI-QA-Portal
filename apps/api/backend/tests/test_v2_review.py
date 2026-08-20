@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 import pytest
 
 from backend.database import database_connection
-from backend.tests.conftest import add_finding, seed_document
+from backend.tests.conftest import ADMIN_EMAIL, add_finding, seed_document
 
 DOCUMENT_ID = "doc-queue"
 
@@ -299,7 +299,9 @@ async def test_advancing_a_finding_someone_else_changed_is_a_conflict(runtime_sa
 
 
 @pytest.mark.asyncio
-async def test_another_reviewer_cannot_drive_someone_elses_session(runtime_sandbox, client):
+async def test_another_reviewer_cannot_drive_someone_elses_session(
+    runtime_sandbox, client, sign_in
+):
     async with database_connection() as db:
         ids = await _queue(db)
 
@@ -309,10 +311,10 @@ async def test_another_reviewer_cannot_drive_someone_elses_session(runtime_sandb
         )
     ).json()["id"]
 
-    response = await client.post(
+    other = await sign_in("reviewer")
+    response = await other.post(
         f"/api/v2/review-sessions/{session_id}/advance",
         json={"finding_id": ids[0], "triage": "parse_bug", "expected_prior": "new"},
-        headers={"X-Reviewer": "someone-else"},
     )
     assert response.status_code == 409
 
@@ -339,7 +341,9 @@ async def test_a_session_filter_narrows_the_queue(runtime_sandbox, client):
 
 
 @pytest.mark.asyncio
-async def test_a_lease_stops_a_second_reviewer_but_not_a_renewal(runtime_sandbox, client):
+async def test_a_lease_stops_a_second_reviewer_but_not_a_renewal(
+    runtime_sandbox, client, sign_in
+):
     async with database_connection() as db:
         ids = await _queue(db)
 
@@ -347,7 +351,7 @@ async def test_a_lease_stops_a_second_reviewer_but_not_a_renewal(runtime_sandbox
         f"/api/v2/review-assignments/{ids[0]}", json={"client_session_id": "tab-1"}
     )
     assert claimed.status_code == 200
-    assert claimed.json()["actor"] == "tester"
+    assert claimed.json()["actor"] == ADMIN_EMAIL
     assert claimed.json()["expires_at"] > _now_iso()
 
     renewed = await client.post(
@@ -356,18 +360,17 @@ async def test_a_lease_stops_a_second_reviewer_but_not_a_renewal(runtime_sandbox
     assert renewed.status_code == 200, "the holder can renew its own lease"
     assert renewed.json()["expires_at"] >= claimed.json()["expires_at"]
 
-    taken = await client.post(
-        f"/api/v2/review-assignments/{ids[0]}",
-        json={"client_session_id": "tab-2"},
-        headers={"X-Reviewer": "someone-else"},
+    other = await sign_in("reviewer")
+    taken = await other.post(
+        f"/api/v2/review-assignments/{ids[0]}", json={"client_session_id": "tab-2"}
     )
     assert taken.status_code == 409
     assert taken.json()["detail"]["code"] == "finding_leased"
-    assert taken.json()["detail"]["actor"] == "tester"
+    assert taken.json()["detail"]["actor"] == ADMIN_EMAIL
 
 
 @pytest.mark.asyncio
-async def test_an_expired_lease_can_be_taken_over(runtime_sandbox, client):
+async def test_an_expired_lease_can_be_taken_over(runtime_sandbox, client, sign_in):
     async with database_connection() as db:
         ids = await _queue(db)
 
@@ -380,10 +383,9 @@ async def test_an_expired_lease_can_be_taken_over(runtime_sandbox, client):
         )
         await db.commit()
 
-    taken = await client.post(
-        f"/api/v2/review-assignments/{ids[0]}",
-        json={"client_session_id": "tab-2"},
-        headers={"X-Reviewer": "someone-else"},
+    other = await sign_in("reviewer")
+    taken = await other.post(
+        f"/api/v2/review-assignments/{ids[0]}", json={"client_session_id": "tab-2"}
     )
     assert taken.status_code == 200
-    assert taken.json()["actor"] == "someone-else"
+    assert taken.json()["actor"] == "reviewer@crx.test"

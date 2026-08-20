@@ -1,4 +1,9 @@
-"""Attribution, IP throttling, security headers, and structured request logs."""
+"""Authentication, authorization, IP throttling, security headers, request logs.
+
+One place decides who a request is and whether its role may make it, so no route can
+be added without an access decision. Routes read the resolved principal from
+``request.state`` (see ``backend.deps.require_reviewer``) and never from a header.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +18,9 @@ from threading import Lock
 
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from backend.database import database_connection
+from backend.services import auth
 
 logger = logging.getLogger("crx.request")
 
@@ -57,6 +65,47 @@ def _client_ip(request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+# Paths anyone may reach: the login form itself, the liveness/readiness probes the
+# platform calls with no session, and the CSP report sink the browser posts to.
+PUBLIC_PATHS = frozenset({"/api/auth/login", "/api/v2/csp-reports"})
+PUBLIC_PREFIXES = ("/health",)
+
+# Corpus shape is the admin's to change: upload, delete, roll back a version, re-sync,
+# run a job, read operator diagnostics. Reviewing content — verdicts, annotations,
+# footnotes, triage, AI fixes — is the reviewer's.
+_ADMIN_SUBSTRINGS = (
+    "/uploads",
+    "/versions",
+    "/replace-json",
+    "/corpus/sync",
+    "/api/v2/jobs",
+    "/api/v2/detectors/run",
+    "/api/v2/operator",
+    "/api/v2/statute-families",
+    "/identity",
+)
+_ADMIN_READ_SUBSTRINGS = ("/api/v2/operator", "/api/v2/metrics", "/api/v2/system")
+
+
+def required_role(method: str, path: str) -> str | None:
+    """The minimum role for a request, or None when the path is public."""
+    if path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES):
+        return None
+    if method == "GET" or method == "HEAD":
+        if any(fragment in path for fragment in _ADMIN_READ_SUBSTRINGS):
+            return "admin"
+        return "reader"
+    if not path.startswith("/api"):
+        return "reader"
+    if method == "DELETE" or (method == "POST" and path == "/api/v2/documents"):
+        return "admin"
+    if any(fragment in path for fragment in _ADMIN_SUBSTRINGS):
+        return "admin"
+    if path in {"/api/auth/logout"}:
+        return "reader"
+    return "reviewer"
+
+
 def _limit_for(method: str, path: str) -> Limit:
     if "/ai-fix" in path or "/jobs/ai_proposal" in path:
         return AI
@@ -78,6 +127,24 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     def __init__(self, app) -> None:
         super().__init__(app)
         self.limiter = WindowLimiter()
+
+    @staticmethod
+    def _metrics_token(request, path: str) -> bool:
+        """A Prometheus scraper has no session, so /metrics keeps a shared-token door."""
+        expected = os.environ.get("METRICS_TOKEN", "")
+        return bool(
+            expected
+            and path == "/api/v2/metrics"
+            and request.headers.get("x-metrics-token") == expected
+        )
+
+    @staticmethod
+    async def _principal(request):
+        token = request.cookies.get(auth.SESSION_COOKIE, "")
+        if not token:
+            return None
+        async with database_connection() as db:
+            return await auth.resolve_session(db, token)
 
     async def dispatch(self, request, call_next):
         started = time.monotonic()
@@ -103,18 +170,38 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 headers={"Retry-After": str(retry_after), "X-Request-ID": request_id},
             )
 
-        attribution_exempt = path in {"/api/v2/csp-reports"}
-        if method in {"POST", "PUT", "PATCH", "DELETE"} and path.startswith("/api") and not attribution_exempt:
-            if not request.headers.get("x-reviewer", "").strip():
+        request.state.principal = None
+        request.state.actor = None
+        request.state.role = None
+        required = required_role(method, path)
+        if required is not None and not self._metrics_token(request, path):
+            principal = await self._principal(request)
+            if principal is None:
                 return JSONResponse(
-                    status_code=400,
+                    status_code=401,
                     content={
-                        "code": "reviewer_required",
-                        "detail": "X-Reviewer is required for every mutation (unverified attribution)",
+                        "code": "unauthenticated",
+                        "detail": "sign in to use this API",
                         "request_id": request_id,
                     },
                     headers={"X-Request-ID": request_id},
                 )
+            if not auth.allows(principal["role"], required):
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "code": "forbidden",
+                        "detail": f"this action needs the {required} role",
+                        "role": principal["role"],
+                        "required_role": required,
+                        "request_id": request_id,
+                    },
+                    headers={"X-Request-ID": request_id},
+                )
+            request.state.principal = principal
+            # Attribution comes from the session, never from a client-supplied header.
+            request.state.actor = principal["email"]
+            request.state.role = principal["role"]
 
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
@@ -139,7 +226,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     "path": path,
                     "status": response.status_code,
                     "duration_ms": round((time.monotonic() - started) * 1000, 2),
-                    "actor": request.headers.get("x-reviewer", "").strip() or None,
+                    "actor": getattr(request.state, "actor", None),
+                    "role": getattr(request.state, "role", None),
                     "client_ip": ip,
                 },
                 separators=(",", ":"),

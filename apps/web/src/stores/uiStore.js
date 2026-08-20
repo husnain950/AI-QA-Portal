@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getReviewerName, setReviewerName } from '../utils/reviewer';
+import { getReviewerName } from '../utils/reviewer';
 
 const getInitialTheme = () => {
     if (typeof window !== 'undefined') {
@@ -39,11 +39,9 @@ export const useUiStore = create((set, get) => {
 
         setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
         setShortcutsHelpOpen: (open) => set({ shortcutsHelpOpen: open }),
-        setReviewer: (name) => {
-            const value = setReviewerName(name);
-            set({ reviewerName: value });
-            return value;
-        },
+        // Mirror of the authenticated principal, set by App. Not editable: the server
+        // attributes every change to the session, so a typed name would be a lie.
+        setReviewerName: (name) => set({ reviewerName: name || '' }),
 
         toggleTheme: () => set((state) => {
             const newTheme = state.theme === 'light' ? 'dark' : 'light';

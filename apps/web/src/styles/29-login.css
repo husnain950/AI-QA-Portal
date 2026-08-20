@@ -1,0 +1,53 @@
+/* Sign-in screen. Rendered before the app shell exists, so it carries its own layout. */
+.login-shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: var(--bg-primary);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 28px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+}
+
+.login-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.login-subtitle {
+    margin: -8px 0 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.login-error {
+    padding: 9px 11px;
+    border: 1px solid var(--color-error, #d33);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--color-error, #d33);
+}
+
+.login-submit {
+    justify-content: center;
+    margin-top: 4px;
+}
+
+.route-loader {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    color: var(--text-secondary);
+}

@@ -1,4 +1,4 @@
-import { getReviewerName, setReviewerName } from './reviewer';
+import { setCurrentUser } from './reviewer';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 // Empty/unset in a prod build means same-origin — nginx proxies /uploads/ to the API.
@@ -6,11 +6,13 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 // viewer's PDF request to their own machine.
 const STATIC_BASE = import.meta.env.VITE_STATIC_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
-export { getReviewerName, setReviewerName };
+export { getReviewerName, getRole, hasRole } from './reviewer';
 
-function withReviewer(headers = {}) {
-    const reviewer = getReviewerName();
-    return reviewer ? { ...headers, 'X-Reviewer': reviewer } : headers;
+// Set by App so a 401 anywhere lands the reviewer on the sign-in screen instead of
+// leaving a page half-rendered with an error toast.
+let onUnauthorized = null;
+export function setUnauthorizedHandler(handler) {
+    onUnauthorized = handler;
 }
 
 // The API runs one uvicorn worker on a small compute plan, so a cold or busy container
@@ -38,9 +40,28 @@ async function request(path, options = {}) {
     try {
         const res = await fetch(`${API_BASE}${path}`, {
             ...fetchOptions,
-            headers: withReviewer(fetchOptions.headers),
+            // The session is an HttpOnly cookie; without this it is never sent.
+            credentials: 'include',
             signal: controller.signal,
         });
+        if (res.status === 401) {
+            setCurrentUser(null);
+            const payload = await res.json().catch(() => ({}));
+            if (fetchOptions.method !== 'GET' || path !== '/auth/me') onUnauthorized?.();
+            throw new ApiError(payload.detail?.message || 'Your session has ended', {
+                status: 401,
+                code: 'unauthenticated',
+                details: payload,
+            });
+        }
+        if (res.status === 403) {
+            const payload = await res.json().catch(() => ({}));
+            throw new ApiError(payload.detail || 'You do not have permission for that', {
+                status: 403,
+                code: 'forbidden',
+                details: payload,
+            });
+        }
         if (!res.ok) {
             const payload = await res.json().catch(() => ({}));
             const detail = payload.detail;
@@ -71,19 +92,20 @@ async function request(path, options = {}) {
 
 export const api = {
     async get(path, options = {}) {
+        const { retry = true, ...rest } = options;
         let res;
         try {
-            res = await request(path, { ...options, method: 'GET' });
+            res = await request(path, { ...rest, method: 'GET' });
         } catch (error) {
-            if (!error.retryable || options.signal?.aborted) throw error;
+            if (!retry || !error.retryable || options.signal?.aborted) throw error;
         }
         if (!res) {
             await new Promise((resolve) => setTimeout(resolve, 750));
-            res = await request(path, { ...options, method: 'GET' });
+            res = await request(path, { ...rest, method: 'GET' });
         }
         if (TRANSIENT.has(res.status)) {
             await new Promise((resolve) => setTimeout(resolve, 750));
-            res = await request(path, { ...options, method: 'GET' });
+            res = await request(path, { ...rest, method: 'GET' });
         }
         return res.json();
     },

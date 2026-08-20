@@ -4,6 +4,8 @@ import {
     FileText, Library, ListChecks, UploadCloud, Moon, Sun, RefreshCw, User, Keyboard, CornerDownLeft,
 } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
+import { authApi } from '../../utils/auth';
+import { hasRole } from '../../utils/reviewer';
 import { useDocumentStore } from '../../stores/documentStore';
 import { corpusApi } from '../../utils/api';
 import { editionDateFromName } from '../../utils/editions';
@@ -25,8 +27,6 @@ export default function CommandPalette() {
     const theme = useUiStore((s) => s.theme);
     const setShortcutsHelpOpen = useUiStore((s) => s.setShortcutsHelpOpen);
     const pushToast = useUiStore((s) => s.pushToast);
-    const promptDialog = useUiStore((s) => s.promptDialog);
-    const setReviewer = useUiStore((s) => s.setReviewer);
     const reviewerName = useUiStore((s) => s.reviewerName);
 
     const documents = useDocumentStore((s) => s.documents);
@@ -56,7 +56,9 @@ export default function CommandPalette() {
         const nav = [
             { key: 'nav-triage', group: 'Navigate', label: 'Go to Triage', icon: ListChecks, keywords: 'queue findings home', action: () => navigate('/') },
             { key: 'nav-library', group: 'Navigate', label: 'Go to Library', icon: Library, keywords: 'documents dashboard corpus', action: () => navigate('/library') },
-            { key: 'nav-upload', group: 'Navigate', label: 'Go to Upload', icon: UploadCloud, keywords: 'new document pdf json', action: () => navigate('/upload') },
+            ...(hasRole('admin')
+                ? [{ key: 'nav-upload', group: 'Navigate', label: 'Go to Upload', icon: UploadCloud, keywords: 'new document pdf json', action: () => navigate('/upload') }]
+                : []),
         ];
         const actions = [
             {
@@ -67,7 +69,8 @@ export default function CommandPalette() {
                 keywords: 'theme appearance',
                 action: () => toggleTheme(),
             },
-            {
+            // Re-syncing the corpus is an admin job; the API returns 403 otherwise.
+            ...(hasRole('admin') ? [{
                 key: 'act-sync',
                 group: 'Actions',
                 label: 'Sync corpus',
@@ -87,21 +90,16 @@ export default function CommandPalette() {
                         pushToast({ type: 'error', message: `Corpus sync failed: ${err.message || 'Unknown error'}` });
                     }
                 },
-            },
+            }] : []),
             {
-                key: 'act-reviewer',
+                key: 'act-signout',
                 group: 'Actions',
-                label: 'Change reviewer name',
+                label: `Sign out (${reviewerName})`,
                 icon: User,
-                keywords: 'identity attribution rename',
+                keywords: 'identity logout session leave',
                 action: async () => {
-                    const value = await promptDialog({
-                        title: 'Reviewer name',
-                        message: 'Shown on review events and notes (attribution only, not authentication).',
-                        defaultValue: reviewerName,
-                        confirmLabel: 'Save',
-                    });
-                    if (value !== null && value !== undefined) setReviewer(value);
+                    await authApi.logout();
+                    window.location.reload();
                 },
             },
             {
@@ -127,7 +125,7 @@ export default function CommandPalette() {
             };
         });
         return [...nav, ...actions, ...docs];
-    }, [documents, navigate, theme, toggleTheme, pushToast, promptDialog, setReviewer, reviewerName, setShortcutsHelpOpen]);
+    }, [documents, navigate, theme, toggleTheme, pushToast, reviewerName, setShortcutsHelpOpen]);
 
     const filtered = useMemo(
         () => commands.filter((c) => matches(query, c.label, c.sublabel, c.keywords, c.group)),

@@ -519,3 +519,33 @@ backup_runs = Table(
     Column("manifest_sha256", Text),
     Column("detail", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
 )
+
+# Authentication. Passwords are scrypt-derived (stdlib hashlib), and a session row holds
+# only the sha256 of its token, so a database read cannot resume anyone's session.
+users = Table(
+    "users",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("email", Text, nullable=False, unique=True),
+    Column("display_name", Text, nullable=False),
+    Column("password_hash", Text, nullable=False),
+    Column("password_salt", Text, nullable=False),
+    Column("role", Text, nullable=False, server_default=text("'reader'")),
+    Column("is_active", Boolean, nullable=False, server_default=text("true")),
+    Column("created_at", Text, nullable=False),
+    Column("last_login_at", Text),
+    CheckConstraint("role IN ('reader','reviewer','admin')", name="ck_users_role"),
+)
+
+user_sessions = Table(
+    "user_sessions",
+    metadata,
+    Column("token_sha", Text, primary_key=True),
+    Column("user_id", Text, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("created_at", Text, nullable=False),
+    Column("expires_at", Text, nullable=False),
+    Column("last_seen_at", Text, nullable=False),
+    Column("user_agent", Text),
+    Column("client_ip", Text),
+)
+Index("idx_user_sessions_user", user_sessions.c.user_id)

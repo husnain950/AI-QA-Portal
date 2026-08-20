@@ -12,7 +12,12 @@ import pytest
 
 from backend.database import database_connection
 from backend.services import blob_store, evidence, review_state
-from backend.tests.conftest import add_annotation, add_finding, seed_document
+from backend.tests.conftest import (
+    ADMIN_EMAIL,
+    add_annotation,
+    add_finding,
+    seed_document,
+)
 
 DOCUMENT_ID = "doc-evidence"
 SECTION_ID = "sec-evidence"
@@ -109,7 +114,9 @@ async def test_a_regression_bundle_carries_the_case_a_pipeline_fix_needs(runtime
 
 
 @pytest.mark.asyncio
-async def test_signoff_needs_every_leaf_approved_then_a_second_name(runtime_sandbox, client):
+async def test_signoff_needs_every_leaf_approved_then_a_second_name(
+    runtime_sandbox, client, sign_in
+):
     async with database_connection() as db:
         await _reviewed_document(db)
 
@@ -134,30 +141,28 @@ async def test_signoff_needs_every_leaf_approved_then_a_second_name(runtime_sand
     )
     assert same_person.status_code == 409, "one name cannot be both stages"
 
-    legal = await client.post(
-        f"/api/v2/documents/{DOCUMENT_ID}/signoff",
-        json={"stage": "legal_approved"},
-        headers={"X-Reviewer": "counsel"},
+    counsel = await sign_in("reviewer")
+    legal = await counsel.post(
+        f"/api/v2/documents/{DOCUMENT_ID}/signoff", json={"stage": "legal_approved"}
     )
     assert legal.status_code == 200
 
     status = await client.get(f"/api/v2/documents/{DOCUMENT_ID}/signoff")
     assert status.json()["signoff_stage"] == "legal_approved"
-    assert status.json()["signoff_reviewed_by"] == "tester"
-    assert status.json()["signoff_legal_by"] == "counsel"
+    assert status.json()["signoff_reviewed_by"] == ADMIN_EMAIL
+    assert status.json()["signoff_legal_by"] == "reviewer@crx.test"
 
 
 @pytest.mark.asyncio
-async def test_legal_approval_cannot_skip_the_reviewed_stage(runtime_sandbox, client):
+async def test_legal_approval_cannot_skip_the_reviewed_stage(runtime_sandbox, sign_in):
     async with database_connection() as db:
         await _reviewed_document(db)
         await review_state.set_verdict(db, SECTION_ID, "approved")
         await db.commit()
 
-    skipped = await client.post(
-        f"/api/v2/documents/{DOCUMENT_ID}/signoff",
-        json={"stage": "legal_approved"},
-        headers={"X-Reviewer": "counsel"},
+    counsel = await sign_in("reviewer")
+    skipped = await counsel.post(
+        f"/api/v2/documents/{DOCUMENT_ID}/signoff", json={"stage": "legal_approved"}
     )
     assert skipped.status_code == 409
 

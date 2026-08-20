@@ -5,13 +5,17 @@ import {
     Library, ListChecks, UploadCloud, Search, User, Keyboard,
 } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
+import { authApi } from '../../utils/auth';
+import { hasRole } from '../../utils/reviewer';
 import CommandPalette from '../ui/CommandPalette';
 import ShortcutsHelp from '../ui/ShortcutsHelp';
 
 const NAV_ITEMS = [
     { path: '/', label: 'Triage', icon: ListChecks, match: (p) => p === '/' },
     { path: '/library', label: 'Library', icon: Library, match: (p) => p.startsWith('/library') },
-    { path: '/upload', label: 'Upload', icon: UploadCloud, match: (p) => p.startsWith('/upload') },
+    // Upload changes the corpus, so it is the admin's. The server refuses it either
+    // way; hiding the tab keeps a reviewer from walking into a 403.
+    { path: '/upload', label: 'Upload', icon: UploadCloud, match: (p) => p.startsWith('/upload'), role: 'admin' },
 ];
 
 const AppShell = ({
@@ -27,7 +31,6 @@ const AppShell = ({
     const location = useLocation();
     const { theme, toggleTheme, sidebarOpen, toggleSidebar } = useUiStore();
     const reviewerName = useUiStore((s) => s.reviewerName);
-    const setReviewer = useUiStore((s) => s.setReviewer);
     const setCommandPaletteOpen = useUiStore((s) => s.setCommandPaletteOpen);
     const setShortcutsHelpOpen = useUiStore((s) => s.setShortcutsHelpOpen);
     const promptDialog = useUiStore((s) => s.promptDialog);
@@ -55,14 +58,16 @@ const AppShell = ({
         return () => window.removeEventListener('keydown', onKey);
     }, [setCommandPaletteOpen, setShortcutsHelpOpen]);
 
-    const changeReviewer = async () => {
-        const value = await promptDialog({
-            title: 'Reviewer name',
-            message: 'Shown on review events and notes (attribution only, not authentication).',
-            defaultValue: reviewerName,
-            confirmLabel: 'Save',
+    const signOut = async () => {
+        const confirmed = await promptDialog({
+            title: 'Sign out',
+            message: `Signed in as ${reviewerName}. Sign out of this browser?`,
+            confirmLabel: 'Sign out',
+            confirmOnly: true,
         });
-        if (value !== null && value !== undefined) setReviewer(value);
+        if (confirmed === null || confirmed === undefined) return;
+        await authApi.logout();
+        window.location.reload();
     };
 
     return (
@@ -99,7 +104,8 @@ const AppShell = ({
                         <span>PDF-QA</span>
                     </button>
                     <nav className="top-nav" aria-label="Primary">
-                        {NAV_ITEMS.map(({ path, label, icon: Icon, match }) => (
+                        {NAV_ITEMS.filter(({ role }) => !role || hasRole(role))
+                            .map(({ path, label, icon: Icon, match }) => (
                             <button
                                 key={path}
                                 type="button"
@@ -130,11 +136,11 @@ const AppShell = ({
                     <button
                         type="button"
                         className="reviewer-chip"
-                        onClick={changeReviewer}
-                        title="Reviewer attribution — click to change"
+                        onClick={signOut}
+                        title="Signed in — click to sign out"
                     >
                         <User size={13} aria-hidden="true" />
-                        <span>{reviewerName || 'Set reviewer'}</span>
+                        <span>{reviewerName || 'Signed in'}</span>
                     </button>
                     <button
                         className="btn btn-ghost btn-icon"

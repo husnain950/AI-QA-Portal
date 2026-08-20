@@ -13,7 +13,7 @@ from pypdf import PdfWriter
 
 from backend.database import database_connection
 from backend.services import blob_store
-from backend.tests.conftest import sample_document
+from backend.tests.conftest import ADMIN_EMAIL, sample_document
 
 
 def _pdf(pages=3) -> bytes:
@@ -59,7 +59,7 @@ async def test_preflight_reports_what_it_actually_counted(runtime_sandbox, clien
             (body["token"],),
         ) as cursor:
             staged = dict(await cursor.fetchone())
-    assert staged["created_by"] == "tester"
+    assert staged["created_by"] == ADMIN_EMAIL
     assert staged["committed_at"] is None
     storage = blob_store.get_storage()
     assert storage.exists(staged["pdf_key"]) and storage.exists(staged["json_key"])
@@ -135,7 +135,7 @@ async def test_commit_creates_the_document_and_burns_the_token(runtime_sandbox, 
             "SELECT pdf_key, json_key FROM upload_staging WHERE token = ?", (token,)
         ) as cursor:
             staged = dict(await cursor.fetchone())
-    assert versions == [{"version_no": 1, "is_active": True, "created_by": "tester"}]
+    assert versions == [{"version_no": 1, "is_active": True, "created_by": ADMIN_EMAIL}]
 
     storage = blob_store.get_storage()
     assert not storage.exists(staged["pdf_key"]), "staging is cleaned up after the commit"
@@ -167,9 +167,14 @@ async def test_committing_an_unknown_or_expired_token_fails_clearly(runtime_sand
 
 
 @pytest.mark.asyncio
-async def test_a_mutation_without_attribution_is_refused(runtime_sandbox, client):
-    response = await client.post(
-        "/api/v2/uploads/preflight", files=_files(), headers={"X-Reviewer": ""}
-    )
-    assert response.status_code == 400
-    assert response.json()["code"] == "reviewer_required"
+async def test_uploading_needs_a_session_and_the_admin_role(
+    runtime_sandbox, anonymous, sign_in
+):
+    unauthenticated = await anonymous.post("/api/v2/uploads/preflight", files=_files())
+    assert unauthenticated.status_code == 401
+    assert unauthenticated.json()["code"] == "unauthenticated"
+
+    reviewer = await sign_in("reviewer")
+    forbidden = await reviewer.post("/api/v2/uploads/preflight", files=_files())
+    assert forbidden.status_code == 403
+    assert forbidden.json()["required_role"] == "admin"

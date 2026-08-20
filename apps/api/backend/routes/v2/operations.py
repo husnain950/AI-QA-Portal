@@ -6,7 +6,7 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import PlainTextResponse
 
 from backend.database import DatabaseConnection, get_db
@@ -15,12 +15,6 @@ from backend.services import jobs
 from backend.services.detectors import DETECTOR_VERSION
 
 router = APIRouter(tags=["v2-operations"])
-
-
-def _operator(token: str | None) -> None:
-    expected = os.environ.get("METRICS_TOKEN", "")
-    if not expected or token != expected:
-        raise HTTPException(status_code=404, detail="not found")
 
 
 @router.get("/system")
@@ -99,10 +93,8 @@ async def run_detectors(
 @router.get("/operator/audit-events")
 async def audit_events(
     limit: int = Query(100, ge=1, le=1000),
-    x_metrics_token: str | None = Header(None, alias="X-Metrics-Token"),
     db: DatabaseConnection = Depends(get_db),
 ):
-    _operator(x_metrics_token)
     async with db.execute(
         "SELECT * FROM review_events ORDER BY id DESC LIMIT ?", (limit,)
     ) as cur:
@@ -111,20 +103,16 @@ async def audit_events(
 
 @router.get("/operator/backups")
 async def backup_status(
-    x_metrics_token: str | None = Header(None, alias="X-Metrics-Token"),
     db: DatabaseConnection = Depends(get_db),
 ):
-    _operator(x_metrics_token)
     async with db.execute("SELECT * FROM backup_runs ORDER BY started_at DESC LIMIT 100") as cur:
         return {"items": [dict(row) for row in await cur.fetchall()]}
 
 
 @router.get("/metrics", response_class=PlainTextResponse)
 async def metrics(
-    x_metrics_token: str | None = Header(None, alias="X-Metrics-Token"),
     db: DatabaseConnection = Depends(get_db),
 ):
-    _operator(x_metrics_token)
     async with db.execute("SELECT state, COUNT(*) AS count FROM jobs GROUP BY state") as cur:
         jobs = {row["state"]: int(row["count"]) for row in await cur.fetchall()}
     async with db.execute("SELECT status, COUNT(*) AS count FROM documents GROUP BY status") as cur:

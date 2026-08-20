@@ -8,7 +8,6 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
     const [issueDescription, setIssueDescription] = useState('');
     const [severity, setSeverity] = useState('error'); // 'error' | 'warning' | 'info'
     const reviewerName = useUiStore((state) => state.reviewerName);
-    const setReviewerName = useUiStore((state) => state.setReviewer);
     const [disposition, setDisposition] = useState('open');
     const [clampedLeft, setClampedLeft] = useState(null);
 
@@ -42,7 +41,7 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
 
     const handleSave = (e) => {
         e.preventDefault();
-        if (!issueDescription.trim() || !reviewerName.trim()) return;
+        if (!issueDescription.trim()) return;
 
         onSave({
             issueDescription: issueDescription.trim(),
@@ -119,18 +118,9 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
                     />
                 </div>
 
-                <div className="form-group">
-                    <label className="form-label" htmlFor="annotation-reviewer">Reviewer initials</label>
-                    <input
-                        id="annotation-reviewer"
-                        type="text"
-                        className="form-input"
-                        placeholder="e.g. QA-1"
-                        value={reviewerName}
-                        onChange={(e) => setReviewerName(e.target.value)}
-                        required
-                    />
-                </div>
+                <p className="annotation-attribution">
+                    Filed as <strong>{reviewerName}</strong>
+                </p>
 
                 <div className="form-actions">
                     <button
@@ -145,7 +135,7 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
                     <button
                         type="submit"
                         className="btn btn-sm btn-primary"
-                        disabled={!issueDescription.trim() || !reviewerName.trim()}
+                        disabled={!issueDescription.trim()}
                     >
                         <Check size={14} />
                         <span>Save</span>

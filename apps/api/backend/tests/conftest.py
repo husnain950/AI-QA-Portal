@@ -21,6 +21,7 @@ from sqlalchemy import create_engine, text
 import backend.database as database
 import backend.db_schema as db_schema
 import backend.runtime as runtime
+from backend.services import auth
 
 
 def _test_database_url() -> str:
@@ -55,6 +56,9 @@ def test_database_url() -> str:
     os.environ["DATABASE_URL"] = url
     os.environ["STORAGE_BACKEND"] = "filesystem"
     os.environ["RATE_LIMITS"] = "off"
+    # ASGITransport speaks http://testserver, and a Secure cookie is never sent
+    # back over http, so the session would be dropped after every login.
+    os.environ["INSECURE_COOKIES"] = "1"
     command.upgrade(database._alembic_config(), "head")
     return url
 
@@ -297,9 +301,28 @@ async def runtime_sandbox(monkeypatch, tmp_path):
     return {"upload_dir": upload_dir, "root": tmp_path}
 
 
+TEST_PASSWORD = "correct-horse-battery-staple"
+ADMIN_EMAIL = "tester@crx.test"
+
+
 @pytest_asyncio.fixture
-async def client(runtime_sandbox):
-    """HTTP access to the real app, middleware included.
+async def accounts(runtime_sandbox):
+    """One account per role. Emails double as the actor names in the audit trail."""
+    created = {}
+    async with database.database_connection() as db:
+        for role in ("reader", "reviewer", "admin"):
+            email = ADMIN_EMAIL if role == "admin" else f"{role}@crx.test"
+            await auth.create_user(
+                db, email=email, display_name=role, password=TEST_PASSWORD, role=role
+            )
+            created[role] = email
+        await db.commit()
+    return created
+
+
+@pytest_asyncio.fixture
+async def sign_in(accounts):
+    """Factory: an HTTP session logged in as the given role.
 
     ASGITransport keeps the app on this test's event loop, so it shares the one async
     engine; TestClient would run it on a thread of its own and hand the same pooled
@@ -307,13 +330,40 @@ async def client(runtime_sandbox):
     """
     from backend.main import app
 
-    transport = httpx.ASGITransport(app=app)
+    sessions = []
+
+    async def _sign_in(role: str = "admin", *, email: str | None = None):
+        session = httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        )
+        sessions.append(session)
+        response = await session.post(
+            "/api/auth/login",
+            json={"email": email or accounts[role], "password": TEST_PASSWORD},
+        )
+        assert response.status_code == 200, response.text
+        return session
+
+    yield _sign_in
+    for session in sessions:
+        await session.aclose()
+
+
+@pytest_asyncio.fixture
+async def anonymous(runtime_sandbox):
+    """An HTTP session with no cookie, for checking that a route is not public."""
+    from backend.main import app
+
     async with httpx.AsyncClient(
-        transport=transport,
-        base_url="http://testserver",
-        headers={"X-Reviewer": "tester"},
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as session:
         yield session
+
+
+@pytest_asyncio.fixture
+async def client(sign_in):
+    """The default HTTP session: signed in as an admin."""
+    return await sign_in("admin")
 
 
 @pytest_asyncio.fixture

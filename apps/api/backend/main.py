@@ -12,6 +12,7 @@ from backend.middleware.security import SecurityMiddleware
 from backend.routes import (
     ai_fixes,
     annotations,
+    auth,
     corpus,
     documents,
     export,
@@ -63,6 +64,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(sections.router, prefix="/api")
 app.include_router(annotations.router, prefix="/api")
