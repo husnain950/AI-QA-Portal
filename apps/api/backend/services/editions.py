@@ -24,6 +24,26 @@ _DATE_PATTERNS = [
 ]
 
 # Canonical display titles for well-known statute families (after normalization).
+# Canonical families for the Rules corpus, matched on the RAW name -- before the
+# normalisation below strips parentheses. The generic path cannot separate
+# "Sales Tax Special Procedure (Withholding) Rules, 2007" from "Sales Tax Special
+# Procedures Rules, 2007" once "(Withholding)" is gone; they are different
+# instruments and must not merge. Order is significant: the most specific first.
+_CANONICAL_RULES = (
+    (re.compile(r"income\s+tax\s+rules", re.I), "income tax rules, 2002"),
+    (
+        re.compile(r"sales\s+tax\s+special\s+procedure\s*\(?\s*withholding", re.I),
+        "sales tax special procedure (withholding) rules, 2007",
+    ),
+    (
+        re.compile(r"sales\s+tax\s+special\s+procedures?\s+rules", re.I),
+        "sales tax special procedures rules, 2007",
+    ),
+    (re.compile(r"sales\s+tax\s+rules", re.I), "sales tax rules, 2006"),
+    (re.compile(r"customs\s+rules", re.I), "customs rules, 2001"),
+    (re.compile(r"federal\s+excise\s+rules?", re.I), "federal excise rules, 2005"),
+)
+
 _CANONICAL_FAMILIES = (
     (re.compile(r"^income\s+tax\s+ordinance(?:\s*,?\s*2001)?$", re.I), "income tax ordinance, 2001"),
     (re.compile(r"^customs\s+act(?:\s*,?\s*1969)?$", re.I), "customs act, 1969"),
@@ -36,13 +56,25 @@ def family_key_from_name(name: str) -> str:
     raw = (name or "").strip()
     if not raw:
         return "unknown"
+    for pattern, canonical in _CANONICAL_RULES:
+        if pattern.search(raw):
+            return canonical
+
     base = re.sub(r"\(.*?\)", " ", raw)
     # ITO style: "… 2001 - amended upto …" — drop dash before amended/upto.
-    base = re.sub(r"\s*[-–]\s*(?=(?:as\s+)?amended|upto|up\s*to|dated)", " ", base, flags=re.I)
-    base = re.sub(r",?\s*(as\s+)?amended.*$", " ", base, flags=re.I)
+    base = re.sub(
+        r"\s*[-–]\s*(?=(?:as\s+)?(?:amended|updated)|upto|up\s*to|\bdated\b)",
+        " ", base, flags=re.I,
+    )
+    # "updated" joins "amended": the Rules corpus writes "… 2006 UPDATED UPTO
+    # 11.08.2014", and stripping only from "UPTO" leaves the word behind.
+    base = re.sub(r",?\s*(as\s+)?(amended|updated).*$", " ", base, flags=re.I)
     base = re.sub(r",?\s*upto.*$", " ", base, flags=re.I)
     base = re.sub(r",?\s*up\s*to.*$", " ", base, flags=re.I)
-    base = re.sub(r",?\s*dated.*$", " ", base, flags=re.I)
+    # \bdated\b, not "dated": unanchored, it matches inside "UP|DATED" and truncated
+    # "… 2006 UPDATED" to "… 2006 UP", splitting nine editions of the Sales Tax Rules
+    # across four families. No Act name contains "updated", so it never showed.
+    base = re.sub(r",?\s*\bdated\b.*$", " ", base, flags=re.I)
     base = re.sub(r"^the\s+", " ", base, flags=re.I)
     base = re.sub(r"\s*,\s*", ", ", base)
     base = re.sub(r"\s+", " ", base).strip().rstrip(",").strip()
