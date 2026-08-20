@@ -1,0 +1,646 @@
+[
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2024,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 04.05.2024"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2019,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 11.03.2019"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2026,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 20.02.2026"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2018,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 30.06.2018"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2019,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 30.06.2019"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2020,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 30.06.2020"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2021,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 30.06.2021"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2022,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 30.06.2022"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2023,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 30.06.2023"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2024,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 30.06.2024"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2025,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 31.07.2025"
+  },
+  {
+    "corpus_origin": "ordinance",
+    "edition_year": 2019,
+    "family_key": "income tax ordinance, 2001",
+    "lane": "ordinance",
+    "name": "Income Tax Ordinance 2001 - amended upto 31.12.2019"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2020,
+    "family_key": "anti-money laundering act, 2020",
+    "lane": "other_acts",
+    "name": "Anti-Money Laundering (Second Amendment) Act, 2020"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2020,
+    "family_key": "anti-terrorism act, 2020",
+    "lane": "other_acts",
+    "name": "Anti-Terrorism (Third Amendment) Act, 2020"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2017,
+    "family_key": "benami transactions act, 2017",
+    "lane": "other_acts",
+    "name": "Benami Transactions (Prohibition) Act, 2017"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2007,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act ,1969 (Amended upto 30th June 2007)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2008,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act ,1969 (Amended upto 30th June 2008)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2009,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act ,1969 (Amended upto 30th June 2009)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2010,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act ,1969 (Amended upto 30th June 2010)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2011,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act ,1969 (Amended upto 30th June 2011)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2012,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act ,1969 (Amended upto 30th June 2012)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2014,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act ,1969 (As amended up to 30th June, 2014)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2015,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act ,1969 (As amended up to 30th June, 2015)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2016,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act ,1969 (As amended up to 30th June, 2016)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2013,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act ,1969 (as Amended upto 30th June 2013)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act, 1969 (As amended upto 11th March, 2019)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2017,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act, 1969 (As amended upto 30th June, 2017)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act, 1969 as amended up to 30.06.2019"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2020,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act, 1969 as amended up to 30.06.2020"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2021,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act, 1969 as amended up to 30.06.2021"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2022,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act, 1969 as amended up to 30.06.2022"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2023,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act, 1969 as amended up to 30.06.2023"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2024,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act, 1969 as amended up to 30.06.2024"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2025,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act, 1969 as amended up to 30th June, 2025"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "customs act, 1969",
+    "lane": "customs",
+    "name": "Customs Act, 1969 as amended up to 31.12.2019"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2017,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 (As amended upto 01.07.2017)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2023,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 (amended up to 30th June 2023)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2024,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 (amended up to 30th June 2024)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2023,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 amended upto 23rd February, 2023"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2024,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 as amended up 07th May, 2024 through Tax Laws (Amendment) Act, 2024"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2022,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 as amended up to 15-01-2022"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2022,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 as amended up to 22nd August, 2022"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2020,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 as amended up to 30-06-2020"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2021,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 as amended up to 30-06-2021"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2022,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 as amended up to 30-06-2022"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2025,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "Federal Excise Act, 2005 as amended upto 30-06-2025"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2011,
+    "family_key": "finance act",
+    "lane": "finance",
+    "name": "Finance Act 2011-12"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2024,
+    "family_key": "finance act",
+    "lane": "finance",
+    "name": "Finance Act 2024"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2025,
+    "family_key": "finance act",
+    "lane": "finance",
+    "name": "Finance Act 2025"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2013,
+    "family_key": "finance act",
+    "lane": "finance",
+    "name": "Finance Act, 2013"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2014,
+    "family_key": "finance act",
+    "lane": "finance",
+    "name": "Finance Act, 2014"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2018,
+    "family_key": "finance act",
+    "lane": "finance",
+    "name": "Finance Act, 2018-19"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "finance act",
+    "lane": "finance",
+    "name": "Finance Act, 2019"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2021,
+    "family_key": "finance act",
+    "lane": "finance",
+    "name": "Finance Act, 2021"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2022,
+    "family_key": "finance act",
+    "lane": "finance",
+    "name": "Finance Act, 2022"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2023,
+    "family_key": "finance act",
+    "lane": "finance",
+    "name": "Finance Act, 2023"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2023,
+    "family_key": "finance supplementary act",
+    "lane": "finance",
+    "name": "Finance Supplementary Act, 2023"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2018,
+    "family_key": "foreign assets act, 2018",
+    "lane": "other_acts",
+    "name": "Foreign Assets (Declaration and Repatriation) Act, 2018"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2016,
+    "family_key": "income tax act, 2016",
+    "lane": "other_acts",
+    "name": "Income Tax (Third Amendment) Act, 2016"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "public finance management act, 2019",
+    "lane": "other_acts",
+    "name": "Public Finance Management Act, 2019"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2025,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act 1990 amended upto 30-06-2025"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2009,
+    "family_key": "sales tax act, 1990 ordinance, 2009)",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act, 1990 (As amended vide Finance (Amendment) Ordinance, 2009)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2023,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act, 1990 amended upto 23rd February, 2023"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2023,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act, 1990 amended upto 30.06.2023"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2024,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act, 1990 amended upto 30th June, 2024"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2024,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act, 1990 as amended up to 07th May, 2024 through Tax Laws (Amendment) Act, 2024"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2022,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act, 1990 as amended up to 15.01.2022"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2021,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act, 1990 as amended up to 15.9.2021 through Tax Laws (Third Amendment) Ordinance, 2021"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2022,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act, 1990 as amended up to 22nd August, 2022"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2021,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act, 1990 as amended up to 30.06.2021"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2022,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act, 1990 as amended up to 30.06.2022"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2020,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "Sales Tax Act,1990 as amended up to 30.06.2020"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2012,
+    "family_key": "federal board of revenue act, 2007",
+    "lane": "other_acts",
+    "name": "The Federal Board of Revenue Act, 2007 (Amended up to 30th June 2012)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2016,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "The Federal Excise Act 2005 (amended up to 1st July 2016)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2015,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "The Federal Excise Act 2005 (amended up to 30th June 2015)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "The Federal Excise Act, 2005 (As amended up to 11th March 2019 )"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "The Federal Excise Act, 2005 (as amended up to 30th June, 2019)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "The Federal Excise Act, 2005 (as amended up to 31st December, 2019)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2014,
+    "family_key": "federal excise act, 2005",
+    "lane": "federal_excise",
+    "name": "The Federal Excise Act, 2005 amended up to July 01,2014"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2022,
+    "family_key": "finance act",
+    "lane": "other_acts",
+    "name": "The Finance (Supplementary) Act, 2022 (Act. No. IV of 2022 dated 15.01.2022)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2021,
+    "family_key": "pakistan single window act, 2021",
+    "lane": "other_acts",
+    "name": "The Pakistan Single Window Act, 2021"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2015,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "The Sales Tax Act 1990 (amended up to 1st July 2015)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2016,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "The Sales Tax Act 1990 (amended up to 31-08-2016)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2017,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "The Sales Tax Act 1990 (as amended up to 01.07.2017)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "The Sales Tax Act, 1990 (As amended up to 11th March, 2019)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "The Sales Tax Act, 1990 (as amended up to 30th June, 2019)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2019,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "The Sales Tax Act, 1990 (as amended up to 31st December, 2019)"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2014,
+    "family_key": "sales tax act, 1990",
+    "lane": "sales_tax",
+    "name": "The Sales Tax Act, 1990 amended up to July 01, 2014"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2020,
+    "family_key": "tax laws act, 2020",
+    "lane": "tax_laws_amendment",
+    "name": "The Tax Laws (Amendment) Act, 2020"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2023,
+    "family_key": "tax laws act, 2023",
+    "lane": "tax_laws_amendment",
+    "name": "The Tax Laws (Amendment) Act, 2023"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2024,
+    "family_key": "tax laws act, 2024",
+    "lane": "tax_laws_amendment",
+    "name": "The Tax Laws (Amendment) Act, 2024"
+  },
+  {
+    "corpus_origin": "acts",
+    "edition_year": 2018,
+    "family_key": "voluntary declaration of domestic assets act, 2018",
+    "lane": "other_acts",
+    "name": "Voluntary Declaration of Domestic Assets Act, 2018"
+  }
+]
