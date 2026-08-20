@@ -94,6 +94,18 @@ def _regression(runner: str, env: str, default: str, errors: list[str]) -> None:
 
 def main() -> int:
     errors: list[str] = []
+
+    # The path resolver every pipeline tool now depends on. It is checked first
+    # because a wrong repo root makes every result below meaningless.
+    sys.path.insert(0, str(ROOT / "tools"))
+    try:
+        from corpus_paths import _demo as paths_demo
+
+        paths_demo()
+    except Exception as err:
+        errors.append(f"tools/corpus_paths.py: {err}")
+        print(f"FAIL tools/corpus_paths.py: {err}")
+
     for package, (runner, env, default) in PIPELINES.items():
         try:
             module = importlib.import_module(package)

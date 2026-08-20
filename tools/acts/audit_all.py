@@ -25,7 +25,9 @@ if _ROOT not in sys.path:
 
 from scripts.convert_all import ACTS, CONSOLIDATED, is_pdf  # noqa: E402
 
-OUT = pathlib.Path(_ROOT) / "output"
+from corpus_paths import output_dir  # noqa: E402 (sys.path bootstrap above)
+
+OUT = pathlib.Path(output_dir("acts"))
 BODY_GATE = 99.99
 FOOT_GATE = 100.0
 
@@ -44,7 +46,7 @@ def source_for(js: pathlib.Path) -> pathlib.Path | None:
 def audit(pair):
     js, pdf = pair
     r = subprocess.run(
-        [sys.executable, os.path.join(_ROOT, "scripts", "audit_completeness.py"),
+        [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "audit_completeness.py"),
          "--pdf", str(pdf), str(js)],
         capture_output=True, text=True)
     txt = r.stdout
