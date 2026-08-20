@@ -1,0 +1,5189 @@
+{
+  "_comment": "Data-driven regression cases. status: 'active' = must pass; 'known_gap' = tracked but not counted as a regression (documents behaviour we don't fully match yet). Add cases with add_test_case.py or by hand.",
+  "cases": [
+    {
+      "id": "qa_sec1_asterisk_glyph",
+      "source": "QA_Report",
+      "description": "Sec 1: the asterisk footnote renders with a printed-page ref '1.*' (glyph normalised; global no_pua_glyphs invariant guards the U+F0D8 case).",
+      "target": {
+        "kind": "section",
+        "code": "1"
+      },
+      "check": "html_contains",
+      "arg": ">1.*</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec1_commencement_footnote",
+      "source": "QA_Report",
+      "description": "Sec 1: the S.R.O. commencement note is present as a footnote.",
+      "target": {
+        "kind": "section",
+        "code": "1"
+      },
+      "check": "footnote_text_nonempty",
+      "arg": "1.*",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec3_no_page_31",
+      "source": "QA_Report",
+      "description": "Sec 3: page number 31 must not bleed to the end of the text.",
+      "target": {
+        "kind": "section",
+        "code": "3"
+      },
+      "check": "plain_not_matches",
+      "arg": "\\b31\\s*$",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec4_no_30th",
+      "source": "QA_Report",
+      "description": "Sec 4: stray '30th' must not appear.",
+      "target": {
+        "kind": "section",
+        "code": "4"
+      },
+      "check": "plain_not_contains",
+      "arg": "30th",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec4_subsection6_own_li",
+      "source": "conversation",
+      "description": "Sec 4: inserted subsection (6) must be its own <li>, not merged into (5).",
+      "target": {
+        "kind": "section",
+        "code": "4"
+      },
+      "check": "has_subsection_li",
+      "arg": "6",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec4_footnote_33_1_text",
+      "source": "conversation",
+      "description": "Sec 4: citation 33.1 resolves to its footnote text ('Added by the Finance Act, 2003.').",
+      "target": {
+        "kind": "section",
+        "code": "4"
+      },
+      "check": "footnote_text_nonempty",
+      "arg": "33.1",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec91_no_page_157",
+      "source": "QA_Report",
+      "description": "Sec 91: page number 157 must not appear at the end of the text.",
+      "target": {
+        "kind": "section",
+        "code": "91"
+      },
+      "check": "plain_not_matches",
+      "arg": "\\b157\\s*$",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec104_no_page_196",
+      "source": "QA_Report",
+      "description": "Sec 104: page number 196 must not bleed into the text.",
+      "target": {
+        "kind": "section",
+        "code": "104"
+      },
+      "check": "plain_not_matches",
+      "arg": "\\b196\\s*$",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec105_no_page_197",
+      "source": "QA_Report",
+      "description": "Sec 105: page number 197 must not bleed into the text.",
+      "target": {
+        "kind": "section",
+        "code": "105"
+      },
+      "check": "plain_not_matches",
+      "arg": "\\b197\\s*$",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec109A_no_page_209",
+      "source": "QA_Report",
+      "description": "Sec 109A: page number 209 must not bleed into the text.",
+      "target": {
+        "kind": "section",
+        "code": "109A"
+      },
+      "check": "plain_not_matches",
+      "arg": "\\b209\\s*$",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec198_no_heading_dup",
+      "source": "conversation",
+      "description": "Sec 198: wrapped heading word 'servant' must not restart the body.",
+      "target": {
+        "kind": "section",
+        "code": "198"
+      },
+      "check": "body_not_starts_with",
+      "arg": "servant",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec99A_no_heading_dup",
+      "source": "conversation",
+      "description": "Sec 99A: inserted-section heading word 'connections' must not restart the body.",
+      "target": {
+        "kind": "section",
+        "code": "99A"
+      },
+      "check": "body_not_starts_with",
+      "arg": "connections",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fifteenth_schedule_is_table",
+      "source": "conversation",
+      "description": "Fifteenth Schedule threshold table must render as an fbr-table, not flattened text.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "FIFTEENTH"
+      },
+      "check": "has_fbr_table",
+      "arg": "",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec182_penalty_table",
+      "source": "conversation",
+      "description": "Sec 182 penalties must render as an fbr-table.",
+      "target": {
+        "kind": "section",
+        "code": "182"
+      },
+      "check": "has_fbr_table",
+      "arg": "",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "footnote_89_1_is_table",
+      "source": "conversation",
+      "description": "Footnote 89.1 (rate table inside a footnote) renders as an fn-table.",
+      "target": {
+        "kind": "section",
+        "code": "37"
+      },
+      "check": "footnote_html_has_table",
+      "arg": "89.1",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sched14_bold_application",
+      "source": "conversation",
+      "description": "Fourteenth Schedule: rule name 'Application.-' preserved as bold",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "FOURTEENTH"
+      },
+      "check": "html_contains",
+      "arg": "<strong>Application.-</strong>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec4_footnote_all_titles",
+      "source": "conversation",
+      "description": "Sec 4: every citation should resolve to footnote text (tracks empty-title gap)",
+      "target": {
+        "kind": "section",
+        "code": "4"
+      },
+      "check": "html_not_contains",
+      "arg": "title=\"\"",
+      "status": "known_gap",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_1_7e247303",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 1: Fix this as per PDF [flagged: '\\uf0d8']",
+      "target": {
+        "kind": "section",
+        "code": "1"
+      },
+      "check": "html_not_matches",
+      "arg": "[\\ue000-\\uf8ff]",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_1_fa09cf9b",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 1: No Insterted by the Finance Act 2003 [flagged: 'Vide notification S.R.O.381(I)/2002 date']",
+      "target": {
+        "kind": "section",
+        "code": "1"
+      },
+      "check": "plain_not_contains",
+      "arg": "Vide notification S.R.O.381(I)/2002 dated 15.06.2002 the Federal Government appointed the first day of July, 2002 on which the Ordinance shall come into force.",
+      "status": "needs_review",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_1_57a33567",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 1: Different Asterisk symbol is shown in JSON [flagged: '\\uf0d8.']",
+      "target": {
+        "kind": "section",
+        "code": "1"
+      },
+      "check": "html_not_matches",
+      "arg": "[\\ue000-\\uf8ff]",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_3_2b8bffab",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 3: Fix as per PDF - there is no 31 in PDF [flagged: '31']",
+      "target": {
+        "kind": "section",
+        "code": "3"
+      },
+      "check": "plain_not_contains",
+      "arg": "31",
+      "status": "needs_review",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_4_f31a4121",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 4: there is no 30th in PDF [flagged: '30th']",
+      "target": {
+        "kind": "section",
+        "code": "4"
+      },
+      "check": "plain_not_contains",
+      "arg": "30th",
+      "status": "needs_review",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_4A_edf92e90",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 4A: should be combined with above page [flagged: '3[ ]\\n3[ ]']",
+      "target": {
+        "kind": "section",
+        "code": "4A"
+      },
+      "check": "plain_not_contains",
+      "arg": "3[ ]\n3[ ]",
+      "status": "needs_review",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_4A_ba2f1080",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 4A (omitted): the repealed text incl. 'Provided that' is preserved as the section's omission footnote.",
+      "target": {
+        "kind": "section",
+        "code": "4A"
+      },
+      "check": "footnote_any_contains",
+      "arg": "Provided that",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_10_85c3a6a1",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 10: Line break from the heading [flagged: '—\\nThe total']",
+      "target": {
+        "kind": "section",
+        "code": "10"
+      },
+      "check": "plain_not_contains",
+      "arg": "—\nThe total",
+      "status": "needs_review",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_11_28c124d8",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 11: exact spacing between the '(4)' index and the line start is a display-layer concern (we render '(4) A...' with a single space); tracked, not a content regression.",
+      "target": {
+        "kind": "section",
+        "code": "11"
+      },
+      "check": "plain_not_contains",
+      "arg": "(4) A",
+      "status": "known_gap",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_11_1a0142e9",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 11: sub-section (4) is present and rendered as its own <li> (was reported not visible in the old JSON).",
+      "target": {
+        "kind": "section",
+        "code": "11"
+      },
+      "check": "has_subsection_li",
+      "arg": "4",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_11_213ef99a",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 11: Page number and heading are on the same line [flagged: '47 HEAD OF INCOME:']",
+      "target": {
+        "kind": "section",
+        "code": "11"
+      },
+      "check": "plain_not_contains",
+      "arg": "47 HEAD OF INCOME:",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_12_e999b657",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 12: No line break for a heading [flagged: '— A/B%'] | 'A/B%' formula renders as its own centred block.",
+      "target": {
+        "kind": "section",
+        "code": "12"
+      },
+      "check": "html_contains",
+      "arg": "class=\"formula\"",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_13_52f4f8c7",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 13: wrapped cross-reference '(c) or (d) of sub-section (2)' must stay inline, not become a spurious clause <li>.",
+      "target": {
+        "kind": "section",
+        "code": "13"
+      },
+      "check": "html_not_contains",
+      "arg": "<li>(d) of sub-section (2) of section 12",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_14_ed156678",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 14: Heading is in the same line [flagged: 'namely:— A—B where'] | 'A—B' formula renders as its own centred block.",
+      "target": {
+        "kind": "section",
+        "code": "14"
+      },
+      "check": "html_contains",
+      "arg": "class=\"formula\"",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_14_f6af2e1a",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 14: page and heading are on the same line [flagged: '55 HEAD OF INCOME: INCOME FROM PROPERTY']",
+      "target": {
+        "kind": "section",
+        "code": "14"
+      },
+      "check": "plain_not_contains",
+      "arg": "55 HEAD OF INCOME: INCOME FROM PROPERTY",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_15_757337c4",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 15: These points are not in bullet form [flagged: '“(7) the provisions of sub-section (1), ']",
+      "target": {
+        "kind": "section",
+        "code": "15"
+      },
+      "check": "plain_not_contains",
+      "arg": "“(7) the provisions of sub-section (1), shall not apply in respect of a taxpayer who— (i) is an individual or association of persons; (ii) derives income chargeable to tax under this section not exceeding Rs. 150,000 in a tax year; and (iii) does not derive taxable income under any other head.”",
+      "status": "needs_review",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_74_50803245",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 74: Can we introduce Bullets lists as per PDF [flagged: 'Section 74 substituted by the Finance Ac']",
+      "target": {
+        "kind": "section",
+        "code": "74"
+      },
+      "check": "plain_not_contains",
+      "arg": "Section 74 substituted by the Finance Act, 2002. The substituted section 74 read as follows: “74. Tax year.- (1) For the purposes of this Ordinance and subject to this section, the tax year shall be the period of twelve months ending on the 30th day of June (referred to in this section as the financial year). (2) A person may apply, in writing, to use as the person’s tax year a twelve-month period (hereinafter referred to as a “special year”) other than the financial year and the Commissioner may, subject to sub-section (4), by notice in writing, approve the application. (3) A person granted permission under sub-section (2) to use a special year may apply, in writing, to change the person’s tax year to the financial year or to another special year and the Commissioner may, subject to sub-section (4), by notice in writing, approve such application. (4) The Commissioner may approve an application under sub-section (2) or (3) only if the person has shown a compelling need to use a special year or to change the person’s tax year and any approval shall be subject to such conditions as the Commissioner may prescribe. (5) The Commissioner may, by notice in writing to a person, withdraw the permission to use a special year granted under sub-section (2) or (3). (6) A notice served by the Commissioner under sub-section (2) shall take effect on the date specified in the notice and a notice under sub-section (3) or (5) shall take effect at the end of the special year of the person in which the notice was served. (7) Where the tax year of a person changes as a result of sub-section (2), (3) or (5), the period between the last full tax year prior to the change and the date on which the changed tax year commences shall be treated as a separate tax year, to be known as the “transitional year”. (8) In this Ordinance, a reference to a particular financial year shall include a special year or a transitional year of a person commencing during the financial year. (9) A person dissatisfied with a decision of the Commissioner under sub-section (2",
+      "status": "needs_review",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_85_00576afb",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 85: substituted sub-section (1) footnote reproduces the '(1) Subject to sub-section (2)... two persons shall be associates' text (was mis-mapped in the old output).",
+      "target": {
+        "kind": "section",
+        "code": "85"
+      },
+      "check": "footnote_any_contains",
+      "arg": "two persons shall be associates where the relationship",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_88_93f563ef",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 88: Can we Format as per PDF ? [flagged: 'If, for a tax year, an individual has ta']",
+      "target": {
+        "kind": "section",
+        "code": "88"
+      },
+      "check": "plain_not_contains",
+      "arg": "If, for a tax year, an individual has taxable income and derives an amount or amounts exempt from tax under sub-section (1) of section 92, the amount of tax payable on the taxable income of the individual shall be computed in accordance with the following formula, namely: — (A/B) x C where — A is the amount of tax that would be assessed to the individual for the year if the amount or amounts exempt from tax under sub-section (1) of section 92 were chargeable to tax; B is the taxable income of the individual for the year if the amount or amounts exempt from tax under sub-section (1) of section 92 were chargeable to tax; and C is the individual’s actual taxable income for the year.",
+      "status": "needs_review",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_91_b999dcfb",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 91: There is no 157 at the end of PDF [flagged: 'inheritance. 157']",
+      "target": {
+        "kind": "section",
+        "code": "91"
+      },
+      "check": "plain_not_contains",
+      "arg": "inheritance. 157",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_92_e54ff109",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 92: Fix. as per PDF [flagged: 'The']",
+      "target": {
+        "kind": "section",
+        "code": "92"
+      },
+      "check": "plain_not_contains",
+      "arg": "The",
+      "status": "needs_review",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_92_07081714",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 92: There is no (4) before this [flagged: 'Sub-section (5) omitted by the Finance A']",
+      "target": {
+        "kind": "section",
+        "code": "92"
+      },
+      "check": "plain_not_contains",
+      "arg": "Sub-section (5) omitted by the Finance Act, 2007. The omitted sub-section (5) read as follows: “(5) Sections 114, 118 and 119 shall apply to a return of total income required to be furnished under sub-section (4).”",
+      "status": "needs_review",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_97A_7ecdffe4",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 97A: remove page number [flagged: '65 COMMON PROVISIONS APPLICABLE TO ASSOC']",
+      "target": {
+        "kind": "section",
+        "code": "97A"
+      },
+      "check": "plain_not_contains",
+      "arg": "65 COMMON PROVISIONS APPLICABLE TO ASSOCIATIONS OF PERSONS AND COMPANIE",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_98_206c3042",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 98: Remove 166 Part VA [flagged: 'wned by individuals. 166 [PART VA 1']",
+      "target": {
+        "kind": "section",
+        "code": "98"
+      },
+      "check": "plain_not_contains",
+      "arg": "wned by individuals. 166 [PART VA 1",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_98C_c6bd24cc",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 98C: Remove Page Number [flagged: 'sor.] 168']",
+      "target": {
+        "kind": "section",
+        "code": "98C"
+      },
+      "check": "plain_not_contains",
+      "arg": "sor.] 168",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_99D_61ad6c0a",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 99D: Remove Page Number 172 [flagged: 'ever is earlier.] 172']",
+      "target": {
+        "kind": "section",
+        "code": "99D"
+      },
+      "check": "plain_not_contains",
+      "arg": "ever is earlier.] 172",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_101A_ed450058",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 101A: remove page number [flagged: 'Ordinance.] 194']",
+      "target": {
+        "kind": "section",
+        "code": "101A"
+      },
+      "check": "plain_not_contains",
+      "arg": "Ordinance.] 194",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_104_572485ff",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 104: Page number should be removed [flagged: 'e head of income. 196']",
+      "target": {
+        "kind": "section",
+        "code": "104"
+      },
+      "check": "plain_not_contains",
+      "arg": "e head of income. 196",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_105_122ad3dd",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 105: there should no page number [flagged: 'ntangible asset; 197']",
+      "target": {
+        "kind": "section",
+        "code": "105"
+      },
+      "check": "plain_not_contains",
+      "arg": "ntangible asset; 197",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_109A_080193b5",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 109A: remove 209 Page [flagged: 'ived by the resident taxpayer.] 209']",
+      "target": {
+        "kind": "section",
+        "code": "109A"
+      },
+      "check": "plain_not_contains",
+      "arg": "ived by the resident taxpayer.] 209",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_113_f6c54f15",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 113: Can we format as per PDF ? [flagged: 'Section 113B substituted by the Finance ']",
+      "target": {
+        "kind": "section",
+        "code": "113"
+      },
+      "check": "plain_not_contains",
+      "arg": "Section 113B substituted by the Finance Act, 2013. The substituted section 113B read as follows:- “113B. Taxation of income of certain retailers. — Subject to this Ordinance, a retailer being an individual or association of persons,- (a) whose turnover exceeds five million rupees; and (b) who is subject to special procedure for payment of sales tax under Chapter II of the Sales Tax Special Procedures Rules, 2007, shall pay final tax at the following rates which shall form part of single stage sales tax as envisaged in the aforesaid rules;________________________________________________________________ S.No. Amount of turnover Rate of tax ________________________________________________________________ 1. Where turnover Rs.25,000 plus exceeds Rs.5,000,000 0.5% of the but does not exceed turnover exceeding Rs. 10,000,000 Rs.5 ,000,000 2. Where turnover Rs. 50,000 plus exceeds 0.75% of the Rs.10,000,000 turnover exceeding Rs.10,000,000. (c) The retailer shall not be entitled to claim any adjustment of withholding tax collected or deducted under any head during the year: Provided that turnover chargeable to tax under this section shall not include the sale o",
+      "status": "needs_review",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_113_9f4d2238",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 113: Bullet Number 3 - should be idented on left [flagged: '(3) of the Table in Division IX of Part-']",
+      "target": {
+        "kind": "section",
+        "code": "113"
+      },
+      "check": "plain_not_contains",
+      "arg": "(3) of the Table in Division IX of Part-I of the First from all sources for that year: 1[ ] 2[ 3[Explanation.-For the purpose of this sub-section, the expression “tax payable or paid” does not include-",
+      "status": "needs_review",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_113A_7754c72c",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 113A: Fix as per PDF. [flagged: 'Section 113B substituted by the Finance ']",
+      "target": {
+        "kind": "section",
+        "code": "113A"
+      },
+      "check": "plain_not_contains",
+      "arg": "Section 113B substituted by the Finance Act, 2013. The substituted section 113B read as follows:- “113B. Taxation of income of certain retailers. — Subject to this Ordinance, a retailer being an individual or association of persons,- (a) whose turnover exceeds five million rupees; and (b) who is subject to special procedure for payment of sales tax under Chapter II of the Sales Tax Special Procedures Rules, 2007, shall pay final tax at the following rates which shall form part of single stage sales tax as envisaged in the aforesaid rules;________________________________________________________________ S.No. Amount of turnover Rate of tax ________________________________________________________________ 1. Where turnover Rs.25,000 plus exceeds Rs.5,000,000 0.5% of the but does not exceed turnover exceeding Rs. 10,000,000 Rs.5 ,000,000 2. Where turnover Rs. 50,000 plus exceeds 0.75% of the Rs.10,000,000 turnover exceeding Rs.10,000,000. (c) The retailer shall not be entitled to claim any adjustment of withholding tax collected or deducted under any head during the year: Provided that turnover chargeable to tax under this section shall not include the sale of",
+      "status": "needs_review",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_237_0bbb62db",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 237: Fix the placement of 2[] as per PDF [flagged: '(1) The 1[Board] may, by notification in']",
+      "target": {
+        "kind": "section",
+        "code": "237"
+      },
+      "check": "plain_not_contains",
+      "arg": "(1) The 1[Board] may, by notification in the official 2[ Gazette, make rules for carrying out ] the purposes of this Ordinance.",
+      "status": "needs_review",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_239_d2267a21",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 239: Fix as per PDF (18) should be in next line [flagged: 'e Third Schedule to the repealed Ordinan']",
+      "target": {
+        "kind": "section",
+        "code": "239"
+      },
+      "check": "plain_not_contains",
+      "arg": "e Third Schedule to the repealed Ordinance shall continue to apply to assets covered by the item. 2[(18)The period of limitation provided in clause (d) of subsection (2) of section 131 and sub-section (1) of section 133 shall continue to apply where any decision of the Commissioner (Appeals) or the Appellate Tribunal is received prior to the date of c",
+      "status": "needs_review",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_239_faf67984",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 239: page-504 content (sub-sections (16)-(18), incl. the Third Schedule item and the (16) 'ending on or before' text) is fully captured.",
+      "target": {
+        "kind": "section",
+        "code": "239"
+      },
+      "check": "plain_contains",
+      "arg": "Item 8(5)(h) of the Third Schedule",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_242_7d30a54d",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 242: Remove Page number [flagged: 'erein.] 487']",
+      "target": {
+        "kind": "section",
+        "code": "242"
+      },
+      "check": "plain_not_contains",
+      "arg": "erein.] 487",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sched1_code",
+      "source": "conversation",
+      "description": "First Schedule code is \"FIRST SCHEDULE\" (no leading THE).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "check": "schedule_code_equals",
+      "arg": "FIRST SCHEDULE",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sched1_div1_heading",
+      "source": "conversation",
+      "description": "First Schedule Division I carries its TOC heading (Rates of Tax for Individuals).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "check": "division_heading_contains",
+      "div": "Division I",
+      "arg": "Rates of Tax for Individuals",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sched1_div2_heading",
+      "source": "conversation",
+      "description": "First Schedule Division II heading = Rates of Tax for Companies.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "check": "division_heading_contains",
+      "div": "Division II",
+      "arg": "Rates of Tax for Companies",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sched1_div1_body_no_table_overflow",
+      "source": "conversation",
+      "description": "First Schedule Division I (Individuals) body must not contain footnote-intro text (historical substituted tables belong in footnotes, below the separator line).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division I",
+      "div_heading": "Rates of Tax for Individuals",
+      "check": "division_body_excludes",
+      "arg": "Table substituted by the Finance Act",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sched1_div1_fn_490_1_table",
+      "source": "conversation",
+      "description": "First Schedule Division I: the 2024 substituted table is its own footnote (490.1) rendered as an fn-table.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "check": "footnote_html_has_table",
+      "arg": "490.1",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sched1_div1_fn_492_1_table",
+      "source": "conversation",
+      "description": "First Schedule Division I: the 2025 substituted table is its own footnote (492.1) rendered as an fn-table.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "check": "footnote_html_has_table",
+      "arg": "492.1",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "twelfth_schedule_pct_table",
+      "source": "conversation",
+      "description": "Twelfth Schedule (PCT tariff) renders as an fbr-table (was flat text; now via gridline extraction).",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "check": "schedule_has_table",
+      "arg": "",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "third_schedule_part1_table",
+      "source": "conversation",
+      "description": "Third Schedule PART I (depreciation rates) is captured with its table (PART-I hyphen header now parsed).",
+      "target": {
+        "kind": "schedule",
+        "code": "THIRD"
+      },
+      "check": "schedule_has_table",
+      "arg": "",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "div7_securities_table_merged",
+      "source": "conversation",
+      "description": "First Schedule Division VII securities rate table (rows 1-8) is merged across the page break into one table; the separate Category/Rate table stays separate (2 tables total).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "DIVISION VII",
+      "div_heading": "Capital Gains on disposal of Securities",
+      "check": "division_table_count",
+      "arg": "2",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec3_no_chapter_bleed",
+      "source": "conversation",
+      "description": "Sec 3: next chapter title (CHARGE OF TAX) must not bleed into the section body.",
+      "target": {
+        "kind": "section",
+        "code": "3"
+      },
+      "check": "plain_not_contains",
+      "arg": "CHARGE OF TAX",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec91_no_part_bleed",
+      "source": "conversation",
+      "description": "Sec 91: next PART title (ASSOCIATIONS OF PERSONS) must not bleed into the section body.",
+      "target": {
+        "kind": "section",
+        "code": "91"
+      },
+      "check": "plain_not_contains",
+      "arg": "ASSOCIATIONS OF PERSONS",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sched1_one_division_I",
+      "source": "conversation",
+      "description": "First Schedule PART I has EXACTLY ONE Division I: the PDF prints a single 12pt combined heading '[Rates of Tax for Individuals and Association of Persons]'; 'Association of Persons' appears again only inside a 7pt footnote quote, so no phantom sibling. (RC-2: corrected from the earlier two-entry assumption, vision-verified against p508.)",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division I",
+      "check": "division_code_count",
+      "arg": "1",
+      "status": "active",
+      "part": "PART I",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fourteenth_schedule_sme_tables",
+      "source": "conversation",
+      "description": "Fourteenth Schedule (SME) renders its Sr. No./Category/Turnover/Rates tables as fbr-tables.",
+      "target": {
+        "kind": "schedule",
+        "code": "FOURTEENTH"
+      },
+      "check": "schedule_has_table",
+      "arg": "",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "twelfth_pct_table_merged",
+      "source": "conversation",
+      "description": "Twelfth Schedule PCT tariff is merged across pages into one large table (>=100 rows), not per-page fragments.",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "check": "schedule_max_table_rows",
+      "arg": "100",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divV_heading_stripped_canonical",
+      "source": "conversation",
+      "description": "First Schedule Division V (Shipping/Air Transport): the bold two-line title is lifted into the heading field (canonical TOC casing), not left inside the body paragraph. Root-cause: bold-line heading detection in _finish_leaf + TOC-canonical heading.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division V",
+      "div_heading": "Rate of Tax on Shipping",
+      "check": "division_html_contains",
+      "arg": "<h4 class=\"section-heading\">Rate of Tax on Shipping or Air Transport Income of a Non-resident Person</h4>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divV_heading_not_in_body",
+      "source": "conversation",
+      "description": "First Schedule Division V: the heading text must not remain duplicated in the body plain_text (it was being rendered inside the intro paragraph).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division V",
+      "div_heading": "Rate of Tax on Shipping",
+      "check": "division_body_excludes",
+      "arg": "of a Non-resident Person",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divV_intro_then_list",
+      "source": "conversation",
+      "description": "First Schedule Division V: clauses (a) and (b) are separate <li> items (a real list intro 'shall be –'), not collapsed into one inline paragraph. Root-cause: context-aware clause/reference disambiguation in _render_line_run.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division V",
+      "div_heading": "Rate of Tax on Shipping",
+      "check": "division_html_contains",
+      "arg": "<li>(b) in the case of air transport income",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divV_citations_are_sup",
+      "source": "conversation",
+      "description": "First Schedule Division V: size 8-9pt amendment markers render as <sup class=\"cite\"> (they were leaking in as bold/plain text). Root-cause: MARKER_MAX_SIZE raised 7.6->9.4 in pagemodel.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division V",
+      "div_heading": "Rate of Tax on Shipping",
+      "check": "division_html_contains",
+      "arg": "<sup class=\"cite\"",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec13_wrapped_ref_not_li",
+      "source": "conversation",
+      "description": "Sec 13: a wrapped cross-reference '(d) of sub-section (2)' following '...clause (c) or' must stay inline text, NOT become a spurious <li>. Guards the context-aware disambiguation against over-correcting real references.",
+      "target": {
+        "kind": "section",
+        "code": "13"
+      },
+      "check": "html_not_contains",
+      "arg": "<li>(d) of sub-section",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divV_end_page_printed_506",
+      "source": "user_report_2026-07-04",
+      "description": "Division V (Shipping/Air Transport) ends on PDF page 525 (printed 506): footnote 505.2's provisos fill printed 506; DIVISION VII begins at printed 507.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division V",
+      "div_heading": "Shipping",
+      "check": "division_page_range",
+      "arg": "520-525",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "div7_starts_printed_507",
+      "source": "user_report_2026-07-04",
+      "description": "DIVISION VII (Capital Gains on disposal of Securities) starts on PDF page 526 (printed 507).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "DIVISION VII",
+      "div_heading": "Capital Gains",
+      "check": "division_page_range",
+      "arg": "526-528",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn505_2_complete_through_printed_506",
+      "source": "user_report_2026-07-04",
+      "description": "Footnote 505.2 includes its printed-page-506 continuation: the cash-settled-derivatives proviso, the fund-category table and the closing Explanation.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division V",
+      "div_heading": "Shipping",
+      "check": "division_footnote_contains",
+      "ref": "505.2",
+      "arg": "security is more than four years.",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn505_2_explanation_tail",
+      "source": "user_report_2026-07-04",
+      "description": "Footnote 505.2 ends with the Explanation ('...only in case of a mutual fund or collective investment scheme or a REIT scheme.]').",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division V",
+      "div_heading": "Shipping",
+      "check": "division_footnote_contains",
+      "ref": "505.2",
+      "arg": "Explanation.- For removal of doubt",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn505_2_table_last_row_mercantile",
+      "source": "user_report_2026-07-04",
+      "description": "Footnote 505.2's rate table row 5 ('Future commodity contracts ... Pakistan Mercantile Exchange') includes the words that wrapped onto printed page 506 inside the fn-table, not as orphan paragraphs.",
+      "check": "footnote_html_contains",
+      "ref": "505.2",
+      "arg": "Mercantile Exchange</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn506_1_present_and_complete",
+      "source": "user_report_2026-07-04",
+      "description": "Footnote 506.1 (Division VII substituted by the Finance Act, 2024 -- fills printed page 506 and continues onto 507) exists as ONE footnote; previously split by its nested '1[(ii)' marker and dropped from the output entirely.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "DIVISION VII",
+      "div_heading": "Capital Gains",
+      "check": "division_footnote_contains",
+      "ref": "506.1",
+      "arg": "Division VII substituted by the Finance Act, 2024",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn506_1_tail_from_printed_507",
+      "source": "user_report_2026-07-04",
+      "description": "Footnote 506.1 includes its printed-page-507 continuation (the mutual-fund proviso ending '...REIT scheme.]').",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "DIVISION VII",
+      "div_heading": "Capital Gains",
+      "check": "division_footnote_contains",
+      "ref": "506.1",
+      "arg": "the rate of 12.5% tax shall be charged on capital gain",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "dup_marker_footnotes_both_survive_92_5",
+      "source": "sweep_2026-07-04",
+      "description": "Printed page 92 misprints two footnotes both marked '5'; both texts must survive (ref-only dedup used to drop the second).",
+      "check": "footnote_ref_distinct_texts",
+      "ref": "92.5",
+      "arg": "2",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "dup_marker_footnotes_both_survive_509_3",
+      "source": "sweep_2026-07-04",
+      "description": "Printed page 509 prints marker '3' twice (a nested table-substitution note and the FA-2022 Division VIII substitution); both must survive.",
+      "check": "footnote_ref_distinct_texts",
+      "ref": "509.3",
+      "arg": "2",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "exemption_list_quote_reunified",
+      "source": "sweep_2026-07-04",
+      "description": "The clause (66) exemption-institution list quoted across printed pages 574-577 is one footnote (574.1), not fragments split at each nested '[...' line.",
+      "check": "footnote_contains",
+      "ref": "574.1",
+      "arg": "Balochistan Bar Council",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn475_6_no_fontsplit_words",
+      "source": "user_report_2026-07-04b",
+      "description": "Sec 236Q's omission footnote must read 'omitted by the Finance Act' -- the PDF switches font subsets mid-word ('b|y'), which used to render as 'omitted b y the'.",
+      "check": "footnote_contains",
+      "ref": "475.6",
+      "arg": "omitted by the Finance Act, 2022",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn475_6_development_intact",
+      "source": "user_report_2026-07-04b",
+      "description": "'development finance institution' in 236Q's quoted text must not be split ('developmen t').",
+      "check": "footnote_contains",
+      "ref": "475.6",
+      "arg": "development finance institution",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn476_1_ordinal_reattached",
+      "source": "user_report_2026-07-04b",
+      "description": "Sec 236R's omission footnote reads 'dated 30th June, 2020' -- the raised 'th' used to be dragged onto the marker line, rendering as a stray '<p>th</p>' with '30 June' missing its suffix.",
+      "check": "footnote_contains",
+      "ref": "476.1",
+      "arg": "dated 30th June, 2020",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn476_1_no_stray_th_paragraph",
+      "source": "user_report_2026-07-04b",
+      "description": "Sec 236R's omission footnote html must not open with a stray '<p>th</p>' fragment.",
+      "check": "footnote_html_contains",
+      "ref": "476.1",
+      "arg": "<p>Section “236R” omitted",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn237_8_31st_day",
+      "source": "sweep_2026-07-04b",
+      "description": "Ordinal merge must not chain into the following word: '31st day of August' (not '31stday' and not '31 day ... st').",
+      "check": "footnote_contains",
+      "ref": "237.8",
+      "arg": "31st day of August",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn550_9_quoted_ordinal",
+      "source": "sweep_2026-07-04b",
+      "description": "An ordinal suffix extracted together with a closing quote ('th”') still merges: the figure “15th”.",
+      "check": "footnote_contains",
+      "ref": "550.9",
+      "arg": "“15th”",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec224_dash_fused_word_kept",
+      "source": "sweep_2026-07-04b",
+      "description": "The heading dash can fuse with the first operative word ('—Any'); the word must survive into the body ('Any proceedings...').",
+      "target": {
+        "kind": "section",
+        "code": "224"
+      },
+      "check": "html_contains",
+      "arg": "<p>Any proceedings under this Ordinance",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec106A_dash_fused_subsec_kept",
+      "source": "sweep_2026-07-04b",
+      "description": "'enterprise.-(1)' fused token: the '(1)' must open its own subsection list item, and (per the PDF, regular ArialMT) render PLAIN, not bold.",
+      "target": {
+        "kind": "section",
+        "code": "106A"
+      },
+      "check": "html_contains",
+      "arg": "<li>(1) Subject",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec4AB_bracket_fused_subsec_kept",
+      "source": "sweep_2026-07-04b",
+      "description": "Sec 4AB (title-less inserted subsection): the whole first body line is rendered as the <h4> (matching the reference), not the fabricated TOC heading '4AB. ...payable.—'. The first line is preserved (in the heading), never dropped.",
+      "target": {
+        "kind": "section",
+        "code": "4AB"
+      },
+      "check": "html_contains",
+      "arg": "[(4AB) Subject to this Ordinance, a surcharge shall be payable by every individual</h4>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec236T_both_bracket_citations",
+      "source": "user_report_2026-07-04c",
+      "description": "Omitted 236T's placeholder renders its '4[5[ ]]' bracket line with BOTH citations (insertion 476.4 and omission 476.5), not just a text-matched footnote.",
+      "target": {
+        "kind": "section",
+        "code": "236T"
+      },
+      "check": "html_contains",
+      "arg": ">476.4</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec236T_omission_citation",
+      "source": "user_report_2026-07-04c",
+      "description": "236T's omission footnote 476.5 has a visible <sup> citation.",
+      "target": {
+        "kind": "section",
+        "code": "236T"
+      },
+      "check": "html_contains",
+      "arg": ">476.5</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec236T_bracket_line_in_body",
+      "source": "user_report_2026-07-04c",
+      "description": "236T's plain text carries its actual bracket line from the PDF body.",
+      "target": {
+        "kind": "section",
+        "code": "236T"
+      },
+      "check": "plain_contains",
+      "arg": "4[ 5[ ] ]",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec236O_no_foreign_brackets",
+      "source": "user_report_2026-07-04c",
+      "description": "236O must no longer swallow the omitted sections' bracket lines (it used to carry 18 footnotes spanning 236P-236X).",
+      "target": {
+        "kind": "section",
+        "code": "236O"
+      },
+      "check": "plain_not_contains",
+      "arg": "4[ 5[ ] ]",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec236Y_two_distinct_leaves",
+      "source": "user_report_2026-07-04c",
+      "description": "The TOC lists 236Y twice (omitted 2021 + re-inserted 2022); both leaves must exist with distinct content, not one body duplicated.",
+      "target": {
+        "kind": "section",
+        "code": "236Y"
+      },
+      "check": "section_code_count",
+      "arg": "2",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec236Y_reinserted_h4_citation",
+      "source": "user_report_2026-07-04c",
+      "description": "The re-inserted 236Y surfaces its '1[' amendment marker as a live citation in the h4 (footnote 478.1 'inserted by the Finance Act, 2022').",
+      "target": {
+        "kind": "section",
+        "code": "236Y"
+      },
+      "check": "any_section_html_contains",
+      "arg": ">478.1</sup>[236Y. Advance tax",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec236Y_omitted_placeholder_citation",
+      "source": "user_report_2026-07-04c",
+      "description": "The omitted-2021 236Y placeholder carries its own '6[ ]' bracket citation (footnote 477.6).",
+      "target": {
+        "kind": "section",
+        "code": "236Y"
+      },
+      "check": "any_section_html_contains",
+      "arg": ">477.6</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec4AB_heading_marker_citation",
+      "source": "user_report_2026-07-04c",
+      "description": "4AB's leading '4[' amendment marker is a visible citation (33.4) in the h4.",
+      "target": {
+        "kind": "section",
+        "code": "4AB"
+      },
+      "check": "html_contains",
+      "arg": ">33.4</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "div7_heading_marker_citation",
+      "source": "user_report_2026-07-04c",
+      "description": "DIVISION VII's '1[DIVISION VII' heading marker is a visible citation (506.1, the Finance Act 2024 substitution note).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "DIVISION VII",
+      "div_heading": "Capital Gains",
+      "check": "division_html_contains",
+      "arg": ">506.1</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec236Q_both_bracket_citations",
+      "source": "user_report_2026-07-04c",
+      "description": "236Q's placeholder carries both its brackets ('5[ ]' insertion, '6[ ]' omission) as citations 475.5 and 475.6.",
+      "target": {
+        "kind": "section",
+        "code": "236Q"
+      },
+      "check": "html_contains",
+      "arg": ">475.5</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec30_justified_line_not_jammed",
+      "source": "user_report_2026-07-04d",
+      "description": "Sec 30: a fully-justified line (word gaps ~1.6pt, below the old 2pt glue threshold) must keep its spaces -- used to render 'creditedtoasuspenseaccountinaccordancewiththe...'.",
+      "target": {
+        "kind": "section",
+        "code": "30"
+      },
+      "check": "plain_contains",
+      "arg": "to a suspense account in accordance with the Prudential Regulations for Banks",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec31_justified_line_not_jammed",
+      "source": "sweep_2026-07-04d",
+      "description": "Sec 31 had the longest jam in the document (76 glued characters).",
+      "target": {
+        "kind": "section",
+        "code": "31"
+      },
+      "check": "plain_contains",
+      "arg": "any purpose other than payment of share of profit",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec108_arms_length_glued_correctly",
+      "source": "sweep_2026-07-04d",
+      "description": "Font-split fragments with NO space char between ('ar'+'m’s' at 0.53pt) must still glue: 'arm’s length transaction'.",
+      "target": {
+        "kind": "section",
+        "code": "108"
+      },
+      "check": "plain_contains",
+      "arg": "realised in an arm’s\nlength transaction",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn502_1_table_a_reading_order",
+      "source": "user_report_2026-07-04e",
+      "description": "Footnote 502.1 (omitted Division VI): table (a)'s rate cell must be one coherent cell in reading order, not scrambled word soup.",
+      "check": "footnote_html_contains",
+      "ref": "502.1",
+      "arg": "Rs.57,500 plus 10 per cent of the gross amount exceeding Rs.1,000,000.</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn502_1_second_table_rendered",
+      "source": "user_report_2026-07-04e",
+      "description": "Footnote 502.1 quotes TWO rate tables (individuals + companies); the company table used to be dropped as paragraphs mid-way.",
+      "check": "footnote_html_contains",
+      "ref": "502.1",
+      "arg": "Rs.65,000 plus 10 per cent of the gross amount of rent exceeding Rs.1,000,000.”</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn502_3_table_rendered",
+      "source": "user_report_2026-07-04e",
+      "description": "Footnote 502.3 (omitted Division VIA) renders its rate table as an fn-table with complete rows (used to break off after row 1).",
+      "check": "footnote_html_contains",
+      "ref": "502.3",
+      "arg": "Rs.1,710,000 plus 35 percent of the gross amount exceeding Rs.8,000,000]",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn504_1_cell_reading_order",
+      "source": "user_report_2026-07-04e",
+      "description": "Footnote 504.1's description cells must read naturally ('Where holding period of a security is less than six months.'), not interleaved ('Where holding than six months. / period of a security is less').",
+      "check": "footnote_html_contains",
+      "ref": "504.1",
+      "arg": "Where holding period of a security is less than six months.</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn505_2_header_in_table",
+      "source": "user_report_2026-07-04e",
+      "description": "Footnote 505.2's multi-line column headers ('S. No.', 'Period', 'Tax Year 2015'...) must be assembled as header cells, not dumped as jumbled paragraphs above the grid.",
+      "check": "footnote_html_contains",
+      "ref": "505.2",
+      "arg": "Tax Year 2015</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn505_2_row_cell_coherent",
+      "source": "user_report_2026-07-04e",
+      "description": "Footnote 505.2's row 2 description is one coherent cell.",
+      "check": "footnote_html_contains",
+      "ref": "505.2",
+      "arg": "Where holding period of a security is twelve months or more but less than twenty-four months</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divV_footnotes_by_citation",
+      "source": "user_report_2026-07-04",
+      "description": "First Schedule Division V (Shipping/Air Transport) carries EXACTLY the footnotes its text cites (502.x/504.x/505.x) -- not Divisions IV/IVA's 501.x from the shared page. Guards by-citation footnote assignment in schedules.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division V",
+      "div_heading": "Shipping",
+      "check": "footnote_refs_exact",
+      "arg": [
+        "502.1",
+        "502.2",
+        "502.3",
+        "504.1",
+        "504.2",
+        "505.1",
+        "505.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divIV_footnotes_by_citation",
+      "source": "user_report_2026-07-04",
+      "description": "First Schedule DIVISION IV keeps exactly its own cited footnotes 501.1-501.2 (501.3 belongs to Division IVA on the same page).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "DIVISION IV",
+      "div_heading": "Non-residents",
+      "check": "footnote_refs_exact",
+      "arg": [
+        "501.1",
+        "501.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divIVA_footnotes_by_citation",
+      "source": "user_report_2026-07-04",
+      "description": "First Schedule Division IVA (E-commerce) carries exactly its cited footnote 501.3 despite sharing PDF page 520 with DIVISION IV and Division V.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division IVA",
+      "div_heading": "Digital",
+      "check": "footnote_refs_exact",
+      "arg": [
+        "501.3"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divIIB_footnotes_by_citation",
+      "source": "user_report_2026-07-04",
+      "description": "Division IIB (Super tax) binds the footnotes anchored on its own heading/body markers (496.5-496.7) and none of Division II's 495.x-496.4 from the shared page.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division IIB",
+      "div_heading": "Super",
+      "check": "footnote_refs_exact",
+      "arg": [
+        "496.5",
+        "496.6",
+        "496.7"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divII_table_marker_footnotes",
+      "source": "user_report_2026-07-04",
+      "description": "Division II (Companies) owns only its own company-rate table markers (494.3, 495.1); the super-tax markers moved with the table to Division IIA (RC-3).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division II",
+      "div_heading": "Companies",
+      "check": "footnote_refs_exact",
+      "arg": [
+        "494.3",
+        "495.1"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "divIX_misprint_repaired_ref",
+      "source": "user_report_2026-07-04",
+      "description": "Division IX: pdf page 533's footer misprints '517' (between 513 and 515); the repaired printed number 514 must be used for the ref (514.1, as in the reference), not 517.1.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division IX",
+      "div_heading": "Minimum",
+      "check": "footnote_refs_exact",
+      "arg": [
+        "512.3",
+        "513.1",
+        "513.2",
+        "514.1"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec99_no_misprint_phantom_footnotes",
+      "source": "user_report_2026-07-04",
+      "description": "Section 99: pdf page 188's footer misprints '189'; its footnotes are 169.x once -- no phantom 189.x duplicates from the orphan-adoption path using a different printed number.",
+      "target": {
+        "kind": "section",
+        "code": "99"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "169.1",
+        "169.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec237_no_misprint_phantom_footnotes",
+      "source": "user_report_2026-07-04",
+      "description": "Section 237: pdf page 499's footer misprints '483'; footnotes are 480.1-480.5 once -- no phantom 483.x duplicates.",
+      "target": {
+        "kind": "section",
+        "code": "237"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "480.1",
+        "480.2",
+        "480.3",
+        "480.4",
+        "480.5"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "twelfth_partII_cell_citation_779_1",
+      "source": "user_report_2026-07-04b",
+      "description": "Twelfth Schedule PART II: the amendment bracket in the first row/col of PDF page 798 renders a live in-cell citation <sup>779.1</sup>[ ] (was invisible: grid cells dropped superscript markers).",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "div": "PART II",
+      "check": "division_html_contains",
+      "arg": ">779.1</sup>[ ]",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "twelfth_partI_cell_citation_774_1",
+      "source": "user_report_2026-07-04b",
+      "description": "Twelfth Schedule PART I: inserted PCT entries open with an in-cell citation <sup>774.1</sup>[07.01.",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "div": "PART I",
+      "check": "division_html_contains",
+      "arg": ">774.1</sup>[07.01",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "twelfth_partI_footnotes_by_citation",
+      "source": "user_report_2026-07-04b",
+      "description": "Twelfth Schedule PART I footnotes are exactly its two cited notes.",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "div": "PART I",
+      "check": "footnote_refs_exact",
+      "arg": [
+        "774.1",
+        "774.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "twelfth_partII_footnotes_by_citation",
+      "source": "user_report_2026-07-04b",
+      "description": "Twelfth Schedule PART II footnotes: exactly the 17 notes its table cites (matches the reference minus its misfiled 796.1, which belongs to the Thirteenth Schedule).",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "div": "PART II",
+      "check": "footnote_refs_exact",
+      "arg": [
+        "779.1",
+        "784.1",
+        "785.1",
+        "785.2",
+        "785.3",
+        "786.1",
+        "786.2",
+        "787.1",
+        "788.1",
+        "789.1",
+        "790.1",
+        "790.2",
+        "793.1",
+        "793.2",
+        "794.1",
+        "795.1",
+        "795.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "twelfth_partIII_table_present",
+      "source": "user_report_2026-07-04b",
+      "description": "Twelfth Schedule PART III renders its one-row table (Respective headings / Goods not specifically mentioned in Part I or II).",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "div": "PART III",
+      "check": "division_html_contains",
+      "arg": "Goods not specifically mentioned in Part I or II.</td>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn779_1_no_body_table_leak",
+      "source": "user_report_2026-07-04b",
+      "description": "Footnote 779.1 must contain ONLY its own text: pdf 799's body table (Oil-cake etc.) used to be misclassified as a footnote continuation and spliced in (rule-less pages have no footnote zone).",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "check": "footnote_not_contains",
+      "ref": "779.1",
+      "arg": "Oil- cake",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn779_1_omitted_quote_intact",
+      "source": "user_report_2026-07-04b",
+      "description": "Footnote 779.1 still carries the full omitted-PCT quotation through its last line.",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "check": "footnote_contains",
+      "ref": "779.1",
+      "arg": "manufactured from coal.”",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn639_4_no_sixth_schedule_leak",
+      "source": "user_report_2026-07-04b",
+      "description": "Footnote 639.4 (Second Schedule region) must not contain pdf 659's medical-equipment table (Biosafety Cabinet...), which is body content on a rule-less page.",
+      "target": {
+        "kind": "section",
+        "code": "53"
+      },
+      "check": "footnote_not_contains",
+      "ref": "639.4",
+      "arg": "Biosafety Cabinet",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec182_footnotes_match_reference",
+      "source": "user_report_2026-07-04b",
+      "description": "Section 182's footnotes equal the reference's 60 refs exactly (plus the second 389.3 -- the PDF misprints marker 3 twice on printed 389 and both legal texts must survive; the reference drops one) -- and no phantom 381.x footnotes minted from the penalty table's 8pt rows on rule-less pdf page 400.",
+      "target": {
+        "kind": "section",
+        "code": "182"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "378.1",
+        "380.1",
+        "380.2",
+        "380.3",
+        "380.4",
+        "380.5",
+        "380.6",
+        "380.7",
+        "380.8",
+        "380.9",
+        "380.10",
+        "380.11",
+        "382.1",
+        "382.2",
+        "382.3",
+        "382.4",
+        "382.5",
+        "382.6",
+        "382.7",
+        "382.8",
+        "382.9",
+        "382.10",
+        "382.11",
+        "384.1",
+        "384.2",
+        "384.3",
+        "384.4",
+        "384.5",
+        "384.6",
+        "384.7",
+        "384.8",
+        "386.1",
+        "386.2",
+        "386.3",
+        "386.4",
+        "386.5",
+        "386.6",
+        "386.7",
+        "387.1",
+        "387.2",
+        "387.3",
+        "387.4",
+        "387.5",
+        "388.1",
+        "388.2",
+        "389.1",
+        "389.2",
+        "389.3",
+        "389.4",
+        "389.5",
+        "389.6",
+        "389.7",
+        "389.8",
+        "390.1",
+        "392.1",
+        "392.2",
+        "394.1",
+        "394.2",
+        "395.1",
+        "395.2",
+        "389.3"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec182_penalty_table_rows_in_body",
+      "source": "user_report_2026-07-04b",
+      "description": "Section 182's penalty rows from the rule-less pages (e.g. the 181AA connection-penalty row on pdf 400) live in the BODY, not in footnotes.",
+      "target": {
+        "kind": "section",
+        "code": "182"
+      },
+      "check": "plain_contains",
+      "arg": "181AA",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn779_1_quoted_pct_table_rendered",
+      "source": "user_report_2026-07-05",
+      "description": "Footnote 779.1 (Twelfth Schedule PART II): the quoted omitted-PCT table has real gridlines and must render as an fn-table grid, not paragraphs (gridline-backed fallback in footnotes._render_grid_run).",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "check": "footnote_html_has_table",
+      "arg": "779.1",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn779_1_table_cell_potatoes",
+      "source": "user_report_2026-07-05",
+      "description": "Footnote 779.1's quoted table renders row cells (PCT code | description columns), e.g. the Potatoes description in its own cell.",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "check": "footnote_html_contains",
+      "ref": "779.1",
+      "arg": ">Potatoes, fresh or chilled.</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn505_2_category_table_rendered",
+      "source": "user_report_2026-07-05",
+      "description": "Footnote 505.2's mutual-fund Category table (gridline-backed, no S.No header) renders as an fn-table in addition to its heuristic rate tables.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "check": "footnote_html_contains",
+      "ref": "505.2",
+      "arg": ">Category</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn621_2_engine_capacity_table",
+      "source": "user_report_2026-07-05",
+      "description": "Footnote 621.2 (Second Schedule): the omitted Engine-Capacity reduction table (gridline-backed, no S.No header) renders as an fn-table with row cells.",
+      "target": {
+        "kind": "section",
+        "code": "53"
+      },
+      "check": "footnote_html_contains",
+      "ref": "621.2",
+      "arg": ">Upto 1200 cc</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn574_1_institution_list_table",
+      "source": "user_report_2026-07-05",
+      "description": "Footnote 574.1's quoted institution list ((i) International Islamic Trade..., gridline-backed) renders rows as fn-table cells.",
+      "target": {
+        "kind": "section",
+        "code": "100"
+      },
+      "check": "footnote_html_contains",
+      "ref": "574.1",
+      "arg": ">(iii)</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn774_2_one_row_quoted_table",
+      "source": "user_report_2026-07-05b",
+      "description": "Footnote 774.2 (Twelfth Schedule PART I): the single omitted 72.04 row quotes as a ONE-ROW table (row-code + wide column gap after 'read as follows:'), not a paragraph -- no gridlines are printed around one-row quotes, so the colon-armed column-row path must catch it.",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "check": "footnote_html_has_table",
+      "arg": "774.2",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn774_2_row_cells",
+      "source": "user_report_2026-07-05b",
+      "description": "Footnote 774.2's one-row table splits into PCT-code and description cells.",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "check": "footnote_html_contains",
+      "ref": "774.2",
+      "arg": ">Ferrous waste and scrap; remelting scrap ingots of iron or steel.”</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn762_1_omitted_sno_row_table",
+      "source": "user_report_2026-07-05b",
+      "description": "Footnote 762.1 (Tenth Schedule region): the omitted S.No 1 row quotes as a four-column table row (serial | section | description | rate), caught by the colon-armed column-row path.",
+      "target": {
+        "kind": "schedule",
+        "code": "TENTH"
+      },
+      "check": "footnote_html_contains",
+      "ref": "762.1",
+      "arg": ">On yield or profit on debt</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn698_1_age_rate_rows_table",
+      "source": "user_report_2026-07-05b",
+      "description": "Footnote 698.1 (Third Schedule depreciation): the (a)/(b) age-band sub-rows render as their own table rows ('(a) Not more than ten years' | '10'), inside the depreciation fn-table.",
+      "target": {
+        "kind": "section",
+        "code": "23"
+      },
+      "check": "footnote_html_contains",
+      "ref": "698.1",
+      "arg": "Not more than ten years</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn71_5_clause_quote_stays_prose",
+      "source": "user_report_2026-07-05b",
+      "description": "Footnote 71.5's quoted sub-section ('(12) The depreciation deductions...') is LEGAL PROSE with a hanging indent, not a table -- the column-row path must not table clause quotes.",
+      "target": {
+        "kind": "section",
+        "code": "22"
+      },
+      "check": "footnote_html_not_contains",
+      "ref": "71.5",
+      "arg": "fn-table",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "eleventh_schedule_title_citation",
+      "source": "user_report_2026-07-05c",
+      "description": "Eleventh Schedule: the 16pt title's amendment marker ('1 [ELEVENTH SCHEDULE', pdf 787) renders a visible citation <sup>768.1</sup> ('New Eleventh Schedule added through Finance Act, 2020'). Guards the relative-size heading-marker rule (large-type headings scale their superscripts past the absolute cutoff).",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "ELEVENTH"
+      },
+      "check": "html_contains",
+      "arg": ">768.1</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "seventh_schedule_title_citation",
+      "source": "user_report_2026-07-05c",
+      "description": "Seventh Schedule title citation 731.1 (substituted by FA 2007) renders in the leaf html.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "SEVENTH"
+      },
+      "check": "html_contains",
+      "arg": ">731.1</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "tenth_schedule_title_citation",
+      "source": "user_report_2026-07-05c",
+      "description": "Tenth Schedule title citation 761.1 renders in the leaf html.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "TENTH"
+      },
+      "check": "html_contains",
+      "arg": ">761.1</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "ninth_schedule_title_citation_on_first_leaf",
+      "source": "user_report_2026-07-05c",
+      "description": "Ninth Schedule is a container (has PARTs) so its title citation 755.1 surfaces on its first content leaf (PART I) -- container schedules must not lose their title's amendment citation.",
+      "target": {
+        "kind": "schedule",
+        "code": "NINTH"
+      },
+      "div": "PART I",
+      "check": "division_html_contains",
+      "arg": ">755.1</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_19_39d11515",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 19: Division || heading is missing [flagged: 'Deductions: General Principles'] | Division II node exists in the chapter tree (reviewed JSON had swallowed its heading into sec 19 body).",
+      "target": {
+        "kind": "section",
+        "code": "19"
+      },
+      "check": "tree_division_heading_contains",
+      "arg": "Deductions",
+      "status": "active",
+      "severity": "error",
+      "div": "Division II",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_21_d33ca57e",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 21: Line break from heading [flagged: 'Except'] | the PDF runs 'Except…' on the heading line; the site renders every heading as an <h4> block (same design as the reference JSON) — display-layer, same class as qa_11.",
+      "target": {
+        "kind": "section",
+        "code": "21"
+      },
+      "check": "plain_not_contains",
+      "arg": "Except",
+      "status": "known_gap",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_21_c4fcb677",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 21: This point i is not aligned with other points [flagged: '(i) any amount carried to a reserve fund'] | clause (i) is a regular <li>, aligned with its siblings.",
+      "target": {
+        "kind": "section",
+        "code": "21"
+      },
+      "check": "html_contains",
+      "arg": "<li>(i) any amount carried to a reserve fund or capitalised in any way;</li>",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_23_5679f1a3",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 23: LLine break from heading [flagged: '(1) A'] | the PDF runs '(1) A…' on the heading line; <h4>-block heading design — display-layer, same class as qa_11.",
+      "target": {
+        "kind": "section",
+        "code": "23"
+      },
+      "check": "plain_not_contains",
+      "arg": "(1) A",
+      "status": "known_gap",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_24_3a5c9533",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 24: Its a main heading [flagged: '— A x B/C'] | formula now renders as its own centred block, as printed.",
+      "target": {
+        "kind": "section",
+        "code": "24"
+      },
+      "check": "html_contains",
+      "arg": "<span class=\"formula\" style=\"display:block; text-align:center; margin:0.5em 0;\"><strong>A x B/C</strong></span>",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_26_fab900bb",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 26: heading ist line a separate line [flagged: '— 1[activity] 2'] | each '“term” means …' definition opens its own block line.",
+      "target": {
+        "kind": "section",
+        "code": "26"
+      },
+      "check": "html_contains",
+      "arg": "class=\"defn\"",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_34_d791333f",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 34: Not in a bullet points [flagged: '- (a) in the case of the acquisition of '] | omitted sub-section (4) text lives in footnote 85.2 by design (one <p> per line, so (a)/(b)/(c) each render on their own line).",
+      "target": {
+        "kind": "section",
+        "code": "34"
+      },
+      "check": "footnote_any_contains",
+      "arg": "economic performance shall occur",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_35_e2464584",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 35: Its a main heading and center aligned [flagged: '— (A + B) –'] | formula now renders as its own centred block, as printed.",
+      "target": {
+        "kind": "section",
+        "code": "35"
+      },
+      "check": "html_contains",
+      "arg": "<span class=\"formula\" style=\"display:block; text-align:center; margin:0.5em 0;\"><strong>(A + B) – C</strong></span>",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_35_00d8c04c",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 35: Its not i bold [flagged: 'C'] | bold C preserved via <strong> (reference JSON keeps no bold).",
+      "target": {
+        "kind": "section",
+        "code": "35"
+      },
+      "check": "html_contains",
+      "arg": "<strong>C</strong> is the closing value",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_37A_e7876c82",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 37A: Heading [flagged: '— A – B'] | 'A – B' formula renders as its own centred block.",
+      "target": {
+        "kind": "section",
+        "code": "37A"
+      },
+      "check": "html_contains",
+      "arg": "class=\"formula\"",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_38_64e7364c",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 38: Heading [flagged: '— A – B'] | 'A – B' formula renders as its own centred block.",
+      "target": {
+        "kind": "section",
+        "code": "38"
+      },
+      "check": "html_contains",
+      "arg": "class=\"formula\"",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_39_ee7d3e7d",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 39: its not left aligned with other points [flagged: '(i) any other amount received as conside'] | clause (i) is a regular <li>, aligned with its siblings.",
+      "target": {
+        "kind": "section",
+        "code": "39"
+      },
+      "check": "html_contains",
+      "arg": "<li>(i) any other amount received as consideration for the provision, use or",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_44A_f055fcae",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 44A: the full two-line heading is captured in the <h4> and terminates with the printed en-dash '. –' (multi-line body heading; reference truncated it and used an em-dash).",
+      "target": {
+        "kind": "section",
+        "code": "44A"
+      },
+      "check": "html_contains",
+      "arg": "2022 (XXXV of 2022). –</h4>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_47_3dc8b5b0",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 47: Its not in this line [flagged: '.—1[Any'] | sec 48's opening bracket no longer leaks into sec 47 (reviewed JSON defect).",
+      "target": {
+        "kind": "section",
+        "code": "47"
+      },
+      "check": "plain_not_contains",
+      "arg": "1[Any",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_48_dea4c0f5",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 48: _1[Any Income word is in the previous JSON [flagged: 'received'] | sec 48 owns its own '1[Any income received…' opening.",
+      "target": {
+        "kind": "section",
+        "code": "48"
+      },
+      "check": "plain_contains",
+      "arg": "—1[Any income",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_48_b3595c7e",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 48: _1\n{Any income word is added in the previous JSON along with Scholarships heading [flagged: 'received'] | sec 48 body complete.",
+      "target": {
+        "kind": "section",
+        "code": "48"
+      },
+      "check": "plain_contains",
+      "arg": "received by a spouse as support payment under an agreement to live apart",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_49_91cf2283",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 49: Part of a heading [flagged: 'Government] income.'] | the full inline heading incl. 'income.' is in the body text.",
+      "target": {
+        "kind": "section",
+        "code": "49"
+      },
+      "check": "plain_contains",
+      "arg": "Government] income.—",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_49_e8a9866f",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 49: TAX ON TAXABLE INCOME heading is missing [flagged: '[:] 1'] | 'TAX ON TAXABLE INCOME' near sec 49 in the PDF is the running page header ('Chapter III – Tax on Taxable Income ___' repeated on every chapter page), deliberately excluded by zoning; the real chapter heading lives on the CHAPTER III node (asserted by qa_19's tree check).",
+      "target": {
+        "kind": "section",
+        "code": "49"
+      },
+      "check": "plain_contains",
+      "arg": "",
+      "status": "known_gap",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_52_3b0d1660",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 52: Heading should be bold [flagged: '53. Exemptions and tax concessions in th'] | sec 53 has its own bold <h4> heading (reviewed JSON showed it inside sec 52's body).",
+      "target": {
+        "kind": "section",
+        "code": "53"
+      },
+      "check": "html_contains",
+      "arg": "<h4 class=\"section-heading\">53. Exemptions and tax concessions in the Second Schedule.—</h4>",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_114_a2b0c1b3",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 114: not in the list form [flagged: '5[ ] 6[ ] 7[ ]'] | empty omitted-clause brackets each render on their own line.",
+      "target": {
+        "kind": "section",
+        "code": "114"
+      },
+      "check": "html_contains",
+      "arg": "class=\"omitted-bracket\"",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_114_85ceb365",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 114: Next paragraph [flagged: '1[: Provided th'] | the proviso opens its own indented block, as printed.",
+      "target": {
+        "kind": "section",
+        "code": "114"
+      },
+      "check": "html_contains",
+      "arg": "class=\"proviso\" style=\"display:block; margin:0.5em 0 0 1.5em;\">Provided that the Board may prescribe",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_114_a80df938",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 114: Next line [flagged: '1[ ]'] | the omitted clause (d) bracket '1[ ]' renders on its own line between (c) and (e).",
+      "target": {
+        "kind": "section",
+        "code": "114"
+      },
+      "check": "html_contains",
+      "arg": "class=\"omitted-bracket\"",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_114_18eda5f3",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 114: Next paragraph [flagged: '8[Provi'] | provisos open their own indented block, as printed.",
+      "target": {
+        "kind": "section",
+        "code": "114"
+      },
+      "check": "html_contains",
+      "arg": "class=\"proviso\"",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_114_4d69f2bf",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 114: Next paragraph [flagged: '[: Prov'] | proviso present; rendered inside its own proviso block.",
+      "target": {
+        "kind": "section",
+        "code": "114"
+      },
+      "check": "html_contains",
+      "arg": "Provided further that the time-limitation",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_115_c378715e",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 115: not in listing form [flagged: '[ ] 5[ ] 6[ ] 7[ ]'] | empty omitted-sub-section brackets each render on their own line.",
+      "target": {
+        "kind": "section",
+        "code": "115"
+      },
+      "check": "html_contains",
+      "arg": "class=\"omitted-bracket\"",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_231AB_02a0fc90",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 231AB: Fix as per PDF [flagged: 'single day.] 2['] | no stray '2[' marker after the Explanation (reviewed JSON defect); the 456.8 citation sits on [0.8%] where the PDF prints it.",
+      "target": {
+        "kind": "section",
+        "code": "231AB"
+      },
+      "check": "plain_not_contains",
+      "arg": "single day.] 2[",
+      "status": "active",
+      "severity": "warning",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_233_523c8ca0",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 233: issue in Formatting of formula [flagged: 'of A x 15 85 Whe'] | the stacked 'A x 15' over '85' renders as a real fraction (bar via border-top), matching the printed fraction bar.",
+      "target": {
+        "kind": "section",
+        "code": "233"
+      },
+      "check": "html_contains",
+      "arg": "class=\"frac\"",
+      "status": "active",
+      "severity": "info",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_233_546bd894",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 233: text missing as per PDF [flagged: 'excluding commission), at the rate speci'] | text the reviewed JSON dropped between 'Division II of' and the formula.",
+      "target": {
+        "kind": "section",
+        "code": "233"
+      },
+      "check": "plain_contains",
+      "arg": "Part IV of the First Schedule on the amount equal to",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_234_20681810",
+      "source": "QA_Report:Income Tax Ordinance, 2001 Ame",
+      "description": "Sec 234: Missing part 4 or first schedule [flagged: '(1) Any person 2[at the time of] collect'] | 'Part IV of the First Schedule' present after '3[Division III of]'.",
+      "target": {
+        "kind": "section",
+        "code": "234"
+      },
+      "check": "plain_contains",
+      "arg": "Part IV of the First Schedule.",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_sec2_footnote_numeric_order",
+      "source": "review_app",
+      "description": "Sec 2: footnote refs sort numerically (10.2 before 10.10) -- refs are strings, so a lexical sort rendered 10.1, 10.10, 10.11, 10.2 in the review app.",
+      "target": {
+        "kind": "section",
+        "code": "2"
+      },
+      "check": "footnote_refs_ordered_subsequence",
+      "arg": [
+        "10.1",
+        "10.2",
+        "10.9",
+        "10.10",
+        "10.11"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_236O_no_foreign_insertion_notes",
+      "source": "review_app",
+      "description": "Sec 236O: carries ONLY its own notes 475.1/475.2 -- the anonymous 'Inserted by FA 2016/2018' notes (477.1/477.5) belong to omitted 236V/236Y, whose split bracket pairs on printed page 477 were previously swallowed by 236O's segment.",
+      "target": {
+        "kind": "section",
+        "code": "236O"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "475.1",
+        "475.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_236V_insertion_omission_pair",
+      "source": "review_app",
+      "description": "Sec 236V (omitted): carries BOTH halves of its bracket pair -- 477.1 'Inserted by FA 2016' and 477.2 'Section 236V omitted by FA 2021'.",
+      "target": {
+        "kind": "section",
+        "code": "236V"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "477.1",
+        "477.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_236Y_omitted_insertion_omission_pair",
+      "source": "review_app",
+      "description": "Sec 236Y (omitted leaf, first of the duplicate-code pair): carries 477.5 'Inserted by FA 2018' and 477.6 'Section 236Y omitted by FA 2021'.",
+      "target": {
+        "kind": "section",
+        "code": "236Y"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "477.5",
+        "477.6"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_236V_insertion_note_cited_in_html",
+      "source": "review_app",
+      "description": "Sec 236V: the claimed insertion bracket renders a visible <sup> citation for 477.1 (every attached footnote must be linked in the text).",
+      "target": {
+        "kind": "section",
+        "code": "236V"
+      },
+      "check": "html_contains",
+      "arg": ">477.1</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_236Y_insertion_note_cited_in_html",
+      "source": "review_app",
+      "description": "Sec 236Y (omitted leaf): the claimed insertion bracket renders a visible <sup> citation for 477.5.",
+      "target": {
+        "kind": "section",
+        "code": "236Y"
+      },
+      "check": "html_contains",
+      "arg": ">477.5</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_100C_insertion_substitution_pair",
+      "source": "review_app",
+      "description": "Sec 100C (live, inserted FA 2014 then substituted FA 2021): carries BOTH halves of its split heading bracket pair -- 175.1 'Inserted by FA 2014' and 175.2 'Section 100C substituted by FA 2021'. The '1[ ]' bracket above the heading was previously swallowed by 100BA's tail.",
+      "target": {
+        "kind": "section",
+        "code": "100C"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "175.1",
+        "175.2",
+        "176.1",
+        "178.1",
+        "178.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_100BA_no_foreign_insertion_note",
+      "source": "review_app",
+      "description": "Sec 100BA: carries only its own notes -- 175.1 belongs to 100C's heading bracket, not to 100BA's tail.",
+      "target": {
+        "kind": "section",
+        "code": "100BA"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "174.5",
+        "174.6",
+        "174.7"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_100C_insertion_note_cited_in_h4",
+      "source": "review_app",
+      "description": "Sec 100C: the insertion-note citation 175.1 renders visibly in the heading prefix.",
+      "target": {
+        "kind": "section",
+        "code": "100C"
+      },
+      "check": "html_contains",
+      "arg": ">175.1</sup>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_51_keeps_own_subsection_insertion_note",
+      "source": "review_app",
+      "description": "Sec 51: 104.5 'Added by FA 2003' anchors sub-section (2)'s REAL text inside 51 ('5[(2) Where a citizen...]') and must stay on 51 even though 104.6 is 52's omission note -- guards the split-pair claiming against over-reach.",
+      "target": {
+        "kind": "section",
+        "code": "51"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "104.4",
+        "104.5"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_65_keeps_own_subsection_insertion_note",
+      "source": "review_app",
+      "description": "Sec 65: 128.2 'Inserted by FA 2015' anchors sub-section (6)'s real text inside 65 and must stay on 65 even though 128.3 is 65A's omission note.",
+      "target": {
+        "kind": "section",
+        "code": "65"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "128.1",
+        "128.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_98_no_part_heading_leak",
+      "source": "review_app",
+      "description": "Sec 98: the inserted-part heading '1[PART VA / TAX LIABILITY IN CERTAIN CASES' (printed p167) must not leak into the body -- decorated structural headings end the section.",
+      "target": {
+        "kind": "section",
+        "code": "98"
+      },
+      "check": "plain_not_matches",
+      "arg": "^\\[?PART\\s+VA|TAX LIABILITY IN CERTAIN CASES",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_98_no_part_insertion_footnote",
+      "source": "review_app",
+      "description": "Sec 98: carries no footnotes -- 167.1 (Part VA's insertion note) belongs to 98A, matching the reference JSON.",
+      "target": {
+        "kind": "section",
+        "code": "98"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_98A_carries_part_insertion_note",
+      "source": "review_app",
+      "description": "Sec 98A (first section of inserted Part VA): carries 167.1 'Inserted by the Finance Act, 2003.', matching the reference JSON.",
+      "target": {
+        "kind": "section",
+        "code": "98A"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "167.1"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_180_no_part_heading_leak",
+      "source": "review_app",
+      "description": "Sec 180: '1[PART IX / TAXPAYER'S REGISTRATION' (printed p375) must not leak; 375.1 (Part IX substitution note) belongs to 181, matching the reference JSON.",
+      "target": {
+        "kind": "section",
+        "code": "180"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "374.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_181_carries_part_substitution_note",
+      "source": "review_app",
+      "description": "Sec 181: carries 375.1 'Part IX ssubstituted by the Finance Act, 2008...' (sic, PDF typo).",
+      "target": {
+        "kind": "section",
+        "code": "181"
+      },
+      "check": "footnote_contains",
+      "ref": "375.1",
+      "arg": "Part IX ssubstituted by the Finance Act",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_182_keeps_wrapped_chapter_reference",
+      "source": "review_app",
+      "description": "Sec 182: the penalty-table cell wrapping '... of Chapter X or / Chapter XII]' is BODY CONTENT -- a trailing ']' alone must never be treated as a structural boundary (guards the boundary fix against over-cutting).",
+      "target": {
+        "kind": "section",
+        "code": "182"
+      },
+      "check": "plain_contains",
+      "arg": "Chapter XII]",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_230_no_part_heading_leak",
+      "source": "review_app",
+      "description": "Sec 230: '1[PART III / 2[DIRECTORATES-GENERAL]' (printed p446) must not leak into the body; the part notes 446.1/446.2 sit on 230A.",
+      "target": {
+        "kind": "section",
+        "code": "230"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "445.6"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_230A_carries_part_notes",
+      "source": "review_app",
+      "description": "Sec 230A (first section of inserted Part III): carries 446.1 and 446.2 (part insertion + heading substitution notes).",
+      "target": {
+        "kind": "section",
+        "code": "230A"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "446.1",
+        "446.2"
+      ],
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_division_IIIAA_split",
+      "source": "review_app",
+      "description": "First Schedule Division IIIAA (inserted FA 2025, two-letter suffix): must split as its own division with its rate text, not fuse into Division III's body.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division IIIAA",
+      "check": "division_html_contains",
+      "arg": "15%",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_494_2_rate_row_in_grid",
+      "source": "review_app",
+      "description": "Footnote 494.2 (Division II substituted 2002, quoted company-rate table): the data row's cells 50%/35%/45%” must render INSIDE the fn-table grid -- the wrapped numbering row ('(1) (2)' + '(3)' on the next physical line) previously broke the table before the data row.",
+      "target": {
+        "kind": "section",
+        "code": "-"
+      },
+      "check": "footnote_html_contains",
+      "ref": "494.2",
+      "arg": "box-sizing:border-box;\">50%</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_494_2_three_columns",
+      "source": "review_app",
+      "description": "Footnote 494.2: the merged numbering row declares THREE columns (33.33% flex), not two.",
+      "target": {
+        "kind": "section",
+        "code": "-"
+      },
+      "check": "footnote_html_contains",
+      "ref": "494.2",
+      "arg": "flex:0 0 33.33%",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_494_2_no_stray_rate_paragraph",
+      "source": "review_app",
+      "description": "Footnote 494.2: the rate row must not trail the table as a bare paragraph.",
+      "target": {
+        "kind": "section",
+        "code": "-"
+      },
+      "check": "footnote_html_not_contains",
+      "ref": "494.2",
+      "arg": "<p>50% 35% 45%”</p>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_89_1_legend_below_table",
+      "source": "review_app",
+      "description": "Footnote 89.1 (quoted open-plot capital-gain table): the formula legend 'where A is the amount...' renders as its own paragraph BELOW the table.",
+      "target": {
+        "kind": "section",
+        "code": "37"
+      },
+      "check": "footnote_html_contains",
+      "ref": "89.1",
+      "arg": "<p>where A is the amount of the gain determined under sub-section (2).</p>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_89_1_last_row_clean",
+      "source": "review_app",
+      "description": "Footnote 89.1: the last row's description cell ends at 'exceeds eight years' -- the legend must not fuse into it (legally wrong row text).",
+      "target": {
+        "kind": "section",
+        "code": "37"
+      },
+      "check": "footnote_html_not_contains",
+      "ref": "89.1",
+      "arg": "years where A is",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_89_2_legend_below_table",
+      "source": "review_app",
+      "description": "Footnote 89.2 (quoted (3A) immovable-property table): legend below the table; previously fused as a '5. where A is' cell.",
+      "target": {
+        "kind": "section",
+        "code": "37"
+      },
+      "check": "footnote_html_not_contains",
+      "ref": "89.2",
+      "arg": "5. where A is",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_89_3_last_row_clean",
+      "source": "review_app",
+      "description": "Footnote 89.3 (quoted (3B) constructed-property table): the legend must not fuse into the last row.",
+      "target": {
+        "kind": "section",
+        "code": "37"
+      },
+      "check": "footnote_html_not_contains",
+      "ref": "89.3",
+      "arg": "years where A is",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_divII_supertax_header_colspan",
+      "source": "review_app",
+      "description": "First Schedule Division IIA: super-tax table header spans the four tax-year columns instead of rendering as header text followed by blank cells.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division IIA",
+      "div_heading": "Rates of Super Tax",
+      "check": "division_html_contains",
+      "arg": "<th colspan=\"4\">Rate of super tax</th>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_divII_company_rate_colspan",
+      "source": "review_app",
+      "description": "First Schedule Division II: Small Company's single 20% rate spans all rate columns, matching the PDF grid.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division II",
+      "div_heading": "Rates of Tax for Companies",
+      "check": "division_html_contains",
+      "arg": "<td colspan=\"3\">20%</td>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_divVIIIA_phantom_columns_collapsed",
+      "source": "review_app",
+      "description": "First Schedule Division VIIIA: builder location headers collapse extractor phantom columns into the three visual PDF columns.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division VIIIA",
+      "div_heading": "Tax on Builders",
+      "check": "division_html_contains",
+      "arg": "<td colspan=\"3\">For commercial buildings</td>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_eleventh_schedule_four_column_rate_table",
+      "source": "review_app",
+      "description": "Eleventh Schedule rate table uses the four logical PDF columns and keeps the middle-region Rs.230 rate.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "ELEVENTH"
+      },
+      "check": "html_contains",
+      "arg": "<th colspan=\"4\">Rate in respect of</th>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "review_eleventh_schedule_middle_rate_preserved",
+      "source": "review_app",
+      "description": "Eleventh Schedule rate table: hidden-column normalization must not swallow the Rs.230 per Sq. ft cell.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "ELEVENTH"
+      },
+      "check": "html_contains",
+      "arg": "Rs.230\nper Sq. ft",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_divII_rate_of_tax_header_colspan",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "First Schedule Division II companies table: 'Rate of Tax' header spans its two merged grid columns (was: stranded in one column with blank headers).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division II",
+      "div_heading": "Rates of Tax for Companies",
+      "check": "division_html_contains",
+      "arg": "<th colspan=\"2\">Rate of Tax</th>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_divII_supertax_subheader_in_thead",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Division IIA super-tax table: 'Rate (percentage of income)' sub-header renders as a spanning <th>, not a data row.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division IIA",
+      "div_heading": "Rates of Super Tax",
+      "check": "division_html_contains",
+      "arg": "<th colspan=\"4\">Rate (percentage of income)</th>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_divII_supertax_numbering_in_thead",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Division IIA super-tax table: the (1)..(6) numbering row is part of <thead> (global numbering_row_in_thead invariant guards the class).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division IIA",
+      "div_heading": "Rates of Super Tax",
+      "check": "division_html_contains",
+      "arg": "<th>(6)</th>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_divVIIIA_city_list_single_header_cell",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Division VIIIA builders table: the (B) city list ends inside ONE header cell ('... Abbottabad, Quetta</th>'), not exploded into per-line rows.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division VIIIA",
+      "div_heading": "Tax on Builders",
+      "check": "division_html_contains",
+      "arg": "Quetta</th>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_divVIIIA_no_orphan_city_rows",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Division VIIIA builders table: no orphan single-city data rows fabricated from the wrapped (B) header cell.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division VIIIA",
+      "div_heading": "Tax on Builders",
+      "check": "division_html_not_contains",
+      "arg": "<td>Multan, Faisalabad,</td>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_fn533_1_spanning_header_inside_table",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Fn 533.1 quoted table: the spanning header 'Rate applicable on the amount of payment.' renders as one header cell over Filer/Non-filer (grid-backed fn-table).",
+      "check": "footnote_html_contains",
+      "ref": "533.1",
+      "arg": "Rate applicable on the amount of payment.</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_fn533_1_no_payment_filer_fusion",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Fn 533.1: the wrapped spanning-header word 'payment.' must not fuse into the 'Filer' column header.",
+      "check": "footnote_html_not_contains",
+      "ref": "533.1",
+      "arg": "payment. Filer",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_fn533_1_no_stray_header_paragraph",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Fn 533.1: no fragment of the spanning header hoisted out of the table as a paragraph.",
+      "check": "footnote_html_not_contains",
+      "ref": "533.1",
+      "arg": "<p>Rate applicable",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_p4divIII_header_box_joined_to_table",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Part IV Division III clause (3) table: the page-554 ruled header box ('[S. No. | Engine capacity | Tax') is the table's <th> row (merged with the page-555 data grid), not text glued to the preceding paragraph.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division III",
+      "div_probe": "Tax on Motor Vehicles",
+      "check": "division_html_contains",
+      "arg": "[S. No.</th>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_p4divIII_header_not_glued_to_li",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Part IV Division III: the clause (3) intro paragraph ends at 'namely:-' -- the table header text no longer trails it.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division III",
+      "div_probe": "Tax on Motor Vehicles",
+      "check": "division_html_not_contains",
+      "arg": "Engine capacity Tax</li>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_fn535_1_wrapped_header_one_cell",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Fn 535.1 quoted table: the two wrapped header lines assemble into one cell 'Rs. per seat per annum Non Air Conditioned' inside the 4-column fn-table.",
+      "check": "footnote_html_contains",
+      "ref": "535.1",
+      "arg": "Rs. per seat per annum Non Air Conditioned</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_fn535_1_no_stray_header_paragraph",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Fn 535.1: the quoted table's header must not remain as flattened text above the table.",
+      "check": "footnote_html_not_contains",
+      "ref": "535.1",
+      "arg": "<p>“S. No Capacity",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_fn535_4_header_cells_in_table",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Fn 535.4 quoted table: 'for filers' / 'for non-filer' are header cells of the fn-table, not a flattened paragraph.",
+      "check": "footnote_html_contains",
+      "ref": "535.4",
+      "arg": ">for non-filer</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_fn535_4_page_split_row7_joined",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Fn 535.4: row 7 ('2000cc & above ... Rs. 30,000”]'), printed alone on the next page, is re-joined into the same fn-table.",
+      "check": "footnote_html_contains",
+      "ref": "535.4",
+      "arg": "Rs. 30,000”]</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_fn535_4_no_stray_header_paragraph",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Fn 535.4: no '<p>“S. No. Engine capacity ...' paragraph left above the table.",
+      "check": "footnote_html_not_contains",
+      "ref": "535.4",
+      "arg": "<p>“S. No. Engine capacity",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0708_eleventh_band_rows_span",
+      "source": "qa_screenshots_2026-07-08",
+      "description": "Eleventh Schedule rate table: 'TAX ON BUILDERS...' section bands span all four columns instead of sitting in column 1.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "ELEVENTH"
+      },
+      "check": "html_contains",
+      "arg": "<td colspan=\"4\">TAX ON BUILDERS",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn698_1_table_rendered",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 698.1 (Third Schedule Part I depreciation): the gridless quoted table renders as an fn-table via the columnar-run detector, not flattened paragraphs.",
+      "check": "footnote_html_contains",
+      "ref": "698.1",
+      "arg": "fn-table",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn698_1_no_header_interleave",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 698.1: the three-line wrapped header must not interleave ('of of the written / asset. down value.').",
+      "check": "footnote_html_not_contains",
+      "ref": "698.1",
+      "arg": "of of the written",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn698_1_band_row",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 698.1: the ALL-CAPS class dividers (BUILDINGS / FURNITURE) render as their own full-width band rows.",
+      "check": "footnote_html_contains",
+      "ref": "698.1",
+      "arg": "flex:0 0 100.0%",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn548_6_no_header_fusion",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 548.6 (Division XVIII quoted table): the Period column header must not fuse with the row text ('Period Where value ...').",
+      "check": "footnote_html_not_contains",
+      "ref": "548.6",
+      "arg": "Period Where value",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn546_1_prose_not_absorbed",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 546.1 (PEMRA licence table): the '(2) The rate of tax to be collected by ...' paragraph after the table must stay prose, not become table cells.",
+      "check": "footnote_html_not_contains",
+      "ref": "546.1",
+      "arg": "The rate of tax to be collected</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn546_1_grid_backed",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 546.1: the PEMRA table renders grid-backed with the wrapped header in one cell.",
+      "check": "footnote_html_contains",
+      "ref": "546.1",
+      "arg": "License Category as provided in PEMRA Rules</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn536_2_rows_tabled",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 536.2 (electricity consumption): the (a)-(h) slab rows render as table rows with the amount in its own cell.",
+      "check": "footnote_html_contains",
+      "ref": "536.2",
+      "arg": ">Rs. 80</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn521_1_spanning_header",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 521.1 (advance tax on dividend): the spanning header renders as one wide cell over the Filer/Non-Filer pair; the header block is inside the table.",
+      "check": "footnote_html_contains",
+      "ref": "521.1",
+      "arg": "Money market fund, income fund or REIT scheme or any other fund</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn521_1_no_flat_header",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 521.1: header lines must not remain as flattened text above the table.",
+      "check": "footnote_html_not_contains",
+      "ref": "521.1",
+      "arg": "<p>1 [Person Stock Fund",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn514_2_rate_cell_coherent",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 514.2 (rates of advance tax): the wrapped rate cell reads naturally in one cell (grid-backed, page-split grids re-joined).",
+      "check": "footnote_html_contains",
+      "ref": "514.2",
+      "arg": "1% of the import value as increased by customs-duty, sales tax and federal excise duty",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_divVIIIB_subtable_columns",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Division VIIIB developers table: the inner Area/Rate sub-header renders as six real columns ('Area in Sq. Yd' one cell), not per-line rows or fused pairs.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division VIIIB",
+      "div_heading": "Tax on Developers",
+      "check": "division_html_contains",
+      "arg": "<td>Area in Sq.\nYd</td>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn510_1_grid_backed_header",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 510.1 (capital gains immovable property): grid-backed rendering; 'Holding Period' is a clean header cell, the trailing ']”' outside the ruled area stays prose.",
+      "check": "footnote_html_contains",
+      "ref": "510.1",
+      "arg": ">Holding Period</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn510_1_no_interleave",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 510.1: spanning header must not interleave with sub-headers ('Holding Period Open / Rate Plots').",
+      "check": "footnote_html_not_contains",
+      "ref": "510.1",
+      "arg": "Holding Period Open",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_divVIII_col6_rowspan_header",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Division VIII (Part I): the column-6 header spans both header rows and survives the page merge (it was silently dropped by dense-row emission).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division VIII",
+      "div_probe": "Capital Gains on Disposal of Immovable",
+      "check": "division_html_contains",
+      "arg": "after 1st day of",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_divVIII_tall_cell_rowspan",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Division VIII: the tall column-6 rate cell renders with a real rowspan, not an overflow row.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division VIII",
+      "div_probe": "Capital Gains on Disposal of Immovable",
+      "check": "division_html_contains",
+      "arg": "rowspan=\"3\">15% for persons",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_divVII_col4_continuation",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Division VII (Part I): the page-split column-4 cell continuation lands in column 4 of the merged table, not lost.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "DIVISION VII",
+      "div_heading": "Capital Gain",
+      "check": "division_html_contains",
+      "arg": "acquisition and date of",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn505_2_category_columns",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 505.2: the Category/Rate table renders grid-backed; the following 'Provided further ...' proviso stays prose.",
+      "check": "footnote_html_not_contains",
+      "ref": "505.2",
+      "arg": "Provided further that in case of</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn504_1_header_cells",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 504.1: the header reads in order ('Tax Year. Rate of tax.'), never the pooled interleave ('Tax Year | Rate | of tax.').",
+      "check": "footnote_html_contains",
+      "ref": "504.1",
+      "arg": "Tax Year. Rate of tax.",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn502_3_three_columns",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 502.3 (income from property): three real columns from the numbering-row fallback; 'Nil' in its own rate cell.",
+      "check": "footnote_html_contains",
+      "ref": "502.3",
+      "arg": ">Nil</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn502_3_no_nil_interleave",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 502.3: the rate must not interleave into the description ('... does not exceed Nil Rs.200,000').",
+      "check": "footnote_html_not_contains",
+      "ref": "502.3",
+      "arg": "exceed Nil",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_divIIB_row8_merged",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Division IIB (super tax): row 8's page-split fragment merges into the main table; the wrapped row-7 description is fused whole.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division IIB",
+      "div_heading": "Super Tax",
+      "check": "division_html_contains",
+      "arg": "million but does\nnot exceed Rs.\n500 million",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_divIIB_tall_cell_rowspan",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Division IIB: the shared '4% of the income' cell spans rows 5-7 with a real rowspan.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "div": "Division IIB",
+      "div_heading": "Super Tax",
+      "check": "division_html_contains",
+      "arg": "rowspan=\"3\">4% of the",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_fn495_3_tabled",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "Fn 495.3 (Division IIA rates of super tax): the gridless two-column quoted table renders as an fn-table (columnar-run detector), not flattened paragraphs.",
+      "check": "footnote_html_contains",
+      "ref": "495.3",
+      "arg": ">Rate of super tax</div>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_s182_row35_in_table",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "s.182: the single-row page fragment (row 35) merges into the penalties table instead of interleaving into a paragraph.",
+      "target": {
+        "kind": "section",
+        "code": "182"
+      },
+      "check": "html_not_contains",
+      "arg": "Any company and an Such company",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0710_s182_one_table",
+      "source": "qa_screenshots_2026-07-10",
+      "description": "s.182: rows 25-28 (width-mismatched continuation fragment; empty 'section' column preserved by geometry) merge into ONE penalties table.",
+      "target": {
+        "kind": "section",
+        "code": "182"
+      },
+      "check": "html_not_contains",
+      "arg": "<th>25</th>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec227B_heading_body_text",
+      "source": "audit_2026_heading",
+      "description": "Sec 227B: <h4> renders the operative PDF heading 'Reward to whistleblowers' (body), not the stale TOC casing 'Reward of whistleblowers'.",
+      "target": {
+        "kind": "section",
+        "code": "227B"
+      },
+      "check": "html_contains",
+      "arg": "[227B. Reward to whistleblowers.—</h4>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec227B_heading_no_toc_wording",
+      "source": "audit_2026_heading",
+      "description": "Sec 227B: the wrong TOC wording must not appear in the rendered heading html.",
+      "target": {
+        "kind": "section",
+        "code": "227B"
+      },
+      "check": "html_not_contains",
+      "arg": "Reward of whistleblowers.—</h4>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec132_heading_body_text",
+      "source": "audit_2026_heading",
+      "description": "Sec 132: <h4> uses the amended operative title 'Decision of appeals by the Appellate Tribunal' (2024 substitution), not the stale TOC 'Disposal'.",
+      "target": {
+        "kind": "section",
+        "code": "132"
+      },
+      "check": "html_contains",
+      "arg": "[132. Decision of appeals by the Appellate Tribunal. —</h4>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec75A_heading_inserted_amendment",
+      "source": "audit_2026_heading",
+      "description": "Sec 75A: <h4> keeps the amendment inserted into the heading ('[or digital means]') with its citation and the printed '.-' terminator, instead of the truncated TOC heading.",
+      "target": {
+        "kind": "section",
+        "code": "75A"
+      },
+      "check": "html_contains",
+      "arg": "[or digital means].-</h4>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec75A_heading_inserted_citation",
+      "source": "audit_2026_heading",
+      "description": "Sec 75A: the heading-embedded amendment '[or digital means]' carries its <sup> citation (143.2).",
+      "target": {
+        "kind": "section",
+        "code": "75A"
+      },
+      "check": "html_contains",
+      "arg": ">143.2</sup>[or digital means]",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec195B_heading_endash",
+      "source": "audit_2026_heading",
+      "description": "Sec 195B: <h4> preserves the printed en-dash terminator '.–' (PDF), not a hardcoded em-dash '.—'.",
+      "target": {
+        "kind": "section",
+        "code": "195B"
+      },
+      "check": "html_contains",
+      "arg": "offshore tax evasion.–</h4>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec195B_heading_not_emdash",
+      "source": "audit_2026_heading",
+      "description": "Sec 195B: the heading must not use a hardcoded em-dash terminator.",
+      "target": {
+        "kind": "section",
+        "code": "195B"
+      },
+      "check": "html_not_contains",
+      "arg": "offshore tax evasion.—</h4>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec2_no_stray_dotnumber",
+      "source": "audit_2026_page_bleed",
+      "description": "Sec 2: the stray leading-dot-number extraction artifact '.9230' (PDF printed page 1, between clauses (a) and (b)) must not leak into the body. Also guarded document-wide by no_stray_dotnumber.",
+      "target": {
+        "kind": "section",
+        "code": "2"
+      },
+      "check": "plain_not_contains",
+      "arg": ".9230",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec23A_insertion_omission_pairing",
+      "source": "audit_2026_stray_marker",
+      "description": "Sec 23A (inserted 2008, omitted 2021) must carry BOTH its history notes: 74.6 (anonymous 'Inserted by the Finance Act, 2008.') paired with 74.7 ('Section 23A omitted...'). Audit flagged 74.6 as a stray marker, but the {printed}.{marker} ref schema is by-design and the insertion/omission pairing is guarded by inv_insertion_note_paired_with_omission (the reference JSON wrongly split 23A's history).",
+      "target": {
+        "kind": "section",
+        "code": "23A"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "74.6",
+        "74.7"
+      ],
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec33_no_bold_lead",
+      "source": "audit_2026_extra_text",
+      "description": "Sec 33: the leading 'A' of the operative text (fused with the bold heading dash '.—A') must not be bold; the PDF/reference render it plain, not <strong>A</strong>.",
+      "target": {
+        "kind": "section",
+        "code": "33"
+      },
+      "check": "html_not_contains",
+      "arg": "<strong>A</strong>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec3_no_bold_lead",
+      "source": "audit_2026_extra_text",
+      "description": "Sec 3: the leading 'The' after the bold heading dash must render plain, not <strong>The</strong> (bold-font bleed from the fused dash token).",
+      "target": {
+        "kind": "section",
+        "code": "3"
+      },
+      "check": "html_not_contains",
+      "arg": "<strong>The</strong>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec4AB_no_fabricated_heading_dash",
+      "source": "audit_2026_extra_text",
+      "description": "Sec 4AB: the title-less section must not render a fabricated TOC heading with an em-dash the PDF never prints ('...payable.—'); its <h4> is the real first body line.",
+      "target": {
+        "kind": "section",
+        "code": "4AB"
+      },
+      "check": "html_not_contains",
+      "arg": "payable.—</h4>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec6A_closing_bracket_not_orphan_li",
+      "source": "audit_2026_bracket_placement",
+      "description": "Sec 6A: the tail of subsection (2) ('...mentioned in sub-section (1).]') must stay in item (2); the wrapped cross-reference '(1)' must not become a phantom '<li>(1).]</li>'.",
+      "target": {
+        "kind": "section",
+        "code": "6A"
+      },
+      "check": "html_not_contains",
+      "arg": "<li>(1).]</li>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec5_wrapped_clause_ref_not_li",
+      "source": "audit_2026_bracket_placement",
+      "description": "Sec 5: 'clause (19) of section 2]' wraps as a cross-reference and must stay in item (1); '(19)' must not open its own subsection list item.",
+      "target": {
+        "kind": "section",
+        "code": "5"
+      },
+      "check": "html_not_contains",
+      "arg": "<li>(19) of section 2]",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec141_wrapped_subsection_ref_merged",
+      "source": "audit_2026_bracket_placement",
+      "description": "Sec 141: 'sub-sections (4) and (5)' / 'sub-section (2)' cross-references that wrap onto a new line must not split into phantom subsection items.",
+      "target": {
+        "kind": "section",
+        "code": "141"
+      },
+      "check": "html_not_contains",
+      "arg": "<li>(4) and (5) shall be limited",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec28_securitisation_spelling",
+      "source": "audit_2026_missing_text",
+      "description": "Sec 28: 'securitisation' must be spelled with the 'ti' (a prior font-subset word-split produced 'securisation'); regression guard for the split-word rejoin.",
+      "target": {
+        "kind": "section",
+        "code": "28"
+      },
+      "check": "plain_contains",
+      "arg": "securitisation",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec7D_chief_commissioner_line",
+      "source": "audit_2026_missing_text",
+      "description": "Sec 7D: clause '(c) the Chief Commissioner has issued online schedule of advance tax installments' must be present (audit flagged it missing against a stale output).",
+      "target": {
+        "kind": "section",
+        "code": "7D"
+      },
+      "check": "plain_contains",
+      "arg": "Chief Commissioner has issued online schedule of advance tax",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec30_amendment_markers_present",
+      "source": "audit_2026_missing_text",
+      "description": "Sec 30: the amendment footnote markers 6-10 and 1 (refs 82.6-82.10, 83.1) are all present (audit flagged them missing against a stale output).",
+      "target": {
+        "kind": "section",
+        "code": "30"
+      },
+      "check": "footnote_refs_exact",
+      "arg": [
+        "82.6",
+        "82.7",
+        "82.8",
+        "82.9",
+        "82.10",
+        "83.1"
+      ],
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn56_4_complete_150000",
+      "source": "audit_2026_footnote_text",
+      "description": "Sec 15 fn 56.4: the omitted sub-section text is complete through clause (ii) 'Rs. 150,000 in a tax year' (audit flagged truncation against a stale output).",
+      "target": {
+        "kind": "section",
+        "code": "15"
+      },
+      "ref": "56.4",
+      "check": "footnote_contains",
+      "arg": "not exceeding Rs. 150,000",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn131_4_heading_dash",
+      "source": "audit_2026_footnote_text",
+      "description": "Sec 65D fn 131.4: the quoted omitted-section heading reads '65D. Tax credit for newly established industrial undertakings. —' (the dash follows 'undertakings', the heading, exactly as the PDF; the audit misread it as being after '65D.').",
+      "target": {
+        "kind": "section",
+        "code": "65D"
+      },
+      "ref": "131.4",
+      "check": "footnote_contains",
+      "arg": "undertakings. — (1) Where",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn18_1_complete_balochistan",
+      "source": "audit_2026_footnote_text",
+      "description": "Sec 2 fn 18.1: the footnote text is complete through 'Balochistan Local Government Ordinance, 2001' (our text is more complete than the reference, which truncated it).",
+      "target": {
+        "kind": "section",
+        "code": "2"
+      },
+      "ref": "18.1",
+      "check": "footnote_contains",
+      "arg": "lochistan Local Government Ordinance, 2001",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec23B_mutatis_mutandis",
+      "source": "audit_2026_unknown",
+      "description": "Sec 23B clause (2): wording 'shall mutatis mutandis apply' matches the PDF and reference (audit claimed a different wording).",
+      "target": {
+        "kind": "section",
+        "code": "23B"
+      },
+      "check": "plain_contains",
+      "arg": "shall mutatis mutandis apply",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec83_marker_151_2_local_government",
+      "source": "audit_2026_unknown",
+      "description": "Sec 83: amendment marker 151.2 anchors the '[Local Government]' substitution exactly as the reference JSON (marker placement matches the shipped site).",
+      "target": {
+        "kind": "section",
+        "code": "83"
+      },
+      "check": "html_contains",
+      "arg": ">151.2</sup>[Local Government",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec59B_marker_114_4_placement",
+      "source": "audit_2026_unknown",
+      "description": "Sec 59B: marker 114.4 anchors '[as computed in sub-section' exactly as the reference JSON.",
+      "target": {
+        "kind": "section",
+        "code": "59B"
+      },
+      "check": "html_contains",
+      "arg": ">114.4</sup>[as computed in sub",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec22_formula_block",
+      "source": "audit_2026_formula",
+      "description": "Sec 22: the depreciation formula renders as a centred <span class=\"formula\"> block (deliberate enhancement per README item 22; reference JSON has no such block). Reviewed: intended, not a defect.",
+      "target": {
+        "kind": "section",
+        "code": "22"
+      },
+      "check": "html_contains",
+      "arg": "class=\"formula\"",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec61_formula_block",
+      "source": "audit_2026_formula",
+      "description": "Sec 61: the tax-credit formula renders as a centred <span class=\"formula\"> block (intended enhancement; reviewed, not a defect).",
+      "target": {
+        "kind": "section",
+        "code": "61"
+      },
+      "check": "html_contains",
+      "arg": "class=\"formula\"",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec109A_formula_block",
+      "source": "audit_2026_formula",
+      "description": "Sec 109A: the formula renders as a centred <span class=\"formula\"> block (intended enhancement; reviewed, not a defect).",
+      "target": {
+        "kind": "section",
+        "code": "109A"
+      },
+      "check": "html_contains",
+      "arg": "class=\"formula\"",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "schedII_partIV_roman_clauses_split",
+      "source": "audit_2026_list_format",
+      "description": "Second Schedule PART IV: high roman sub-clauses (xliii)/(xliv) (>39) must each be their own <li>, not merged into (xli)'s item. Root cause: ROMAN_RE capped at xxxix, so 4+ char romans fell through to text.",
+      "target": {
+        "kind": "schedule",
+        "code": "SECOND"
+      },
+      "div": "PART IV",
+      "div_heading": "EXEMPTION FROM SPECIFIC",
+      "check": "division_html_contains",
+      "arg": "<li>(xliii) Persons qualifying",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec214E_heading_closure_of_audit",
+      "source": "audit_v2_heading",
+      "description": "Sec 214E: heading renders the operative title 'Closure of audit.' with its printed box-drawing dash (U+2500), not the ToC insertion-note fallback. Fix: box-drawing dash added to heading-terminator detection.",
+      "target": {
+        "kind": "section",
+        "code": "214E"
+      },
+      "check": "html_contains",
+      "arg": "214E. Closure of audit.─",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec227D_heading_title",
+      "source": "audit_v2_heading",
+      "description": "Sec 227D: heading keeps the operative title 'Automated impersonal tax regime.-'; the code-adjacent '227D.-' dash must not be taken as the title terminator.",
+      "target": {
+        "kind": "section",
+        "code": "227D"
+      },
+      "check": "html_contains",
+      "arg": "227D.- Automated impersonal tax regime.-",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec49_heading_singular_government",
+      "source": "audit_v2_heading",
+      "description": "Sec 49: the multi-line heading renders the operative body wording 'Government,' (singular, with comma) not the stale ToC 'Federal Governments'. Multi-line (d>0) body-heading rendering.",
+      "target": {
+        "kind": "section",
+        "code": "49"
+      },
+      "check": "html_contains",
+      "arg": "[Government,] Provincial Government, and",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec49_heading_no_toc_plural",
+      "source": "audit_v2_heading",
+      "description": "Sec 49: the stale ToC plural 'Federal Governments' must not appear in the rendered heading.",
+      "target": {
+        "kind": "section",
+        "code": "49"
+      },
+      "check": "html_not_contains",
+      "arg": "Federal Governments",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec93_omitted_heading_no_emdash",
+      "source": "audit_v2_heading",
+      "description": "Sec 93 (omitted): the synthetic 'Omitted by ...' placeholder heading must not end with a fabricated em-dash the PDF never prints. Also guarded document-wide by no_omitted_heading_emdash.",
+      "target": {
+        "kind": "section",
+        "code": "93"
+      },
+      "check": "html_not_contains",
+      "arg": "Omitted by the Finance Act, 2007.—",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "sec236L_omitted_heading_no_emdash",
+      "source": "audit_v2_heading",
+      "description": "Sec 236L (omitted): placeholder heading must not carry a fabricated trailing em-dash.",
+      "target": {
+        "kind": "section",
+        "code": "236L"
+      },
+      "check": "html_not_contains",
+      "arg": "2021.—",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0714_sched1_part4_heading_clean",
+      "source": "qa_screenshot_2026-07-14",
+      "description": "First Schedule PART IV heading is exactly 'DEDUCTION OR COLLECTION OF ADVANCE TAX' -- the TOC's inline-page division rows ('Division I 533 ...') must classify as divisions, not glue into the part heading. Also guarded document-wide by no_toc_row_in_heading.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART IV",
+      "check": "part_heading_equals",
+      "arg": "DEDUCTION OR COLLECTION OF ADVANCE TAX",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0714_sched1_p4_div2_brokerage",
+      "source": "qa_screenshot_2026-07-14",
+      "description": "First Schedule Part IV Division II carries its canonical TOC heading 'Brokerage and Commission' (was empty while the TOC row sat swallowed in the part heading).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART IV",
+      "div": "Division II",
+      "check": "part_division_heading_contains",
+      "arg": "Brokerage and Commission",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa0714_sched1_p4_div3_motor_vehicles",
+      "source": "qa_screenshot_2026-07-14",
+      "description": "First Schedule Part IV Division III carries its canonical TOC heading 'Tax on motor vehicles'.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART IV",
+      "div": "Division III",
+      "check": "part_division_heading_contains",
+      "arg": "Tax on motor vehicles",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "ch1_node_preliminary",
+      "source": "fix:missing-chapter-1",
+      "description": "CHAPTER I node exists (Roman-normalised code) with clean heading PRELIMINARY, free of TOC column-header noise",
+      "target": {
+        "kind": "chapter",
+        "code": "CHAPTER I"
+      },
+      "check": "chapter_heading_equals",
+      "arg": "PRELIMINARY",
+      "status": "active"
+    },
+    {
+      "id": "ch1_sec1_heading",
+      "source": "fix:missing-chapter-1",
+      "description": "Section 1 present with its TOC/body heading",
+      "target": {
+        "kind": "section",
+        "code": "1"
+      },
+      "check": "section_heading_equals",
+      "arg": "Short title, extent and commencement",
+      "status": "active"
+    },
+    {
+      "id": "ch1_sec2_heading",
+      "source": "fix:missing-chapter-1",
+      "description": "Section 2 (Definitions) present",
+      "target": {
+        "kind": "section",
+        "code": "2"
+      },
+      "check": "section_heading_equals",
+      "arg": "Definitions",
+      "status": "active"
+    },
+    {
+      "id": "ch1_sec3_heading",
+      "source": "fix:missing-chapter-1",
+      "description": "Section 3 present",
+      "target": {
+        "kind": "section",
+        "code": "3"
+      },
+      "check": "section_heading_equals",
+      "arg": "Ordinance to override other laws",
+      "status": "active"
+    },
+    {
+      "id": "ch1_sec1_body",
+      "source": "fix:missing-chapter-1",
+      "description": "Section 1 carries its operative body text",
+      "target": {
+        "kind": "section",
+        "code": "1"
+      },
+      "check": "plain_contains",
+      "arg": "This Ordinance may be",
+      "status": "active"
+    },
+    {
+      "id": "ch1_sec2_body",
+      "source": "fix:missing-chapter-1",
+      "description": "Section 2 carries the definitions body (~30 pages)",
+      "target": {
+        "kind": "section",
+        "code": "2"
+      },
+      "check": "plain_contains",
+      "arg": "accumulated profits",
+      "status": "active"
+    },
+    {
+      "id": "sec207_operative_first_line",
+      "source": "fix:line-grouping-anchor",
+      "description": "Sec 207: operative text sharing the heading's physical line is conserved (raised-marker line-anchor split fix)",
+      "target": {
+        "kind": "section",
+        "code": "207"
+      },
+      "check": "plain_contains",
+      "arg": "There shall be the following Income Tax",
+      "status": "active"
+    },
+    {
+      "id": "sched7_order_1983_clean",
+      "source": "fix:table-cite-sentinel",
+      "description": "Seventh Schedule Part I table: 'Order, 1983' renders clean (4-digit year no longer sentinel-wrapped)",
+      "applies_to": "30.06.2024",
+      "target": {
+        "kind": "schedule",
+        "code": "THE SEVENTH SCHEDULE"
+      },
+      "check": "any_schedule_leaf_html_contains",
+      "arg": "Order, 1983",
+      "status": "active"
+    },
+    {
+      "id": "sched1_pt1_divIIA_node",
+      "source": "fix:chained-struct-decoration",
+      "description": "First Schedule Part I: Division IIA ('1[ 2[Division IIA') is its own node, not Division II body bleed",
+      "applies_to": "30.06.2024",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST SCHEDULE"
+      },
+      "check": "division_code_count",
+      "part": "PART I",
+      "div": "Division IIA",
+      "arg": 1,
+      "status": "active"
+    },
+    {
+      "id": "sec230E_real_body",
+      "source": "fix:dotless-section-start",
+      "description": "230E (dot-less body line '1[230E ...') carries its real operative body, not a heading-only placeholder. Edition-agnostic check: 230E is 'Directorate-General of Transfer Pricing' in the pre-2024 editions and 'Directorate General of International Tax' later, but every edition's operative text opens '... shall consist of ...' -- absent only if the body collapsed to the heading.",
+      "target": {
+        "kind": "section",
+        "code": "230E"
+      },
+      "check": "plain_contains",
+      "arg": "shall consist of",
+      "status": "active"
+    },
+    {
+      "id": "d25_sec4B_decorated",
+      "source": "fix:2025-discovery",
+      "description": "2025: decorated start '6 [4B. Super tax ...' discovered. Heading is taken from this edition's canonical TOC, which prints 'temporary displaced persons' (the operative body reads 'temporarily'); the 31.07.2025 source's TOC spelling is authoritative for the heading.",
+      "applies_to": "31.07.2025",
+      "target": {
+        "kind": "section",
+        "code": "4B"
+      },
+      "check": "section_heading_equals",
+      "arg": "Super tax for rehabilitation of temporary displaced persons",
+      "status": "active"
+    },
+    {
+      "id": "d25_sec4AB_bracketparen",
+      "source": "fix:2025-discovery",
+      "description": "2025: bracket-paren insert '4 [(4AB) Subject ...' discovered",
+      "applies_to": "31.07.2025",
+      "target": {
+        "kind": "section",
+        "code": "4AB"
+      },
+      "check": "plain_contains",
+      "arg": "surcharge",
+      "status": "active"
+    },
+    {
+      "id": "d25_sec158_fused_dot",
+      "source": "fix:2025-discovery",
+      "description": "2025: fused-dot start '2 [158.Time of ...' discovered",
+      "applies_to": "31.07.2025",
+      "target": {
+        "kind": "section",
+        "code": "158"
+      },
+      "check": "section_heading_equals",
+      "arg": "Time of deduction of tax",
+      "status": "active"
+    },
+    {
+      "id": "d25_sec205_subst_title",
+      "source": "fix:2025-discovery",
+      "description": "2025: substituted title '205. 4 [Default surcharge]. —' discovered with brackets stripped from heading",
+      "applies_to": "31.07.2025",
+      "target": {
+        "kind": "section",
+        "code": "205"
+      },
+      "check": "section_heading_equals",
+      "arg": "Default surcharge",
+      "status": "active"
+    },
+    {
+      "id": "d25_sec99B_colon_dash",
+      "source": "fix:2025-discovery",
+      "description": "2025: colon-dash terminator '99B. ...shopkeepers:-Notwithstanding' discovered (period-dash rule misses it)",
+      "applies_to": "31.07.2025",
+      "target": {
+        "kind": "section",
+        "code": "99B"
+      },
+      "check": "section_heading_equals",
+      "arg": "Special procedure for small traders and shopkeepers",
+      "status": "active"
+    },
+    {
+      "id": "d25_sec61_not_poisoned",
+      "source": "fix:2025-discovery",
+      "description": "2025: sec 61 (Charitable donations) survives -- a renumbering footnote at 60C's location ('Section 64A is re-numbered') must not poison the monotonic cursor (two-pass placeholder gating)",
+      "applies_to": "31.07.2025",
+      "target": {
+        "kind": "section",
+        "code": "61"
+      },
+      "check": "section_heading_equals",
+      "arg": "Charitable donations",
+      "status": "active"
+    },
+    {
+      "id": "d25_sec60D_recovered",
+      "source": "fix:2025-discovery",
+      "description": "2025: sec 60D real body present (same poisoning class)",
+      "applies_to": "31.07.2025",
+      "target": {
+        "kind": "section",
+        "code": "60D"
+      },
+      "check": "plain_contains",
+      "arg": "education expenses",
+      "status": "active"
+    },
+    {
+      "id": "d25_sec236Y_pair",
+      "source": "fix:2025-discovery",
+      "description": "2025: 236Y yields TWO leaves -- omitted placeholder + re-inserted real section (equal-code tolerance)",
+      "applies_to": "31.07.2025",
+      "target": {
+        "kind": "section",
+        "code": "236Y"
+      },
+      "check": "section_code_count",
+      "arg": 2,
+      "status": "active"
+    },
+    {
+      "id": "d25_ch5_division_persons",
+      "source": "fix:2025-discovery",
+      "description": "2025: chapter-side division tree discovered (Ch V / PART I / Division I 'Persons')",
+      "applies_to": "31.07.2025",
+      "target": {
+        "kind": "section",
+        "code": "80"
+      },
+      "check": "tree_division_heading_contains",
+      "div": "Division I",
+      "arg": "Persons",
+      "status": "active"
+    },
+    {
+      "id": "d25_no_17A_section",
+      "source": "fix:2025-discovery",
+      "description": "definitions clause '17A. “Developmental REIT Scheme” ...' inside sec 2 is NOT a section leaf (bold-title gate)",
+      "target": {
+        "kind": "section",
+        "code": "17A"
+      },
+      "check": "section_code_count",
+      "arg": 0,
+      "status": "active"
+    },
+    {
+      "id": "d25_single_sec25",
+      "source": "fix:2025-discovery",
+      "description": "2025: the wrapped cross-reference line '25.' inside sec 20 is NOT a section start (exactly one sec 25 leaf)",
+      "applies_to": "31.07.2025",
+      "target": {
+        "kind": "section",
+        "code": "25"
+      },
+      "check": "section_code_count",
+      "arg": 1,
+      "status": "active"
+    },
+    {
+      "id": "d24_sec236U_omitted_year",
+      "description": "Sec 236U heading keeps the wrapped omission year '... 30th June, 2020' (toc.py continuation no longer drops a bare year).",
+      "target": {
+        "kind": "section",
+        "code": "236U"
+      },
+      "check": "section_heading_equals",
+      "arg": "omitted through Finance Act, 2020 dated 30th June, 2020",
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d24_sec236X_omitted_year",
+      "description": "Sec 236X heading keeps the wrapped omission year '... 30th June, 2020'.",
+      "target": {
+        "kind": "section",
+        "code": "236X"
+      },
+      "check": "section_heading_equals",
+      "arg": "omitted through Finance Act, 2020 dated 30th June, 2020",
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d26_sec236U_omitted_year",
+      "description": "Sec 236U heading keeps the wrapped omission year '... 30th June, 2020' (gate edition).",
+      "target": {
+        "kind": "section",
+        "code": "236U"
+      },
+      "check": "section_heading_equals",
+      "arg": "omitted through Finance Act, 2020 dated 30th June, 2020",
+      "applies_to": "20.02.2026",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d24_sched1_part_codes",
+      "description": "First Schedule Parts reconciled to the TOC: PART IIA (omitted) and PART IIB present, in order.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "check": "schedule_part_codes",
+      "arg": [
+        "PART I",
+        "PART II",
+        "PART IIA",
+        "PART IIB",
+        "PART III",
+        "PART IV"
+      ],
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d26_sched1_part_codes",
+      "description": "First Schedule Parts reconciled to the TOC (gate edition).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "check": "schedule_part_codes",
+      "arg": [
+        "PART I",
+        "PART II",
+        "PART IIA",
+        "PART IIB",
+        "PART III",
+        "PART IV"
+      ],
+      "applies_to": "20.02.2026",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d24_sched1_partIIA_heading",
+      "description": "First Schedule PART IIA placeholder carries the clean TOC heading (no 'Part IIB 503 ...' bleed).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART IIA",
+      "check": "part_heading_equals",
+      "arg": "Collection of Tax from Distributors, Dealers, And Wholesalers Omitted by the Finance Act, 2014",
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d26_sched1_partIIA_heading",
+      "description": "First Schedule PART IIA placeholder carries the clean TOC heading (gate edition).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART IIA",
+      "check": "part_heading_equals",
+      "arg": "Collection of Tax from Distributors, Dealers, And Wholesalers Omitted by the Finance Act, 2014",
+      "applies_to": "20.02.2026",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d24_sched1_p1_divI_count",
+      "description": "First Schedule PART I has exactly ONE 'Division I' (single combined heading; the parallel 'Association of Persons' TOC half is merged, not a phantom sibling).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART I",
+      "div": "Division I",
+      "check": "division_code_count",
+      "arg": 1,
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d26_sched1_p1_divI_count",
+      "description": "First Schedule PART I has exactly ONE 'Division I' (gate edition; single combined heading, no phantom AOP sibling).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART I",
+      "div": "Division I",
+      "check": "division_code_count",
+      "arg": 1,
+      "applies_to": "20.02.2026",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d24_sched1_p1_divIA_omitted",
+      "description": "First Schedule PART I includes omitted Division IA placeholder.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART I",
+      "div": "Division IA",
+      "check": "part_division_heading_contains",
+      "arg": "Omitted by the Finance Act, 2013",
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d24_sched1_p1_divVIA_omitted",
+      "description": "First Schedule PART I includes omitted Division VIA placeholder ('Income from Property (Omitted ...)').",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART I",
+      "div": "Division VIA",
+      "check": "part_division_heading_contains",
+      "arg": "Income from Property",
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d26_sched1_p1_divIA_omitted",
+      "description": "First Schedule PART I includes omitted Division IA placeholder (gate edition).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART I",
+      "div": "Division IA",
+      "check": "part_division_heading_contains",
+      "arg": "Omitted by the Finance Act, 2013",
+      "applies_to": "20.02.2026",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d24_sched1_p3_div_codes",
+      "description": "First Schedule PART III division codes match the TOC, incl. spaced 'Division III A' / 'Division III B' (mis-code fix).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART III",
+      "check": "part_division_codes",
+      "arg": [
+        "Division I",
+        "Division IA",
+        "Division IB",
+        "Division II",
+        "Division III",
+        "Division III A",
+        "Division III B",
+        "Division IV",
+        "Division IVA",
+        "Division V",
+        "Division VI",
+        "Division VIA",
+        "Division VIB",
+        "Division VII"
+      ],
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d26_sched1_p3_divIIIA_omitted",
+      "description": "First Schedule PART III has 'Division III A' as its own omitted node (gate edition).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART III",
+      "div": "Division III A",
+      "check": "part_division_heading_contains",
+      "arg": "Omitted by the Finance Act, 2012",
+      "applies_to": "20.02.2026",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d26_sched1_p3_divIIIB_omitted",
+      "description": "First Schedule PART III has 'Division III B' as its own omitted node (gate edition).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART III",
+      "div": "Division III B",
+      "check": "part_division_heading_contains",
+      "arg": "Omitted by the Finance Act, 2012",
+      "applies_to": "20.02.2026",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d24_sched3_part_codes",
+      "description": "Third Schedule has exactly PART I/II/III -- the footnote-quoted duplicate PART I is gone.",
+      "target": {
+        "kind": "schedule",
+        "code": "THIRD"
+      },
+      "check": "schedule_part_codes",
+      "arg": [
+        "PART I",
+        "PART II",
+        "PART III"
+      ],
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d26_sched3_part_codes",
+      "description": "Third Schedule has exactly PART I/II/III (gate edition).",
+      "target": {
+        "kind": "schedule",
+        "code": "THIRD"
+      },
+      "check": "schedule_part_codes",
+      "arg": [
+        "PART I",
+        "PART II",
+        "PART III"
+      ],
+      "applies_to": "20.02.2026",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d24_sched7_no_parts",
+      "description": "Seventh Schedule has no Part nodes -- the footnote-quoted (pre-2007) PART I/II do not become structure.",
+      "target": {
+        "kind": "schedule",
+        "code": "SEVENTH"
+      },
+      "check": "schedule_part_codes",
+      "arg": [],
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d26_sched7_no_parts",
+      "description": "Seventh Schedule has no Part nodes (gate edition).",
+      "target": {
+        "kind": "schedule",
+        "code": "SEVENTH"
+      },
+      "check": "schedule_part_codes",
+      "arg": [],
+      "applies_to": "20.02.2026",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d24_sched12_parts_kept",
+      "description": "Twelfth Schedule keeps its real active PART I/II/III (incl. the small-font 'Part III'); the font gate drops only footnote-quoted headings.",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "check": "schedule_part_codes",
+      "arg": [
+        "PART I",
+        "PART II",
+        "PART III"
+      ],
+      "applies_to": "30.06.2024",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "d26_sched12_parts_kept",
+      "description": "Twelfth Schedule keeps its real active PART I/II/III (gate edition).",
+      "target": {
+        "kind": "schedule",
+        "code": "TWELFTH"
+      },
+      "check": "schedule_part_codes",
+      "arg": [
+        "PART I",
+        "PART II",
+        "PART III"
+      ],
+      "applies_to": "20.02.2026",
+      "status": "active",
+      "severity": "error",
+      "source": "toc_qa_2024"
+    },
+    {
+      "id": "qa_sec1_no_bold_subsection_marker",
+      "source": "QA_Report",
+      "description": "Sec 1: the first subsection marker (1) must NOT be bold; in the PDF (1)/(2)/(3) are all regular ArialMT (the bold heading dash used to bleed onto the fused (1)).",
+      "target": {
+        "kind": "section",
+        "code": "1"
+      },
+      "check": "html_not_contains",
+      "arg": "<strong>(1)",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec1_subsection_marker_plain",
+      "source": "QA_Report",
+      "description": "Sec 1: subsection (1) renders as a plain <li> marker.",
+      "target": {
+        "kind": "section",
+        "code": "1"
+      },
+      "check": "html_contains",
+      "arg": "<li>(1) This Ordinance may be called",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec106A_no_bold_subsection_marker",
+      "source": "QA_Report",
+      "description": "Sec 106A: subsection marker (1) must NOT be bold (PDF regular ArialMT). This is the section a stale comment feared would regress; it never had a genuine bold marker.",
+      "target": {
+        "kind": "section",
+        "code": "106A"
+      },
+      "check": "html_not_contains",
+      "arg": "<strong>(1)",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec8_no_bold_subsection_marker",
+      "source": "QA_Report",
+      "description": "Sec 8: subsection marker (1) must NOT be bold. Here the marker arrived split as a bold '(' + regular '1)'; the merge must not keep the bracket's bold.",
+      "target": {
+        "kind": "section",
+        "code": "8"
+      },
+      "check": "html_not_contains",
+      "arg": "<strong>(1)",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec203G_no_bold_subsection_marker",
+      "source": "QA_Report",
+      "description": "Sec 203G: subsection marker (1) must NOT be bold (bold-bracket-fragment case, like sec 8).",
+      "target": {
+        "kind": "section",
+        "code": "203G"
+      },
+      "check": "html_not_contains",
+      "arg": "<strong>(1)",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_schedII_partI_bold_clause_marker_kept",
+      "source": "QA_Report",
+      "description": "Second Schedule PART I: its genuinely-bold clause markers (Arial-BoldMT in the PDF) must stay <strong>. Guards against the marker fix over-correcting schedule bold (a separate real-font path).",
+      "target": {
+        "kind": "schedule",
+        "code": "SECOND"
+      },
+      "check": "any_schedule_leaf_html_contains",
+      "arg": "<li><strong>(3)",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_preamble_no_chapter_heading_2026",
+      "source": "QA_Report",
+      "description": "Preamble must not contain the first chapter heading 'CHAPTER I' (it belongs to the chapter node; it used to be emitted twice).",
+      "target": {
+        "kind": "preamble"
+      },
+      "check": "preamble_not_contains",
+      "arg": "CHAPTER I",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_preamble_no_chapter_heading_2024",
+      "source": "QA_Report",
+      "description": "Preamble must not contain 'CHAPTER I' (2024 edition).",
+      "target": {
+        "kind": "preamble"
+      },
+      "check": "preamble_not_contains",
+      "arg": "CHAPTER I",
+      "status": "active",
+      "applies_to": "30.06.2024"
+    },
+    {
+      "id": "qa_preamble_an_standalone",
+      "source": "QA_Report",
+      "description": "Preamble long title: 'AN' renders as its own centred title paragraph.",
+      "target": {
+        "kind": "preamble"
+      },
+      "check": "preamble_matches",
+      "arg": "<p><strong>AN</strong></p>",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_preamble_an_not_glued_to_note",
+      "source": "QA_Report",
+      "description": "Preamble: 'AN' must NOT be glued onto the end of the publication-note paragraph ('...for general information:— AN').",
+      "target": {
+        "kind": "preamble"
+      },
+      "check": "preamble_not_matches",
+      "arg": "information:—\\s*<strong>AN",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_preamble_recitals_separate",
+      "source": "QA_Report",
+      "description": "Preamble: the WHEREAS recitals begin their own paragraph (not collapsed into the long-title paragraph).",
+      "target": {
+        "kind": "preamble"
+      },
+      "check": "preamble_matches",
+      "arg": "<p>WHEREAS",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "qa_sec2_year_2005_not_split_2024",
+      "source": "QA_Report",
+      "description": "Sec 2 (2024 ed.): a footnote year must read 'Finance Act, 2005.' not the subset-split 'Finance Act, 200 5.'.",
+      "target": {
+        "kind": "section",
+        "code": "2"
+      },
+      "check": "footnote_any_contains",
+      "arg": "Finance Act, 2005.",
+      "status": "active",
+      "applies_to": "30.06.2024"
+    },
+    {
+      "id": "qa_114_no_phantom_table",
+      "source": "conversation",
+      "description": "Sec 114 (Return of income) is entirely prose: the (6A) sub-section + provisos on pdf pp246-247 sit on invisible white background rects and must NOT be detected as fbr-tables (phantom-grid regression).",
+      "target": {
+        "kind": "section",
+        "code": "114"
+      },
+      "check": "html_not_contains",
+      "arg": "<table",
+      "status": "active"
+    },
+    {
+      "id": "rc5_s39_lottery_marker_spaced",
+      "source": "audit_2026-07-18",
+      "description": "RC-5: a superscript footnote marker must not fuse into the preceding word -- s.39 reads 'lottery 6[', never 'lottery6['.",
+      "target": {
+        "kind": "section",
+        "code": "39"
+      },
+      "check": "plain_not_contains",
+      "arg": "lottery6[",
+      "status": "active",
+      "applies_to": "04.05.2024"
+    },
+    {
+      "id": "rc5_s39_year_marker_spaced",
+      "source": "audit_2026-07-18",
+      "description": "RC-5: a superscript marker must not fuse into a year -- s.39 reads 'Rules, 2005 4[', never '20054['.",
+      "target": {
+        "kind": "section",
+        "code": "39"
+      },
+      "check": "plain_not_contains",
+      "arg": "20054[",
+      "status": "active",
+      "applies_to": "04.05.2024"
+    },
+    {
+      "id": "rc7_s233_fraction_slash_04052024",
+      "source": "audit_2026-07-18",
+      "description": "RC-7: the s.233(2A) stacked fraction must carry a division indicator in plain_text -- '(A x 15) / 85', not a stranded '85' line.",
+      "target": {
+        "kind": "section",
+        "code": "233"
+      },
+      "check": "plain_contains",
+      "arg": "(A x 15) / 85",
+      "status": "active",
+      "applies_to": "04.05.2024"
+    },
+    {
+      "id": "rc7_s233_fraction_slash_2026",
+      "source": "audit_2026-07-18",
+      "description": "RC-7: the s.233(2A) stacked fraction must carry a division indicator in plain_text -- '(A x 15) / 85'.",
+      "target": {
+        "kind": "section",
+        "code": "233"
+      },
+      "check": "plain_contains",
+      "arg": "(A x 15) / 85",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "rc2_divI_combined_heading_2026",
+      "source": "audit_2026-07-18",
+      "description": "RC-2: First Schedule Part I Division I is a single leaf carrying the full combined heading; the TOC split it into two parallel halves and fabricated a phantom 'Rates of Tax for Association of Persons' sibling.",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART I",
+      "div": "Division I",
+      "check": "part_division_heading_contains",
+      "arg": "Rates of Tax for Individuals and Association of Persons",
+      "status": "active",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "rc2_divI_combined_heading_04052024",
+      "source": "audit_2026-07-18",
+      "description": "RC-2: First Schedule Part I Division I single combined heading (no phantom AOP sibling).",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST"
+      },
+      "part": "PART I",
+      "div": "Division I",
+      "check": "part_division_heading_contains",
+      "arg": "Rates of Tax for Individuals and Association of Persons",
+      "status": "active",
+      "applies_to": "04.05.2024"
+    },
+    {
+      "id": "rc6_s147_5b_table",
+      "source": "audit_2026-07-18",
+      "description": "RC-6a: s.147(5B)'s dash/text-ruled advance-tax TABLE is reconstructed as a real fbr-table (was 0 <table>, columns interleaved line-by-line).",
+      "target": {
+        "kind": "section",
+        "code": "147"
+      },
+      "check": "has_fbr_table",
+      "arg": "",
+      "status": "active",
+      "applies_to": "04.05.2024"
+    },
+    {
+      "id": "rc6_s147_5b_rate_row_intact",
+      "source": "audit_2026-07-18",
+      "description": "RC-6a: the s.147(5B) rate column is correctly separated -- the first row's rate reads as one cell, not interleaved with the holding-period text.",
+      "target": {
+        "kind": "section",
+        "code": "147"
+      },
+      "check": "html_contains",
+      "arg": "<td>2% of the capital gains derived during the quarter.</td>",
+      "status": "active",
+      "applies_to": "04.05.2024"
+    },
+    {
+      "id": "rcA_fifth_partI_no_heading_echo",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-A: Fifth Schedule PART I -- the rule-heading is the <h4> only; the body no longer echoes it as a bold <p>.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "THE FIFTH SCHEDULE"
+      },
+      "check": "html_not_contains",
+      "arg": "<p><strong>RULES FOR THE COMPUTATION OF THE PROFITS AND GAINS FROM THE",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "rcA_fifth_partI_subhead_separate",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-A: Fifth Schedule PART I -- the mid-body sub-heading is its own <p><strong> block, not merged into a paragraph.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "THE FIFTH SCHEDULE"
+      },
+      "check": "html_contains",
+      "arg": "<p><strong>Exploration and Production of Petroleum a Separate Business</strong></p>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "rcA_fifth_partI_computation_subhead",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-A: Fifth Schedule PART I -- 'Computation of Profits' is a standalone sub-heading, not glued onto rule 1's paragraph.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "THE FIFTH SCHEDULE"
+      },
+      "check": "html_contains",
+      "arg": "<p><strong>Computation of Profits</strong></p>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "rcA_seventh_heading_not_glued",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-A: Seventh Schedule -- the operative rule-heading is its own block, never glued to the '1.' numbered rule.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "THE SEVENTH SCHEDULE"
+      },
+      "check": "html_not_contains",
+      "arg": "THEREON</strong> <strong>1.</strong>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "rcA_seventh_heading_block",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-A: Seventh Schedule -- the all-caps rule-heading renders as a standalone <p><strong> block.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "THE SEVENTH SCHEDULE"
+      },
+      "check": "html_contains",
+      "arg": "<p><strong>RULES FOR THE COMPUTATION OF THE PROFITS AND GAINS OF A</strong> <strong>BANKING COMPANY AND TAX PAYABLE THEREON</strong></p>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "rcA_third_partII_heading_clean",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-A regression lock: Third Schedule PART II keeps the canonical TOC heading after the parts overwrite_heading change (the peeled body heading never leaks in).",
+      "target": {
+        "kind": "schedule",
+        "code": "THIRD"
+      },
+      "part": "PART II",
+      "check": "part_heading_equals",
+      "arg": "INITIAL ALLOWANCE AND FIRST YEAR ALLOWANCE",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "rcD_ninth_parts_contiguous",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-D (img 8): Ninth Schedule keeps PART I/II/III as distinct parts -- PART II (sub-section (2) rules) is never merged into PART I as plain body text.",
+      "target": {
+        "kind": "schedule",
+        "code": "NINTH"
+      },
+      "check": "schedule_part_codes",
+      "arg": [
+        "PART I",
+        "PART II",
+        "PART III"
+      ],
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "rcC_third_partI_first_row_data",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-C (img 69): Third Schedule PART I depreciation table -- the serial-led first row 'I. | Building (all types). | 10%' is <td> data, not a bold <thead> row.",
+      "target": {
+        "kind": "schedule",
+        "code": "THE THIRD SCHEDULE"
+      },
+      "check": "any_schedule_leaf_html_contains",
+      "arg": "<tbody>\n<tr>\n<td>I.</td>\n<td>Building (all types).</td>\n<td>10%</td>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "rcC_third_partI_no_th_datarow",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-C (img 69): the depreciation data row is never emitted as a bold <th> header cell.",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "THE THIRD SCHEDULE"
+      },
+      "check": "html_not_contains",
+      "arg": "<th>Building (all types).</th>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn660_1_rate_header_in_col3",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-B (img 70): fn 660.1 (Third Schedule depreciation, 30.06.2023) -- the wrapped 3-line header maps 'Rate per cent of the written down value.' to its own column-3 cell.",
+      "check": "footnote_html_contains",
+      "ref": "660.1",
+      "arg": ">Rate per cent of the written down value.</div>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "30.06.2023"
+    },
+    {
+      "id": "fn660_1_no_rate_fused_into_description",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-B (img 70): fn 660.1 -- 'Rate' is not fused into the Description header cell.",
+      "check": "footnote_html_not_contains",
+      "ref": "660.1",
+      "arg": ">Description. Rate</div>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "30.06.2023"
+    },
+    {
+      "id": "fn698_1_rate_header_in_col3",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-B (img 70): fn 698.1 (Third Schedule depreciation, gate edition) -- same header fix as 660.1: 'Rate per cent of the written down value.' is one column-3 cell.",
+      "check": "footnote_html_contains",
+      "ref": "698.1",
+      "arg": ">Rate per cent of the written down value.</div>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn698_1_no_rate_fused_into_description",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-B (img 70): fn 698.1 -- 'Rate' is not fused into the Description header cell.",
+      "check": "footnote_html_not_contains",
+      "ref": "698.1",
+      "arg": ">Description. Rate</div>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "20.02.2026"
+    },
+    {
+      "id": "fn693_1_two_columns",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-B (img 7): fn 693.1 (Seventh Schedule PART I goods, 30.06.2023) -- the spurious 3rd column declared by the '(1)(2)(3)' row is dropped; the goods table renders as 2 columns (50% flex).",
+      "check": "footnote_html_contains",
+      "ref": "693.1",
+      "arg": "flex:0 0 50.0%",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "30.06.2023"
+    },
+    {
+      "id": "fn693_1_description_intact",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-B (img 7): fn 693.1 -- a wrapped description is one intact cell; the serial no longer absorbs the first description word.",
+      "check": "footnote_html_contains",
+      "ref": "693.1",
+      "arg": ">Engineering goods, including electrical goods</div>",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "30.06.2023"
+    },
+    {
+      "id": "fn693_1_no_engineering_duplication",
+      "source": "qa_issues_2026-07-21",
+      "description": "RC-B (img 7): fn 693.1 -- no 'Engineering Engineering' duplication artifact from 3-column mis-pooling.",
+      "check": "footnote_html_not_contains",
+      "ref": "693.1",
+      "arg": "Engineering Engineering",
+      "status": "active",
+      "severity": "error",
+      "applies_to": "30.06.2023"
+    },
+    {
+      "id": "qa2021_s12_formula_legend_block",
+      "source": "QA_Report:2021 [20-22]",
+      "description": "Sec 12(6): the formula legend ('where —', 'A is ...', 'B is ...') each opens its own block instead of running inline in the paragraph that introduced the formula",
+      "applies_to": "30 June 2021",
+      "target": {
+        "kind": "section",
+        "code": "12"
+      },
+      "check": "html_matches",
+      "arg": "<span class=\"legend\"[^>]*>where[^<]*</span>\\s*<span class=\"legend\"[^>]*><strong>A</strong> is the total tax",
+      "status": "active",
+      "severity": "info"
+    },
+    {
+      "id": "qa2026_s61_formula_legend_block",
+      "source": "QA_Report:2021 [38]",
+      "description": "Sec 61(2) '(A/B) x C' legend blocks on the gate edition -- keeps the legend split covered by the default run_tests gate",
+      "applies_to": "20.02.2026",
+      "target": {
+        "kind": "section",
+        "code": "61"
+      },
+      "check": "html_matches",
+      "arg": "<span class=\"legend\"[^>]*>where[^<]*</span>\\s*<span class=\"legend\"[^>]*><strong>A</strong> is the amount of tax assessed",
+      "status": "active",
+      "severity": "warning"
+    },
+    {
+      "id": "qa2021_s2_clause_1B_own_item",
+      "source": "QA_Report:2021 [6,8,9,14,16,17]",
+      "description": "Sec 2: a re-numbered definition carrying TWO fused citation markers ('4[5(1B)') opens its own <li> -- the previous definition must close before it",
+      "applies_to": "30 June 2021",
+      "target": {
+        "kind": "section",
+        "code": "2"
+      },
+      "check": "html_matches",
+      "arg": "Council Board of Revenue;\\]</li>\\s*<li>",
+      "status": "active",
+      "severity": "warning"
+    },
+    {
+      "id": "qa2021_s152_1AAA_own_item",
+      "source": "QA_Report:2021 [F2]",
+      "description": "Sec 152: subsection (1AAA) -- a 3-letter suffix -- is recognised as a subsection marker and opens its own <li>",
+      "applies_to": "30 June 2021",
+      "target": {
+        "kind": "section",
+        "code": "152"
+      },
+      "check": "html_matches",
+      "arg": "<li><sup class=\"cite\"[^>]*>[\\d.]+</sup>\\[\\(1AAA\\)",
+      "status": "active",
+      "severity": "warning"
+    },
+    {
+      "id": "qa2021_s17_omitted_not_toc_title",
+      "source": "QA_Report:2021 [35,36]",
+      "description": "Sec 17 (2021 print, whose TOC is shifted): the h4 comes from the omission footnote ('Omitted by the Finance Act, 2006'), not from the TOC row that carries s.16's operative title",
+      "applies_to": "30 June 2021",
+      "target": {
+        "kind": "section",
+        "code": "17"
+      },
+      "check": "html_contains",
+      "arg": "<h4 class=\"section-heading\">17. Omitted by the Finance Act, 2006</h4>",
+      "status": "active",
+      "severity": "error"
+    },
+    {
+      "id": "qa2022_s17_omitted_not_toc_title",
+      "source": "QA_Report:2021 [35,36]",
+      "description": "Sec 17 in the 2022 print, whose TOC carries the same shift as 2021",
+      "applies_to": "30th June 2022",
+      "target": {
+        "kind": "section",
+        "code": "17"
+      },
+      "check": "html_contains",
+      "arg": "<h4 class=\"section-heading\">17. Omitted by the Finance Act, 2006</h4>",
+      "status": "active",
+      "severity": "error"
+    },
+    {
+      "id": "qa2021_s37_fraction_formula_block",
+      "source": "fix:formula-char-class",
+      "description": "Sec 37(4A): the centred formula 'A x ¾' is recognised as a formula (vulgar fraction glyph) so its legend is not glued into the paragraph",
+      "applies_to": "30 June 2021",
+      "target": {
+        "kind": "section",
+        "code": "37"
+      },
+      "check": "html_contains",
+      "arg": "<span class=\"formula\" style=\"display:block; text-align:center; margin:0.5em 0;\"><strong>A x ¾</strong></span>",
+      "status": "active",
+      "severity": "info"
+    },
+    {
+      "id": "qa2026_s147_quoted_formula_block",
+      "source": "fix:formula-char-class",
+      "description": "Sec 147: a formula printed with a leading quote mark ('“(A/4) - B') is still recognised as a formula line, so its 'Where –' legend is not glued into the paragraph",
+      "applies_to": "20.02.2026",
+      "target": {
+        "kind": "section",
+        "code": "147"
+      },
+      "check": "html_contains",
+      "arg": "<span class=\"formula\" style=\"display:block; text-align:center; margin:0.5em 0;\">“(A/4) - B</span>",
+      "status": "active",
+      "severity": "info"
+    },
+    {
+      "id": "qa2021_s149_endash_intro_formula",
+      "source": "fix:formula-intro-dashes",
+      "description": "Sec 149(2): the formula intro ends on an EN dash ('namely:–'), which must still open a formula block ('A/B') -- only hyphen/em-dash were accepted before",
+      "applies_to": "30 June 2021",
+      "target": {
+        "kind": "section",
+        "code": "149"
+      },
+      "check": "html_matches",
+      "arg": "namely:–\\s*<span class=\"formula\"[^>]*><strong>A/B</strong></span>\\s*<span class=\"legend\"",
+      "status": "active",
+      "severity": "info"
+    },
+    {
+      "id": "qa2021_s168_indented_formula",
+      "source": "fix:formula-indented",
+      "description": "Sec 168(2A): a formula the print INDENTS instead of centring ('(A/B) x C') is recognised because it sits between its intro and its legend",
+      "applies_to": "30 June 2021",
+      "target": {
+        "kind": "section",
+        "code": "168"
+      },
+      "check": "html_matches",
+      "arg": "<span class=\"formula\"[^>]*><strong>\\(A/B\\) x C</strong></span>\\s*<span class=\"legend\"[^>]*>Where",
+      "status": "active",
+      "severity": "info"
+    },
+    {
+      "id": "qa2021_s2_clause_13AB_own_item",
+      "source": "QA_Report:2021 [9]",
+      "description": "Sec 2: the doubly-bracketed re-numbered clause '5[6[(13AB)]' opens its own <li> (the second fused marker carries its own bracket)",
+      "applies_to": "30 June 2021",
+      "target": {
+        "kind": "section",
+        "code": "2"
+      },
+      "check": "html_matches",
+      "arg": "<li><sup class=\"cite\"[^>]*>[\\d.]+</sup>\\[<sup class=\"cite\"[^>]*>[\\d.]+</sup>\\[\\(13AB\\)\\] “consumer goods”",
+      "status": "active",
+      "severity": "warning"
+    }
+  ]
+}

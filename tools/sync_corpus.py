@@ -26,19 +26,32 @@ if _env.exists():
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://crx:crx@127.0.0.1:5432/crx")
 os.environ.setdefault("UPLOAD_DIR", str(ROOT / "data" / "uploads"))
 
+from backend.services.corpus_registry import LABELS  # noqa: E402
 from backend.services.corpus_sync import (  # noqa: E402
     default_acts_path,
     default_ordinance_path,
+    default_rules_path,
     run_corpus_sync,
 )
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Sync Ordinance + Acts into the QA portal")
+    p = argparse.ArgumentParser(
+        description=f"Sync {', '.join(LABELS)} into the QA portal"
+    )
     p.add_argument("--ordinance", type=Path, default=default_ordinance_path())
     p.add_argument("--acts", type=Path, default=default_acts_path())
+    p.add_argument("--rules", type=Path, default=default_rules_path())
+    p.add_argument(
+        "--only",
+        action="append",
+        choices=LABELS,
+        metavar="CORPUS",
+        help=f"sync only this corpus; repeatable ({', '.join(LABELS)})",
+    )
     p.add_argument("--ordinance-only", action="store_true")
     p.add_argument("--acts-only", action="store_true")
+    p.add_argument("--rules-only", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--force", action="store_true")
     p.add_argument("--strict", action="store_true")
@@ -56,12 +69,15 @@ def main() -> int:
         run_corpus_sync(
             ordinance=args.ordinance,
             acts=args.acts,
+            rules=args.rules,
+            only=args.only,
             dry_run=args.dry_run,
             force=args.force,
             strict=args.strict,
             metrics=args.metrics,
             ordinance_only=args.ordinance_only,
             acts_only=args.acts_only,
+            rules_only=args.rules_only,
         )
     )
     print(json.dumps(summary, indent=2, sort_keys=True, default=str))

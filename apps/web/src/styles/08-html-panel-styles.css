@@ -212,7 +212,8 @@
 
 .html-renderer-container .proviso,
 .html-renderer-container .explanation,
-.html-renderer-container .defn {
+.html-renderer-container .defn,
+.html-renderer-container .legend {
     display: block;
     margin: 0.5em 0 0.5em 1.5em;
 }
@@ -221,6 +222,31 @@
     display: block;
     text-align: center;
     margin: 0.5em 0;
+}
+
+/* An omitted clause survives in the PDF only as an empty amendment bracket on its
+   own printed line. The pipeline gives it that line back; the sanitizer drops the
+   inline style that did so, hence the rule. */
+.html-renderer-container .omitted-bracket {
+    display: block;
+}
+
+/* A stacked fraction: numerator over a rule over denominator, as the PDF prints it
+   (s.24(3), s.233(2A)). The two halves are bare spans with no class of their own, so
+   they are selected structurally -- the alternative is inventing classes the pipeline
+   would have to emit. */
+.html-renderer-container .frac {
+    display: inline-block;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.html-renderer-container .frac > span {
+    display: block;
+}
+
+.html-renderer-container .frac > span + span {
+    border-top: 1px solid currentColor;
 }
 
 .html-renderer-container table.fbr-table {

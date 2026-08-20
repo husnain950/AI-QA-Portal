@@ -1,72 +1,44 @@
-"""Unified Ordinance + Acts corpus sync (shared by CLI and API)."""
+"""Corpus sync across every registered corpus (shared by CLI, API job and worker)."""
 
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from backend.database import database_connection
+from backend.services.corpus_registry import (  # noqa: F401  (re-exported)
+    CORPORA,
+    LABELS,
+    Corpus,
+    corpus_root_configured,
+    get,
+    selected,
+)
 from backend.sync_acts import run_sync
 
 
-def _infer_repo_root() -> Path:
-    """Host monorepo root, or /app inside the API image (shallower path)."""
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        if (parent / "apps" / "api").is_dir() and (parent / "packages").is_dir():
-            return parent
-    # Docker: /app/backend/services/this.py → /app
-    if len(here.parents) >= 2:
-        return here.parents[2]
-    return Path.cwd()
-
-
-_REPO_ROOT = _infer_repo_root()
-
-
 def default_ordinance_path() -> Path:
-    return Path(
-        os.environ.get(
-            "CORPUS_ORDINANCE",
-            str(_REPO_ROOT / "data" / "corpora" / "ordinance"),
-        )
-    )
+    return get("ordinance").path()
 
 
 def default_acts_path() -> Path:
-    return Path(
-        os.environ.get(
-            "CORPUS_ACTS",
-            str(_REPO_ROOT / "data" / "corpora" / "acts"),
-        )
-    )
+    return get("acts").path()
 
 
-def corpus_root_configured(path: Path) -> bool:
-    """True when ``path`` is a usable pipeline corpus (dir with ``output/*.json``).
-
-    The Library subtitle's Ordinance/Acts flags use this — it is mount health,
-    not whether documents already exist in SQLite. An empty Docker placeholder
-    directory does not count.
-    """
-    if not path or not path.is_dir():
-        return False
-    output = path / "output"
-    if not output.is_dir():
-        return False
-    return any(output.glob("*.json"))
+def default_rules_path() -> Path:
+    return get("rules").path()
 
 
 async def _record_sync(summary: Dict[str, Any], status: str) -> None:
-    ordinance = int(summary.get("ordinance", {}).get("imported", 0) or 0) + int(
-        summary.get("ordinance", {}).get("skipped", 0) or 0
-    )
-    acts = int(summary.get("acts", {}).get("imported", 0) or 0) + int(
-        summary.get("acts", {}).get("skipped", 0) or 0
-    )
+    def _counted(label: str) -> int:
+        part = summary.get(label) or {}
+        return int(part.get("imported", 0) or 0) + int(part.get("skipped", 0) or 0)
+
+    # ordinance_docs / acts_docs are columns; every corpus is also counted into the
+    # JSON summary, so a new corpus needs no column of its own to be reported.
+    summary["corpus_docs"] = {label: _counted(label) for label in LABELS}
     try:
         async with database_connection() as db:
             await db.execute(
@@ -78,21 +50,49 @@ async def _record_sync(summary: Dict[str, Any], status: str) -> None:
                 """
                 UPDATE corpus_sync_state
                 SET last_sync_at = ?, last_status = ?, last_summary = ?,
-                    ordinance_docs = ?, acts_docs = ?
+                    ordinance_docs = ?, acts_docs = ?, rules_docs = ?
                 WHERE id = 1
                 """,
                 (
                     datetime.now(timezone.utc).isoformat(),
                     status,
                     json.dumps(summary, default=str),
-                    ordinance,
-                    acts,
+                    _counted("ordinance"),
+                    _counted("acts"),
+                    _counted("rules"),
                 ),
             )
             await db.commit()
             summary["db_documents"] = total_corpus
     except Exception as err:
         summary["sync_state_error"] = str(err)
+
+
+def source_key_collisions() -> Dict[str, list[str]]:
+    """JSON stems claimed by more than one corpus, as ``{stem: [labels]}``.
+
+    A document's identity is ``uuid5(..., "pdf-qa-portal:acts_corpus:<json stem>")``
+    -- see ``sync_acts.deterministic_document_id``. ``SOURCE_TYPE`` is the same
+    constant for every corpus, so the stem is a single global namespace: two corpora
+    shipping ``Customs Rules, 2001.json`` would resolve to one ``documents`` row and
+    each sync would overwrite the other, quietly, forever.
+
+    Nothing collides today (checked across all three source trees), and the fix is not
+    to re-key the id -- that would change the id of every document already reviewed.
+    It is to notice. The check is a directory listing, and it covers every mounted
+    corpus rather than only the selected ones: syncing Rules alone can still clobber an
+    Acts document.
+    """
+    claimed: Dict[str, list[str]] = {}
+    for corpus in CORPORA:
+        output = corpus.path() / "output"
+        if not output.is_dir():
+            continue
+        for json_path in output.glob("*.json"):
+            claimed.setdefault(json_path.stem, []).append(corpus.label)
+    return {
+        stem: labels for stem, labels in claimed.items() if len(set(labels)) > 1
+    }
 
 
 async def sync_one(
@@ -135,35 +135,78 @@ async def run_corpus_sync(
     *,
     ordinance: Optional[Path] = None,
     acts: Optional[Path] = None,
+    rules: Optional[Path] = None,
+    only: Optional[Iterable[str]] = None,
     dry_run: bool = False,
     force: bool = False,
     strict: bool = False,
     metrics: bool = False,
     ordinance_only: bool = False,
     acts_only: bool = False,
+    rules_only: bool = False,
 ) -> Dict[str, Any]:
+    """Sync the selected corpora.
+
+    ``only`` is the registry-native selector. The ``*_only`` flags and the explicit
+    path arguments predate it and are still honoured, because the CLI, the API request
+    body and the worker payload all speak them.
+    """
     from backend.runtime import bootstrap_runtime
 
     await bootstrap_runtime()
 
-    ordinance = (ordinance or default_ordinance_path()).expanduser().resolve()
-    acts = (acts or default_acts_path()).expanduser().resolve()
+    overrides = {"ordinance": ordinance, "acts": acts, "rules": rules}
+    flagged = [
+        label
+        for label, flag in (
+            ("ordinance", ordinance_only),
+            ("acts", acts_only),
+            ("rules", rules_only),
+        )
+        if flag
+    ]
+    if only is None and flagged:
+        only = flagged
 
-    jobs: List[tuple[str, Path]] = []
-    if not acts_only:
-        jobs.append(("ordinance", ordinance))
-    if not ordinance_only:
-        jobs.append(("acts", acts))
+    collisions = source_key_collisions()
+    if collisions:
+        raise ValueError(
+            "the same JSON stem is claimed by more than one corpus, which would give "
+            "both documents one id and make each sync overwrite the other: "
+            + "; ".join(
+                f"{stem!r} in {', '.join(sorted(set(labels)))}"
+                for stem, labels in sorted(collisions.items())
+            )
+        )
 
-    combined: Dict[str, Any] = {
-        "ordinance": {},
-        "acts": {},
-        "failed": 0,
-        "unmatched": 0,
-    }
-    for label, path in jobs:
+    combined: Dict[str, Any] = {"failed": 0, "unmatched": 0}
+    # Every registered corpus gets a key, selected or not, so a reader of the summary
+    # can tell "synced nothing" from "was not asked to".
+    for label in LABELS:
+        combined[label] = {}
+
+    # An explicit request must be honoured or refused; a blanket "sync everything" must
+    # not fail because a corpus is not staged on this host. Without the distinction a
+    # third corpus makes every default sync report failure everywhere it is absent --
+    # CI, every deployment, and any checkout that has not vendored it yet.
+    explicit = only is not None
+
+    for corpus in selected(only):
+        override = overrides.get(corpus.label)
+        path = (override or corpus.path()).expanduser().resolve()
+        if not explicit and not corpus_root_configured(path):
+            combined[corpus.label] = {
+                "label": corpus.label,
+                "repo": str(path),
+                "skipped_corpus": "not mounted on this host",
+                "imported": 0,
+                "skipped": 0,
+                "unmatched": 0,
+                "failed": 0,
+            }
+            continue
         part = await sync_one(
-            label,
+            corpus.label,
             path,
             dry_run=dry_run,
             force=force,
@@ -171,11 +214,13 @@ async def run_corpus_sync(
             metrics=metrics,
             pdf_dir=None,
         )
-        combined[label] = part
-        combined["failed"] += int(part.get("failed", 0) or 0)
+        combined[corpus.label] = part
+        # `sync_one` already counts an unusable corpus root as one failure and also
+        # sets `error`; adding both counted it twice, so one missing directory
+        # reported "failed: 2".
+        failures = int(part.get("failed", 0) or 0)
+        combined["failed"] += failures or (1 if part.get("error") else 0)
         combined["unmatched"] += int(part.get("unmatched", 0) or 0)
-        if part.get("error"):
-            combined["failed"] += 1
 
     status = "ok" if combined["failed"] == 0 else "failed"
     if not dry_run:

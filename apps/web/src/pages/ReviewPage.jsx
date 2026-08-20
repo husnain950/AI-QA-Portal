@@ -25,7 +25,7 @@ import { api, versionsApi } from '../utils/api';
 import VersionPanel from '../components/review/VersionPanel';
 import { formatLeafIdentity } from '../utils/tocLabels';
 import { TAG_NEEDS_REVIEW, TAG_PROVISIONAL } from '../utils/documentTags';
-import { laneLabel } from '../utils/corpusLanes';
+import { documentLane, laneLabel } from '../utils/corpusLanes';
 import { editionDateFromName } from '../utils/editions';
 import { timelinePath } from '../utils/timeline';
 
@@ -339,8 +339,7 @@ const ReviewPage = () => {
     const showOcrLink = provenanceTags.includes(TAG_PROVISIONAL)
         || provenanceTags.includes(TAG_NEEDS_REVIEW);
     const edition = editionDateFromName(activeDocument.name);
-    const lane = activeDocument.corpus_lane
-        || (activeDocument.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
+    const lane = documentLane(activeDocument);
     return (
         <AppShell
             title={activeDocument.name}

@@ -30,6 +30,8 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+from corpus_paths import output_dir  # noqa: E402 (sys.path bootstrap above)
+
 # key punctuation that carries legal meaning and must be conserved
 _PUNCT = "[](){}.,;:%—–\"'"
 
@@ -294,7 +296,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     import json
-    jpath = args.json_path or (sorted(glob.glob(os.path.join(_ROOT, "output", "*.json"))) or [None])[0]
+    jpath = args.json_path or (sorted(glob.glob(os.path.join(output_dir("acts"), "*.json"))) or [None])[0]
     doc = json.load(open(jpath, encoding="utf-8"))
 
     if args.pdf:

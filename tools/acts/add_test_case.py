@@ -39,13 +39,14 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+from corpus_paths import output_dir  # noqa: E402 (sys.path bootstrap above)
 from tests import checks, loader  # noqa: E402 (sys.path bootstrap above)
 
-CASES = os.path.join(_ROOT, "tests", "cases.json")
+CASES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "suite", "cases.json")
 
 
 def _default_json():
-    hits = sorted(glob.glob(os.path.join(_ROOT, "output", "*.json")))
+    hits = sorted(glob.glob(os.path.join(output_dir("acts"), "*.json")))
     return hits[0] if hits else None
 
 

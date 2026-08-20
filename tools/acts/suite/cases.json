@@ -1,0 +1,109 @@
+{
+  "_comment": "Data-driven regression cases for the FBR Acts corpus. status: 'active' = must pass; 'known_gap' = tracked but not counted as a regression; 'needs_review' = subjective QA note. applies_to is a substring of metadata.filename. Add cases with add_test_case.py or by hand.",
+  "cases": [
+    {
+      "id": "o02_2008_chapter_viii_body_spelling",
+      "source": "reports/anomalies.md O02",
+      "status": "active",
+      "applies_to": "30th June 2008)",
+      "check": "chapter_heading_equals",
+      "target": {
+        "kind": "chapter",
+        "code": "CHAPTER VIII"
+      },
+      "arg": "GENERAL PROVISIONS AFFFECTING CONVEYANCES AT CUSTOMS-STATIONS",
+      "description": "Chapter VIII keeps the caption the BODY prints on p82 (source typo 'AFFFECTING'), not the TOC's corrected spelling; the caption reaches no leaf, so this is its only copy."
+    },
+    {
+      "id": "o02_2008_chapter_ix_body_spelling",
+      "source": "reports/anomalies.md O02",
+      "status": "active",
+      "applies_to": "30th June 2008)",
+      "check": "chapter_heading_equals",
+      "target": {
+        "kind": "chapter",
+        "code": "CHAPTER IX"
+      },
+      "arg": "DISCHARGE OF CAERGO AND ENTRY INWARDS OF GOODS",
+      "description": "Chapter IX keeps the body caption from p86 (source typo 'CAERGO')."
+    },
+    {
+      "id": "o02_2025_chapter_xii_body_spelling",
+      "source": "reports/anomalies.md O02",
+      "status": "active",
+      "applies_to": "30th June, 2025",
+      "check": "chapter_heading_equals",
+      "target": {
+        "kind": "chapter",
+        "code": "CHAPTER XII"
+      },
+      "arg": "TRANSSHIPMENT",
+      "description": "Chapter XII keeps the body caption 'TRANSSHIPMENT' (the TOC prints 'TRANSHIPMENT')."
+    },
+    {
+      "id": "o02_2025_sec72a_heading_from_body",
+      "source": "reports/anomalies.md O02",
+      "status": "active",
+      "applies_to": "30th June, 2025",
+      "check": "section_heading_equals",
+      "target": {
+        "kind": "section",
+        "code": "72A"
+      },
+      "arg": "Responsibilities of person in charge or master of a conveyance, agent and owner of the conveyance",
+      "description": "The 2025 TOC row for 72A has the un-listed Chapter IX caption glued onto it ('... conveyance DISCHARGE OF CARGO AND ENTRY INWARDS OF GOODS'); the heading must come from the body, with the TOC text kept in toc_heading."
+    },
+    {
+      "id": "o01_2019mar_sec156_penalty_table_present",
+      "source": "reports/anomalies.md O01",
+      "status": "active",
+      "applies_to": "Customs Act, 1969 (As amended upto 11th March, 2019)",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "156"
+      },
+      "arg": "If any bulk is broken",
+      "description": "s.156's gridless penalty table (1,391 words, the whole conservation shortfall) must land on s.156: this edition's TOC page column runs 13 pages ahead of its own body, so the page anchor missed it and 105 of 312 sections were stubs."
+    },
+    {
+      "id": "o01_2019mar_sec78_not_a_table_row_serial",
+      "source": "reports/anomalies.md O01",
+      "status": "active",
+      "applies_to": "Customs Act, 1969 (As amended upto 11th March, 2019)",
+      "check": "section_heading_equals",
+      "target": {
+        "kind": "section",
+        "code": "78"
+      },
+      "arg": "Power to permit immediate discharge",
+      "description": "s.78 must bind to its own heading on pdf 78, not to the penalty table's row serial '78. If any person on board ...' 57 pages later (what the un-drifted anchor + gap-fill did)."
+    },
+    {
+      "id": "o05_sec9_interior_endash_not_a_terminator",
+      "source": "reports/anomalies.md O05",
+      "status": "active",
+      "applies_to": "Customs Act",
+      "check": "html_contains",
+      "target": {
+        "kind": "section",
+        "code": "9"
+      },
+      "arg": "<h4 class=\"section-heading\">9. Declaration of customs–ports, customs airports, etc.-</h4>",
+      "description": "s.9's heading uses an EN DASH inside 'customs–ports'; the heading split must terminate at 'etc.-', not at that dash (all 20 editions cut the <h4> to '9. Declaration of customs–' and leaked the rest into the body as a <p>)."
+    },
+    {
+      "id": "o06_2008_sec179_ordinal_space",
+      "source": "reports/anomalies.md O06",
+      "status": "active",
+      "applies_to": "30th June 2008)",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "179"
+      },
+      "arg": "31st day of December, 2006",
+      "description": "The space after a superscript ordinal is drawn at the superscript's raised baseline; it must still be seen, or the 1.98pt gap glues the words into '31stday'."
+    }
+  ]
+}

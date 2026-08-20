@@ -246,6 +246,7 @@ corpus_sync_state = Table(
     Column("last_summary", Text),
     Column("ordinance_docs", Integer, server_default="0"),
     Column("acts_docs", Integer, server_default="0"),
+    Column("rules_docs", Integer, server_default="0"),
     CheckConstraint("id = 1", name="ck_corpus_sync_singleton"),
 )
 

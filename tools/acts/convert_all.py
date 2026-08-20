@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Batch-convert the Acts corpus to JSON.
 
-    python scripts/convert_all.py --family customs
-    python scripts/convert_all.py --phase 1 --batch 6
-    python scripts/convert_all.py --phase 2 --skip-existing
-    python scripts/convert_all.py --list
+    python tools/acts/convert_all.py --family customs
+    python tools/acts/convert_all.py --phase 1 --batch 6
+    python tools/acts/convert_all.py --phase 2 --skip-existing
+    python tools/acts/convert_all.py --list
 
 Runs each PDF in a SEPARATE PROCESS, in batches.  Two reasons: a 950-page
 edition holds a lot of pdfplumber state, and a single edition that raises must
@@ -36,12 +36,24 @@ import subprocess
 import sys
 import time
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+# Upstream this file sat at <pipeline-repo>/scripts/, beside the Acts/ sources and
+# output/. In the monorepo the code and the corpus are separate: the pipeline lives
+# under packages/, and the corpus is the gitignored $CORPUS_ACTS tree that
+# sync_corpus.py and run_tests.py already read.
+_HERE = pathlib.Path(__file__).resolve().parent
+_ROOT = _HERE.parent.parent
+if str(_ROOT / "packages") not in sys.path:
+    sys.path.insert(0, str(_ROOT / "packages"))
 
-ACTS = pathlib.Path(_ROOT) / "Acts"
-OUT = pathlib.Path(_ROOT) / "output"
+CORPUS = pathlib.Path(
+    os.environ.get("CORPUS_ACTS") or (_ROOT / "data" / "corpora" / "acts")
+)
+if not CORPUS.is_absolute():
+    CORPUS = _ROOT / CORPUS          # .env ships a repo-relative path
+# Sources live under Acts/ where that exists, else at the corpus root -- the same
+# rule sync_acts._source_pdf_index applies, so the two agree on what a source is.
+ACTS = CORPUS / "Acts" if (CORPUS / "Acts").is_dir() else CORPUS
+OUT = CORPUS / "output"
 #: run artifacts and quarantine.  Both are SUBDIRECTORIES of output/ so that the
 #: ``output/*.json`` glob defining the corpus (run_tests.py, density_table.py,
 #: audit_all.py) does not see them.
@@ -185,7 +197,7 @@ def convert(pdf: pathlib.Path, timeout: float | None = None,
     log = (RUN_DIR / f"{dest.stem}.log") if keep_log else None
     if log is not None:
         RUN_DIR.mkdir(parents=True, exist_ok=True)
-    argv = [sys.executable, os.path.join(_ROOT, "scripts", "acts_pdf_to_json.py"),
+    argv = [sys.executable, str(_HERE / "acts_pdf_to_json.py"),
             str(pdf), "-o", str(dest)]
     if admit_below_floor:
         argv.append("--admit-below-floor")

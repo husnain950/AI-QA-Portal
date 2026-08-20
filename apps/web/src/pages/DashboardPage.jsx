@@ -15,7 +15,7 @@ import DocumentHealth from '../components/dashboard/DocumentHealth';
 import DocumentTags from '../components/dashboard/DocumentTags';
 import { api, corpusApi } from '../utils/api';
 import { facetCounts, filterDocuments, groupDocumentsByFamily } from '../utils/documentFilters';
-import { LANE_ORDER, laneLabel } from '../utils/corpusLanes';
+import { LANE_ORDER, documentLane, laneLabel } from '../utils/corpusLanes';
 import { CORPUS_MOUNT_HINT, describeCorpusSync } from '../utils/corpusStatus';
 import { editionDateFromName } from '../utils/editions';
 import { useUiStore } from '../stores/uiStore';
@@ -232,7 +232,7 @@ const DashboardPage = () => {
     const renderDocumentRow = (doc) => {
         const compPercent = docCompletion(doc);
         const edition = editionDateFromName(doc.name);
-        const lane = doc.corpus_lane || (doc.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
+        const lane = documentLane(doc);
         const flaggedCount = doc.stats?.has_issues || 0;
 
         return (
@@ -300,7 +300,7 @@ const DashboardPage = () => {
     const renderDocumentCard = (doc) => {
         const compPercent = docCompletion(doc);
         const edition = editionDateFromName(doc.name);
-        const lane = doc.corpus_lane || (doc.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
+        const lane = documentLane(doc);
         const flaggedCount = doc.stats?.has_issues || 0;
 
         return (

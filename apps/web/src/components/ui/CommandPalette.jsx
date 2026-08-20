@@ -9,7 +9,7 @@ import { hasRole } from '../../utils/reviewer';
 import { useDocumentStore } from '../../stores/documentStore';
 import { corpusApi } from '../../utils/api';
 import { editionDateFromName } from '../../utils/editions';
-import { laneLabel } from '../../utils/corpusLanes';
+import { documentLane, laneLabel } from '../../utils/corpusLanes';
 
 function matches(query, ...haystacks) {
     const q = query.trim().toLowerCase();
@@ -113,7 +113,7 @@ export default function CommandPalette() {
         ];
         const docs = documents.map((doc) => {
             const edition = editionDateFromName(doc.name);
-            const lane = doc.corpus_lane || (doc.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
+            const lane = documentLane(doc);
             return {
                 key: `doc-${doc.id}`,
                 group: 'Open document',
