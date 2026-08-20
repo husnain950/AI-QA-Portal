@@ -37,7 +37,14 @@ KNOWN_CLASSES = frozenset(
     {
         "section-heading", "schedule-heading", "subsection", "paragraph", "subparagraph",
         "clause", "subclause", "cite", "citation", "footnote", "footnote-marker",
-        "marker", "proviso", "fbr-table", "table", "table-responsive", "crx-align-center", "crx-align-right",
+        "marker", "proviso", "fbr-table", "table", "table-responsive",
+        # Emitted by the ingest pipelines; each already has a stylesheet rule (see
+        # styles/08-html-panel-styles.css and styles/10-footnotes-panel.css). Without
+        # them the class is dropped and the construct renders as undifferentiated
+        # prose -- measured at 11,349 occurrences across the two corpora.
+        "fn-table", "omitted-bracket", "explanation", "defn", "formula", "frac",
+        "legend",
+        "crx-align-center", "crx-align-right",
         "crx-align-justify", "crx-bold", "crx-italic", "crx-underline",
         "crx-list-unstyled", "crx-pad-zero", "crx-indent-1", "crx-indent-2",
         "crx-indent-3", "crx-indent-4", "crx-super", "crx-sub",
@@ -52,6 +59,29 @@ class SanitizedHtml:
     diagnostics: tuple[str, ...]
     text_fidelity: bool
     structure_fidelity: bool
+
+
+#: ``flex: 0 0 <pct>%`` -- a footnote rate-table column width. This one declaration is
+#: data, not decoration: the width is measured from the PDF's own column geometry, it
+#: differs per table, and no class can carry a continuous percentage. Dropping it
+#: collapses every fn-table grid into stacked divs while ``text_fidelity`` and
+#: ``structure_fidelity`` both still report True, because neither looks at layout.
+#:
+#: The pattern is deliberately exact -- two literal zeros and a bounded percentage --
+#: so nothing else in a ``style`` attribute can reach the output through it.
+_FLEX_BASIS_RE = re.compile(r"^0\s+0\s+(\d{1,3}(?:\.\d{1,4})?)%$")
+
+
+def _flex_basis(value: str) -> str | None:
+    """The safe re-emittable ``flex`` value in ``value``, or None."""
+    for declaration in value.split(";"):
+        prop, _, raw = declaration.partition(":")
+        if prop.strip().lower() != "flex":
+            continue
+        match = _FLEX_BASIS_RE.match(raw.strip().lower())
+        if match and 0.0 < float(match.group(1)) <= 100.0:
+            return f"0 0 {match.group(1)}%"
+    return None
 
 
 def _style_classes(value: str) -> set[str]:
@@ -136,6 +166,9 @@ class _Sanitizer(HTMLParser):
                 continue
             if name == "style":
                 classes.update(_style_classes(value))
+                basis = _flex_basis(value)
+                if basis is not None:
+                    clean.append(("style", f"flex:{basis}"))
                 self.diagnostics.append(f"converted_style:{tag}")
                 continue
             if name == "class":

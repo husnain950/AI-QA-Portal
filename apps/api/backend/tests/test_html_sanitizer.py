@@ -5,6 +5,8 @@ boundary that stops a corpus JSON from carrying a script. It is also the boundar
 likely to damage a statute by accident, hence the fidelity flags.
 """
 
+import pytest
+
 from backend.services.html_sanitizer import (
     SANITIZER_VERSION,
     sanitize_html,
@@ -112,3 +114,58 @@ def test_empty_input_is_not_a_change():
 
 def test_version_is_recorded_so_stored_content_can_be_re_sanitized():
     assert SANITIZER_VERSION
+
+
+# --- pipeline vocabulary -------------------------------------------------------
+#
+# The sanitizer allow-list and the ingest pipelines' own class vocabulary were never
+# reconciled, so every semantic class the pipelines emit was dropped -- 3,262
+# occurrences across the two corpora -- while `text_fidelity` and `structure_fidelity`
+# both still reported True, because neither looks at presentation.
+
+
+@pytest.mark.parametrize(
+    "cls",
+    ["fn-table", "omitted-bracket", "explanation", "defn", "formula", "frac", "legend"],
+)
+def test_pipeline_classes_survive(cls):
+    result = sanitize_html(f'<div class="{cls}">x</div>')
+    assert f'class="{cls}"' in result.html
+    assert not any(d.startswith("dropped_class") for d in result.diagnostics)
+
+
+def test_footnote_table_column_widths_survive():
+    """`flex:0 0 N%` is a measured column width, not decoration.
+
+    Dropping it collapses a rate table into stacked divs, and neither fidelity check
+    notices. 48,361 of these exist across 1,136 tables in the two corpora.
+    """
+    source = '<div class="fn-table"><div style="flex:0 0 23.75%; padding:4px">a</div></div>'
+    html = sanitize_html(source).html
+    assert 'class="fn-table"' in html
+    assert "flex:0 0 23.75%" in html
+    assert "padding" not in html  # decoration still goes; CSS owns it
+
+
+@pytest.mark.parametrize(
+    "style",
+    [
+        "flex:1 1 auto",           # not the fixed-basis data form
+        "flex:0 0 999%",           # out of range
+        "flex:0 0 -5%",            # negative
+        "flex:0 0 0%",             # a zero-width column is not a column
+        "flex:0 0 50px",           # not a percentage
+        "flex:expression(alert(1))",
+        "flex:0 0 50%)}html{x:y",  # trying to break out of the value
+    ],
+)
+def test_only_the_exact_flex_data_form_is_re_emitted(style):
+    assert "style=" not in sanitize_html(f'<div style="{style}">x</div>').html
+
+
+def test_the_flex_exception_carries_nothing_else_with_it():
+    """A permitted declaration must not smuggle its neighbours through."""
+    html = sanitize_html(
+        '<div style="flex:0 0 50%; background:url(javascript:alert(1)); position:fixed">x</div>'
+    ).html
+    assert html == '<div style="flex:0 0 50%">x</div>'
