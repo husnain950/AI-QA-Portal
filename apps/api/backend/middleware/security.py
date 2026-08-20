@@ -87,7 +87,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         ip = _client_ip(request)
 
         limit = _limit_for(method, path)
-        retry_after = self.limiter.check(ip, limit, time.time())
+        retry_after = (
+            None
+            if os.environ.get("RATE_LIMITS") == "off"
+            else self.limiter.check(ip, limit, time.time())
+        )
         if retry_after is not None:
             return JSONResponse(
                 status_code=429,

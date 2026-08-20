@@ -148,7 +148,7 @@ async def findings_page(
             "f.score DESC NULLS LAST, f.id"
         ),
         "score": "f.score DESC NULLS LAST, f.id",
-        "blast": "COALESCE(vb.blast_radius, 1) DESC, f.score DESC NULLS LAST, f.id",
+        "blast": "GREATEST(COALESCE(vb.blast_radius, 1), 1) DESC, f.score DESC NULLS LAST, f.id",
         "page": "s.start_page NULLS LAST, d.name, f.id",
         "newest": "f.first_seen_at DESC, f.id",
     }[sort]
@@ -168,7 +168,7 @@ async def findings_page(
         SELECT f.*, s.section_code, s.section_heading, s.start_page,
                d.name AS document_name, d.name AS family_label,
                sv.family_key, sv.variant_key,
-               COALESCE(vb.blast_radius, 1) AS blast_radius,
+               GREATEST(COALESCE(vb.blast_radius, 1), 1) AS blast_radius,
                COALESCE(vb.family_count, 0) > 1 AS cross_family
         FROM findings f
         {joins}

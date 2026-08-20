@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
+import httpx2 as httpx
 import pytest
 import pytest_asyncio
 from alembic import command
@@ -53,6 +54,7 @@ def test_database_url() -> str:
     # process — routes, services, CLI modules — talks to the test database.
     os.environ["DATABASE_URL"] = url
     os.environ["STORAGE_BACKEND"] = "filesystem"
+    os.environ["RATE_LIMITS"] = "off"
     command.upgrade(database._alembic_config(), "head")
     return url
 
@@ -179,6 +181,95 @@ async def add_annotation(
     return annotation_id
 
 
+async def seed_document(
+    db,
+    document_id: str,
+    *,
+    name: str = "Seeded Act, 2001",
+    section_ids: tuple[str, ...] = ("sec-1",),
+    text: str = "Body text.",
+    with_active_version: bool = False,
+) -> tuple[str, ...]:
+    """A document and its sections, inserted directly — no PDF, no parse, no blobs.
+
+    For tests about review state, pagination, or inheritance, where the ingest path is
+    not what is under test.
+    """
+    await db.execute(
+        """
+        INSERT INTO documents (id, name, pdf_filename, json_filename,
+                               total_sections, total_pages, uploaded_at, status)
+        VALUES (?, ?, 'p.pdf', 'j.json', ?, 1, '2026-01-01', 'pending')
+        """,
+        (document_id, name, len(section_ids)),
+    )
+    if with_active_version:
+        await db.execute(
+            """
+            INSERT INTO document_versions (id, document_id, version_no, json_filename,
+                                           json_sha256, created_at, total_sections, is_active)
+            VALUES (?, ?, 1, 'json/x.json', ?, '2026-01-01', ?, TRUE)
+            """,
+            (f"ver-{document_id}", document_id, f"sha-{document_id}", len(section_ids)),
+        )
+    for order, section_id in enumerate(section_ids, 1):
+        await db.execute(
+            """
+            INSERT INTO sections (id, document_id, section_code, section_heading,
+                                  sort_order, start_page, plain_text, html_content)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                section_id,
+                document_id,
+                str(order),
+                f"Section {order}",
+                order,
+                order,
+                text,
+                f"<p>{text}</p>",
+            ),
+        )
+    await db.commit()
+    return section_ids
+
+
+async def add_finding(
+    db,
+    section_id: str,
+    document_id: str,
+    *,
+    detector: str = "glyph_split",
+    severity: str = "warning",
+    score: float = 10.0,
+    triage: str = "new",
+    fingerprint: str | None = None,
+) -> int:
+    await db.execute(
+        """
+        INSERT INTO findings (section_id, document_id, detector, detector_version,
+                              fingerprint, severity, score, triage,
+                              first_seen_at, last_seen_at, detail_json)
+        VALUES (?, ?, ?, '1', ?, ?, ?, ?, '2026-01-01', '2026-01-01', ?)
+        """,
+        (
+            section_id,
+            document_id,
+            detector,
+            fingerprint or f"{detector}:{section_id}",
+            severity,
+            score,
+            triage,
+            json.dumps({"assertion": f"{detector} on {section_id}"}),
+        ),
+    )
+    async with db.execute(
+        "SELECT id FROM findings WHERE section_id = ? AND detector = ? AND fingerprint = ?",
+        (section_id, detector, fingerprint or f"{detector}:{section_id}"),
+    ) as cursor:
+        return int((await cursor.fetchone())["id"])
+
+
 async def active_version_id(db, document_id: str) -> str:
     """The If-Match value every version-replacing route now requires."""
     async with db.execute(
@@ -204,6 +295,25 @@ async def runtime_sandbox(monkeypatch, tmp_path):
     upload_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(runtime, "UPLOAD_DIR", str(upload_dir))
     return {"upload_dir": upload_dir, "root": tmp_path}
+
+
+@pytest_asyncio.fixture
+async def client(runtime_sandbox):
+    """HTTP access to the real app, middleware included.
+
+    ASGITransport keeps the app on this test's event loop, so it shares the one async
+    engine; TestClient would run it on a thread of its own and hand the same pooled
+    connections to two loops.
+    """
+    from backend.main import app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+        headers={"X-Reviewer": "tester"},
+    ) as session:
+        yield session
 
 
 @pytest_asyncio.fixture

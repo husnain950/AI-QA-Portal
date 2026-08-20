@@ -124,6 +124,10 @@ class _Sanitizer(HTMLParser):
             return
         classes: set[str] = set()
         clean: list[tuple[str, str | None]] = []
+        # Attributes keep their source order, and the merged class list stays in the slot
+        # the original class attribute held. Untouched markup then round-trips
+        # byte-identically, which is what makes `changed` worth storing.
+        class_slot: int | None = None
         for name, value in attrs:
             name = name.lower()
             value = value or ""
@@ -139,13 +143,22 @@ class _Sanitizer(HTMLParser):
                 classes.update(observed & KNOWN_CLASSES)
                 if observed - KNOWN_CLASSES:
                     self.diagnostics.append(f"dropped_class:{tag}")
+                if class_slot is None:
+                    class_slot = len(clean)
+                    clean.append(("class", ""))
                 continue
             if name in GLOBAL_ATTRS or name in TAG_ATTRS.get(tag, ()):
                 clean.append((name, value))
             else:
                 self.diagnostics.append(f"dropped_attr:{tag}.{name}")
         if classes:
-            clean.append(("class", " ".join(sorted(classes))))
+            rendered_classes = " ".join(sorted(classes))
+            if class_slot is None:
+                clean.append(("class", rendered_classes))
+            else:
+                clean[class_slot] = ("class", rendered_classes)
+        elif class_slot is not None:
+            del clean[class_slot]
         rendered = "".join(
             f" {name}" if value is None else f' {name}="{html.escape(value, quote=True)}"'
             for name, value in clean
