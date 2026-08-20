@@ -1,0 +1,4 @@
+{
+  "_comment": "Data-driven regression cases for the FBR Acts corpus. status: 'active' = must pass; 'known_gap' = tracked but not counted as a regression; 'needs_review' = subjective QA note. applies_to is a substring of metadata.filename. Add cases with add_test_case.py or by hand.",
+  "cases": []
+}

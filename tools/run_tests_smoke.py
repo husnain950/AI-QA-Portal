@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT / "packages"))
 PIPELINES = {
     "fbr_ingest": ("tools/ordinance/run_tests.py", "CORPUS_ORDINANCE", "ordinance"),
     "acts_ingest": ("tools/acts/run_tests.py", "CORPUS_ACTS", "acts"),
+    "rules_ingest": ("tools/rules/run_tests.py", "CORPUS_RULES", "rules"),
 }
 
 
