@@ -111,7 +111,7 @@ def plan_refresh(local, remote):
 
 def main():
     global BASE
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Push a local corpus to a deployment")
     parser.add_argument("--base-url", required=True, help="deployed portal root URL")
     parser.add_argument(
         "--dry-run", action="store_true", help="list what would be sent, send nothing"

@@ -98,7 +98,7 @@ async def _run(args) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Manage portal accounts")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("list")
     add = sub.add_parser("add")

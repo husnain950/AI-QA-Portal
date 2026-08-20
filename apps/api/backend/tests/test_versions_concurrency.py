@@ -152,6 +152,12 @@ async def test_activating_over_someone_elses_change_is_refused(runtime_sandbox, 
         await db.commit()
         second_id = (await versions.active_version(db, document_id))["id"]
 
+    missing = await client.post(
+        f"/api/documents/{document_id}/versions/{first_id}/activate"
+    )
+    assert missing.status_code == 428, "If-Match is required to activate, too"
+    assert missing.json()["detail"]["code"] == "if_match_required"
+
     stale = await client.post(
         f"/api/documents/{document_id}/versions/{first_id}/activate",
         headers={"If-Match": f'"version:{first_id}"'},

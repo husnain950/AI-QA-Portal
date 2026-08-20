@@ -609,6 +609,9 @@ async def _add_version(
         await db.rollback()
         logger.exception("JSON parse failed on replace")
         raise HTTPException(status_code=400, detail="Failed to parse JSON document")
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception:
         await db.rollback()
         logger.exception("Database update failed on replace-json")
@@ -695,14 +698,19 @@ async def activate_document_version(
     """Roll back (or forward) to a stored version."""
     del actor
     await _require_document(db, document_id)
+    # Outside the try: the 428 this raises is the answer, not a failure to translate.
+    expected = _required_if_match(if_match)
     try:
         await versions.activate_version(
             db,
             document_id,
             version_id,
-            expected_version_id=_required_if_match(if_match),
+            expected_version_id=expected,
         )
         await db.commit()
+    except HTTPException:
+        await db.rollback()
+        raise
     except LookupError:
         await db.rollback()
         raise HTTPException(status_code=404, detail="Version not found")
