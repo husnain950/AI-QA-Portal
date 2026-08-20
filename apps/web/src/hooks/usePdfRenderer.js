@@ -60,7 +60,12 @@ export const usePdfDocument = (pdfUrl, { timeoutMs = PDF_LOAD_TIMEOUT_MS } = {})
             setNumPages(0);
 
             try {
-                loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
+                // withCredentials sends the session cookie. /uploads is not public
+                // (middleware.security.required_role gives it "reader"), and in dev the
+                // blob origin differs from the page's, so a default cross-origin fetch
+                // carries no cookie and every PDF 401s. Same-origin in production, where
+                // this is a no-op.
+                loadingTask = pdfjsLib.getDocument({ url: pdfUrl, withCredentials: true });
                 const timeoutPromise = new Promise((_, reject) => {
                     timeoutId = setTimeout(() => {
                         reject(
