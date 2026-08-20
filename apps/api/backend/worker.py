@@ -36,19 +36,17 @@ async def _beat(state: str, job_id: str | None = None) -> None:
 async def _execute(job: dict) -> dict:
     payload = job["payload"] or {}
     if job["type"] == "corpus_sync":
-        from backend.services.corpus_sync import (
-            default_acts_path,
-            default_ordinance_path,
-            run_corpus_sync,
-        )
+        from backend.services.corpus_sync import run_corpus_sync
 
+        # `only` is what routes.corpus puts in the payload; the *_only flags are read
+        # too so a job enqueued before this change still runs the corpora it meant.
         return await run_corpus_sync(
-            ordinance=default_ordinance_path(),
-            acts=default_acts_path(),
+            only=payload.get("only"),
             dry_run=bool(payload.get("dry_run", False)),
             metrics=bool(payload.get("metrics", True)),
             ordinance_only=bool(payload.get("ordinance_only", False)),
             acts_only=bool(payload.get("acts_only", False)),
+            rules_only=bool(payload.get("rules_only", False)),
         )
     if job["type"] == "detectors":
         from backend.services.findings_store import run_detectors_and_store
