@@ -1,16 +1,17 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const patchMock = vi.fn(async () => ({}));
+const postMock = vi.fn(async () => ({ applied: 1 }));
 const getMock = vi.fn();
 
 vi.mock('../utils/api', () => ({
     api: {
         get: (...args) => getMock(...args),
-        post: vi.fn(async () => ({})),
-        patch: (...args) => patchMock(...args),
+        post: (...args) => postMock(...args),
+        patch: vi.fn(async () => ({})),
         delete: vi.fn(async () => ({})),
         getDownloadUrl: vi.fn((p) => p),
         getFileUrl: vi.fn((f) => `/uploads/${f}`),
@@ -39,50 +40,82 @@ const FINDINGS = [
     },
 ];
 
-describe('triage bulk undo', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        useUiStore.setState({ toasts: [], reviewerName: 'tester' });
-        getMock.mockImplementation(async () => ({
-            findings: FINDINGS,
-            stats: { total: 1, done: 0, left: 1, by_triage: { new: 1 } },
-        }));
-    });
+const page = {
+    items: FINDINGS,
+    total: FINDINGS.length,
+    next_cursor: null,
+    refreshed_at: '2026-08-20T00:00:00Z',
+    stats: { total: 1, done: 0, left: 1, by_triage: { new: 1 } },
+};
 
-    it('bulk triage then undo restores via PATCH and shows feedback toast', async () => {
-        render(
+function renderTriage() {
+    const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    return render(
+        <QueryClientProvider client={queryClient}>
             <MemoryRouter>
                 <TriagePage />
                 <ToastHost />
-            </MemoryRouter>,
-        );
+            </MemoryRouter>
+        </QueryClientProvider>,
+    );
+}
 
-        // Wait for the row to load.
+/** The one bulk-triage POST, ignoring the per-request idempotency key. */
+function bulkCalls() {
+    return postMock.mock.calls.filter((call) => call[0] === '/v2/findings/bulk-triage');
+}
+
+describe('triage bulk undo', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        postMock.mockImplementation(async () => ({ applied: 1 }));
+        useUiStore.setState({ toasts: [], reviewerName: 'tester' });
+        getMock.mockImplementation(async () => page);
+    });
+
+    it('bulk triage posts one atomic batch, and undo posts the inverse', async () => {
+        renderTriage();
+
         await screen.findByText(/Definitions/);
-
-        // Select via checkbox.
         fireEvent.click(screen.getByRole('checkbox', { name: /Select finding/ }));
 
-        // Bulk bar appears; click "Deliberate".
         const bulkBar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
-        expect(bulkBar).toBeInTheDocument();
         fireEvent.click(within(bulkBar).getByRole('button', { name: 'Deliberate' }));
 
-        await waitFor(() => expect(patchMock).toHaveBeenCalledWith(
-            '/findings/1/status',
-            { triage: 'deliberate', note: '' },
-        ));
+        await waitFor(() => expect(bulkCalls()).toHaveLength(1));
+        // One request for the whole selection, carrying the prior state each row is
+        // expected to be in, so a concurrent change fails the batch instead of
+        // half-applying it.
+        expect(bulkCalls()[0][1]).toEqual({
+            items: [{ id: 1, triage: 'deliberate', expected_prior: 'new', note: '' }],
+        });
+        expect(bulkCalls()[0][3].headers['Idempotency-Key']).toBeTruthy();
 
-        // Undo button in toast.
         const undoButton = await screen.findByRole('button', { name: 'Undo' });
         await act(async () => {
             fireEvent.click(undoButton);
         });
 
-        await waitFor(() => expect(patchMock).toHaveBeenCalledWith(
-            '/findings/1/status',
-            { triage: 'new', note: '' },
-        ));
+        await waitFor(() => expect(bulkCalls()).toHaveLength(2));
+        expect(bulkCalls()[1][1]).toEqual({
+            items: [{ id: 1, triage: 'new', expected_prior: 'deliberate', note: '' }],
+        });
         expect(await screen.findByText(/Restored 1 finding/)).toBeInTheDocument();
+    });
+
+    it('a rejected batch restores the rows and says so', async () => {
+        renderTriage();
+        await screen.findByText(/Definitions/);
+        postMock.mockImplementation(async () => {
+            throw new Error('finding 1 changed under you');
+        });
+
+        fireEvent.click(screen.getByRole('checkbox', { name: /Select finding/ }));
+        const bulkBar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
+        fireEvent.click(within(bulkBar).getByRole('button', { name: 'Deliberate' }));
+
+        expect(await screen.findByText(/finding 1 changed under you/)).toBeInTheDocument();
     });
 });
