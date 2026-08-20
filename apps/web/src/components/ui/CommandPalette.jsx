@@ -98,7 +98,7 @@ export default function CommandPalette() {
                     const value = await promptDialog({
                         title: 'Reviewer name',
                         message: 'Shown on review events and notes (attribution only, not authentication).',
-                        defaultValue: reviewerName === 'anonymous' ? '' : reviewerName,
+                        defaultValue: reviewerName,
                         confirmLabel: 'Save',
                     });
                     if (value !== null && value !== undefined) setReviewer(value);

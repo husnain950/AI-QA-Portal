@@ -3,6 +3,7 @@ import re
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
+from backend.services.html_sanitizer import SANITIZER_VERSION, sanitize_html
 from backend.services.parse_quality import (
     assess_section_quality,
     has_critical_flags,
@@ -158,7 +159,9 @@ def parse_json_document(
         section_id = _stable_id(document_id, source_key)
         start_page = sec_data.get("start_page") or sec_data.get("page_number")
         end_page = sec_data.get("end_page") or start_page
-        html_content = sec_data.get("html", "") or ""
+        raw_html = sec_data.get("html", "") or ""
+        sanitized = sanitize_html(raw_html)
+        html_content = sanitized.html
         plain_text = sec_data.get("plain_text", "") or ""
         section_heading = normalize_heading(sec_data.get("heading"))
         quality_flags = assess_section_quality(
@@ -192,6 +195,13 @@ def parse_json_document(
             "sort_order": sort_order,
             "review_status": review_status,
             "quality_flags": quality_flags,
+            "sanitizer_version": SANITIZER_VERSION,
+            "sanitized_changed": sanitized.changed,
+            "sanitizer_diagnostics": [
+                *sanitized.diagnostics,
+                *([] if sanitized.text_fidelity else ["text_fidelity_failed"]),
+                *([] if sanitized.structure_fidelity else ["structure_fidelity_failed"]),
+            ],
         }
         sections.append(sec_row)
         sort_order += 1
@@ -200,6 +210,7 @@ def parse_json_document(
             if not isinstance(footnote, dict):
                 continue
             footnote_key = f"{source_key}/footnotes/{index}"
+            footnote_sanitized = sanitize_html(footnote.get("html", "") or "")
             footnotes.append(
                 {
                     "id": _stable_id(document_id, footnote_key),
@@ -208,8 +219,15 @@ def parse_json_document(
                     "marker": footnote.get("marker", ""),
                     "page": footnote.get("page") or start_page,
                     "text": footnote.get("text", ""),
-                    "html_content": footnote.get("html", ""),
+                    "html_content": footnote_sanitized.html,
                     "review_status": "pending",
+                    "sanitizer_version": SANITIZER_VERSION,
+                    "sanitized_changed": footnote_sanitized.changed,
+                    "sanitizer_diagnostics": [
+                        *footnote_sanitized.diagnostics,
+                        *([] if footnote_sanitized.text_fidelity else ["text_fidelity_failed"]),
+                        *([] if footnote_sanitized.structure_fidelity else ["structure_fidelity_failed"]),
+                    ],
                 }
             )
 

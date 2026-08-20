@@ -6,13 +6,19 @@ variant_key = sha256(family_key | section_code | norm_text | html_shape)
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import unicodedata
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-import aiosqlite
-
+from backend.database import DatabaseConnection, DatabaseRow
+from backend.services import review_state
 from backend.services.detectors import edition_date, family_key
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _norm_text(text: str) -> str:
@@ -48,10 +54,26 @@ def text_sha(plain_text: str) -> str:
     return hashlib.sha256(_norm_text(plain_text).encode()).hexdigest()
 
 
+def _raw_sha(value: str) -> str:
+    return hashlib.sha256((value or "").encode()).hexdigest()
+
+
+async def _footnote_sha(db: DatabaseConnection, section_id: str) -> str:
+    async with db.execute(
+        """
+        SELECT marker, page, text, html_content FROM footnotes
+        WHERE section_id = ? ORDER BY page NULLS LAST, marker, id
+        """,
+        (section_id,),
+    ) as cursor:
+        rows = [dict(row) for row in await cursor.fetchall()]
+    return _raw_sha(json.dumps(rows, sort_keys=True, ensure_ascii=False))
+
+
 async def _section_rows(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     document_id: Optional[str] = None,
-) -> List[aiosqlite.Row]:
+) -> List[DatabaseRow]:
     query = """
         SELECT s.id, s.document_id, s.section_code, s.plain_text, s.html_content,
                d.name AS doc_name
@@ -66,7 +88,7 @@ async def _section_rows(
         return await cursor.fetchall()
 
 
-async def _insert_variant(db: aiosqlite.Connection, row: aiosqlite.Row) -> None:
+async def _insert_variant(db: DatabaseConnection, row: DatabaseRow) -> None:
     fk = family_key(row["doc_name"])
     ed = edition_date(row["doc_name"])
     plain = row["plain_text"] or ""
@@ -74,10 +96,11 @@ async def _insert_variant(db: aiosqlite.Connection, row: aiosqlite.Row) -> None:
     vk = compute_variant_key(fk, row["section_code"], plain, html)
     await db.execute(
         """
-        INSERT OR IGNORE INTO section_variants
+        INSERT INTO section_variants
             (variant_key, section_id, document_id, family_key, section_code,
-             edition_date, text_sha, html_shape)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             edition_date, text_sha, html_sha, html_shape, footnote_sha, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (variant_key, section_id) DO NOTHING
         """,
         (
             vk,
@@ -87,13 +110,16 @@ async def _insert_variant(db: aiosqlite.Connection, row: aiosqlite.Row) -> None:
             row["section_code"],
             ed,
             text_sha(plain),
+            _raw_sha(html),
             _html_shape(html),
+            await _footnote_sha(db, row["id"]),
+            _now(),
         ),
     )
 
 
 async def rebuild_document(
-    db: aiosqlite.Connection, document_id: str
+    db: DatabaseConnection, document_id: str
 ) -> Dict[str, Any]:
     """Reindex one document's variant rows. Does not commit — callers own the txn."""
     await db.execute(
@@ -106,7 +132,7 @@ async def rebuild_document(
     return {"inserted": len(rows)}
 
 
-async def rebuild(db: aiosqlite.Connection) -> Dict[str, Any]:
+async def rebuild(db: DatabaseConnection) -> Dict[str, Any]:
     """Rebuild section_variants from current sections + documents."""
     await db.execute("DELETE FROM section_variants;")
     rows = await _section_rows(db)
@@ -116,7 +142,7 @@ async def rebuild(db: aiosqlite.Connection) -> Dict[str, Any]:
     return {"inserted": len(rows)}
 
 
-async def rebuild_if_empty(db: aiosqlite.Connection) -> Optional[Dict[str, Any]]:
+async def rebuild_if_empty(db: DatabaseConnection) -> Optional[Dict[str, Any]]:
     """Full rebuild when sections exist but the variants table was never filled."""
     async with db.execute("SELECT COUNT(*) FROM sections") as cursor:
         n_sections = int((await cursor.fetchone())[0])
@@ -128,7 +154,7 @@ async def rebuild_if_empty(db: aiosqlite.Connection) -> Optional[Dict[str, Any]]
 
 
 async def get_variants(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     *,
     family: Optional[str] = None,
     section_code: Optional[str] = None,
@@ -161,12 +187,13 @@ async def get_variants(
 
 
 async def get_variant_detail(
-    db: aiosqlite.Connection, variant_key: str
+    db: DatabaseConnection, variant_key: str
 ) -> List[Dict[str, Any]]:
     """All sections sharing a variant_key."""
     async with db.execute(
         """
-        SELECT sv.*, s.section_heading, s.review_status, d.name AS doc_name
+        SELECT sv.*, s.section_heading, s.review_status, s.reviewer_verdict,
+               s.effective_status, d.name AS doc_name
         FROM section_variants sv
         JOIN sections s ON s.id = sv.section_id
         JOIN documents d ON d.id = sv.document_id
@@ -179,53 +206,120 @@ async def get_variant_detail(
 
 
 async def approve_variant(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     variant_key: str,
     *,
     actor: str,
-    min_editions: int = 3,
+    min_editions: int = 2,
 ) -> Dict[str, Any]:
-    """Approve a variant group: source gets 'approved', others get 'approved_inherited'."""
+    """Inherit approval only from an explicitly approved, exact-match source."""
     members = await get_variant_detail(db, variant_key)
     if len(members) < min_editions:
         return {"error": f"need >= {min_editions} editions, got {len(members)}"}
 
-    source = None
-    for m in members:
-        if m["review_status"] == "approved":
-            source = m
-            break
+    source = next(
+        (
+            m
+            for m in members
+            if m["reviewer_verdict"] == "approved" and m["effective_status"] == "approved"
+        ),
+        None,
+    )
     if not source:
-        source = members[0]
-        await db.execute(
-            "UPDATE sections SET review_status = 'approved' WHERE id = ?",
-            (source["section_id"],),
-        )
+        return {"error": "variant requires an explicitly human-approved source"}
+
+    exact_hashes = {
+        (m["text_sha"], m["html_sha"], m["footnote_sha"] or "") for m in members
+    }
+    if len(exact_hashes) != 1:
+        return {"error": "variant members do not have identical text, HTML, and footnote hashes"}
+    for member in members:
+        blockers = await review_state.blocker_reasons(db, member["section_id"])
+        if blockers:
+            return {
+                "error": "variant member has blockers",
+                "section_id": member["section_id"],
+                "blockers": blockers,
+            }
+
+    document_ids = [member["document_id"] for member in members]
+    placeholders = ",".join("?" for _ in document_ids)
+    async with db.execute(
+        f"""
+        SELECT d.id AS document_id, v.id AS version_id, v.json_sha256
+        FROM documents d
+        JOIN document_versions v ON v.document_id = d.id AND v.is_active = TRUE
+        WHERE d.id IN ({placeholders})
+        """,
+        document_ids,
+    ) as cursor:
+        versions = [dict(row) for row in await cursor.fetchall()]
+    if len(versions) != len(set(document_ids)):
+        return {"error": "every variant member must have an active version hash"}
+
+    evidence = {
+        "policy_version": "v2",
+        "variant_key": variant_key,
+        "hashes": {
+            "text": source["text_sha"],
+            "html": source["html_sha"],
+            "footnotes": source["footnote_sha"] or "",
+        },
+        "source_section_id": source["section_id"],
+        "recipient_section_ids": [
+            m["section_id"] for m in members if m["section_id"] != source["section_id"]
+        ],
+        "active_versions": versions,
+        "approved_by": actor,
+    }
 
     inherited_count = 0
     for m in members:
         if m["section_id"] == source["section_id"]:
             continue
         await db.execute(
-            "UPDATE sections SET review_status = 'approved_inherited' WHERE id = ?",
+            """
+            UPDATE sections SET review_status = 'approved_inherited',
+                                effective_status = 'approved_inherited',
+                                reviewer_verdict = 'pending'
+            WHERE id = ?
+            """,
             (m["section_id"],),
         )
         await db.execute(
             """
-            INSERT OR REPLACE INTO approval_inheritance
-                (source_id, inheritor_id, variant_key)
-            VALUES (?, ?, ?)
+            INSERT INTO approval_inheritance
+                (source_id, inheritor_id, variant_key, inherited_at, policy_version, evidence)
+            VALUES (?, ?, ?, ?, 'v2', CAST(? AS jsonb))
+            ON CONFLICT (source_id, inheritor_id) DO UPDATE
+            SET variant_key = excluded.variant_key,
+                inherited_at = excluded.inherited_at,
+                policy_version = excluded.policy_version,
+                evidence = excluded.evidence
             """,
-            (source["section_id"], m["section_id"], variant_key),
+            (
+                source["section_id"],
+                m["section_id"],
+                variant_key,
+                _now(),
+                json.dumps(evidence, ensure_ascii=False),
+            ),
         )
         inherited_count += 1
 
+    for document_id in sorted(set(document_ids)):
+        await review_state.refresh_document(db, document_id)
     await db.commit()
-    return {"source_id": source["section_id"], "inherited": inherited_count}
+    return {
+        "source_id": source["section_id"],
+        "inherited": inherited_count,
+        "policy_version": "v2",
+        "evidence": evidence,
+    }
 
 
 async def revoke_variant_approval(
-    db: aiosqlite.Connection, variant_key: str
+    db: DatabaseConnection, variant_key: str
 ) -> Dict[str, Any]:
     """Remove inheritance for a variant group."""
     async with db.execute(
@@ -247,7 +341,7 @@ async def revoke_variant_approval(
 
 
 async def timeline(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     *,
     family: str,
     section_code: str,

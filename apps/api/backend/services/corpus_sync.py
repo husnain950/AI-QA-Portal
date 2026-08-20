@@ -8,9 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import aiosqlite
-
-from backend.database import DB_PATH
+from backend.database import database_connection
 from backend.sync_acts import run_sync
 
 
@@ -70,20 +68,10 @@ async def _record_sync(summary: Dict[str, Any], status: str) -> None:
         summary.get("acts", {}).get("skipped", 0) or 0
     )
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
+        async with database_connection() as db:
             await db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS corpus_sync_state (
-                    id INTEGER PRIMARY KEY CHECK (id = 1),
-                    last_sync_at TEXT,
-                    last_status TEXT,
-                    last_summary TEXT,
-                    ordinance_docs INTEGER DEFAULT 0,
-                    acts_docs INTEGER DEFAULT 0
-                );
-                """
+                "INSERT INTO corpus_sync_state (id) VALUES (1) ON CONFLICT (id) DO NOTHING"
             )
-            await db.execute("INSERT OR IGNORE INTO corpus_sync_state (id) VALUES (1);")
             async with db.execute("SELECT COUNT(*) FROM documents") as cur:
                 total_corpus = (await cur.fetchone())[0]
             await db.execute(

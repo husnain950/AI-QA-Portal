@@ -9,13 +9,13 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-import aiosqlite
+from backend.database import DatabaseConnection, DatabaseRow
 
 
-async def active_version_id(db: aiosqlite.Connection, document_id: str) -> Optional[str]:
+async def active_version_id(db: DatabaseConnection, document_id: str) -> Optional[str]:
     """Fetch the active version id for a document, or None."""
     async with db.execute(
-        "SELECT id FROM document_versions WHERE document_id = ? AND is_active = 1",
+        "SELECT id FROM document_versions WHERE document_id = ? AND is_active = TRUE",
         (document_id,),
     ) as cursor:
         row = await cursor.fetchone()
@@ -23,7 +23,7 @@ async def active_version_id(db: aiosqlite.Connection, document_id: str) -> Optio
 
 
 async def record(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     *,
     actor: str,
     action: str,
@@ -44,7 +44,9 @@ async def record(
         """
         INSERT INTO review_events (at, actor, action, document_id, section_id, version_id, from_value, to_value, detail_json)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        RETURNING id
         """,
         (at, actor_s, action, document_id, section_id, version_id, from_value, to_value, detail_json),
     )
-    return int(cursor.lastrowid)
+    row = await cursor.fetchone()
+    return int(row["id"])

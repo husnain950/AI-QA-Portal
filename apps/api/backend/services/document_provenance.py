@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional
 
-import aiosqlite
+from backend.database import DatabaseConnection, DatabaseRow
 
 from backend.models import DocumentProvenance
 
@@ -303,7 +303,7 @@ def section_intersects_ocr(
 
 
 async def backfill_provenance_row(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     *,
     document_id: str,
     json_filename: str,

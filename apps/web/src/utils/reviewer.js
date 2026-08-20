@@ -1,4 +1,4 @@
-const REVIEWER_KEY = 'qa-portal-reviewer';
+const REVIEWER_KEY = 'crx-reviewer-name';
 
 export function getReviewerName() {
     try {
@@ -7,11 +7,11 @@ export function getReviewerName() {
     } catch {
         // localStorage unavailable
     }
-    return 'anonymous';
+    return '';
 }
 
 export function setReviewerName(name) {
-    const value = String(name || '').trim() || 'anonymous';
+    const value = String(name || '').trim();
     try {
         window.localStorage?.setItem(REVIEWER_KEY, value);
     } catch {

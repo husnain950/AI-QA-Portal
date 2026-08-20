@@ -16,13 +16,23 @@ export default function Modal({
     closeOnBackdrop = true,
 }) {
     const ref = useRef(null);
+    const restoreFocusRef = useRef(null);
     const titleId = useId();
 
     useEffect(() => {
         const el = ref.current;
         if (!el) return;
-        if (open && !el.open) el.showModal();
-        else if (!open && el.open) el.close();
+        if (open && !el.open) {
+            restoreFocusRef.current = document.activeElement;
+            el.showModal();
+        } else if (!open && el.open) {
+            el.close();
+            restoreFocusRef.current?.focus?.();
+        }
+        return () => {
+            if (el.open) el.close();
+            restoreFocusRef.current?.focus?.();
+        };
     }, [open]);
 
     return (

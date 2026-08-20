@@ -60,3 +60,37 @@
     background-color: var(--color-bg-tertiary);
     position: relative;
 }
+.review-session-strip {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-accent-light);
+}
+
+.review-session-strip > span {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-right: auto;
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+}
+
+.review-session-strip small {
+    color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+    .review-session-strip {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    .review-session-strip > span,
+    .review-session-strip .btn {
+        flex: 0 0 auto;
+    }
+}

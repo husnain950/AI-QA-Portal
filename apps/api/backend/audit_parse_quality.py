@@ -13,9 +13,7 @@ import sys
 from collections import Counter
 from typing import Any, Dict, List, Optional
 
-import aiosqlite
-
-from backend.database import DB_PATH, init_db
+from backend.database import DatabaseConnection, database_connection, init_db
 from backend.services.parse_quality import (
     assess_section_quality,
     deserialize_quality_flags,
@@ -23,7 +21,7 @@ from backend.services.parse_quality import (
 
 
 async def _resolve_document_id(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     document: Optional[str],
 ) -> Optional[str]:
     if not document:
@@ -46,7 +44,7 @@ async def _resolve_document_id(
 
 
 async def scan_sections(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     *,
     document_id: Optional[str] = None,
     reassess: bool = False,
@@ -163,8 +161,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 async def _run(args: argparse.Namespace) -> int:
     await init_db()
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         document_id = await _resolve_document_id(db, args.document)
         offenders = await scan_sections(
             db,

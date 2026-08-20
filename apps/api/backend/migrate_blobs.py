@@ -25,9 +25,8 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import aiosqlite
-
 from backend import database
+from backend.database import DatabaseConnection, database_connection
 from backend.database import init_db
 from backend.services import blob_store
 
@@ -36,7 +35,7 @@ def _kind(name: str) -> str:
     return "json" if name.lower().endswith(".json") else "pdf"
 
 
-async def _rows(db: aiosqlite.Connection) -> List[dict]:
+async def _rows(db: DatabaseConnection) -> List[dict]:
     """Every (table, column, id, filename) the migration has to consider."""
     collected: List[dict] = []
     async with db.execute(
@@ -88,9 +87,7 @@ async def migrate(dry_run: bool = False, prune_orphans: bool = False) -> Dict[st
         return report
 
     # Resolved at call time, not import time: the test sandbox monkeypatches it.
-    async with aiosqlite.connect(database.DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+    async with database_connection() as db:
         rows = await _rows(db)
 
         # A legacy name may be shared by a document and its backfilled version 1, so

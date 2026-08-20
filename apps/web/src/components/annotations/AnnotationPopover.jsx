@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { AlertCircle, Check, X } from 'lucide-react';
+import { useUiStore } from '../../stores/uiStore';
 
 const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
     const rootRef = useRef(null);
     const textareaRef = useRef(null);
     const [issueDescription, setIssueDescription] = useState('');
     const [severity, setSeverity] = useState('error'); // 'error' | 'warning' | 'info'
-    const [reviewerName, setReviewerName] = useState(
-        localStorage.getItem('qa-portal-reviewer-name') || ''
-    );
+    const reviewerName = useUiStore((state) => state.reviewerName);
+    const setReviewerName = useUiStore((state) => state.setReviewer);
+    const [disposition, setDisposition] = useState('open');
     const [clampedLeft, setClampedLeft] = useState(null);
 
     useEffect(() => {
@@ -41,17 +42,12 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
 
     const handleSave = (e) => {
         e.preventDefault();
-        if (!issueDescription.trim()) return;
-
-        // Save reviewer name in localStorage for convenience
-        if (reviewerName.trim()) {
-            localStorage.setItem('qa-portal-reviewer-name', reviewerName.trim());
-        }
+        if (!issueDescription.trim() || !reviewerName.trim()) return;
 
         onSave({
             issueDescription: issueDescription.trim(),
             severity,
-            reviewerName: reviewerName.trim() || 'QA Reviewer'
+            disposition,
         });
     };
 
@@ -80,6 +76,22 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
             </div>
 
             <form onSubmit={handleSave}>
+                <div className="form-group">
+                    <label className="form-label" htmlFor="annotation-disposition">Classification</label>
+                    <select
+                        id="annotation-disposition"
+                        className="form-select"
+                        value={disposition}
+                        onChange={(e) => setDisposition(e.target.value)}
+                    >
+                        <option value="open">Unclassified</option>
+                        <option value="parse_bug">Parse defect</option>
+                        <option value="source_defect">Source PDF defect</option>
+                        <option value="deliberate">Deliberate divergence</option>
+                        <option value="not_a_defect">Not a defect</option>
+                    </select>
+                </div>
+
                 <div className="form-group">
                     <label className="form-label" htmlFor="annotation-severity">Severity</label>
                     <select
@@ -116,6 +128,7 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
                         placeholder="e.g. QA-1"
                         value={reviewerName}
                         onChange={(e) => setReviewerName(e.target.value)}
+                        required
                     />
                 </div>
 
@@ -132,7 +145,7 @@ const AnnotationPopover = ({ selectionText, coords, onSave, onCancel }) => {
                     <button
                         type="submit"
                         className="btn btn-sm btn-primary"
-                        disabled={!issueDescription.trim()}
+                        disabled={!issueDescription.trim() || !reviewerName.trim()}
                     >
                         <Check size={14} />
                         <span>Save</span>

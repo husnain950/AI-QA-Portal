@@ -12,6 +12,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
+    "dompurify": "^3.4.14",
     "lucide-react": "^1.21.0",
     "pdfjs-dist": "^6.2.108",
     "react": "^19.2.7",

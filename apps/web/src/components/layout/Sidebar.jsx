@@ -10,6 +10,25 @@ import { sectionWasOcrd } from '../../utils/documentTags';
 import { laneLabel } from '../../utils/corpusLanes';
 import { editionDateFromName } from '../../utils/editions';
 
+const SearchSnippet = ({ result }) => {
+    const text = result.snippet_text ?? result.snippet ?? '';
+    const ranges = [...(result.match_ranges || [])]
+        .filter((range) => Number.isInteger(range.start) && Number.isInteger(range.end))
+        .sort((a, b) => a.start - b.start);
+    if (!ranges.length) return <div className="search-result-snippet">{text}</div>;
+    const parts = [];
+    let cursor = 0;
+    ranges.forEach((range, index) => {
+        const start = Math.max(cursor, Math.min(text.length, range.start));
+        const end = Math.max(start, Math.min(text.length, range.end));
+        if (start > cursor) parts.push(text.slice(cursor, start));
+        if (end > start) parts.push(<mark key={`match-${index}`}>{text.slice(start, end)}</mark>);
+        cursor = end;
+    });
+    if (cursor < text.length) parts.push(text.slice(cursor));
+    return <div className="search-result-snippet">{parts}</div>;
+};
+
 const Sidebar = ({ documentId }) => {
     const navigate = useNavigate();
     const { sidebarTab, setSidebarTab } = useUiStore();
@@ -317,7 +336,8 @@ const Sidebar = ({ documentId }) => {
 
                         <div className="search-results-list">
                             {!loading.search && searchResults.map(res => (
-                                <div
+                                <button
+                                    type="button"
                                     key={res.section_id}
                                     className="search-result-card"
                                     onClick={() => handleSectionClick(res.section_id)}
@@ -328,11 +348,8 @@ const Sidebar = ({ documentId }) => {
                                     <div className="search-result-chapter">
                                         {res.chapter_code || 'Schedules'}
                                     </div>
-                                    <div
-                                        className="search-result-snippet"
-                                        dangerouslySetInnerHTML={{ __html: res.snippet }}
-                                    />
-                                </div>
+                                    <SearchSnippet result={res} />
+                                </button>
                             ))}
                             {localQuery && !loading.search && searchResults.length === 0 && (
                                 <div className="sidebar-muted-note" style={{ textAlign: 'center' }}>

@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, AlertCircle, History, GitBranch } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+    AlertCircle, ArrowLeft, ArrowRight, GitBranch, History, Loader2, X,
+} from 'lucide-react';
 
 import AppShell from '../components/layout/AppShell';
 import Sidebar from '../components/layout/Sidebar';
@@ -30,9 +32,16 @@ import { timelinePath } from '../utils/timeline';
 const ReviewPage = () => {
     const { documentId, sectionId } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const reviewSessionId = searchParams.get('session');
+    const queryFindingId = searchParams.get('finding');
 
     const [versionsOpen, setVersionsOpen] = useState(false);
     const [editions, setEditions] = useState(null);
+    const [queueFinding, setQueueFinding] = useState(
+        queryFindingId ? { id: Number(queryFindingId), triage: 'new' } : null,
+    );
+    const [queueBusy, setQueueBusy] = useState(false);
     const pushToast = useUiStore((s) => s.pushToast);
 
     const {
@@ -53,6 +62,68 @@ const ReviewPage = () => {
     const currentSectionIndex = sections.findIndex(
         (section) => section.id === activeSection?.id,
     );
+
+    const navigateQueueResult = useCallback((result) => {
+        const next = result?.current;
+        setQueueFinding(next || null);
+        if (!next) {
+            pushToast({ type: 'success', message: 'This review-session snapshot is complete' });
+            navigate('/', { replace: true });
+            return;
+        }
+        const query = new URLSearchParams({
+            session: reviewSessionId,
+            finding: String(next.id),
+        });
+        navigate(`/review/${next.document_id}/${next.section_id}?${query}`);
+    }, [navigate, pushToast, reviewSessionId]);
+
+    const runQueueAction = useCallback(async (action, triage = null) => {
+        if (!reviewSessionId || queueBusy) return;
+        setQueueBusy(true);
+        try {
+            const body = triage && queueFinding ? {
+                finding_id: queueFinding.id,
+                triage,
+                expected_prior: queueFinding.triage || 'new',
+                note: '',
+            } : {};
+            const result = await api.post(
+                `/v2/review-sessions/${reviewSessionId}/${action}`,
+                body,
+            );
+            navigateQueueResult(result);
+        } catch (err) {
+            pushToast({ type: 'error', message: err.message || 'Review-session action failed' });
+        } finally {
+            setQueueBusy(false);
+        }
+    }, [navigateQueueResult, pushToast, queueBusy, queueFinding, reviewSessionId]);
+
+    useEffect(() => {
+        if (!reviewSessionId) return undefined;
+        const controller = new AbortController();
+        api.get(`/v2/review-sessions/${reviewSessionId}`, { signal: controller.signal })
+            .then((session) => setQueueFinding(session.current || null))
+            .catch((err) => {
+                if (err.code !== 'cancelled') {
+                    pushToast({ type: 'error', message: err.message || 'Could not resume review session' });
+                }
+            });
+        return () => controller.abort();
+    }, [pushToast, reviewSessionId]);
+
+    useEffect(() => {
+        if (!reviewSessionId || !queueFinding?.id) return undefined;
+        const clientSessionId = sessionStorage.getItem('crx-review-client-session');
+        if (!clientSessionId) return undefined;
+        const renew = () => api.post(`/v2/review-assignments/${queueFinding.id}`, {
+            client_session_id: clientSessionId,
+        }).catch(() => {});
+        renew();
+        const timer = window.setInterval(renew, 10 * 60_000);
+        return () => window.clearInterval(timer);
+    }, [queueFinding?.id, reviewSessionId]);
 
     const loadEditions = useCallback(async (docId) => {
         try {
@@ -285,6 +356,67 @@ const ReviewPage = () => {
                     await fetchSections(documentId);
                 }}
             />
+
+            {reviewSessionId && queueFinding ? (
+                <div className="review-session-strip" aria-label="Finding review session">
+                    <span>
+                        Finding <strong>#{queueFinding.id}</strong>
+                        <small>stable snapshot session</small>
+                    </span>
+                    <button
+                        type="button"
+                        className="btn btn-xs btn-secondary"
+                        disabled={queueBusy}
+                        onClick={() => runQueueAction('back')}
+                    >
+                        <ArrowLeft size={13} /> Back
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-xs btn-secondary"
+                        disabled={queueBusy || queueFinding.triage !== 'new'}
+                        onClick={() => runQueueAction('advance', 'parse_bug')}
+                    >
+                        Parse bug
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-xs btn-secondary"
+                        disabled={queueBusy || queueFinding.triage !== 'new'}
+                        onClick={() => runQueueAction('advance', 'source_defect')}
+                    >
+                        Source defect
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-xs btn-secondary"
+                        disabled={queueBusy || queueFinding.triage !== 'new'}
+                        onClick={() => runQueueAction('advance', 'not_a_defect')}
+                    >
+                        Not a defect
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-xs btn-primary"
+                        disabled={queueBusy}
+                        onClick={() => runQueueAction('next')}
+                    >
+                        Next highest-risk <ArrowRight size={13} />
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-xs btn-ghost"
+                        disabled={queueBusy}
+                        aria-label="End review session"
+                        onClick={async () => {
+                            await api.delete(`/v2/review-sessions/${reviewSessionId}`);
+                            navigate('/');
+                        }}
+                    >
+                        <X size={13} /> End
+                    </button>
+                </div>
+            ) : null}
 
             <div className="review-context-strip">
                 <div className="review-header-tags">

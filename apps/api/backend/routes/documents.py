@@ -5,11 +5,20 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-import aiosqlite
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 from fastapi.responses import JSONResponse
 
-from backend.database import get_db
+from backend.database import DatabaseConnection, get_db
+from backend.deps import require_reviewer
 from backend.models import (
     DocumentEditionsResponse,
     DocumentProvenance,
@@ -26,11 +35,6 @@ from backend.services.document_provenance import (
     deserialize_provenance,
 )
 from backend.services.document_store import ReviewConflict, document_status
-from backend.services.editions import (
-    edition_date_from_name,
-    family_key_from_name,
-    family_title_from_key,
-)
 from backend.services.json_parser import parse_json_document
 from backend.services.pdf_service import get_pdf_page_count
 
@@ -48,6 +52,21 @@ def get_upload_path(filename: str) -> str:
 def safe_upload_name(filename: str | None, fallback: str) -> str:
     cleaned = os.path.basename(filename or "").replace("\x00", "")
     return cleaned or fallback
+
+
+def _required_if_match(value: str | None) -> str:
+    if not value or not value.strip():
+        raise HTTPException(
+            status_code=428,
+            detail={"code": "if_match_required", "message": "If-Match must name the active version"},
+        )
+    normalized = value.strip()
+    if normalized.startswith("W/"):
+        normalized = normalized[2:].strip()
+    normalized = normalized.strip('"')
+    if normalized.startswith("version:"):
+        normalized = normalized.split(":", 1)[1]
+    return normalized
 
 
 def _version_response(row, metrics_row=None) -> VersionResponse:
@@ -87,7 +106,7 @@ def _metrics_response(row) -> Optional[VersionMetrics]:
     )
 
 
-async def _require_document(db: aiosqlite.Connection, document_id: str):
+async def _require_document(db: DatabaseConnection, document_id: str):
     async with db.execute(
         "SELECT * FROM documents WHERE id = ?", (document_id,)
     ) as cursor:
@@ -116,22 +135,16 @@ def _document_stats(
 
 
 async def _resolve_provenance(
-    db: aiosqlite.Connection, row
+    db: DatabaseConnection, row
 ) -> Optional[DocumentProvenance]:
+    del db
     keys = row.keys() if hasattr(row, "keys") else []
     raw = row["provenance"] if "provenance" in keys else None
-    pdf_path = blob_store.blob_path(row["pdf_filename"]) if "pdf_filename" in keys else None
-    return await backfill_provenance_row(
-        db,
-        document_id=row["id"],
-        json_filename=row["json_filename"],
-        total_pages=row["total_pages"],
-        existing_raw=raw,
-        pdf_path=pdf_path,
-    )
+    return deserialize_provenance(raw)
 
 
-async def _resolve_corpus_lane(db: aiosqlite.Connection, row) -> Optional[str]:
+async def _resolve_corpus_lane(db: DatabaseConnection, row) -> Optional[str]:
+    del db
     keys = row.keys() if hasattr(row, "keys") else []
     existing = normalize_lane(row["corpus_lane"] if "corpus_lane" in keys else None)
     if existing:
@@ -140,15 +153,11 @@ async def _resolve_corpus_lane(db: aiosqlite.Connection, row) -> Optional[str]:
         row["name"],
         source_type=row["source_type"] if "source_type" in keys else "upload",
     )
-    await db.execute(
-        "UPDATE documents SET corpus_lane = ? WHERE id = ?",
-        (lane, row["id"]),
-    )
     return lane
 
 
 async def _document_response(
-    db: aiosqlite.Connection, r
+    db: DatabaseConnection, r
 ) -> DocumentResponse:
     provenance = await _resolve_provenance(db, r)
     corpus_lane = await _resolve_corpus_lane(db, r)
@@ -188,7 +197,7 @@ _DOC_VERSION_SELECT = """
 """
 
 _DOC_VERSION_JOIN = """
-    LEFT JOIN document_versions v ON v.document_id = d.id AND v.is_active = 1
+    LEFT JOIN document_versions v ON v.document_id = d.id AND v.is_active = TRUE
     LEFT JOIN version_metrics m ON m.version_id = v.id
 """
 
@@ -210,7 +219,7 @@ _DOC_STATS_SELECT = """
 async def reinfer_provenance(
     limit: int = Query(10, ge=1, le=100),
     after: Optional[str] = Query(None),
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
 ):
     """Re-derive provenance for rows whose JSON carries no OCR block.
 
@@ -275,7 +284,7 @@ async def upload_document(
     json_file: UploadFile = File(...),
     name: str = Form(...),
     corpus_lane: Optional[str] = Form(None),
-    db: aiosqlite.Connection = Depends(get_db)
+    db: DatabaseConnection = Depends(get_db)
 ):
     # Validate file formats
     if not (pdf.filename or "").lower().endswith(".pdf"):
@@ -316,7 +325,6 @@ async def upload_document(
     uploaded_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     try:
-        await db.execute("PRAGMA foreign_keys = ON;")
         await db.execute(
             """
             INSERT INTO documents (
@@ -383,7 +391,7 @@ async def upload_document(
     )
 
 @router.get("", response_model=list[DocumentResponse])
-async def list_documents(db: aiosqlite.Connection = Depends(get_db)):
+async def list_documents(db: DatabaseConnection = Depends(get_db)):
     query = f"""
         SELECT 
             d.id, d.name, d.pdf_filename, d.json_filename, d.total_sections,
@@ -394,7 +402,7 @@ async def list_documents(db: aiosqlite.Connection = Depends(get_db)):
         FROM documents d
         LEFT JOIN sections s ON s.document_id = d.id
         {_DOC_VERSION_JOIN}
-        GROUP BY d.id
+        GROUP BY d.id, v.id, m.version_id
         ORDER BY d.uploaded_at DESC
     """
     async with db.execute(query) as cursor:
@@ -407,7 +415,7 @@ async def list_documents(db: aiosqlite.Connection = Depends(get_db)):
     return results
 
 @router.get("/{document_id}", response_model=DocumentResponse)
-async def get_document(document_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def get_document(document_id: str, db: DatabaseConnection = Depends(get_db)):
     query = f"""
         SELECT 
             d.id, d.name, d.pdf_filename, d.json_filename, d.total_sections,
@@ -419,7 +427,7 @@ async def get_document(document_id: str, db: aiosqlite.Connection = Depends(get_
         LEFT JOIN sections s ON s.document_id = d.id
         {_DOC_VERSION_JOIN}
         WHERE d.id = ?
-        GROUP BY d.id
+        GROUP BY d.id, v.id, m.version_id
     """
     async with db.execute(query, (document_id,)) as cursor:
         r = await cursor.fetchone()
@@ -434,21 +442,43 @@ async def get_document(document_id: str, db: aiosqlite.Connection = Depends(get_
 
 @router.get("/{document_id}/editions", response_model=DocumentEditionsResponse)
 async def list_document_editions(
-    document_id: str, db: aiosqlite.Connection = Depends(get_db)
+    document_id: str, db: DatabaseConnection = Depends(get_db)
 ):
     """Sibling editions of the same statute family, newest year last."""
     current = await _require_document(db, document_id)
-    family_key = family_key_from_name(current["name"])
+    family_id = current["statute_family_id"]
+    if not family_id:
+        return DocumentEditionsResponse(
+            family_key="unassigned",
+            family_title=current["display_title"] or current["name"],
+            editions=[
+                EditionSibling(
+                    id=current["id"],
+                    name=current["name"],
+                    year=None,
+                    year_label="identity unassigned",
+                    corpus_lane=normalize_lane(current["corpus_lane"]),
+                    is_current=True,
+                )
+            ],
+        )
     async with db.execute(
-        "SELECT id, name, corpus_lane FROM documents"
+        """
+        SELECT d.id, d.name, d.corpus_lane, d.edition_date,
+               f.canonical_slug, f.canonical_title
+        FROM documents d JOIN statute_families f ON f.id = d.statute_family_id
+        WHERE d.statute_family_id = ?
+        """,
+        (family_id,),
     ) as cursor:
         rows = await cursor.fetchall()
 
     siblings: list[EditionSibling] = []
     for row in rows:
-        if family_key_from_name(row["name"]) != family_key:
-            continue
-        edition = edition_date_from_name(row["name"])
+        try:
+            year = int(row["edition_date"][:4]) if row["edition_date"] else None
+        except (TypeError, ValueError):
+            year = None
         lane = normalize_lane(row["corpus_lane"]) or classify_lane(
             row["name"],
             source_type="acts_corpus",
@@ -457,21 +487,21 @@ async def list_document_editions(
             EditionSibling(
                 id=row["id"],
                 name=row["name"],
-                year=edition.get("year"),
-                year_label=edition.get("label") or "year unknown",
+                year=year,
+                year_label=str(year) if year else "year unknown",
                 corpus_lane=lane,
                 is_current=row["id"] == document_id,
             )
         )
     siblings.sort(key=lambda item: (item.year is None, item.year or 0, item.name))
     return DocumentEditionsResponse(
-        family_key=family_key,
-        family_title=family_title_from_key(family_key),
+        family_key=rows[0]["canonical_slug"],
+        family_title=rows[0]["canonical_title"],
         editions=siblings,
     )
 
 @router.get("/{document_id}/raw-files")
-async def get_raw_files(document_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def get_raw_files(document_id: str, db: DatabaseConnection = Depends(get_db)):
     async with db.execute("SELECT pdf_filename, json_filename FROM documents WHERE id = ?", (document_id,)) as cursor:
         r = await cursor.fetchone()
     if not r:
@@ -479,7 +509,7 @@ async def get_raw_files(document_id: str, db: aiosqlite.Connection = Depends(get
     return {"pdf_filename": r["pdf_filename"], "json_filename": r["json_filename"]}
 
 @router.delete("/{document_id}")
-async def delete_document(document_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def delete_document(document_id: str, db: DatabaseConnection = Depends(get_db)):
     row = await _require_document(db, document_id)
 
     # Collect every blob this document points at, including superseded versions, before
@@ -492,7 +522,6 @@ async def delete_document(document_id: str, db: aiosqlite.Connection = Depends(g
         candidates.update(item["json_filename"] for item in await cursor.fetchall())
 
     try:
-        await db.execute("PRAGMA foreign_keys = ON;")
         await db.execute("DELETE FROM documents WHERE id = ?", (document_id,))
         await db.commit()
     except Exception:
@@ -511,7 +540,7 @@ async def delete_document(document_id: str, db: aiosqlite.Connection = Depends(g
 
 
 async def _document_response_by_id(
-    db: aiosqlite.Connection, document_id: str
+    db: DatabaseConnection, document_id: str
 ) -> DocumentResponse:
     query = f"""
         SELECT
@@ -524,7 +553,7 @@ async def _document_response_by_id(
         LEFT JOIN sections s ON s.document_id = d.id
         {_DOC_VERSION_JOIN}
         WHERE d.id = ?
-        GROUP BY d.id
+        GROUP BY d.id, v.id, m.version_id
     """
     async with db.execute(query, (document_id,)) as cursor:
         r = await cursor.fetchone()
@@ -534,11 +563,12 @@ async def _document_response_by_id(
 
 
 async def _add_version(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     document_id: str,
     json_file: UploadFile,
     note: Optional[str],
     created_by: Optional[str],
+    expected_version_id: str,
 ):
     """Shared body of replace-json and POST /versions."""
     if not (json_file.filename or "").lower().endswith(".json"):
@@ -556,7 +586,6 @@ async def _add_version(
         raise HTTPException(status_code=400, detail="JSON file is not valid UTF-8")
 
     try:
-        await db.execute("PRAGMA foreign_keys = ON;")
         row, outcome = await versions.create_version(
             db,
             document_id,
@@ -564,11 +593,18 @@ async def _add_version(
             source_name=json_file.filename,
             note=note,
             created_by=created_by,
+            expected_version_id=expected_version_id,
         )
         await db.commit()
     except ReviewConflict as conflict:
         await db.rollback()
         raise HTTPException(status_code=409, detail=str(conflict))
+    except versions.StaleVersion as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "stale_version", "current_version": exc.current_version_id},
+        ) from exc
     except (ValueError, KeyError, TypeError):
         await db.rollback()
         logger.exception("JSON parse failed on replace")
@@ -587,7 +623,9 @@ async def replace_json(
     note: Optional[str] = Form(None),
     reviewer_name: Optional[str] = Form(None),
     corpus_lane: Optional[str] = Form(None),
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
+    actor: str = Depends(require_reviewer),
+    if_match: Optional[str] = Header(None, alias="If-Match"),
 ):
     """Add a JSON version and make it active.
 
@@ -599,7 +637,9 @@ async def replace_json(
     the lane of the corpus it is re-seeding from, and a document that arrived over
     ``/upload`` has no other way to leave the Manual bucket.
     """
-    await _add_version(db, document_id, json_file, note, reviewer_name)
+    del reviewer_name
+    expected = _required_if_match(if_match)
+    await _add_version(db, document_id, json_file, note, actor, expected)
     lane = normalize_lane(corpus_lane)
     if lane:
         await db.execute(
@@ -611,7 +651,7 @@ async def replace_json(
 
 @router.get("/{document_id}/versions", response_model=list[VersionResponse])
 async def list_document_versions(
-    document_id: str, db: aiosqlite.Connection = Depends(get_db)
+    document_id: str, db: DatabaseConnection = Depends(get_db)
 ):
     await _require_document(db, document_id)
     rows = await versions.list_versions(db, document_id)
@@ -633,9 +673,14 @@ async def create_document_version(
     json_file: UploadFile = File(...),
     note: Optional[str] = Form(None),
     reviewer_name: Optional[str] = Form(None),
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
+    actor: str = Depends(require_reviewer),
+    if_match: Optional[str] = Header(None, alias="If-Match"),
 ):
-    row, _outcome = await _add_version(db, document_id, json_file, note, reviewer_name)
+    del reviewer_name
+    row, _outcome = await _add_version(
+        db, document_id, json_file, note, actor, _required_if_match(if_match)
+    )
     return _version_response(row)
 
 
@@ -643,13 +688,20 @@ async def create_document_version(
 async def activate_document_version(
     document_id: str,
     version_id: str,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
+    actor: str = Depends(require_reviewer),
+    if_match: Optional[str] = Header(None, alias="If-Match"),
 ):
     """Roll back (or forward) to a stored version."""
+    del actor
     await _require_document(db, document_id)
     try:
-        await db.execute("PRAGMA foreign_keys = ON;")
-        await versions.activate_version(db, document_id, version_id)
+        await versions.activate_version(
+            db,
+            document_id,
+            version_id,
+            expected_version_id=_required_if_match(if_match),
+        )
         await db.commit()
     except LookupError:
         await db.rollback()
@@ -657,6 +709,12 @@ async def activate_document_version(
     except ReviewConflict as conflict:
         await db.rollback()
         raise HTTPException(status_code=409, detail=str(conflict))
+    except versions.StaleVersion as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "stale_version", "current_version": exc.current_version_id},
+        ) from exc
     except FileNotFoundError:
         await db.rollback()
         raise HTTPException(
@@ -679,7 +737,7 @@ async def diff_document_version(
     against: Optional[str] = Query(
         None, description="Version id to compare with; defaults to the previous version"
     ),
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
 ):
     """Leaf-level difference between two versions of this document."""
     await _require_document(db, document_id)

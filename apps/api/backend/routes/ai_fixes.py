@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 
-import aiosqlite
+from backend.database import DatabaseConnection, DatabaseRow
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.database import get_db
@@ -64,10 +64,17 @@ def _response(row) -> FixProposalResponse:
         proposed=_loads(row["proposed_json"]),
         validation=_loads(row["validation_json"]) or [],
         diff=_loads(row["diff_json"]),
+        evidence=(
+            row["evidence_json"]
+            if "evidence_json" in row.keys() and isinstance(row["evidence_json"], dict)
+            else _loads(row["evidence_json"])
+            if "evidence_json" in row.keys()
+            else None
+        ),
     )
 
 
-async def _get_proposal(db: aiosqlite.Connection, proposal_id: str):
+async def _get_proposal(db: DatabaseConnection, proposal_id: str):
     async with db.execute(
         "SELECT * FROM fix_proposals WHERE id = ?", (proposal_id,)
     ) as cursor:
@@ -85,7 +92,7 @@ async def request_ai_fix(
     document_id: str,
     section_id: str,
     body: FixProposalCreate,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
     if not llm_client.configured():
@@ -129,7 +136,7 @@ async def request_ai_fix(
 async def list_ai_fixes(
     document_id: str,
     section_id: str | None = None,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
 ):
     query = "SELECT * FROM fix_proposals WHERE document_id = ?"
     params: list = [document_id]
@@ -145,7 +152,7 @@ async def list_ai_fixes(
 @router.get("/ai-fixes/{proposal_id}", response_model=FixProposalResponse)
 async def get_ai_fix(
     proposal_id: str,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
 ):
     return _response(await _get_proposal(db, proposal_id))
 
@@ -153,7 +160,7 @@ async def get_ai_fix(
 @router.post("/ai-fixes/{proposal_id}/approve", response_model=FixApprovalResponse)
 async def approve_ai_fix(
     proposal_id: str,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
     proposal = await _get_proposal(db, proposal_id)
@@ -183,7 +190,7 @@ async def approve_ai_fix(
 @router.post("/ai-fixes/{proposal_id}/reject", response_model=FixProposalResponse)
 async def reject_ai_fix(
     proposal_id: str,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
     proposal = await _get_proposal(db, proposal_id)

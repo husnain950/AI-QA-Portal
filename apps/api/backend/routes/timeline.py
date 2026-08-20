@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-import aiosqlite
+from backend.database import DatabaseConnection, DatabaseRow
 from fastapi import APIRouter, Depends, Query
 
 from backend.database import get_db
@@ -37,7 +37,7 @@ def _family_candidates(family: str) -> List[str]:
 
 
 async def _timeline_rows_for_family(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     family: str,
     section_code: str,
 ) -> Tuple[str, List[Dict[str, Any]]]:
@@ -77,7 +77,7 @@ async def _timeline_rows_for_family(
 
 
 async def _resolve_from_section_id(
-    db: aiosqlite.Connection, section_id: str
+    db: DatabaseConnection, section_id: str
 ) -> Tuple[str, str, List[Dict[str, Any]], Optional[str]]:
     """Return (family_key, section_code, rows, family_label)."""
     async with db.execute(
@@ -205,7 +205,7 @@ async def timeline_query(
     section_id: Optional[str] = Query(None),
     family: Optional[str] = Query(None),
     section_code: Optional[str] = Query(None),
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
 ):
     if section_id:
         fam, code, rows, label = await _resolve_from_section_id(db, section_id)
@@ -230,7 +230,7 @@ async def timeline_query(
 async def timeline(
     family: str,
     section_code: str,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
 ):
     fam, rows = await _timeline_rows_for_family(db, family, section_code)
     return _events_payload(

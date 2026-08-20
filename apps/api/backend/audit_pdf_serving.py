@@ -28,9 +28,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import aiosqlite
-
-from backend.database import DB_PATH, init_db
+from backend.database import DATABASE_URL, DatabaseConnection, database_connection, init_db
 from backend.runtime import UPLOAD_DIR
 from backend.services.pdf_service import get_pdf_page_count
 
@@ -120,17 +118,17 @@ def check_uploads_url(base_url: str, pdf_filename: str) -> Optional[str]:
 
 
 async def audit_documents(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     *,
     check_url: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     upload_dir = Path(UPLOAD_DIR)
-    rows: List[aiosqlite.Row] = []
+    rows: List[DatabaseRow] = []
     async with db.execute(
         """
         SELECT id, name, pdf_filename, total_pages, source_type, source_key
         FROM documents
-        ORDER BY name COLLATE NOCASE
+        ORDER BY lower(name), name
         """
     ) as cursor:
         rows = await cursor.fetchall()
@@ -242,8 +240,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 async def _run(args: argparse.Namespace) -> int:
     await init_db()
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         documents = await audit_documents(db, check_url=args.check_url)
 
     out_of_scope: List[Dict[str, Any]] = []
@@ -261,7 +258,7 @@ async def _run(args: argparse.Namespace) -> int:
     )
 
     report = {
-        "db_path": DB_PATH,
+        "database": DATABASE_URL.rsplit("@", 1)[-1],
         "upload_dir": UPLOAD_DIR,
         "document_count": len(documents),
         "status_counts": {status: status_counts.get(status, 0) for status in STATUSES},

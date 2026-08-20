@@ -1,7 +1,6 @@
-import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.database import get_db
+from backend.database import DatabaseConnection, get_db
 from backend.deps import require_reviewer
 from backend.models import (
     FootnoteResponse,
@@ -10,7 +9,7 @@ from backend.models import (
     SectionResponse,
     SectionStatusUpdate,
 )
-from backend.services import events
+from backend.services import events, review_state
 from backend.services.parse_quality import deserialize_quality_flags
 
 router = APIRouter(prefix="/documents", tags=["sections"])
@@ -52,6 +51,8 @@ def _section_metadata_kwargs(r) -> dict:
         start_page=r["start_page"],
         end_page=r["end_page"],
         review_status=r["review_status"],
+        reviewer_verdict=r["reviewer_verdict"],
+        effective_status=r["effective_status"],
         annotation_count=r["annotation_count"],
         sort_order=r["sort_order"],
         quality_flags=_quality_flags_from_row(r),
@@ -61,12 +62,13 @@ def _section_metadata_kwargs(r) -> dict:
 _SECTION_META_COLS = """
     s.id, s.document_id, s.chapter_code, s.chapter_heading, s.part_code, s.part_heading,
     s.division_code, s.division_heading, s.hierarchy_kind, s.section_code, s.section_heading,
-    s.start_page, s.end_page, s.review_status, s.sort_order, s.quality_flags
+    s.start_page, s.end_page, s.review_status, s.reviewer_verdict,
+    s.effective_status, s.sort_order, s.quality_flags
 """
 
 
 @router.get("/{document_id}/sections", response_model=list[SectionMetadataResponse])
-async def list_sections(document_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def list_sections(document_id: str, db: DatabaseConnection = Depends(get_db)):
     # Check if document exists first
     async with db.execute("SELECT 1 FROM documents WHERE id = ?", (document_id,)) as cursor:
         if not await cursor.fetchone():
@@ -88,7 +90,7 @@ async def list_sections(document_id: str, db: aiosqlite.Connection = Depends(get
     return [SectionMetadataResponse(**_section_metadata_kwargs(r)) for r in rows]
 
 @router.get("/{document_id}/sections/{section_id}", response_model=SectionResponse)
-async def get_section(document_id: str, section_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def get_section(document_id: str, section_id: str, db: DatabaseConnection = Depends(get_db)):
     # Get section main data
     query = f"""
         SELECT 
@@ -128,7 +130,7 @@ async def get_section(document_id: str, section_id: str, db: aiosqlite.Connectio
     )
 
 @router.get("/{document_id}/sections/by-page/{page_number}", response_model=list[SectionResponse])
-async def get_sections_by_page(document_id: str, page_number: int, db: aiosqlite.Connection = Depends(get_db)):
+async def get_sections_by_page(document_id: str, page_number: int, db: DatabaseConnection = Depends(get_db)):
     # Range match covers body pages.  Also include leaves whose footnotes were
     # printed on this PDF page (Customs collector pages sit outside every
     # body-only start/end range until end_page is extended, and even then the
@@ -185,11 +187,11 @@ async def update_section_status(
     document_id: str,
     section_id: str,
     body: SectionStatusUpdate,
-    db: aiosqlite.Connection = Depends(get_db),
+    db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
     async with db.execute(
-        "SELECT id, review_status FROM sections WHERE document_id = ? AND id = ?",
+        "SELECT id, review_status FROM sections WHERE document_id = ? AND id = ? FOR UPDATE",
         (document_id, section_id),
     ) as cursor:
         row = await cursor.fetchone()
@@ -197,10 +199,11 @@ async def update_section_status(
             raise HTTPException(status_code=404, detail="Section not found")
         from_value = row["review_status"]
 
-    await db.execute(
-        "UPDATE sections SET review_status = ? WHERE id = ?",
-        (body.review_status, section_id)
-    )
+    verdict = "needs_work" if body.review_status == "has_issues" else body.review_status
+    try:
+        state = await review_state.set_verdict(db, section_id, verdict)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     version_id = await events.active_version_id(db, document_id)
     await events.record(
@@ -211,30 +214,8 @@ async def update_section_status(
         section_id=section_id,
         version_id=version_id,
         from_value=from_value,
-        to_value=body.review_status,
+        to_value=verdict,
     )
-
-    query = """
-        SELECT 
-            COUNT(*) as total,
-            COUNT(CASE WHEN review_status = 'pending' THEN 1 END) as pending
-        FROM sections
-        WHERE document_id = ?
-    """
-    async with db.execute(query, (document_id,)) as cursor:
-        r = await cursor.fetchone()
-        
-    total_sections = r["total"]
-    pending_sections = r["pending"]
-
-    if pending_sections == 0:
-        doc_status = "completed"
-    elif pending_sections == total_sections:
-        doc_status = "pending"
-    else:
-        doc_status = "in_progress"
-
-    await db.execute("UPDATE documents SET status = ? WHERE id = ?", (doc_status, document_id))
     await db.commit()
 
-    return {"section_id": section_id, "review_status": body.review_status, "document_status": doc_status}
+    return state

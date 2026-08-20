@@ -2,27 +2,22 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Any, Dict, Optional
 
-import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from backend.database import get_db
+from backend.database import DatabaseConnection, get_db
+from backend.deps import require_reviewer
+from backend.services import jobs
 from backend.services.corpus_sync import (
     corpus_root_configured,
     default_acts_path,
     default_ordinance_path,
-    run_corpus_sync,
 )
 
 router = APIRouter(prefix="/corpus", tags=["corpus"])
-
-_sync_lock = asyncio.Lock()
-_sync_running = False
-
 
 class CorpusStatus(BaseModel):
     ordinance_path: str
@@ -47,7 +42,7 @@ class SyncRequest(BaseModel):
 
 
 @router.get("/status", response_model=CorpusStatus)
-async def corpus_status(db: aiosqlite.Connection = Depends(get_db)):
+async def corpus_status(db: DatabaseConnection = Depends(get_db)):
     ordinance = default_ordinance_path()
     acts = default_acts_path()
     last_sync_at = last_status = None
@@ -74,6 +69,10 @@ async def corpus_status(db: aiosqlite.Connection = Depends(get_db)):
 
     async with db.execute("SELECT COUNT(*) FROM documents") as cur:
         total = (await cur.fetchone())[0]
+    async with db.execute(
+        "SELECT COUNT(*) FROM jobs WHERE type = 'corpus_sync' AND state IN ('queued','running')"
+    ) as cur:
+        sync_running = bool((await cur.fetchone())[0])
 
     return CorpusStatus(
         ordinance_path=str(ordinance),
@@ -85,17 +84,17 @@ async def corpus_status(db: aiosqlite.Connection = Depends(get_db)):
         ordinance_docs=ordinance_docs,
         acts_docs=acts_docs,
         total_documents=int(total or 0),
-        sync_running=_sync_running,
+        sync_running=sync_running,
         last_summary=last_summary,
     )
 
 
-@router.post("/sync")
-async def trigger_sync(body: SyncRequest = SyncRequest()):
-    global _sync_running
-    if _sync_lock.locked() or _sync_running:
-        raise HTTPException(status_code=409, detail="A corpus sync is already running")
-
+@router.post("/sync", status_code=202)
+async def trigger_sync(
+    body: SyncRequest = SyncRequest(),
+    db: DatabaseConnection = Depends(get_db),
+    actor: str = Depends(require_reviewer),
+):
     ordinance = default_ordinance_path()
     acts = default_acts_path()
     if not body.acts_only and not corpus_root_configured(ordinance):
@@ -115,18 +114,11 @@ async def trigger_sync(body: SyncRequest = SyncRequest()):
             ),
         )
 
-    async with _sync_lock:
-        _sync_running = True
-        try:
-            summary = await run_corpus_sync(
-                ordinance=ordinance,
-                acts=acts,
-                dry_run=body.dry_run,
-                metrics=body.metrics,
-                ordinance_only=body.ordinance_only,
-                acts_only=body.acts_only,
-            )
-        finally:
-            _sync_running = False
-
-    return summary
+    job = await jobs.enqueue(
+        db,
+        "corpus_sync",
+        payload=body.model_dump(),
+        actor=actor,
+    )
+    await db.commit()
+    return {"job_id": job["id"], "state": job["state"]}

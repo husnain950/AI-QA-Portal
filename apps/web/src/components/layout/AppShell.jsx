@@ -59,7 +59,7 @@ const AppShell = ({
         const value = await promptDialog({
             title: 'Reviewer name',
             message: 'Shown on review events and notes (attribution only, not authentication).',
-            defaultValue: reviewerName === 'anonymous' ? '' : reviewerName,
+            defaultValue: reviewerName,
             confirmLabel: 'Save',
         });
         if (value !== null && value !== undefined) setReviewer(value);
@@ -89,18 +89,15 @@ const AppShell = ({
                             {sidebarOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
                         </button>
                     )}
-                    <div
+                    <button
+                        type="button"
                         className="brand"
                         onClick={() => navigate('/')}
-                        role="link"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') navigate('/');
-                        }}
+                        aria-label="Go to Triage"
                     >
                         <BookOpen size={19} strokeWidth={2.5} />
                         <span>PDF-QA</span>
-                    </div>
+                    </button>
                     <nav className="top-nav" aria-label="Primary">
                         {NAV_ITEMS.map(({ path, label, icon: Icon, match }) => (
                             <button
@@ -137,7 +134,7 @@ const AppShell = ({
                         title="Reviewer attribution — click to change"
                     >
                         <User size={13} aria-hidden="true" />
-                        <span>{reviewerName === 'anonymous' ? 'Set reviewer' : reviewerName}</span>
+                        <span>{reviewerName || 'Set reviewer'}</span>
                     </button>
                     <button
                         className="btn btn-ghost btn-icon"

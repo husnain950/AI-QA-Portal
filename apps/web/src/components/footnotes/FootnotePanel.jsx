@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Check, AlertCircle } from 'lucide-react';
 import { useReviewStore } from '../../stores/reviewStore';
+import { sanitizeLegalHtml } from '../../utils/sanitizeHtml';
 
 const FootnoteText = ({ footnote, annotations, onSelect }) => {
     const textRef = React.useRef(null);
@@ -46,7 +47,7 @@ const FootnoteText = ({ footnote, annotations, onSelect }) => {
                 ref={textRef}
                 className="footnote-text footnote-html-content"
                 onMouseUp={handleMouseUp}
-                dangerouslySetInnerHTML={{ __html: footnote.html_content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeLegalHtml(footnote.html_content) }}
             />
         );
     }
@@ -114,10 +115,7 @@ const FootnotePanel = ({ footnotes, annotations, onFootnoteSelect }) => {
 
     return (
         <div className="footnotes-panel surface-panel">
-            <div
-                className="footnotes-header"
-                onClick={() => setIsCollapsed(!isCollapsed)}
-            >
+            <div className="footnotes-header">
                 <h3 className="footnotes-title">
                     Footnotes ({footnotes.length})
                 </h3>

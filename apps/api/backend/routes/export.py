@@ -2,11 +2,10 @@ import csv
 import io
 from datetime import datetime
 
-import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from backend.database import get_db
+from backend.database import DatabaseConnection, get_db
 
 router = APIRouter(prefix="/documents", tags=["export"])
 
@@ -14,7 +13,7 @@ router = APIRouter(prefix="/documents", tags=["export"])
 async def export_qa_report(
     document_id: str,
     format: str = Query("json", pattern="^(json|csv)$"),
-    db: aiosqlite.Connection = Depends(get_db)
+    db: DatabaseConnection = Depends(get_db)
 ):
     # Fetch document metadata
     async with db.execute("SELECT * FROM documents WHERE id = ?", (document_id,)) as cursor:
@@ -147,6 +146,7 @@ async def export_qa_report(
 
     if format == "json":
         export_data = {
+            "identity_assurance": "self_asserted",
             "document": {
                 "name": doc["name"],
                 "uploaded_at": doc["uploaded_at"],

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import base64
 import difflib
+import hashlib
 import io
 import json
 import re
@@ -24,11 +25,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-import aiosqlite
-
+from backend.database import DatabaseConnection, DatabaseRow
 from backend.services import blob_store, llm_client, overlays, versions
+from backend.services.html_sanitizer import visible_text
 
 MAX_PAGES_SENT = 4
+PROMPT_VERSION = "ai-fix-prompt-v1"
+VALIDATOR_VERSION = "legal-leaf-validator-v2"
 RENDER_DPI = 150
 DIFF_CONTEXT_LINES = 2
 MAX_DIFF_LINES = 400
@@ -200,6 +203,10 @@ def validate_leaf(
         error("unsafe_html", "html contains active content (script/style/event handlers)")
     if isinstance(plain, str) and not plain.strip() and (original.get("plain_text") or "").strip():
         error("empty_body", "plain_text became empty while the original had content")
+    normalized_html_text = re.sub(r"\s+", " ", visible_text(html)).strip()
+    normalized_plain = re.sub(r"\s+", " ", plain).strip()
+    if normalized_html_text != normalized_plain:
+        error("html_plain_parity", "HTML textContent and plain_text differ")
 
     original_start = original.get("start_page") or original.get("page_number")
     original_end = original.get("end_page") or original_start
@@ -209,13 +216,12 @@ def validate_leaf(
             continue
         if not isinstance(value, int):
             error("bad_type", f"'{name}' must be an integer")
-        elif original_start and original_end and not (
-            int(original_start) <= value <= int(original_end)
+        elif original_start and original_end and value != int(
+            original_start if name == "start_page" else original_end
         ):
             error(
-                "page_drift",
-                f"'{name}'={value} is outside the original span "
-                f"{original_start}-{original_end}",
+                "page_coverage_changed",
+                f"'{name}'={value} must preserve the original span {original_start}-{original_end}",
             )
 
     footnotes = merged.get("footnotes")
@@ -237,6 +243,10 @@ def validate_leaf(
                 note_html = note.get("html")
                 if isinstance(note_html, str) and _FORBIDDEN_HTML.search(note_html):
                     error("unsafe_html", f"footnotes[{index}].html contains active content")
+            original_markers = [str(note.get("marker")) for note in (original.get("footnotes") or [])]
+            proposed_markers = [str(note.get("marker")) for note in footnotes if isinstance(note, dict)]
+            if original_markers != proposed_markers:
+                error("footnote_marker_conservation", "footnote marker sequence changed")
 
     if (
         isinstance(plain, str)
@@ -280,8 +290,8 @@ def diff_leaf(original: Dict[str, Any], merged: Dict[str, Any]) -> Dict[str, Any
 # ---------------------------------------------------------------------------
 
 async def _document_and_section(
-    db: aiosqlite.Connection, document_id: str, section_id: str
-) -> Tuple[aiosqlite.Row, aiosqlite.Row]:
+    db: DatabaseConnection, document_id: str, section_id: str
+) -> Tuple[DatabaseRow, DatabaseRow]:
     async with db.execute(
         "SELECT * FROM documents WHERE id = ?", (document_id,)
     ) as cursor:
@@ -301,7 +311,7 @@ async def _document_and_section(
 
 
 async def _active_leaf(
-    db: aiosqlite.Connection, document_id: str, source_key: str
+    db: DatabaseConnection, document_id: str, source_key: str
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """(full active JSON, leaf at source_key) for the document."""
     version = await versions.active_version(db, document_id)
@@ -315,7 +325,7 @@ async def _active_leaf(
 
 
 async def _open_annotations(
-    db: aiosqlite.Connection, section_id: str
+    db: DatabaseConnection, section_id: str
 ) -> List[Dict[str, Any]]:
     async with db.execute(
         """
@@ -329,7 +339,7 @@ async def _open_annotations(
         return [dict(row) for row in await cursor.fetchall()]
 
 
-async def pdf_digest(db: aiosqlite.Connection, document) -> str:
+async def pdf_digest(db: DatabaseConnection, document) -> str:
     """The PDF's content sha256 — blob names carry it; legacy flat files are hashed."""
     digest = overlays.pdf_digest_from_filename(document["pdf_filename"])
     if digest:
@@ -338,7 +348,7 @@ async def pdf_digest(db: aiosqlite.Connection, document) -> str:
 
 
 async def create_proposal(
-    db: aiosqlite.Connection,
+    db: DatabaseConnection,
     document_id: str,
     section_id: str,
     instructions: str,
@@ -361,6 +371,26 @@ async def create_proposal(
         )
     except Exception:
         page_images = []  # a fix without page images is degraded, not impossible
+    first_page = int(section["start_page"] or 1)
+    last_page = int(section["end_page"] or first_page)
+    if last_page < first_page:
+        first_page, last_page = last_page, first_page
+    expected_pages = list(range(first_page, last_page + 1))
+    rendered_pages = [number for number, _image in page_images]
+    evidence_complete = rendered_pages == expected_pages
+    evidence = {
+        "prompt_version": PROMPT_VERSION,
+        "validator_version": VALIDATOR_VERSION,
+        "model": model,
+        "source_pdf_sha256": await pdf_digest(db, document),
+        "expected_pages": expected_pages,
+        "rendered_pages": [
+            {"page": number, "sha256": hashlib.sha256(image).hexdigest(), "bytes": len(image)}
+            for number, image in page_images
+        ],
+        "render_result": "complete" if evidence_complete else "evidence_incomplete",
+        "provider_page_limit": MAX_PAGES_SENT,
+    }
 
     proposal_id = str(uuid.uuid4())
     row = {
@@ -378,6 +408,7 @@ async def create_proposal(
         "error": None,
         "created_at": _now(),
         "created_by": actor,
+        "evidence_json": evidence,
     }
 
     try:
@@ -388,10 +419,24 @@ async def create_proposal(
         proposal = parse_model_reply(reply)
         merged = merge_proposal(dict(leaf), proposal)
         issues = validate_leaf(merged, dict(leaf))
+        if not evidence_complete:
+            issues.append(
+                {
+                    "level": "error",
+                    "code": "evidence_incomplete",
+                    "message": "Every source page must render and fit within provider input limits",
+                }
+            )
         row["proposed_json"] = json.dumps(merged, ensure_ascii=False)
         row["validation_json"] = json.dumps(issues, ensure_ascii=False)
         row["diff_json"] = json.dumps(diff_leaf(dict(leaf), merged), ensure_ascii=False)
-        row["status"] = "failed" if has_errors(issues) else "proposed"
+        row["status"] = (
+            "evidence_incomplete"
+            if not evidence_complete
+            else "failed"
+            if has_errors(issues)
+            else "proposed"
+        )
         if has_errors(issues):
             row["error"] = "; ".join(
                 issue["message"] for issue in issues if issue["level"] == "error"
@@ -404,8 +449,8 @@ async def create_proposal(
         INSERT INTO fix_proposals (
             id, document_id, section_id, source_key, original_fingerprint,
             instructions, model, proposed_json, validation_json, diff_json,
-            status, error, created_at, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            status, error, created_at, created_by, evidence_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb))
         """,
         (
             row["id"],
@@ -422,15 +467,16 @@ async def create_proposal(
             row["error"],
             row["created_at"],
             row["created_by"],
+            json.dumps(row["evidence_json"], ensure_ascii=False),
         ),
     )
     return row
 
 
 async def approve_proposal(
-    db: aiosqlite.Connection, proposal, *, actor: str
+    db: DatabaseConnection, proposal, *, actor: str
 ) -> Dict[str, Any]:
-    """Apply an accepted proposal: overlay + next document version + approval."""
+    """Apply a proposal as a new pending version; legal approval is separate."""
     if proposal["status"] != "proposed":
         raise ValueError(f"proposal is {proposal['status']}, not open for approval")
 
@@ -474,19 +520,10 @@ async def approve_proposal(
         created_by=actor,
     )
 
-    # The ingest reset the changed leaf to pending; the approval IS the review.
-    await db.execute(
-        """
-        UPDATE sections SET review_status = 'approved'
-        WHERE document_id = ? AND source_key = ?
-        """,
-        (document_id, source_key),
-    )
-
     await db.execute(
         """
         UPDATE fix_proposals
-        SET status = 'approved', resolved_at = ?, resolved_by = ?
+        SET status = 'applied', resolved_at = ?, resolved_by = ?
         WHERE id = ?
         """,
         (_now(), actor, proposal["id"]),
@@ -496,10 +533,11 @@ async def approve_proposal(
         "overlay_id": overlay_id,
         "version_no": version_row["version_no"],
         "version_outcome": outcome["status"],
+        "review_status": "pending",
     }
 
 
-async def reject_proposal(db: aiosqlite.Connection, proposal, *, actor: str) -> None:
+async def reject_proposal(db: DatabaseConnection, proposal, *, actor: str) -> None:
     if proposal["status"] not in ("proposed", "failed"):
         raise ValueError(f"proposal is {proposal['status']}, not open for rejection")
     await db.execute(
