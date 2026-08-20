@@ -1,11 +1,12 @@
 {
   "apiVersion": "v1.2",
   "name": "fbr-qa-staging",
-  "description": "Redeploy FBR Corpus QA portal api and web into the existing free-plan project qa-pdf-portal (branch args.branch), with the crx-api persistent volume at /app/data.",
+  "description": "Redeploy the FBR Corpus QA portal (api, worker, web) into the existing free-plan project qa-pdf-portal (branch args.branch), against a managed PostgreSQL addon, with the crx-api persistent volume at /app/data holding the content-addressed blobs.",
   "arguments": {
     "branch": "main",
     "plan": "nf-compute-10",
-    "projectId": "qa-pdf-portal"
+    "projectId": "qa-pdf-portal",
+    "postgresPlan": "nf-compute-10"
   },
   "options": {
     "autorun": false,
@@ -19,6 +20,22 @@
         "projectId": "${args.projectId}"
       },
       "steps": [
+        {
+          "kind": "Addon",
+          "ref": "database",
+          "spec": {
+            "name": "crx-postgres",
+            "type": "postgres",
+            "version": "17",
+            "billing": {
+              "deploymentPlan": "${args.postgresPlan}",
+              "storage": 8192,
+              "replicas": 1
+            },
+            "tlsEnabled": true,
+            "externalAccessEnabled": false
+          }
+        },
         {
           "kind": "Volume",
           "ref": "api-data",
@@ -39,6 +56,10 @@
             "attachedObjects": [
               {
                 "id": "crx-api",
+                "type": "service"
+              },
+              {
+                "id": "crx-worker",
                 "type": "service"
               }
             ]
@@ -71,15 +92,27 @@
               "instances": 1,
               "docker": {
                 "configType": "default"
-              }
+              },
+              "addonDependencies": [
+                {
+                  "addonId": "crx-postgres",
+                  "envMapping": [
+                    {
+                      "key": "POSTGRES_URI",
+                      "envKey": "DATABASE_URL"
+                    }
+                  ]
+                }
+              ]
             },
             "runtimeEnvironment": {
-              "DATABASE_PATH": "/app/data/db/qa_portal.db",
+              "STORAGE_BACKEND": "filesystem",
               "UPLOAD_DIR": "/app/data/uploads",
               "CORPUS_ORDINANCE": "/data/corpus/ordinance",
               "CORPUS_ACTS": "/data/corpus/acts",
               "PYTHONPATH": "/app",
-              "PYTHONUNBUFFERED": "1"
+              "PYTHONUNBUFFERED": "1",
+              "CSP_ENFORCE": "1"
             },
             "buildArguments": {},
             "ports": [
@@ -90,6 +123,60 @@
                 "public": false
               }
             ]
+          }
+        },
+        {
+          "kind": "CombinedService",
+          "ref": "worker",
+          "spec": {
+            "name": "crx-worker",
+            "billing": {
+              "deploymentPlan": "${args.plan}",
+              "buildPlan": "nf-compute-400-16"
+            },
+            "vcsData": {
+              "projectType": "github",
+              "projectUrl": "https://github.com/husnain950/AI-QA-Portal",
+              "projectBranch": "${args.branch}",
+              "accountLogin": "husnain950"
+            },
+            "buildSettings": {
+              "dockerfile": {
+                "buildEngine": "kaniko",
+                "dockerFilePath": "/apps/api/Dockerfile",
+                "dockerWorkDir": "/",
+                "useCache": false
+              }
+            },
+            "deployment": {
+              "instances": 1,
+              "docker": {
+                "configType": "customCommand",
+                "customCommand": "python -m backend.worker"
+              },
+              "addonDependencies": [
+                {
+                  "addonId": "crx-postgres",
+                  "envMapping": [
+                    {
+                      "key": "POSTGRES_URI",
+                      "envKey": "DATABASE_URL"
+                    }
+                  ]
+                }
+              ]
+            },
+            "runtimeEnvironment": {
+              "STORAGE_BACKEND": "filesystem",
+              "UPLOAD_DIR": "/app/data/uploads",
+              "CORPUS_ORDINANCE": "/data/corpus/ordinance",
+              "CORPUS_ACTS": "/data/corpus/acts",
+              "PYTHONPATH": "/app",
+              "PYTHONUNBUFFERED": "1",
+              "CSP_ENFORCE": "1"
+            },
+            "buildArguments": {},
+            "ports": []
           }
         },
         {

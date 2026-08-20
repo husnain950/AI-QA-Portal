@@ -9,6 +9,9 @@
  * Targets come from a manifest so a fresh clone can run this against the generated
  * fixture corpus (`make seed-fixtures`) instead of the private one:
  *   SMOKE_TARGETS  default <repo>/data/fixtures/acts/smoke_targets.json
+ *
+ * The API requires a session, so credentials are needed too:
+ *   SMOKE_EMAIL / SMOKE_PASSWORD  (default: ADMIN_EMAIL / ADMIN_PASSWORD)
  * When that file is absent the script falls back to the real corpus editions below, so
  * running against a synced private corpus behaves exactly as it always did.
  *
@@ -27,6 +30,40 @@ const API = (process.env.PORTAL_API || 'http://127.0.0.1:8000/api').replace(/\/$
 const TARGETS_FILE = process.env.SMOKE_TARGETS
   || path.join(REPO_ROOT, 'data/fixtures/acts/smoke_targets.json');
 const OUT = path.join(__dirname, 'visual_smoke_report.json');
+const EMAIL = process.env.SMOKE_EMAIL || process.env.ADMIN_EMAIL || '';
+const PASSWORD = process.env.SMOKE_PASSWORD || process.env.ADMIN_PASSWORD || '';
+
+/**
+ * Sign in once and return the session cookie, which both the script's own fetches and
+ * the browser context need: every API path now requires a session.
+ */
+async function signIn() {
+  if (!EMAIL || !PASSWORD) {
+    throw new Error('set SMOKE_EMAIL/SMOKE_PASSWORD (or ADMIN_EMAIL/ADMIN_PASSWORD)');
+  }
+  const res = await fetch(`${API}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+  });
+  if (!res.ok) {
+    throw new Error(`sign-in failed (${res.status}): ${await res.text()}`);
+  }
+  const header = res.headers.getSetCookie?.().join('; ') || res.headers.get('set-cookie') || '';
+  const match = /crx_session=([^;]+)/.exec(header);
+  if (!match) throw new Error('sign-in returned no crx_session cookie');
+  return { name: 'crx_session', value: match[1] };
+}
+
+let SESSION = null;
+
+/** fetch() carrying the session cookie. */
+function apiFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    headers: { ...(options.headers || {}), cookie: `${SESSION.name}=${SESSION.value}` },
+  });
+}
 
 /** Editions of the private corpus, used when no fixture manifest is present. */
 const CORPUS_TARGETS = [
@@ -52,7 +89,7 @@ function loadTargets() {
 async function getDocs() {
   let res;
   try {
-    res = await fetch(`${API}/documents`);
+    res = await apiFetch(`${API}/documents`);
   } catch (err) {
     throw new Error(
       `cannot reach the API at ${API} (${err.message}). Start it, or set PORTAL_API.`,
@@ -130,7 +167,7 @@ async function checkDoc(page, doc, samplePage) {
   await page.screenshot({ path: shot, fullPage: false });
   result.screenshot = shot;
 
-  const bp = await fetch(`${API}/documents/${doc.id}/sections/by-page/${samplePage}`).then((r) => r.json());
+  const bp = await apiFetch(`${API}/documents/${doc.id}/sections/by-page/${samplePage}`).then((r) => r.json());
   result.api_sections = bp.length;
   if (bp.length && !(bp[0].plain_text || bp[0].html_content)) {
     result.ok = false;
@@ -144,6 +181,7 @@ const { targets: TARGETS, source: targetsSource } = loadTargets();
 console.error(`targets: ${TARGETS.length} from ${targetsSource}`);
 console.error(`web: ${BASE}  api: ${API}`);
 
+SESSION = await signIn();
 const docs = await getDocs();
 const acts = docs.filter((d) => d.source_type === 'acts_corpus');
 if (!acts.length) {
@@ -154,7 +192,13 @@ if (!acts.length) {
 }
 
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+// The app renders a sign-in screen without this, so every target would fail.
+await context.addCookies([
+  { ...SESSION, url: BASE },
+  { ...SESSION, url: API.replace(/\/api$/, '') },
+]);
+const page = await context.newPage();
 
 const dash = { ok: true, errors: [] };
 await page.goto(BASE + '/', { waitUntil: 'networkidle', timeout: 60000 });

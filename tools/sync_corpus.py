@@ -23,7 +23,7 @@ if _env.exists():
         key, _, value = line.partition("=")
         os.environ.setdefault(key.strip(), value.strip())
 
-os.environ.setdefault("DATABASE_PATH", str(ROOT / "data" / "db" / "qa_portal.db"))
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://crx:crx@127.0.0.1:5432/crx")
 os.environ.setdefault("UPLOAD_DIR", str(ROOT / "data" / "uploads"))
 
 from backend.services.corpus_sync import (  # noqa: E402
