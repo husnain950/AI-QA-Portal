@@ -32,6 +32,7 @@ from .grammar import (  # noqa: F401
     PAGE_TOC,
     PART_RE,
     SCHEDULE_RE,
+    SCHEDULE_TOC_RE,
     TABLE_RE,
     code_sort_key,
     norm_code,
@@ -410,7 +411,7 @@ def parse_toc(lines: list[str]):
             line = TOC_HEADER_TAIL_RE.sub("", line)
 
         # ---- schedule marker (switches us into schedule mode) -------------
-        if SCHEDULE_RE.match(line) and not SECTION_RE.match(line):
+        if SCHEDULE_TOC_RE.match(line) and not SECTION_RE.match(line):
             in_schedules = True
             code = re.sub(r"\s+", " ", line.strip())
             node = Node(kind="schedule", code=code)

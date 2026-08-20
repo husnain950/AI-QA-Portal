@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 
 from .loader import (
+    _iter_leaves,
     html_fragments,
     iter_all_leaves,
     iter_schedule_leaves,
@@ -191,7 +192,7 @@ def _ref_key(ref: str):
     unsorted, because it has no place for the letter suffix the Customs Act
     prints (33a, 36b, 36c) -- the ordering was right and the invariant wrong.
     """
-    from acts_ingest.footnotes import ref_sort_key
+    from rules_ingest.footnotes import ref_sort_key
     return ref_sort_key(ref)
 
 
@@ -220,7 +221,7 @@ def inv_no_year_marker_refs(doc):
     digits; the Customs Act runs past 130 and Sales Tax into the 800s, so that
     rule flagged 57 perfectly good markers here (and, in the parser, would have
     discarded them).  See grammar.is_year_like."""
-    from acts_ingest.grammar import is_year_like
+    from rules_ingest.grammar import is_year_like
     bad = []
     for leaf in iter_all_leaves(doc):
         for fn in leaf.get("footnotes", []):
@@ -465,7 +466,7 @@ def _is_amendment_instrument(doc) -> bool:
     an invariant is handed.  Amendment instruments score 4.05 (Income Tax 3rd
     Amdt 2016) to 34.49; the consolidated families score 0.09-0.11.
     """
-    from acts_ingest.discover import _AMENDING_RE, AMENDING_DENSITY_MIN
+    from rules_ingest.discover import _AMENDING_RE, AMENDING_DENSITY_MIN
     # The CLAUSE side only.  A Finance Act's amending language lives in its
     # clauses; its schedules are tariff data and carry none, so including them
     # measures how big the tariff annex is rather than what the instrument does.
@@ -1122,25 +1123,62 @@ def inv_structure_counts(doc):
 
 
 def inv_section_codes_ordered(doc):
-    """Chapter-side section codes are non-decreasing in document order.
+    """Rule codes are non-decreasing WITHIN each chapter.
 
-    Section codes advance monotonically through the ordinance (4 < 4A < 4AB
-    < 4B < 5; the sole legitimate repeat is an omitted-then-reinserted code
-    like 236Y, hence non-strict).  A violation means a body line was
-    mistaken for a section start (cross-reference, definitions clause) or
-    the tree was assembled out of order -- both silent-corruption modes of
-    the body-driven discovery fallback and the TOC matcher alike.
+    Codes advance monotonically (4 < 4A < 4AB < 4B < 5; the sole legitimate repeat is
+    an omitted-then-reinserted code, hence non-strict). A violation means a body line
+    was mistaken for a rule start -- a cross-reference, a definitions clause -- or the
+    tree was assembled out of order, both silent-corruption modes.
+
+    Per chapter, not document-wide, which is where this differs from the Acts suite it
+    was seeded from. An amending S.R.O. inserts a whole chapter and numbers its rules
+    to continue from the chapter it amends, so the codes run backwards at the seam
+    while the document is perfectly correct. Measured: the Sales Tax Special Procedures
+    Rules prints 24 (Chapter IV), then 18A/18B/18C (Chapter IVA, "inserted by
+    Notification No. S.R.O. 510(I)/2013"), then 25 (Chapter V). Document-wide
+    monotonicity would call that corruption; it is the statute.
+
+    The protection is not weakened -- codes scrambled inside a chapter still fail, and
+    that is where a mistaken rule start actually shows up.
     """
-    from acts_ingest.discover import code_sort_key
-    bad, prev, prev_code = [], None, None
-    for leaf in iter_section_leaves(doc):
-        code = str(leaf.get("code") or "")
-        key = code_sort_key(code)
-        if prev is not None and key < prev:
-            bad.append(f"section {code!r} out of order after {prev_code!r}")
-        prev, prev_code = key, code
-    return bad
+    from itertools import groupby
 
+    from rules_ingest.discover import code_sort_key
+
+    bad = []
+    for chapter in doc.get("chapters", []):
+        label = str(chapter.get("code") or "").strip() or "(unnamed chapter)"
+        leaves = sorted(
+            _iter_leaves(chapter), key=lambda leaf: (leaf.get("start_page") or 0)
+        )
+        # Walk PAGE GROUPS, comparing each rule against the highest code seen on a
+        # strictly earlier page.
+        #
+        # Not leaf-to-leaf: several rules share a page and their order within it is
+        # not recoverable from the export -- `json_parser._apply_reading_order`
+        # records the same limitation where it sorts the portal's reading order.
+        # Chapter VI prints 35, 36 and 37 all on page 25 and the tree lists them
+        # 36, 37, 35, which leaf-to-leaf reads as corruption and is not.
+        #
+        # This still catches what the check is for: a body line mistaken for a rule
+        # start carries a code from earlier in the chapter, so it fails against the
+        # earlier-page maximum whichever page it lands on.
+        highest = highest_code = None
+        for page, group in groupby(leaves, key=lambda leaf: leaf.get("start_page") or 0):
+            page_keys = []
+            for leaf in group:
+                code = str(leaf.get("code") or "")
+                key = code_sort_key(code)
+                if highest is not None and key < highest:
+                    bad.append(
+                        f"{label}: rule {code!r} on page {page} comes after "
+                        f"{highest_code!r} on an earlier page"
+                    )
+                page_keys.append((key, code))
+            for key, code in page_keys:
+                if highest is None or key > highest:
+                    highest, highest_code = key, code
+    return bad
 
 def inv_toc_first_chapter_parse(_doc):
     """Pure-function pin on the TOC column-header sanitizer.
@@ -1151,7 +1189,7 @@ def inv_toc_first_chapter_parse(_doc):
     sanitizer or the Roman-numeral normalisation fails every suite run,
     independent of which JSON is under test.
     """
-    from acts_ingest.toc import parse_toc
+    from rules_ingest.toc import parse_toc
     layouts = {
         "merged-headers (30.06.2024)": [
             "TABLE OF CONTENTS",
@@ -1206,7 +1244,7 @@ def inv_toc_schedule_regexes(_doc):
       * a Division letter suffix printed with a space ("Division III A") keeps
         that spaced code instead of collapsing onto a "Division III" sibling.
     """
-    from acts_ingest.toc import parse_toc
+    from rules_ingest.toc import parse_toc
     lines = [
         "CHAPTER I",
         "PRELIMINARY",
@@ -1838,7 +1876,7 @@ def inv_clause_codes_plausible(doc):
     # and legitimately restarts and jumps.
     if (meta.get("chapters_count") or 0) != 1:
         return []
-    from acts_ingest.discover import code_sort_key
+    from rules_ingest.discover import code_sort_key
 
     # Sections under CHAPTERS only.  iter_all_leaves also walks ``schedules``,
     # whose codes ("SCHEDULE", "TABLE-1") are not clause numbers at all --

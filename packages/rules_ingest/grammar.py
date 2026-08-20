@@ -302,6 +302,26 @@ TABLE_RE = re.compile(
 #: An ordinal schedule title ("THE FIRST SCHEDULE", "SECOND SCHEDULE").
 SCHEDULE_RE = re.compile(rf"^\s*(THE\s+)?[A-Z]+\s+{spaced('SCHEDULE')}\b",
                          re.IGNORECASE)
+#: A schedule title as a CONTENTS row: the title and then nothing but leaders and a
+#: folio.
+#:
+#: The unanchored form above is wrong in a table of contents for this corpus, because
+#: rule sets cite their parent Act's schedules constantly and the citation wraps. The
+#: Sales Tax Special Procedures Rules names its Chapter XIV "SPECIAL PROCEDURE FOR THE
+#: GOODS SPECIFIED IN S. NO.13 OF THE FIFTH SCHEDULE TO THE ACT", and its contents
+#: wraps that onto a second line reading "THE FIFTH SCHEDULE TO THE ACT……… 45" -- which
+#: the unanchored pattern reads as a schedule title. The parser then switched into
+#: schedule mode there and everything after it stopped being body: Chapter XIV's
+#: heading was truncated mid-sentence, Chapter XV vanished entirely, its two chapter
+#: headings ended up inside rule 58T's text, and rules 58U/58V were filed under a
+#: schedule that does not exist.
+#:
+#: ``schedules._SCH_RE`` already anchors the body-side test this way. This is the same
+#: rule, applied on the TOC side, where it had never been added.
+SCHEDULE_TOC_RE = re.compile(
+    rf"^\s*[\[\(\"“]?\s*(THE\s+)?[A-Z]+\s+{spaced('SCHEDULE')}"
+    rf"\s*[\]\)\"”]?[\s.·•…\-_]*(?:{PAGE_TOC})?\s*$",
+    re.IGNORECASE)
 
 
 def _demo() -> None:
@@ -366,6 +386,16 @@ def _demo() -> None:
     assert DIVISION_RE.match("Division IIA").group(1) == "IIA"
     assert DIVISION_RE.match("Division III A").group(1) == "III A"
     assert SCHEDULE_RE.match("THE FIRST SCHEDULE")
+
+    # A contents row naming a schedule, versus a wrapped CITATION of the parent Act's
+    # schedule. Rule sets cite those constantly; reading one as a title truncates the
+    # body at that point.
+    assert SCHEDULE_TOC_RE.match("THE FIRST SCHEDULE")
+    assert SCHEDULE_TOC_RE.match("SECOND SCHEDULE ......... 45")
+    assert SCHEDULE_TOC_RE.match("THE FIFTH SCHEDULE 45")
+    assert not SCHEDULE_TOC_RE.match("THE FIFTH SCHEDULE TO THE ACT……………… 45")
+    assert not SCHEDULE_TOC_RE.match("SPECIAL PROCEDURE FOR GOODS IN THE FIFTH SCHEDULE TO THE ACT")
+    assert not SCHEDULE_TOC_RE.match("of the Fifth Schedule to the Act;")
 
     # Sales Tax chapter rows carry an inline folio; Federal Excise carries the
     # TITLE inline after an en dash.  Neither classified before, and for Sales
