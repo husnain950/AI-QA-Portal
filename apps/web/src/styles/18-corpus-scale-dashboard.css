@@ -142,6 +142,19 @@
     border-color: color-mix(in srgb, var(--color-accent) 38%, var(--color-border));
 }
 
+/* Statutory instruments read in a second colour, so an Act and the Rules made under
+   it are distinguishable at a glance -- "Federal Excise" and "Federal Excise Rules"
+   otherwise differ by one word in a dense list. Both tokens are theme-aware, so this
+   holds in light and dark. */
+.source-badge.lane-income_tax_rules,
+.source-badge.lane-sales_tax_rules,
+.source-badge.lane-customs_rules,
+.source-badge.lane-federal_excise_rules,
+.source-badge.lane-other_rules {
+    color: var(--color-info);
+    border-color: color-mix(in srgb, var(--color-info) 38%, var(--color-border));
+}
+
 .family-groups {
     display: flex;
     flex-direction: column;

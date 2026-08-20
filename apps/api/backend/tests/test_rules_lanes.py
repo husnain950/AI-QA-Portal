@@ -7,6 +7,8 @@ are what ``documents.name`` will actually hold.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from backend.services.corpus_lanes import (
@@ -15,6 +17,7 @@ from backend.services.corpus_lanes import (
     LANE_FEDERAL_EXCISE,
     LANE_FEDERAL_EXCISE_RULES,
     LANE_INCOME_TAX_RULES,
+    LANE_LABELS,
     LANE_ORDER,
     LANE_OTHER_ACTS,
     LANE_OTHER_RULES,
@@ -141,3 +144,27 @@ def test_updated_is_not_read_as_dated():
     assert family_key_from_name("Widget Rules, 2006 UPDATED UPTO 11.08.2014") == (
         "widget rules, 2006"
     )
+
+
+def test_the_javascript_lane_table_mirrors_the_python_one():
+    """`utils/corpusLanes.js` duplicates LANE_ORDER and LANE_LABELS for the browser.
+
+    Two copies of one table drift. A lane missing from the JS side disappears from the
+    Library's Source facet even though documents carry it; a label that differs shows
+    one name in the facet and another in the review header. Neither surfaces as an
+    error, so the copies are compared here rather than trusted.
+    """
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[4]
+        / "apps" / "web" / "src" / "utils" / "corpusLanes.js"
+    ).read_text(encoding="utf-8")
+
+    order_block = source.split("LANE_ORDER = [", 1)[1].split("]", 1)[0]
+    js_order = re.findall(r"'([a-z_]+)'", order_block)
+    assert js_order == list(LANE_ORDER), "LANE_ORDER differs between Python and JS"
+
+    labels_block = source.split("LANE_LABELS = {", 1)[1].split("};", 1)[0]
+    js_labels = dict(re.findall(r"(\w+):\s*'([^']*)'", labels_block))
+    assert js_labels == dict(LANE_LABELS), "LANE_LABELS differ between Python and JS"

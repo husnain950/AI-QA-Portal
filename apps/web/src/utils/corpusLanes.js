@@ -8,6 +8,11 @@ export const LANE_ORDER = [
     'finance',
     'tax_laws_amendment',
     'other_acts',
+    'income_tax_rules',
+    'sales_tax_rules',
+    'customs_rules',
+    'federal_excise_rules',
+    'other_rules',
     'manual',
 ];
 
@@ -19,6 +24,11 @@ export const LANE_LABELS = {
     finance: 'Finance Acts',
     tax_laws_amendment: 'Tax Laws Amendments',
     other_acts: 'Other Acts',
+    income_tax_rules: 'Income Tax Rules',
+    sales_tax_rules: 'Sales Tax Rules',
+    customs_rules: 'Customs Rules',
+    federal_excise_rules: 'Federal Excise Rules',
+    other_rules: 'Other Rules & Regulations',
     manual: 'Manual',
 };
 

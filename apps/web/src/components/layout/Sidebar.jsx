@@ -7,7 +7,7 @@ import { useReviewStore } from '../../stores/reviewStore';
 import { formatHierarchyLabel, formatSectionLabel } from '../../utils/tocLabels';
 import { hasCriticalQualityFlags, normalizeQualityFlags } from '../../utils/qualityFlags';
 import { sectionWasOcrd } from '../../utils/documentTags';
-import { laneLabel } from '../../utils/corpusLanes';
+import { documentLane, laneLabel } from '../../utils/corpusLanes';
 import { editionDateFromName } from '../../utils/editions';
 
 const SearchSnippet = ({ result }) => {
@@ -285,8 +285,7 @@ const Sidebar = ({ documentId }) => {
             <div className="toc-tabs">
                 {activeDocument && (
                     <div className="toc-lane-header">
-                        {laneLabel(activeDocument.corpus_lane
-                            || (activeDocument.source_type === 'acts_corpus' ? 'other_acts' : 'manual'))}
+                        {laneLabel(documentLane(activeDocument))}
                         {editionDateFromName(activeDocument.name).unknown
                             ? ''
                             : ` · ${editionDateFromName(activeDocument.name).label}`}
