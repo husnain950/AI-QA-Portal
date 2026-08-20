@@ -1,29 +1,21 @@
 import json
 from pathlib import Path
 
-import aiosqlite
 import pytest
 
 from backend import audit_pdf_serving
+from backend.database import database_connection
 from backend.sync_acts import run_sync
 from backend.tests.conftest import write_pair
 
 
 @pytest.mark.asyncio
-async def test_audit_reports_ok_and_missing_file(runtime_sandbox, monkeypatch):
+async def test_audit_reports_ok_and_missing_file(runtime_sandbox):
     source = runtime_sandbox["root"] / "export"
     write_pair(source)
     await run_sync(source)
 
-    monkeypatch.setattr(audit_pdf_serving, "DB_PATH", str(runtime_sandbox["db_path"]))
-    monkeypatch.setattr(
-        audit_pdf_serving,
-        "UPLOAD_DIR",
-        str(runtime_sandbox["upload_dir"]),
-    )
-
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         ok_rows = await audit_pdf_serving.audit_documents(db)
 
     assert len(ok_rows) == 1
@@ -33,8 +25,7 @@ async def test_audit_reports_ok_and_missing_file(runtime_sandbox, monkeypatch):
     pdf = next(Path(runtime_sandbox["upload_dir"]).glob("pdf/*.pdf"))
     pdf.unlink()
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         missing_rows = await audit_pdf_serving.audit_documents(db)
 
     assert missing_rows[0]["status"] == "missing_file"

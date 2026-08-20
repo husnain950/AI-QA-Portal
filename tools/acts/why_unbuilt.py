@@ -96,7 +96,6 @@ def main() -> int:
             continue
         shown += 1
         pages = sorted({body_refs[p].page for p in allpos})
-        blocked = [p for p in allpos if p <= last and p not in avail]
         note = ""
         if branch == "NONE":
             if not allpos:

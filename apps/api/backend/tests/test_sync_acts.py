@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 
-import aiosqlite
 import pytest
 from pypdf import PdfWriter
 
+from backend.database import database_connection
 from backend.routes.documents import list_documents
 from backend.sync_acts import discover_acts_repo, discover_pairs, run_sync
 from backend.tests.conftest import add_annotation, sample_document, write_pair
@@ -44,22 +44,27 @@ async def test_sync_is_idempotent_and_keeps_fts_and_api_consistent(
     assert second["skipped"] == 1
     assert second["added"] == second["updated"] == second["failed"] == 0
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
         documents = await list_documents(db)
         assert len(documents) == 1
         assert documents[0].source_type == "acts_corpus"
         assert documents[0].source_key == "Test Act"
         async with db.execute("SELECT COUNT(*) FROM sections") as cursor:
             section_count = (await cursor.fetchone())[0]
-        async with db.execute("SELECT COUNT(*) FROM sections_fts") as cursor:
-            fts_count = (await cursor.fetchone())[0]
-        async with db.execute("PRAGMA foreign_key_check") as cursor:
-            foreign_key_errors = await cursor.fetchall()
+        # The GIN expression index replaced the SQLite FTS shadow table: every
+        # synced section must be reachable through the same match search uses.
+        async with db.execute(
+            """
+            SELECT COUNT(*) FROM sections s
+            WHERE to_tsvector('simple', coalesce(s.section_code,'') || ' ' ||
+                                        coalesce(s.section_heading,'') || ' ' ||
+                                        coalesce(s.plain_text,''))
+                  @@ plainto_tsquery('simple', 'section')
+            """
+        ) as cursor:
+            searchable = (await cursor.fetchone())[0]
 
-    assert section_count == fts_count == 2
-    assert foreign_key_errors == []
+    assert section_count == searchable == 2
     assert len(list(Path(runtime_sandbox["upload_dir"]).iterdir())) == 2
 
 
@@ -92,8 +97,7 @@ async def test_strict_mode_refuses_to_supersede_an_annotated_leaf(runtime_sandbo
     pair_directory = write_pair(source)
     assert (await run_sync(source))["added"] == 1
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             """
             SELECT d.id AS document_id, d.source_hash, s.id AS section_id
@@ -116,7 +120,7 @@ async def test_strict_mode_refuses_to_supersede_an_annotated_leaf(runtime_sandbo
     result = await run_sync(source, strict=True)
     assert result["failed"] == 1
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
+    async with database_connection() as db:
         async with db.execute(
             "SELECT source_hash FROM documents WHERE id = ?",
             (before["document_id"],),
@@ -138,8 +142,7 @@ async def test_pipeline_fix_lands_and_carries_the_annotation_forward(runtime_san
     pair_directory = write_pair(source)
     assert (await run_sync(source))["added"] == 1
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             "SELECT id FROM sections ORDER BY sort_order LIMIT 1"
         ) as cursor:
@@ -160,8 +163,7 @@ async def test_pipeline_fix_lands_and_carries_the_annotation_forward(runtime_san
     assert result["failed"] == 0
     assert result["updated"] == 1
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             "SELECT * FROM annotations WHERE id = 'annotation-1'"
         ) as cursor:
@@ -191,8 +193,7 @@ async def test_removed_leaf_keeps_its_finding_as_an_orphan(runtime_sandbox):
     pair_directory = write_pair(source)
     await run_sync(source)
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             "SELECT id FROM sections ORDER BY sort_order DESC LIMIT 1"
         ) as cursor:
@@ -207,8 +208,7 @@ async def test_removed_leaf_keeps_its_finding_as_an_orphan(runtime_sandbox):
 
     assert (await run_sync(source))["failed"] == 0
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             "SELECT * FROM annotations WHERE id = 'doomed-1'"
         ) as cursor:
@@ -265,8 +265,7 @@ async def test_acts_repo_layout_is_discovered_and_page_ranges_are_flagged(
     assert result["unmatched"] == 1
     assert result["flagged_pages"] == 1
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             "SELECT quality_flags, review_status FROM sections "
             "WHERE start_page = 1995"

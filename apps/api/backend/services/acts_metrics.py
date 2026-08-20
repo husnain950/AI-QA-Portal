@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from backend.database import DatabaseConnection, DatabaseRow
+from backend.database import DatabaseConnection
 
 INVARIANTS_REPORT = "qa-invariants.json"
 CONSERVATION_REPORT = "qa-conservation.json"

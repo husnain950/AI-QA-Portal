@@ -2,9 +2,9 @@
 
 import json
 
-import aiosqlite
 import pytest
 
+from backend.database import database_connection
 from backend.services.document_store import apply_parsed_document
 from backend.services.json_parser import parse_json_document
 from backend.services.parse_quality import (
@@ -127,9 +127,7 @@ async def test_store_persists_quality_flags_and_elevates_pending(runtime_sandbox
     )
     assert sections[0]["review_status"] == "has_issues"
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
         await db.execute(
             """
             INSERT INTO documents (
@@ -165,46 +163,3 @@ async def test_store_persists_quality_flags_and_elevates_pending(runtime_sandbox
             (sections[0]["id"],),
         ) as cursor:
             assert (await cursor.fetchone())[0] == "approved"
-
-
-@pytest.mark.asyncio
-async def test_migration_adds_quality_flags_column(monkeypatch, tmp_path):
-    import sqlite3
-
-    import backend.database as database
-
-    db_path = tmp_path / "legacy.db"
-    connection = sqlite3.connect(db_path)
-    connection.executescript(
-        """
-        CREATE TABLE documents (
-            id TEXT PRIMARY KEY, name TEXT NOT NULL, pdf_filename TEXT NOT NULL,
-            json_filename TEXT NOT NULL, total_sections INTEGER NOT NULL,
-            total_pages INTEGER NOT NULL, uploaded_at TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending'
-        );
-        CREATE TABLE sections (
-            id TEXT PRIMARY KEY, document_id TEXT NOT NULL,
-            chapter_code TEXT, chapter_heading TEXT, part_code TEXT,
-            part_heading TEXT, division_code TEXT, division_heading TEXT,
-            section_code TEXT NOT NULL, section_heading TEXT NOT NULL,
-            start_page INTEGER, end_page INTEGER, html_content TEXT,
-            plain_text TEXT, sort_order INTEGER NOT NULL,
-            review_status TEXT NOT NULL DEFAULT 'pending'
-        );
-        """
-    )
-    connection.commit()
-    connection.close()
-
-    monkeypatch.setattr(database, "DB_DIR", str(tmp_path))
-    monkeypatch.setattr(database, "DB_PATH", str(db_path))
-    await database.init_db()
-
-    connection = sqlite3.connect(db_path)
-    section_columns = {
-        row[1] for row in connection.execute("PRAGMA table_info(sections)")
-    }
-    connection.close()
-    assert "quality_flags" in section_columns
-    assert "hierarchy_kind" in section_columns

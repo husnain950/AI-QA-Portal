@@ -1,5 +1,10 @@
 """Create the PostgreSQL production schema.
 
+The single baseline: it builds the schema from ``db_schema.metadata``, which is the
+live definition, so a follow-up revision must never re-add a column that metadata
+already declares — on a fresh database create_all() has already made it.  Additive
+revisions therefore go in metadata *and* in a revision guarded by IF NOT EXISTS.
+
 Revision ID: 0001_postgres_baseline
 Revises:
 """

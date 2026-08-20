@@ -12,7 +12,7 @@ import unicodedata
 from collections import defaultdict
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
-from backend.database import DatabaseConnection, DatabaseRow
+from backend.database import DatabaseConnection
 
 DETECTOR_VERSION = "1"
 

@@ -1,28 +1,34 @@
 import io
 import json
 
-import aiosqlite
 import pytest
 from fastapi import UploadFile
 
+from backend.database import database_connection
 from backend.models import FootnoteStatusUpdate
 from backend.routes.documents import replace_json
 from backend.routes.footnotes import update_footnote_status
+from backend.services import review_state
 from backend.sync_acts import run_sync
-from backend.tests.conftest import sample_document, write_pair
+from backend.tests.conftest import active_version_id, sample_document, write_pair
 
 
 @pytest.mark.asyncio
-async def test_footnote_revert_restores_document_pending_status(runtime_sandbox):
+async def test_flagging_a_footnote_blocks_its_section_until_reverted(runtime_sandbox):
+    """Footnote state feeds the review-state engine, not the document status directly.
+
+    Approving a footnote no longer nudges the document towards "in progress" — only a
+    section verdict does that. What a footnote *can* do is block: a flagged one holds
+    its section, and reverting it must release the block rather than strand it.
+    """
     source = runtime_sandbox["root"] / "export"
     write_pair(source)
     await run_sync(source)
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute(
             """
-            SELECT f.id AS footnote_id, d.id AS document_id
+            SELECT f.id AS footnote_id, s.id AS section_id, d.id AS document_id
             FROM footnotes f
             JOIN sections s ON s.id = f.section_id
             JOIN documents d ON d.id = s.document_id
@@ -31,29 +37,29 @@ async def test_footnote_revert_restores_document_pending_status(runtime_sandbox)
         ) as cursor:
             row = await cursor.fetchone()
 
-        await update_footnote_status(
+        flagged = await update_footnote_status(
+            row["footnote_id"],
+            FootnoteStatusUpdate(review_status="has_issues"),
+            db,
+            actor="tester",
+        )
+        assert flagged["effective_status"] == "blocked"
+        assert "flagged_footnote" in flagged["blockers"]
+        assert flagged["document_status"] == "blocked"
+
+        # A reviewer verdict cannot approve over the flag.
+        approved = await review_state.set_verdict(db, row["section_id"], "approved")
+        assert approved["effective_status"] == "blocked"
+
+        cleared = await update_footnote_status(
             row["footnote_id"],
             FootnoteStatusUpdate(review_status="approved"),
             db,
             actor="tester",
         )
-        async with db.execute(
-            "SELECT status FROM documents WHERE id = ?",
-            (row["document_id"],),
-        ) as cursor:
-            assert (await cursor.fetchone())["status"] == "in_progress"
-
-        await update_footnote_status(
-            row["footnote_id"],
-            FootnoteStatusUpdate(review_status="pending"),
-            db,
-            actor="tester",
-        )
-        async with db.execute(
-            "SELECT status FROM documents WHERE id = ?",
-            (row["document_id"],),
-        ) as cursor:
-            assert (await cursor.fetchone())["status"] == "pending"
+        assert cleared["blockers"] == []
+        assert cleared["effective_status"] == "approved", "the verdict now takes effect"
+        assert cleared["document_status"] != "blocked"
 
 
 @pytest.mark.asyncio
@@ -74,8 +80,7 @@ async def test_act_corpus_json_can_be_replaced_and_becomes_a_new_version(
     payload["chapters"][0]["sections"][0]["plain_text"] = "Corrected first section"
     payload["chapters"][0]["sections"][0]["html"] = "<p>Corrected first section</p>"
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute("SELECT id FROM documents LIMIT 1") as cursor:
             document_id = (await cursor.fetchone())["id"]
 
@@ -84,7 +89,11 @@ async def test_act_corpus_json_can_be_replaced_and_becomes_a_new_version(
             file=io.BytesIO(json.dumps(payload).encode()),
         )
         response = await replace_json(
-            document_id, replacement, note="fixed table parsing", db=db
+            document_id,
+            replacement,
+            note="fixed table parsing",
+            db=db,
+            if_match=await active_version_id(db, document_id),
         )
         assert response.id == document_id
 
@@ -100,7 +109,7 @@ async def test_act_corpus_json_can_be_replaced_and_becomes_a_new_version(
             text = (await cursor.fetchone())["plain_text"]
 
     assert [row["version_no"] for row in rows] == [1, 2]
-    assert rows[1]["is_active"] == 1 and rows[0]["is_active"] == 0
+    assert rows[1]["is_active"] and not rows[0]["is_active"]
     assert rows[1]["note"] == "fixed table parsing"
     assert text == "Corrected first section"
 
@@ -111,8 +120,7 @@ async def test_replacing_with_identical_json_creates_no_version(runtime_sandbox)
     write_pair(source)
     await run_sync(source)
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
+    async with database_connection() as db:
         async with db.execute("SELECT id FROM documents LIMIT 1") as cursor:
             document_id = (await cursor.fetchone())["id"]
         await replace_json(
@@ -121,6 +129,7 @@ async def test_replacing_with_identical_json_creates_no_version(runtime_sandbox)
                 filename="same.json", file=io.BytesIO(sample_document().encode())
             ),
             db=db,
+            if_match=await active_version_id(db, document_id),
         )
         async with db.execute(
             "SELECT COUNT(*) FROM document_versions WHERE document_id = ?",

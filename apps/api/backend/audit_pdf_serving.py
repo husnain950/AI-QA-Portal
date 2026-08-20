@@ -28,8 +28,14 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from backend.database import DATABASE_URL, DatabaseConnection, database_connection, init_db
-from backend.runtime import UPLOAD_DIR
+from backend import runtime
+from backend.database import (
+    DATABASE_URL,
+    DatabaseConnection,
+    DatabaseRow,
+    database_connection,
+    init_db,
+)
 from backend.services.pdf_service import get_pdf_page_count
 
 OUT_OF_SCOPE = "out_of_scope"
@@ -122,7 +128,9 @@ async def audit_documents(
     *,
     check_url: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    upload_dir = Path(UPLOAD_DIR)
+    # Read at call time: binding runtime.UPLOAD_DIR at import made the audit look at
+    # the real uploads directory even when the caller had pointed it elsewhere.
+    upload_dir = Path(runtime.UPLOAD_DIR)
     rows: List[DatabaseRow] = []
     async with db.execute(
         """
@@ -259,7 +267,7 @@ async def _run(args: argparse.Namespace) -> int:
 
     report = {
         "database": DATABASE_URL.rsplit("@", 1)[-1],
-        "upload_dir": UPLOAD_DIR,
+        "upload_dir": runtime.UPLOAD_DIR,
         "document_count": len(documents),
         "status_counts": {status: status_counts.get(status, 0) for status in STATUSES},
         "documents": listed,

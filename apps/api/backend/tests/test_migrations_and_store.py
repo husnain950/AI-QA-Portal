@@ -1,61 +1,9 @@
-import sqlite3
-
-import aiosqlite
 import pytest
 
-import backend.database as database
+from backend.database import database_connection
 from backend.services.document_store import ReviewConflict, apply_parsed_document
 from backend.services.json_parser import parse_json_document
 from backend.tests.conftest import add_annotation, sample_document
-
-
-@pytest.mark.asyncio
-async def test_migration_adds_source_columns_and_unique_indexes(monkeypatch, tmp_path):
-    db_path = tmp_path / "legacy.db"
-    connection = sqlite3.connect(db_path)
-    connection.executescript(
-        """
-        CREATE TABLE documents (
-            id TEXT PRIMARY KEY, name TEXT NOT NULL, pdf_filename TEXT NOT NULL,
-            json_filename TEXT NOT NULL, total_sections INTEGER NOT NULL,
-            total_pages INTEGER NOT NULL, uploaded_at TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending'
-        );
-        CREATE TABLE sections (
-            id TEXT PRIMARY KEY, document_id TEXT NOT NULL,
-            chapter_code TEXT, chapter_heading TEXT, part_code TEXT,
-            part_heading TEXT, division_code TEXT, division_heading TEXT,
-            section_code TEXT NOT NULL, section_heading TEXT NOT NULL,
-            start_page INTEGER, end_page INTEGER, html_content TEXT,
-            plain_text TEXT, sort_order INTEGER NOT NULL,
-            review_status TEXT NOT NULL DEFAULT 'pending'
-        );
-        """
-    )
-    connection.commit()
-    connection.close()
-
-    monkeypatch.setattr(database, "DB_DIR", str(tmp_path))
-    monkeypatch.setattr(database, "DB_PATH", str(db_path))
-    await database.init_db()
-
-    connection = sqlite3.connect(db_path)
-    document_columns = {
-        row[1] for row in connection.execute("PRAGMA table_info(documents)")
-    }
-    section_columns = {
-        row[1] for row in connection.execute("PRAGMA table_info(sections)")
-    }
-    indexes = {
-        row[1] for row in connection.execute("PRAGMA index_list(sections)")
-    }
-    connection.close()
-
-    assert {"source_type", "source_key", "source_hash", "provenance", "corpus_lane"} <= document_columns
-    assert "source_key" in section_columns
-    assert "quality_flags" in section_columns
-    assert "hierarchy_kind" in section_columns
-    assert "idx_sections_source" in indexes
 
 
 @pytest.mark.asyncio
@@ -67,9 +15,7 @@ async def test_store_preserves_state_and_rejects_annotated_content_changes_in_st
         sample_document(),
         document_id=document_id,
     )
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
         await db.execute(
             """
             INSERT INTO documents (
@@ -146,9 +92,7 @@ async def test_store_strict_mode_rejects_removing_reviewed_evidence(runtime_sand
         sample_document(),
         document_id=document_id,
     )
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
         await db.execute(
             """
             INSERT INTO documents (
@@ -185,9 +129,7 @@ async def test_store_strict_mode_rejects_reviewed_footnote_removal(
         sample_document(),
         document_id=document_id,
     )
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
         await db.execute(
             """
             INSERT INTO documents (

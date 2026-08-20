@@ -235,6 +235,10 @@ async def approve_variant(
         return {"error": "variant members do not have identical text, HTML, and footnote hashes"}
     for member in members:
         blockers = await review_state.blocker_reasons(db, member["section_id"])
+        # A reviewer verdict of needs_work leaves no blocker row behind, so it has to be
+        # read directly — otherwise "this one is wrong" still receives inherited approval.
+        if member["reviewer_verdict"] == "needs_work" or member["effective_status"] == "blocked":
+            blockers = blockers or ["reviewer_marked_needs_work"]
         if blockers:
             return {
                 "error": "variant member has blockers",

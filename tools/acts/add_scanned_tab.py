@@ -185,7 +185,6 @@ def main() -> int:
         cell.fill = hdr_fill
         cell.alignment = Alignment(wrap_text=True, vertical="bottom")
     ws.freeze_panes = ws.cell(row=r + 1, column=1)
-    hdr_row = r
 
     for row in rows:
         r += 1

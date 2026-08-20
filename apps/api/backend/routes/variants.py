@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from backend.database import DatabaseConnection, DatabaseRow
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from backend.database import get_db
+from backend.database import DatabaseConnection, get_db
 from backend.deps import require_reviewer
 from backend.services import events, variants
 

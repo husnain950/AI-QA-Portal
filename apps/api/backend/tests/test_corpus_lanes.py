@@ -1,10 +1,10 @@
 import io
 
-import aiosqlite
 import pytest
 from fastapi import UploadFile
 from pypdf import PdfWriter
 
+from backend.database import database_connection
 from backend.routes.documents import replace_json, upload_document
 from backend.services.corpus_lanes import (
     LANE_CUSTOMS,
@@ -18,7 +18,7 @@ from backend.services.corpus_lanes import (
 )
 from backend.services.editions import family_key_from_name
 
-from .conftest import sample_document
+from .conftest import active_version_id, sample_document
 
 
 def test_classify_manual_upload():
@@ -80,9 +80,7 @@ async def test_upload_and_replace_json_carry_an_explicit_lane(runtime_sandbox):
     writer.write(buffer)
     pdf_bytes = buffer.getvalue()
 
-    async with aiosqlite.connect(runtime_sandbox["db_path"]) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON")
+    async with database_connection() as db:
 
         created = await upload_document(
             pdf=UploadFile(filename="act.pdf", file=io.BytesIO(pdf_bytes)),
@@ -117,6 +115,7 @@ async def test_upload_and_replace_json_carry_an_explicit_lane(runtime_sandbox):
             reviewer_name=None,
             corpus_lane=LANE_SALES_TAX,
             db=db,
+            if_match=await active_version_id(db, created.id),
         )
         assert refreshed.corpus_lane == LANE_SALES_TAX, "refresh must move the lane"
 
@@ -130,6 +129,7 @@ async def test_upload_and_replace_json_carry_an_explicit_lane(runtime_sandbox):
             note=None,
             reviewer_name=None,
             corpus_lane=None,
+            if_match=await active_version_id(db, created.id),
             db=db,
         )
         assert kept.corpus_lane == LANE_SALES_TAX

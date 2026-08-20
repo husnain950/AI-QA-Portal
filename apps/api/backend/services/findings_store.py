@@ -7,8 +7,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from backend.database import DatabaseConnection, DatabaseRow
-
+from backend.database import DatabaseConnection
 from backend.services.detectors import DETECTOR_VERSION, Finding
 from backend.services.disposition import normalize_finding_triage
 

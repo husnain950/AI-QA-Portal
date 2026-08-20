@@ -9,7 +9,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from backend.database import DatabaseConnection, DatabaseRow
+from backend.database import DatabaseConnection
 
 
 async def active_version_id(db: DatabaseConnection, document_id: str) -> Optional[str]:

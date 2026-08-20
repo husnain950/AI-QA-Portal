@@ -1,149 +1,171 @@
-"""Tests for approval inheritance — approve variant ≥3, content change revokes."""
+"""Approval inheritance is fail-closed.
 
-import aiosqlite
+A variant group can only inherit from a section a human explicitly approved, and only
+while every member is byte-identical, unblocked, and backed by an active version hash.
+The audit found the opposite: a one-member group could nominate its own first member as
+the "approved" source, so unreviewed legal text acquired approval on its own.
+"""
+
 import pytest
 
-from backend.services import variants
+from backend.database import database_connection
+from backend.services import review_state, variants
 
 
-async def _setup_variant_group(db, count=3):
-    """Create a family with `count` editions sharing the same section text."""
-    for i in range(count):
-        doc_id = f"doc-inh-{i}"
-        await db.execute("""
-            INSERT INTO documents (id, name, pdf_filename, json_filename, total_sections, total_pages, uploaded_at, status)
+async def _setup_variant_group(db, count=3, *, text="This is the exact same text."):
+    """A family of `count` editions sharing one section, each with an active version."""
+    for index in range(count):
+        document_id = f"doc-inh-{index}"
+        await db.execute(
+            """
+            INSERT INTO documents (id, name, pdf_filename, json_filename,
+                                   total_sections, total_pages, uploaded_at, status)
             VALUES (?, ?, 'test.pdf', 'test.json', 1, 1, '2026-01-01', 'pending')
-        """, (doc_id, f"Inheritance Test, {2020 + i}"))
-        await db.execute("""
-            INSERT INTO sections (id, document_id, section_code, section_heading, sort_order, review_status, plain_text, html_content)
-            VALUES (?, ?, '42', 'Test Section', 1, 'pending', 'This is the exact same text across editions.', '<p>This is the exact same text across editions.</p>')
-        """, (f"sec-inh-{i}", doc_id))
+            """,
+            (document_id, f"Inheritance Test, {2020 + index}"),
+        )
+        await db.execute(
+            """
+            INSERT INTO document_versions (id, document_id, version_no, json_filename,
+                                           json_sha256, created_at, total_sections, is_active)
+            VALUES (?, ?, 1, 'json/x.json', ?, '2026-01-01', 1, TRUE)
+            """,
+            (f"ver-inh-{index}", document_id, f"sha-{index}"),
+        )
+        await db.execute(
+            """
+            INSERT INTO sections (id, document_id, section_code, section_heading,
+                                  sort_order, review_status, plain_text, html_content)
+            VALUES (?, ?, '42', 'Test Section', 1, 'pending', ?, ?)
+            """,
+            (f"sec-inh-{index}", document_id, text, f"<p>{text}</p>"),
+        )
     await db.commit()
+
+
+async def _group_key(db, minimum=3):
+    async with db.execute(
+        "SELECT variant_key FROM section_variants "
+        "GROUP BY variant_key HAVING COUNT(*) >= ? LIMIT 1",
+        (minimum,),
+    ) as cursor:
+        row = await cursor.fetchone()
+    assert row is not None, f"expected a variant group with >= {minimum} members"
+    return row["variant_key"]
+
+
+async def _approved_group(db, count=4):
+    """A group whose first member carries a real human verdict."""
+    await _setup_variant_group(db, count=count)
+    await variants.rebuild(db)
+    key = await _group_key(db)
+    state = await review_state.set_verdict(db, "sec-inh-0", "approved")
+    assert state["effective_status"] == "approved"
+    return key
 
 
 @pytest.mark.asyncio
 async def test_approve_variant_requires_min_editions(runtime_sandbox):
-    """Cannot approve a variant group with fewer than 3 editions."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
-
-        await _setup_variant_group(db, count=2)
+    async with database_connection() as db:
+        await _setup_variant_group(db, count=1)
         await variants.rebuild(db)
-
-        async with db.execute(
-            "SELECT variant_key FROM section_variants LIMIT 1"
-        ) as cursor:
-            row = await cursor.fetchone()
-
-        if row:
-            result = await variants.approve_variant(db, row["variant_key"], actor="test")
-            assert "error" in result
+        key = await _group_key(db, minimum=1)
+        result = await variants.approve_variant(db, key, actor="test")
+        assert "error" in result and "editions" in result["error"]
 
 
 @pytest.mark.asyncio
-async def test_approve_variant_propagates(runtime_sandbox):
-    """Approving a variant with ≥3 editions propagates to inherited."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
-
+async def test_approve_variant_refuses_without_a_human_approved_source(runtime_sandbox):
+    """The regression the audit named: nobody approved anything, so nothing inherits."""
+    async with database_connection() as db:
         await _setup_variant_group(db, count=4)
         await variants.rebuild(db)
+        key = await _group_key(db)
 
-        async with db.execute(
-            "SELECT variant_key FROM section_variants GROUP BY variant_key HAVING COUNT(*) >= 3 LIMIT 1"
-        ) as cursor:
-            row = await cursor.fetchone()
-
-        assert row is not None, "Should have a variant group with ≥3 members"
-        vk = row["variant_key"]
-
-        result = await variants.approve_variant(db, vk, actor="test")
-        assert result["inherited"] >= 2
+        result = await variants.approve_variant(db, key, actor="test")
+        assert result["error"] == "variant requires an explicitly human-approved source"
 
         async with db.execute(
             "SELECT COUNT(*) FROM sections WHERE review_status = 'approved_inherited'"
         ) as cursor:
-            count = (await cursor.fetchone())[0]
-        assert count >= 2
-
+            assert (await cursor.fetchone())[0] == 0
         async with db.execute("SELECT COUNT(*) FROM approval_inheritance") as cursor:
-            inh_count = (await cursor.fetchone())[0]
-        assert inh_count >= 2
+            assert (await cursor.fetchone())[0] == 0
 
 
 @pytest.mark.asyncio
-async def test_content_change_revokes_inheritance(runtime_sandbox):
-    """When source section text changes, inherited approval is revoked."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
-
-        await _setup_variant_group(db, count=4)
-        await variants.rebuild(db)
-
-        async with db.execute(
-            "SELECT variant_key FROM section_variants GROUP BY variant_key HAVING COUNT(*) >= 3 LIMIT 1"
-        ) as cursor:
-            row = await cursor.fetchone()
-
-        vk = row["variant_key"]
-        await variants.approve_variant(db, vk, actor="test")
-
-        # Now simulate content change on the source section via apply_parsed_document
-        # by directly changing text and invoking the inheritance revoke
-        source_sec_id = "sec-inh-0"
+async def test_approve_variant_refuses_when_a_member_is_blocked(runtime_sandbox):
+    async with database_connection() as db:
+        key = await _approved_group(db)
         await db.execute(
-            "UPDATE sections SET plain_text = 'Completely new text here' WHERE id = ?",
-            (source_sec_id,),
-        )
-        # Delete inheritance rows as source changed
-        cur = await db.execute(
-            "DELETE FROM approval_inheritance WHERE source_id = ?",
-            (source_sec_id,),
-        )
-        await db.commit()
+            "UPDATE footnotes SET review_status = 'has_issues' WHERE FALSE"
+        )  # no footnotes here; block through a verdict instead
+        await review_state.set_verdict(db, "sec-inh-2", "needs_work")
 
-        # The trigger should have reset inheritors
-        async with db.execute(
-            "SELECT COUNT(*) FROM sections WHERE review_status = 'approved_inherited'"
-        ) as cursor:
-            remaining = (await cursor.fetchone())[0]
-        assert remaining == 0
+        result = await variants.approve_variant(db, key, actor="test")
+        assert result["error"] == "variant member has blockers"
+        assert result["section_id"] == "sec-inh-2"
 
 
 @pytest.mark.asyncio
-async def test_source_delete_revokes(runtime_sandbox):
-    """Deleting the source section revokes all inherited approvals via CASCADE."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+async def test_approve_variant_refuses_when_the_text_is_not_identical(runtime_sandbox):
+    async with database_connection() as db:
+        key = await _approved_group(db)
+        await db.execute(
+            "UPDATE section_variants SET text_sha = 'different' WHERE section_id = ?",
+            ("sec-inh-3",),
+        )
+        result = await variants.approve_variant(db, key, actor="test")
+        assert "identical" in result["error"]
 
-        await _setup_variant_group(db, count=3)
-        await variants.rebuild(db)
+
+@pytest.mark.asyncio
+async def test_approve_variant_propagates_from_the_human_source(runtime_sandbox):
+    async with database_connection() as db:
+        key = await _approved_group(db)
+
+        result = await variants.approve_variant(db, key, actor="test")
+        assert result.get("error") is None, result
+        assert result["inherited"] == 3
 
         async with db.execute(
-            "SELECT variant_key FROM section_variants GROUP BY variant_key HAVING COUNT(*) >= 3 LIMIT 1"
+            "SELECT id, review_status, reviewer_verdict FROM sections ORDER BY id"
         ) as cursor:
-            row = await cursor.fetchone()
+            rows = {row["id"]: dict(row) for row in await cursor.fetchall()}
+        assert rows["sec-inh-0"]["reviewer_verdict"] == "approved"
+        for other in ("sec-inh-1", "sec-inh-2", "sec-inh-3"):
+            assert rows[other]["review_status"] == "approved_inherited"
+            assert rows[other]["reviewer_verdict"] == "pending", (
+                "inherited confidence must never read as a human verdict"
+            )
 
-        if not row:
-            pytest.skip("No variant group with ≥3 members")
-        vk = row["variant_key"]
-        await variants.approve_variant(db, vk, actor="test")
+        async with db.execute(
+            "SELECT source_id, inheritor_id, policy_version, evidence "
+            "FROM approval_inheritance ORDER BY inheritor_id"
+        ) as cursor:
+            inheritance = [dict(row) for row in await cursor.fetchall()]
+        assert len(inheritance) == 3
+        assert {row["source_id"] for row in inheritance} == {"sec-inh-0"}
+        evidence = inheritance[0]["evidence"]
+        assert evidence["source_section_id"] == "sec-inh-0"
+        assert evidence["approved_by"] == "test"
+        assert len(evidence["active_versions"]) == 4, "each edition's version is recorded"
 
-        # Delete source section
+
+@pytest.mark.asyncio
+async def test_source_delete_revokes_inherited_approval(runtime_sandbox):
+    async with database_connection() as db:
+        key = await _approved_group(db)
+        assert (await variants.approve_variant(db, key, actor="test"))["inherited"] == 3
+
         await db.execute("DELETE FROM sections WHERE id = 'sec-inh-0'")
         await db.commit()
 
-        # CASCADE on approval_inheritance should fire, trigger resets inheritors
-        async with db.execute(
-            "SELECT COUNT(*) FROM sections WHERE review_status = 'approved_inherited'"
-        ) as cursor:
-            remaining = (await cursor.fetchone())[0]
-        assert remaining == 0
+        async with db.execute("SELECT COUNT(*) FROM approval_inheritance") as cursor:
+            assert (await cursor.fetchone())[0] == 0, "CASCADE removes the evidence"
+
+        # With the evidence gone the inheritance no longer validates, so a refresh must
+        # drop each recipient back to pending rather than leave it looking approved.
+        for section_id in ("sec-inh-1", "sec-inh-2", "sec-inh-3"):
+            state = await review_state.refresh_section(db, section_id)
+            assert state["effective_status"] == "pending"

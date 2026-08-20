@@ -11,8 +11,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from backend.database import DatabaseConnection, DatabaseRow
-
+from backend.database import DatabaseConnection
 from backend.services.detectors import family_key
 
 logger = logging.getLogger(__name__)

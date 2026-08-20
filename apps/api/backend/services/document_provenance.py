@@ -10,8 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional
 
-from backend.database import DatabaseConnection, DatabaseRow
-
+from backend.database import DatabaseConnection
 from backend.models import DocumentProvenance
 
 OCR_FULL_RATIO = 0.9

@@ -1,8 +1,8 @@
 """Tests for services/detectors.py — at least heading_only + fingerprint stability."""
 
-import aiosqlite
 import pytest
 
+from backend.database import database_connection
 from backend.services.detectors import (
     DETECTOR_VERSION,
     _detect_glyph_split,
@@ -35,10 +35,7 @@ def test_fingerprint_stable_across_versions():
 @pytest.mark.asyncio
 async def test_heading_only_detector(runtime_sandbox):
     """Detect sections whose body is just the heading."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+    async with database_connection() as db:
 
         await db.execute("""
             INSERT INTO documents (id, name, pdf_filename, json_filename, total_sections, total_pages, uploaded_at, status)
@@ -63,10 +60,7 @@ async def test_heading_only_detector(runtime_sandbox):
 @pytest.mark.asyncio
 async def test_glyph_split_detector(runtime_sandbox):
     """Detect OCR glyph split artifacts."""
-    db_path = runtime_sandbox["db_path"]
-    async with aiosqlite.connect(str(db_path)) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys = ON;")
+    async with database_connection() as db:
 
         await db.execute("""
             INSERT INTO documents (id, name, pdf_filename, json_filename, total_sections, total_pages, uploaded_at, status)

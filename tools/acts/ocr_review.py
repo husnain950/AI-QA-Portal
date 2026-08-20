@@ -40,7 +40,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from acts_ingest import ocr
+from acts_ingest import ocr  # noqa: E402 (sys.path bootstrap above)
 
 REPORTS = os.path.join(_ROOT, "reports")
 _PARTIAL_WARNING = (
@@ -119,7 +119,8 @@ def write_disagreements(fid, partial: bool) -> str:
         "| page | x0 | top | tesseract | conf | rapidocr | conf | accepted | repair |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
-    esc = lambda s: str(s).replace("|", "\\|").replace("\n", " ")
+    def esc(value):
+        return str(value).replace("|", "\\|").replace("\n", " ")
     for w in fid.disagreements:
         lines.append(
             f"| {w.get('page')} | {w['x0']:.0f} | {w['top']:.0f} "

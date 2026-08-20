@@ -31,7 +31,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-
 from backend.database import DatabaseConnection, database_connection
 from backend.runtime import (  # noqa: F401  (tests patch these)
     UPLOAD_DIR,
@@ -326,7 +325,10 @@ async def sync_validated_pair(
         corpus_origin=corpus_origin,
     )
 
-    await db.execute("BEGIN IMMEDIATE")
+    # Serialize concurrent syncs of the same edition. The transaction-scoped advisory
+    # lock is the PostgreSQL equivalent of the SQLite write lock this used to take, and
+    # it releases on commit or rollback without any explicit unlock.
+    await db.execute("SELECT pg_advisory_xact_lock(hashtext(?))", (pair.source_key,))
     try:
         # Approved AI fixes ride on top of whatever the pipeline produced. The
         # overlay store also detects the two ways a fix can die: the parser now

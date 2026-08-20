@@ -39,7 +39,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from tests import checks, loader
+from tests import checks, loader  # noqa: E402 (sys.path bootstrap above)
 
 CASES = os.path.join(_ROOT, "tests", "cases.json")
 

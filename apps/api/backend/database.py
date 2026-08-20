@@ -174,6 +174,9 @@ class DatabaseConnection:
         result = await self._connection.execute(text(statement), bind_rows)
         return DatabaseCursor([], rowcount=result.rowcount)
 
+    async def close(self) -> None:
+        await self._connection.close()
+
     async def commit(self) -> None:
         await self._connection.commit()
 

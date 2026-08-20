@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from backend.database import DatabaseConnection, DatabaseRow
 from fastapi import APIRouter, Depends, Query
 
-from backend.database import get_db
+from backend.database import DatabaseConnection, get_db
 from backend.services.detectors import family_key as family_key_fn
 from backend.services.editions import family_key_from_name
 from backend.services.variants import rebuild_document
