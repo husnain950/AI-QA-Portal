@@ -21,22 +21,31 @@ import json
 import os
 import sys
 
-# scripts/ lives one level below the repo root -- make the root importable and
-# anchor all default paths there, so this works from any working directory.
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+# This tool lives at tools/<pipeline>/; the repo root is two levels up. The suite is
+# a sibling package, imported as ``suite`` rather than ``tests`` so it cannot collide
+# with tools/tests (the deploy-script tests), which is a different package entirely.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(os.path.dirname(_HERE))
+for _path in (_HERE, os.path.join(_ROOT, "packages")):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
 
-from tests import loader, runner  # noqa: E402 (sys.path bootstrap above)
+from suite import loader, runner  # noqa: E402 (sys.path bootstrap above)
 
 
 def _default_jsons() -> list[str]:
-    """Every JSON in ./output/ -- the bare command gates ALL editions.
+    """Every JSON in the CORPUS_ACTS corpus -- the bare command gates ALL editions.
 
     (It used to test only whichever file sorted first, which silently gated
     the 30.06.2024 edition and nothing else.)
     """
-    return sorted(glob.glob(os.path.join(_ROOT, "output", "*.json")))
+    root = os.environ.get("CORPUS_ACTS") or os.path.join(
+        _ROOT, "data", "corpora", "acts"
+    )
+    # .env ships CORPUS_ACTS as a repo-relative path, so anchor it; join leaves
+    # an absolute value untouched.
+    root = os.path.join(_ROOT, root)
+    return sorted(glob.glob(os.path.join(root, "output", "*.json")))
 
 
 def main(argv=None) -> int:
