@@ -20,27 +20,38 @@ to resume after an interruption.
     python -m backend.push_corpus --base-url https://your-portal.example.com
     python -m backend.push_corpus --base-url ... --dry-run
 
+Credentials: ``ADMIN_EMAIL`` / ``ADMIN_PASSWORD`` (or ``--email`` / ``--password``).
+Every API path needs a session after the auth migration; replace-json and the v2 upload
+commit path need an admin role.
+
 Note this creates ``source_type='upload'`` documents: deterministic corpus ids and
 pipeline health metrics come from ``sync_acts``, which needs the pipeline repositories.
 Where the server can see them, prefer that.
 """
 
+from __future__ import annotations
+
 import argparse
+import http.cookiejar
 import json
 import mimetypes
 import os
-import sqlite3
 import sys
 import time
 import urllib.error
 import urllib.request
 import uuid
+from typing import Any
 
-from backend.database import DB_PATH as DB
+import psycopg
+
+from backend.database import DATABASE_URL, normalize_database_url
+from backend.services.auth import SESSION_COOKIE
 from backend.services.blob_store import sha256_file, upload_root
 
 UPLOADS = upload_root()
 BASE = ""
+_OPENER: urllib.request.OpenerDirector | None = None
 
 
 def multipart(fields, files):
@@ -76,13 +87,96 @@ def plan_order(pending, threshold_bytes):
     return risky, rest
 
 
+def libpq_url(url: str | None = None) -> str:
+    """SQLAlchemy DSN → libpq DSN for sync ``psycopg.connect``."""
+    raw = normalize_database_url(url or os.environ.get("DATABASE_URL", DATABASE_URL))
+    if raw.startswith("postgresql+psycopg://"):
+        return "postgresql://" + raw[len("postgresql+psycopg://") :]
+    return raw
+
+
+def local_documents(uploads: str | None = None) -> list[tuple[int, str, str, str, str | None]]:
+    """``(size, name, pdf_path, json_path, corpus_lane)`` from the local Postgres DB."""
+    root = uploads if uploads is not None else UPLOADS
+    todo: list[tuple[int, str, str, str, str | None]] = []
+    with psycopg.connect(libpq_url()) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT name, pdf_filename, json_filename, corpus_lane FROM documents"
+            )
+            rows = cursor.fetchall()
+    for name, pdf_filename, json_filename, lane in rows:
+        pdf = os.path.join(root, pdf_filename)
+        js = os.path.join(root, json_filename)
+        if os.path.exists(pdf) and os.path.exists(js):
+            size = os.path.getsize(pdf) + os.path.getsize(js)
+            todo.append((size, name, pdf, js, lane))
+    todo.sort()
+    return todo
+
+
+def build_opener() -> urllib.request.OpenerDirector:
+    jar = http.cookiejar.CookieJar()
+    return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+
+
+def login(base_url: str, email: str, password: str, opener: urllib.request.OpenerDirector) -> dict[str, Any]:
+    """POST /api/auth/login and keep the session cookie on ``opener``."""
+    payload = json.dumps({"email": email, "password": password}).encode()
+    request = urllib.request.Request(
+        f"{base_url.rstrip('/')}/api/auth/login",
+        data=payload,
+        method="POST",
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+    )
+    try:
+        with opener.open(request, timeout=60) as response:
+            body = json.loads(response.read().decode())
+    except urllib.error.HTTPError as error:
+        detail = error.read()[:300]
+        raise SystemExit(
+            f"error: login failed ({error.code}): {detail!r}. "
+            f"Set ADMIN_EMAIL / ADMIN_PASSWORD (or --email / --password) to an "
+            f"admin account on the deployment."
+        ) from error
+    if body.get("role") != "admin":
+        raise SystemExit(
+            f"error: signed in as {body.get('email')!r} with role "
+            f"{body.get('role')!r}; push-remote needs an admin session "
+            f"(replace-json and corpus uploads are admin-gated)."
+        )
+    jar = next(
+        (
+            handler.cookiejar
+            for handler in opener.handlers
+            if isinstance(handler, urllib.request.HTTPCookieProcessor)
+        ),
+        None,
+    )
+    cookie_names = {cookie.name for cookie in jar} if jar is not None else set()
+    if SESSION_COOKIE not in cookie_names:
+        raise SystemExit(
+            f"error: login succeeded but no {SESSION_COOKIE!r} cookie was set. "
+            f"Check that the portal is not stripping Secure cookies on a plain-http URL."
+        )
+    return body
+
+
+def open_url(request: urllib.request.Request, timeout: float = 120):
+    if _OPENER is None:
+        return urllib.request.urlopen(request, timeout=timeout)
+    return _OPENER.open(request, timeout=timeout)
+
+
 def existing_docs():
     """``{name: {"id", "json_filename"}}`` for everything already on the deployment."""
-    request = urllib.request.Request(f"{BASE}/api/documents")
-    with urllib.request.urlopen(request, timeout=120) as response:
+    request = urllib.request.Request(
+        f"{BASE}/api/documents", headers={"Accept": "application/json"}
+    )
+    with open_url(request, timeout=120) as response:
         return {
             doc["name"]: {"id": doc["id"], "json_filename": doc["json_filename"]}
-            for doc in json.load(response)
+            for doc in json.loads(response.read().decode())
         }
 
 
@@ -109,8 +203,8 @@ def plan_refresh(local, remote):
     return to_upload, to_refresh
 
 
-def main():
-    global BASE
+def main(argv: list[str] | None = None):
+    global BASE, _OPENER
     parser = argparse.ArgumentParser(description="Push a local corpus to a deployment")
     parser.add_argument("--base-url", required=True, help="deployed portal root URL")
     parser.add_argument(
@@ -122,24 +216,34 @@ def main():
         default=15.0,
         help="documents at least this large go first, while a crash is still free",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--email",
+        default=os.environ.get("ADMIN_EMAIL", ""),
+        help="admin email (default: ADMIN_EMAIL)",
+    )
+    parser.add_argument(
+        "--password",
+        default=os.environ.get("ADMIN_PASSWORD", ""),
+        help="admin password (default: ADMIN_PASSWORD)",
+    )
+    args = parser.parse_args(argv)
     BASE = args.base_url.rstrip("/")
 
-    connection = sqlite3.connect(DB)
-    connection.row_factory = sqlite3.Row
-    todo = []
-    for row in connection.execute(
-        "SELECT name, pdf_filename, json_filename, corpus_lane FROM documents"
-    ):
-        pdf = os.path.join(UPLOADS, row["pdf_filename"])
-        js = os.path.join(UPLOADS, row["json_filename"])
-        if os.path.exists(pdf) and os.path.exists(js):
-            size = os.path.getsize(pdf) + os.path.getsize(js)
-            todo.append((size, row["name"], pdf, js, row["corpus_lane"]))
-    todo.sort()
+    need_remote = not args.dry_run or bool(args.email and args.password)
+    if need_remote:
+        if not args.email or not args.password:
+            raise SystemExit(
+                "error: ADMIN_EMAIL and ADMIN_PASSWORD (or --email / --password) "
+                "are required to sign in to the deployment"
+            )
+        _OPENER = build_opener()
+        user = login(BASE, args.email, args.password, _OPENER)
+        print(f"signed in as {user.get('email')} ({user.get('role')})", flush=True)
 
-    present = existing_docs()
+    todo = local_documents()
+    present = existing_docs() if need_remote else {}
     to_upload, to_refresh = plan_refresh(todo, present)
+
     upload_bytes = sum(item[0] for item in to_upload)
     refresh_bytes = sum(os.path.getsize(item[4]) for item in to_refresh)
     orphans = set(present) - {item[1] for item in todo}
@@ -181,8 +285,8 @@ def main():
         request.add_header("Content-Type", ctype)
         for attempt in (1, 2):
             try:
-                with urllib.request.urlopen(request, timeout=900) as response:
-                    json.load(response)
+                with open_url(request, timeout=900) as response:
+                    json.loads(response.read().decode() or "null")
                 done += 1
                 sent += size
                 print(

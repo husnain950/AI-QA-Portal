@@ -115,12 +115,15 @@ seed-archive:
 deploy-prod: seed-archive
 	bash $(ROOT)/tools/deploy_coderun.sh
 
+# Re-seed a deployed portal from the local Postgres corpus. Needs ADMIN_EMAIL /
+# ADMIN_PASSWORD in .env (admin role) and a prior `make sync` so local blobs exist.
 push-remote:
 	@test -n "$(BASE_URL)" || (echo "Usage: make push-remote BASE_URL=https://your-portal.code.run"; exit 1)
 	$(PYTHON) -m backend.push_corpus --base-url "$(BASE_URL)"
 
 # Backs up review state, which push-remote cannot rebuild -- re-uploading resets every
 # section to pending. Volume snapshots would be better but Northflank gates that API.
+# Needs ADMIN_EMAIL / ADMIN_PASSWORD (reader role is enough).
 backup-remote:
 	@test -n "$(BASE_URL)" || (echo "Usage: make backup-remote BASE_URL=https://your-portal.code.run"; exit 1)
 	$(PYTHON) tools/snapshot_review.py --base-url "$(BASE_URL)" $(if $(OUT),--out "$(OUT)",)

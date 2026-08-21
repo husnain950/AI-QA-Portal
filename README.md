@@ -77,7 +77,13 @@ See [`.env.example`](.env.example). Important knobs:
 
 These `CORPUS_*` / `DATABASE_URL` / `UPLOAD_DIR` values are **host-local**. Compose and the API image override them inside the container (`/data/corpus/...`, `/app/data/...`). `make deploy-prod` strips them from `--env-file` (see [`tools/filter_deploy_env.py`](tools/filter_deploy_env.py)) so a local `.env` cannot point production at your laptop's database or make it report missing mounts.
 
-The Library subtitle (`last sync` / `seeded by upload` / `pipeline mounts not on this host`) is **pipeline-mount health** — whether those directories exist on the API host with `output/*.json` — not whether Ordinance or Acts documents are already in the library. `make push-remote` fills the library as uploads and does not record a corpus sync.
+The Library subtitle (`last sync` / `seeded by upload` / `pipeline mounts not on this host`) is **pipeline-mount health** — whether those directories exist on the API host with `output/*.json` — not whether Ordinance or Acts documents are already in the library. `make push-remote` fills the library as uploads and does not record a corpus sync. Northflank builds from git have no baked seed and no pipeline mounts, so a fresh (or post-migration) deploy shows an empty Library until someone runs:
+
+```bash
+# machine that already has data/corpora/ + a synced local DB, and ADMIN_* in .env
+make sync
+make push-remote BASE_URL=https://p01--crx-web--m4hljdfnbvqq.code.run
+```
 
 Compose mounts `./data/corpora/...` **read-only** into the API container. Large blobs stay out of git.
 
@@ -172,7 +178,8 @@ daily, keeping each snapshot as a 90-day workflow artifact.
 
 It backs up **review state specifically**, because that is the only thing nothing else can rebuild:
 `make push-remote` re-uploads documents but the upload route inserts every row as `pending`, so it
-resets each section's `review_status` and carries no annotations. Detector `findings` are omitted —
+resets review state. Prefer restoring from a review-state snapshot when you have one; annotations
+they are machine output that a re-sync regenerates.resets each section's `review_status` and carries no annotations. Detector `findings` are omitted —
 they are machine output that a re-sync regenerates.
 
 Restoring is not automated: there is no import route yet, so the snapshot preserves the data rather
