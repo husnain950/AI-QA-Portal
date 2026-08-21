@@ -19,7 +19,11 @@ export default function LoginPage({ onSignedIn }) {
         try {
             onSignedIn(await authApi.login(email.trim(), password));
         } catch (err) {
-            setError(err.message || 'Sign-in failed');
+            setError(
+                err.code === 'timeout'
+                    ? 'The server did not answer. Try again in a moment.'
+                    : (err.message || 'Sign-in failed'),
+            );
             setPassword('');
         } finally {
             setBusy(false);

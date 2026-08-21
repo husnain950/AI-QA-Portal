@@ -51,6 +51,12 @@ describe('session identity', () => {
     it('login stores the principal and logout clears it even if the call fails', async () => {
         vi.spyOn(api, 'post').mockResolvedValue(ADMIN);
         expect(await authApi.login('admin@crx.test', 'pw')).toEqual(ADMIN);
+        expect(api.post).toHaveBeenCalledWith(
+            '/auth/login',
+            { email: 'admin@crx.test', password: 'pw' },
+            false,
+            { retry: true },
+        );
         expect(getCurrentUser()).toEqual(ADMIN);
 
         vi.spyOn(api, 'post').mockRejectedValue(new Error('network gone'));
@@ -83,10 +89,15 @@ describe('login form', () => {
         fireEvent.click(screen.getByRole('button', { name: /Sign in/ }));
 
         await waitFor(() => expect(onSignedIn).toHaveBeenCalledWith(ADMIN));
-        expect(post).toHaveBeenCalledWith('/auth/login', {
-            email: 'admin@crx.test',
-            password: 'a-long-password',
-        });
+        expect(post).toHaveBeenCalledWith(
+            '/auth/login',
+            {
+                email: 'admin@crx.test',
+                password: 'a-long-password',
+            },
+            false,
+            { retry: true },
+        );
     });
 
     it('shows why a sign-in failed and clears the password field', async () => {
@@ -98,6 +109,22 @@ describe('login form', () => {
         fireEvent.click(screen.getByRole('button', { name: /Sign in/ }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('email or password is incorrect');
+        expect(onSignedIn).not.toHaveBeenCalled();
+        expect(screen.getByLabelText('Password')).toHaveValue('');
+    });
+
+    it('explains a timed-out sign-in as the server not answering', async () => {
+        const timeout = Object.assign(new Error('Request timed out'), { code: 'timeout' });
+        vi.spyOn(api, 'post').mockRejectedValue(timeout);
+        const onSignedIn = renderLogin();
+
+        fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'admin@crx.test' } });
+        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret' } });
+        fireEvent.click(screen.getByRole('button', { name: /Sign in/ }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'The server did not answer. Try again in a moment.',
+        );
         expect(onSignedIn).not.toHaveBeenCalled();
         expect(screen.getByLabelText('Password')).toHaveValue('');
     });
