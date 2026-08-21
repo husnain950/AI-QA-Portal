@@ -6,9 +6,17 @@ AI work, under any name it liked. Identity now comes from a server-side session,
 role decides what the session may do.
 """
 
+import time
+
+import httpx2 as httpx
 import pytest
 
-from backend.database import database_connection
+from backend.database import (
+    DATABASE_UNREACHABLE_MESSAGE,
+    database_connection,
+    dispose_engine,
+    engine_settings,
+)
 from backend.services import auth
 from backend.tests.conftest import (
     ADMIN_EMAIL,
@@ -221,6 +229,43 @@ async def test_a_bad_login_says_the_same_thing_either_way(runtime_sandbox, accou
         "a different message would let an attacker enumerate accounts"
     )
     assert "set-cookie" not in wrong_password.headers
+
+
+def test_engine_settings_fail_fast_when_postgres_is_gone():
+    settings = engine_settings()
+    assert settings["connect_args"]["connect_timeout"] == 5
+    assert settings["pool_timeout"] == 5
+
+
+@pytest.mark.asyncio
+async def test_login_returns_503_when_the_database_is_unreachable(
+    runtime_sandbox, monkeypatch
+):
+    """A black-hole DATABASE_URL used to hang until the browser's 15s abort."""
+    from backend.main import app
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://crx:crx@192.0.2.1:5432/crx")
+    monkeypatch.setenv("DB_CONNECT_TIMEOUT", "2")
+    await dispose_engine()
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+            timeout=15,
+        ) as session:
+            started = time.monotonic()
+            response = await session.post(
+                "/api/auth/login",
+                json={"email": ADMIN_EMAIL, "password": TEST_PASSWORD},
+            )
+            assert time.monotonic() - started < 12, "login hung instead of failing fast"
+            assert response.status_code == 503
+            body = response.json()
+            detail = body.get("detail")
+            message = detail.get("message") if isinstance(detail, dict) else detail
+            assert message == DATABASE_UNREACHABLE_MESSAGE
+    finally:
+        await dispose_engine()
 
 
 @pytest.mark.asyncio
