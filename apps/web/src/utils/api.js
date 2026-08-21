@@ -1,10 +1,10 @@
 import { setCurrentUser } from './reviewer';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-// Empty/unset in a prod build means same-origin — nginx proxies /uploads/ to the API.
-// The localhost fallback is dev-only; baking it into a prod bundle sends every
-// viewer's PDF request to their own machine.
-const STATIC_BASE = import.meta.env.VITE_STATIC_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// Empty/unset means same-origin — Vite (dev) and nginx (prod) both proxy /uploads/
+// to the API. A localhost fallback in a prod bundle sends every viewer's PDF to
+// their own machine; the same fallback from a remote Vite host times out login.
+const STATIC_BASE = import.meta.env.VITE_STATIC_URL || '';
 
 export { getReviewerName, getRole, hasRole } from './reviewer';
 
@@ -16,9 +16,11 @@ export function setUnauthorizedHandler(handler) {
 }
 
 // The API runs one uvicorn worker on a small compute plan, so a cold or busy container
-// makes the proxy return 502/503/504 before it answers. Retrying an idempotent GET once
-// is the difference between a working Library and a page that claims the corpus is empty.
+// makes the proxy return 502/503/504 before it answers — or never answers, and the
+// 15s abort fires. Retrying an idempotent GET once, and login POST when asked, is the
+// difference between a working Library/sign-in and a page that claims nothing works.
 const TRANSIENT = new Set([502, 503, 504]);
+const RETRY_PAUSE_MS = 750;
 
 export class ApiError extends Error {
     constructor(message, { status = 0, code = 'request_failed', details = null } = {}) {
@@ -90,36 +92,44 @@ async function request(path, options = {}) {
     }
 }
 
+async function onceOrRetry(run, { retry, signal }) {
+    try {
+        return await run();
+    } catch (error) {
+        if (!retry || !error.retryable || signal?.aborted) throw error;
+        await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
+        return run();
+    }
+}
+
 export const api = {
     async get(path, options = {}) {
         const { retry = true, ...rest } = options;
-        let res;
-        try {
-            res = await request(path, { ...rest, method: 'GET' });
-        } catch (error) {
-            if (!retry || !error.retryable || options.signal?.aborted) throw error;
-        }
-        if (!res) {
-            await new Promise((resolve) => setTimeout(resolve, 750));
-            res = await request(path, { ...rest, method: 'GET' });
-        }
+        const res = await onceOrRetry(
+            () => request(path, { ...rest, method: 'GET' }),
+            { retry, signal: options.signal },
+        );
         if (TRANSIENT.has(res.status)) {
-            await new Promise((resolve) => setTimeout(resolve, 750));
-            res = await request(path, { ...rest, method: 'GET' });
+            await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
+            return (await request(path, { ...rest, method: 'GET' })).json();
         }
         return res.json();
     },
 
     async post(path, body, isMultipart = false, options = {}) {
-        const res = await request(path, {
-            method: 'POST',
-            ...options,
-            headers: {
-                ...(isMultipart ? {} : { 'Content-Type': 'application/json' }),
-                ...(options.headers || {}),
-            },
-            body: isMultipart ? body : JSON.stringify(body),
-        });
+        const { retry = false, ...rest } = options;
+        const res = await onceOrRetry(
+            () => request(path, {
+                method: 'POST',
+                ...rest,
+                headers: {
+                    ...(isMultipart ? {} : { 'Content-Type': 'application/json' }),
+                    ...(rest.headers || {}),
+                },
+                body: isMultipart ? body : JSON.stringify(body),
+            }),
+            { retry, signal: rest.signal },
+        );
         return res.json();
     },
 

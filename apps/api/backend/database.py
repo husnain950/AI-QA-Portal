@@ -15,7 +15,11 @@ from typing import Any
 
 from alembic import command
 from alembic.config import Config
+from psycopg import InterfaceError as PsycopgInterfaceError
+from psycopg import OperationalError as PsycopgOperationalError
 from sqlalchemy import text
+from sqlalchemy.exc import InterfaceError, OperationalError
+from sqlalchemy.exc import TimeoutError as SATimeoutError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
 DEFAULT_DATABASE_URL = "postgresql+psycopg://crx:crx@127.0.0.1:5432/crx"
@@ -26,6 +30,36 @@ DB_DIR = ""
 
 _engine: AsyncEngine | None = None
 _engine_url: str | None = None
+
+# Login is the first request that opens a connection. Without these, a wrong
+# DATABASE_URL or a sleeping Postgres waits on TCP until the browser aborts at 15s.
+UNREACHABLE_DB_ERRORS = (
+    OperationalError,
+    InterfaceError,
+    SATimeoutError,
+    PsycopgOperationalError,
+    PsycopgInterfaceError,
+)
+DATABASE_UNREACHABLE_MESSAGE = "the database is not reachable"
+
+
+def db_connect_timeout() -> int:
+    return int(os.environ.get("DB_CONNECT_TIMEOUT", "5"))
+
+
+def db_pool_timeout() -> int:
+    return int(os.environ.get("DB_POOL_TIMEOUT", "5"))
+
+
+def engine_settings() -> dict[str, Any]:
+    """Fail-fast pool/connect options so a dead database cannot hang a request."""
+    return {
+        "pool_pre_ping": True,
+        "pool_size": int(os.environ.get("DB_POOL_SIZE", "10")),
+        "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", "20")),
+        "pool_timeout": db_pool_timeout(),
+        "connect_args": {"connect_timeout": db_connect_timeout()},
+    }
 
 
 def normalize_database_url(url: str) -> str:
@@ -40,12 +74,7 @@ def get_engine() -> AsyncEngine:
     global _engine, _engine_url
     url = normalize_database_url(os.environ.get("DATABASE_URL", DATABASE_URL))
     if _engine is None or _engine_url != url:
-        _engine = create_async_engine(
-            url,
-            pool_pre_ping=True,
-            pool_size=int(os.environ.get("DB_POOL_SIZE", "10")),
-            max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "20")),
-        )
+        _engine = create_async_engine(url, **engine_settings())
         _engine_url = url
     return _engine
 

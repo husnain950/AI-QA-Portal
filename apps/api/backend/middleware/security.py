@@ -19,7 +19,11 @@ from threading import Lock
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.database import database_connection
+from backend.database import (
+    DATABASE_UNREACHABLE_MESSAGE,
+    UNREACHABLE_DB_ERRORS,
+    database_connection,
+)
 from backend.services import auth
 
 logger = logging.getLogger("crx.request")
@@ -175,7 +179,21 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         request.state.role = None
         required = required_role(method, path)
         if required is not None and not self._metrics_token(request, path):
-            principal = await self._principal(request)
+            try:
+                principal = await self._principal(request)
+            except UNREACHABLE_DB_ERRORS:
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        "code": "database_unreachable",
+                        "detail": {
+                            "code": "database_unreachable",
+                            "message": DATABASE_UNREACHABLE_MESSAGE,
+                        },
+                        "request_id": request_id,
+                    },
+                    headers={"X-Request-ID": request_id},
+                )
             if principal is None:
                 return JSONResponse(
                     status_code=401,

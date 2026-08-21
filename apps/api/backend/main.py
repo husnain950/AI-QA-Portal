@@ -7,7 +7,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.database import database_connection
+from backend.database import (
+    DATABASE_UNREACHABLE_MESSAGE,
+    UNREACHABLE_DB_ERRORS,
+    database_connection,
+)
 from backend.middleware.security import SecurityMiddleware
 from backend.routes import (
     ai_fixes,
@@ -84,6 +88,24 @@ app.include_router(v2_review.router, prefix="/api/v2")
 app.include_router(v2_uploads.router, prefix="/api/v2")
 
 app.include_router(uploads.router)
+
+
+def _database_unreachable_response(_request, _exc):
+    """Login (and any other route) must not hang past the browser's 15s abort."""
+    return JSONResponse(
+        status_code=503,
+        content={
+            "code": "database_unreachable",
+            "detail": {
+                "code": "database_unreachable",
+                "message": DATABASE_UNREACHABLE_MESSAGE,
+            },
+        },
+    )
+
+
+for _exc_type in UNREACHABLE_DB_ERRORS:
+    app.add_exception_handler(_exc_type, _database_unreachable_response)
 
 
 @app.get("/health/live")

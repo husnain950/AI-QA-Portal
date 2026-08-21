@@ -3,7 +3,7 @@ import { setCurrentUser } from './reviewer';
 
 export const authApi = {
     async login(email, password) {
-        const user = await api.post('/auth/login', { email, password });
+        const user = await api.post('/auth/login', { email, password }, false, { retry: true });
         return setCurrentUser(user);
     },
 
