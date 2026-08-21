@@ -178,8 +178,7 @@ daily, keeping each snapshot as a 90-day workflow artifact.
 
 It backs up **review state specifically**, because that is the only thing nothing else can rebuild:
 `make push-remote` re-uploads documents but the upload route inserts every row as `pending`, so it
-resets review state. Prefer restoring from a review-state snapshot when you have one; annotations
-they are machine output that a re-sync regenerates.resets each section's `review_status` and carries no annotations. Detector `findings` are omitted —
+resets each section's `review_status` and carries no annotations. Detector `findings` are omitted —
 they are machine output that a re-sync regenerates.
 
 Restoring is not automated: there is no import route yet, so the snapshot preserves the data rather
