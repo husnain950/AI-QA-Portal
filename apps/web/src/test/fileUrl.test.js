@@ -23,11 +23,11 @@ describe('api.getFileUrl', () => {
         expect(api.getFileUrl('pdf/abc.pdf')).toBe('/uploads/pdf/abc.pdf');
     });
 
-    it('falls back to the local API origin in dev', async () => {
+    it('stays same-origin in dev so the Vite proxy can forward /uploads', async () => {
         vi.stubEnv('VITE_STATIC_URL', '');
         vi.stubEnv('DEV', true);
         const api = await loadApi();
-        expect(api.getFileUrl('pdf/abc.pdf')).toBe('http://localhost:8000/uploads/pdf/abc.pdf');
+        expect(api.getFileUrl('pdf/abc.pdf')).toBe('/uploads/pdf/abc.pdf');
     });
 
     it('honours an explicit static origin', async () => {
