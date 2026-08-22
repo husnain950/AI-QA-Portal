@@ -105,8 +105,15 @@ async def test_status_endpoint_describes_every_corpus(client):
     assert body["ordinance_configured"] == ordinance["configured"]
 
 
-async def test_sync_refuses_a_corpus_that_is_not_mounted(client):
-    """Naming the corpus matters: "not mounted" alone does not say which one."""
+async def test_sync_refuses_a_corpus_that_is_not_mounted(client, monkeypatch, tmp_path):
+    """Naming the corpus matters: "not mounted" alone does not say which one.
+
+    The absent mount is pointed at explicitly.  Relying on the host not having
+    one passes in CI and on a machine with no ``CORPUS_RULES``, and fails on
+    exactly the machine that can validate the Rules pipeline -- the one where
+    the corpus IS mounted, which then returns 202 and syncs it.
+    """
+    monkeypatch.setenv("CORPUS_RULES", str(tmp_path / "absent"))
     response = await client.post("/api/corpus/sync", json={"only": ["rules"]})
     assert response.status_code == 400
     assert "Rules pipeline mount not on this host" in response.json()["detail"]
