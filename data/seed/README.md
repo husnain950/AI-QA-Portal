@@ -53,10 +53,17 @@ make push-remote BASE_URL=https://your-portal.code.run
    startup is indistinguishable from a hang. Enqueue one with
    `POST /api/v2/jobs/corpus_sync`, or run `make sync` against the deployment.
 
-`make push-remote` is the fallback when the image has no baked seed: it uploads PDF+JSON
-over HTTP as `source_type=upload` and does **not** write `corpus_sync_state`. The Library
-subtitle then reads `seeded by upload · pipeline mounts not on this host` instead of
-`last sync ok`. That is mount health, not an empty library.
+`make push-remote` is the fallback when the image has no baked seed: it signs in with
+`ADMIN_EMAIL` / `ADMIN_PASSWORD`, then uploads PDF+JSON over HTTP as `source_type=upload`
+and does **not** write `corpus_sync_state`. The Library subtitle then reads
+`seeded by upload · pipeline mounts not on this host` instead of `last sync ok`. That is
+mount health, not an empty library.
+
+```bash
+# On a machine that already has data/corpora/ and a synced local DB:
+make sync
+make push-remote BASE_URL=https://p01--crx-web--m4hljdfnbvqq.code.run
+```
 
 `tools/deploy_coderun.sh` filters `CORPUS_*`, `DATABASE_URL`, and `UPLOAD_DIR` out of
 `--env-file` so local host paths cannot override the image defaults

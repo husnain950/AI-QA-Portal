@@ -594,12 +594,17 @@ const DashboardPage = () => {
                     <EmptyState
                         icon={<FileText size={44} />}
                         title="Corpus is empty"
-                        message="Seed from the configured Ordinance + Acts pipeline output, then review side-by-side. Closed loop: convert → sync → review → export QA → import findings."
+                        message={mountsUnavailable
+                            ? 'This host has no Ordinance/Acts pipeline mounts. From a machine that already has the corpus, run make push-remote BASE_URL=<this portal>, or upload a PDF + JSON pair below.'
+                            : 'Seed from the configured Ordinance + Acts pipeline output, then review side-by-side. Closed loop: convert → sync → review → export QA → import findings.'}
                     >
                         <button
                             className="btn btn-primary"
                             onClick={handleCorpusSync}
                             disabled={syncing || mountsUnavailable}
+                            title={mountsUnavailable
+                                ? 'Pipeline mounts are not on this host — use make push-remote or Upload'
+                                : undefined}
                         >
                             {syncing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
                             <span>Sync corpus now</span>

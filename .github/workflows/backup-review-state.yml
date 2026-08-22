@@ -6,7 +6,9 @@ name: Backup review state
 # `403 Feature disabled for your account` on the current plan -- so this snapshots the
 # review state over the portal's own export endpoint instead.
 #
-# No Northflank token needed: it reads the public portal, not the platform API.
+# No Northflank token needed: it signs into the portal with a reader+ account and
+# exports over HTTPS. Set repository secrets PORTAL_ADMIN_EMAIL / PORTAL_ADMIN_PASSWORD
+# (any account that can GET /api/documents — reader is enough).
 on:
   schedule:
     # 03:17 UTC daily. Off the hour because shared runners queue on the hour.
@@ -28,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BASE_URL: ${{ inputs.base_url || vars.PORTAL_BASE_URL || 'https://p01--crx-web--m4hljdfnbvqq.code.run' }}
+      ADMIN_EMAIL: ${{ secrets.PORTAL_ADMIN_EMAIL }}
+      ADMIN_PASSWORD: ${{ secrets.PORTAL_ADMIN_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 

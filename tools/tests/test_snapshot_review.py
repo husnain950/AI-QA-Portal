@@ -89,6 +89,30 @@ def _make_handler(state: FakePortal) -> type[BaseHTTPRequestHandler]:
 
             self._send(404, {"detail": "no such route"})
 
+        def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+            path = self.path
+            state.hits.append(f"POST {path}")
+            if path == "/api/auth/login":
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length).decode() or "{}")
+                if payload.get("email") == "admin@crx.test" and payload.get("password") == "x" * 12:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header(
+                        "Set-Cookie",
+                        f"{snapshot_review.SESSION_COOKIE}=test-token; Path=/; HttpOnly",
+                    )
+                    body = json.dumps(
+                        {"email": "admin@crx.test", "role": "admin", "display_name": "Admin"}
+                    ).encode()
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                self._send(401, {"detail": "bad credentials"})
+                return
+            self._send(404, {"detail": "no such route"})
+
     return Handler
 
 
@@ -96,6 +120,8 @@ def _make_handler(state: FakePortal) -> type[BaseHTTPRequestHandler]:
 def _no_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
     """Retries are real; their sleeps are not worth the wall clock."""
     monkeypatch.setattr(snapshot_review.time, "sleep", lambda _seconds: None)
+    # Existing tests call snapshot() directly; clear any leftover opener from main().
+    snapshot_review._OPENER = None
 
 
 def read_snapshot(path):
@@ -133,3 +159,32 @@ def test_an_empty_corpus_refuses_to_overwrite_a_good_snapshot(tmp_path):
             snapshot(portal.url, tmp_path)
 
     assert list(tmp_path.iterdir()) == []
+
+
+def test_main_requires_credentials(monkeypatch):
+    monkeypatch.delenv("ADMIN_EMAIL", raising=False)
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+    with pytest.raises(SystemExit, match="ADMIN_EMAIL"):
+        snapshot_review.main(["--base-url", "https://portal.example", "--out", "/tmp"])
+
+
+def test_main_signs_in_then_snapshots(tmp_path):
+    documents = [{"id": "a", "name": "Act A"}]
+    with FakePortal(documents) as portal:
+        code = snapshot_review.main(
+            [
+                "--base-url",
+                portal.url,
+                "--out",
+                str(tmp_path),
+                "--email",
+                "admin@crx.test",
+                "--password",
+                "x" * 12,
+            ]
+        )
+        assert "POST /api/auth/login" in portal.hits
+    assert code == 0
+    written = read_snapshot(next(tmp_path.glob("review-snapshot-*.json")))
+    assert written["document_count"] == 1
+    assert written["documents"][0]["name"] == "Act A"

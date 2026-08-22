@@ -23,7 +23,9 @@ one-click restore. Writing the importer is a separate job; having the JSON is wh
 makes it possible at all.
 
 Only the standard library is used, matching `northflank_deploy.py`, so CI needs
-nothing but the interpreter.
+nothing but the interpreter. Sign-in uses ``ADMIN_EMAIL`` / ``ADMIN_PASSWORD``
+(or ``--email`` / ``--password``) because every document endpoint requires a
+session after the auth migration.
 
 Usage:
     python tools/snapshot_review.py --base-url https://your-portal.example.com
@@ -34,7 +36,9 @@ from __future__ import annotations
 
 import argparse
 import http.client
+import http.cookiejar
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -42,11 +46,15 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUT = REPO_ROOT / "data" / "backups"
 TIMEOUT = 120
 MAX_ATTEMPTS = 4
+# Must match backend.services.auth.SESSION_COOKIE — kept as a literal so this
+# tool stays stdlib-only for the GitHub Actions runner.
+SESSION_COOKIE = "crx_session"
 
 # The API runs one uvicorn worker on a small compute plan. Under that starvation it both
 # 502s and truncates responses mid-stream (IncompleteRead), so a single-shot fetch loses
@@ -59,9 +67,50 @@ TRANSIENT = (
     ConnectionError,
 )
 
+_OPENER: urllib.request.OpenerDirector | None = None
+
 
 class SnapshotError(RuntimeError):
     """A document could not be fetched after retries."""
+
+
+def build_opener() -> urllib.request.OpenerDirector:
+    return urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
+    )
+
+
+def login(base_url: str, email: str, password: str, opener: urllib.request.OpenerDirector) -> dict[str, Any]:
+    payload = json.dumps({"email": email, "password": password}).encode()
+    request = urllib.request.Request(
+        f"{base_url.rstrip('/')}/api/auth/login",
+        data=payload,
+        method="POST",
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+    )
+    try:
+        with opener.open(request, timeout=TIMEOUT) as response:
+            body = json.load(response)
+    except urllib.error.HTTPError as error:
+        detail = error.read()[:300]
+        raise SystemExit(
+            f"error: login failed ({error.code}): {detail!r}. "
+            f"Set ADMIN_EMAIL / ADMIN_PASSWORD (or --email / --password)."
+        ) from error
+    jar = next(
+        (
+            handler.cookiejar
+            for handler in opener.handlers
+            if isinstance(handler, urllib.request.HTTPCookieProcessor)
+        ),
+        None,
+    )
+    names = {cookie.name for cookie in jar} if jar is not None else set()
+    if SESSION_COOKIE not in names:
+        raise SystemExit(
+            f"error: login succeeded but no {SESSION_COOKIE!r} cookie was set"
+        )
+    return body
 
 
 def fetch_json(url: str) -> object:
@@ -69,8 +118,20 @@ def fetch_json(url: str) -> object:
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             request = urllib.request.Request(url, headers={"Accept": "application/json"})
-            with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+            if _OPENER is not None:
+                response_cm = _OPENER.open(request, timeout=TIMEOUT)
+            else:
+                response_cm = urllib.request.urlopen(request, timeout=TIMEOUT)
+            with response_cm as response:
                 return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            # Auth failures are not transient — do not burn the retry budget.
+            if exc.code in {401, 403}:
+                detail = exc.read()[:200]
+                raise SnapshotError(f"HTTP {exc.code}: {detail!r}") from exc
+            last = exc
+            if attempt < MAX_ATTEMPTS:
+                time.sleep(2**attempt)
         except TRANSIENT as exc:
             last = exc
             if attempt < MAX_ATTEMPTS:
@@ -133,6 +194,7 @@ def snapshot(base_url: str, out_dir: Path) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
+    global _OPENER
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -142,7 +204,27 @@ def main(argv: list[str] | None = None) -> int:
         default=str(DEFAULT_OUT),
         help=f"Directory to write the snapshot into (default {DEFAULT_OUT})",
     )
+    parser.add_argument(
+        "--email",
+        default=os.environ.get("ADMIN_EMAIL", ""),
+        help="account email (default: ADMIN_EMAIL); reader role is enough",
+    )
+    parser.add_argument(
+        "--password",
+        default=os.environ.get("ADMIN_PASSWORD", ""),
+        help="account password (default: ADMIN_PASSWORD)",
+    )
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+
+    if not args.email or not args.password:
+        raise SystemExit(
+            "error: ADMIN_EMAIL and ADMIN_PASSWORD (or --email / --password) "
+            "are required; document endpoints need a session"
+        )
+
+    _OPENER = build_opener()
+    user = login(args.base_url, args.email, args.password, _OPENER)
+    print(f"signed in as {user.get('email')} ({user.get('role')})", flush=True)
 
     snapshot(args.base_url, Path(args.out))
     return 0

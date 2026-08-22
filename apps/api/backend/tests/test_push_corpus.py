@@ -120,3 +120,49 @@ def test_plan_refresh_splits_by_content_hash(tmp_path):
     assert not any(item[2] == "Identical Act" for item in to_refresh), (
         "matching content hash must not cost a new version"
     )
+
+
+def test_libpq_url_strips_sqlalchemy_driver():
+    assert push_corpus.libpq_url("postgresql+psycopg://crx:crx@127.0.0.1:5432/crx") == (
+        "postgresql://crx:crx@127.0.0.1:5432/crx"
+    )
+    assert push_corpus.libpq_url("postgresql://crx:crx@127.0.0.1:5432/crx") == (
+        "postgresql://crx:crx@127.0.0.1:5432/crx"
+    )
+
+
+def test_login_rejects_non_admin(monkeypatch):
+    """replace-json is admin-gated; a reviewer session must not proceed."""
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"email":"r@example.com","role":"reviewer"}'
+
+    class FakeOpener:
+        handlers = []
+
+        def open(self, request, timeout=0):
+            return FakeResponse()
+
+    try:
+        push_corpus.login("https://portal.example", "r@example.com", "x" * 12, FakeOpener())
+        assert False, "expected SystemExit"
+    except SystemExit as exc:
+        assert "admin" in str(exc)
+
+
+def test_main_requires_credentials_for_live_push(monkeypatch):
+    monkeypatch.delenv("ADMIN_EMAIL", raising=False)
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+    monkeypatch.setattr(push_corpus, "local_documents", lambda: [])
+    try:
+        push_corpus.main(["--base-url", "https://portal.example"])
+        assert False, "expected SystemExit"
+    except SystemExit as exc:
+        assert "ADMIN_EMAIL" in str(exc)
