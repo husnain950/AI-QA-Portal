@@ -1,4 +1,4 @@
-.PHONY: up down build sync seed seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backup-remote backfill-provenance
+.PHONY: up down build sync seed seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts convert-rules export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backup-remote backfill-provenance
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ifneq (,$(wildcard $(ROOT)/.venv/bin/python))
@@ -54,6 +54,10 @@ convert-ordinance:
 convert-acts:
 	@test -n "$(PDF)" || (echo "Usage: make convert-acts PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
 	$(PYTHON) tools/convert_acts.py "$(PDF)" $(if $(OUT),-o "$(OUT)",)
+
+convert-rules:
+	@test -n "$(PDF)" || (echo "Usage: make convert-rules PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
+	$(PYTHON) tools/convert_rules.py "$(PDF)" $(if $(OUT),-o "$(OUT)",)
 
 export-qa:
 	@test -n "$(DOC)" || (echo "Usage: make export-qa DOC=<document_id> [OUT=report.json]"; exit 1)
