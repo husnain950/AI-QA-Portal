@@ -233,7 +233,12 @@ def inv_no_year_marker_refs(doc):
 
 # a split ordinal ("30 th June", "1 st day") or a stray leading suffix line --
 # both mean the superscript ordinal was not re-attached to its number
-_SPLIT_ORDINAL = re.compile(r"\b\d+ (st|nd|rd|th)\b")
+# The negative lookahead keeps the PTCL law-report citation out of this.
+# "reported as PTCL 2008 st.1882" (Sales Tax Rules 2006, both editions) is
+# a volume/page reference -- "st" abbreviates Sales Tax -- not "2008th",
+# and the source prints it in exactly the shape a split ordinal takes.  A
+# real ordinal suffix is never followed by a period and a page number.
+_SPLIT_ORDINAL = re.compile(r"\b\d+ (st|nd|rd|th)\b(?!\s*\.\s*\d)")
 _LEAD_ORDINAL = re.compile(r"^(st|nd|rd|th)\b")
 
 
@@ -1029,23 +1034,37 @@ _CHAPTER_NUM_RE = re.compile(r"^CHAPTER\s+([IVXLC]+)(?:[\s\-]*([A-Z]{1,3}))?$",
 
 
 def _chapter_numeral_value(code):
-    """Sortable value of a chapter code ("CHAPTER XVI-A" -> 16.1), or None.
+    """Sortable key of a chapter code ("CHAPTER XVI-A" -> (16, "A")), or None.
 
     A letter-suffixed chapter is an INSERTED one and sorts just after its base
     ("CHAPTER XVI" < "CHAPTER XVI-A" < "CHAPTER XVII"), which is the order the
     statute prints them in.
+
+    The suffix ranks LEXICOGRAPHICALLY, as a tuple member rather than as a
+    fraction added to the numeral.  Summing its letters (the previous rule, "AA"
+    -> 0.02) is not an order at all once a chapter runs past a single letter:
+    Sales Tax Rules 2006 inserts XIV-A, XIV-AA, XIV-AB, XIV-AC, XIV-AD, XIV-B,
+    XIV-BA, XIV-BB, XIV-C and XIV-D, where the sum makes "B" (2) collide with
+    "AA" (1+1), "BA" (3) with "AB", and "BB" (4) with "AC" -- so the real
+    printed order reads as a numeral going backwards.  "" < "A" < "AA" < "AD" <
+    "B" < "BA" < "C" is exactly Python's string order, so the tuple IS the rule.
     """
     m = _CHAPTER_NUM_RE.match((code or "").strip())
     if not m:
         return None
-    num, total, prev = 0, 0, 0
+    total, prev = 0, 0
     for ch in reversed(m.group(1).upper()):
         v = _ROMAN_VALUES[ch]
         total += v if v >= prev else -v
         prev = max(prev, v)
-    num = total
-    suffix = m.group(2) or ""
-    return num + sum(ord(c) - 64 for c in suffix.upper()) / 100.0
+    return (total, (m.group(2) or "").upper())
+
+
+def _first_printed_page(node):
+    """Lowest printed page of any leaf under a node, or None if it carries none."""
+    pages = [p for leaf in _iter_leaves(node)
+             if isinstance(p := leaf.get("page_number"), int)]
+    return min(pages) if pages else None
 
 
 def inv_structure_counts(doc):
@@ -1074,10 +1093,30 @@ def inv_structure_counts(doc):
     n_chapters = len(doc.get("chapters") or [])
     if n_chapters < 1:
         bad.append("no chapters in tree")
-    seq = [_chapter_numeral_value(c.get("code")) for c in doc.get("chapters") or []]
-    for a, b in zip(seq, seq[1:]):
-        if a is not None and b is not None and b <= a:
-            bad.append(f"chapter numerals not increasing: {a} then {b}")
+    # Pair each key with its RAW code.  "CHAPTER XIVA" and "CHAPTER XIV-A" are
+    # two different chapters of Sales Tax Rules 2006 -- the first omitted, the
+    # second the monitoring chapter -- and the dash is the only thing telling
+    # them apart, so they share a key.  Distinct codes at the same key are the
+    # source's own spelling, not a misparse; only a STRICT decrease, or the same
+    # code printed twice, means the tree assembled out of order.
+    seq = [(_chapter_numeral_value(c.get("code")), (c.get("code") or "").strip(),
+            _first_printed_page(c))
+           for c in doc.get("chapters") or []]
+    for (a, a_code, a_pg), (b, b_code, b_pg) in zip(seq, seq[1:]):
+        if a is None or b is None:
+            continue
+        if not (b < a or (b == a and b_code == a_code)):
+            continue
+        # A numeral that goes backwards WHILE the printed pages go forwards is
+        # the statute's own doing, not a misparse.  Sales Tax Rules 2006 prints
+        # CHAPTER VIA (p66), VIB (p68) and then VIAB (p70): VIAB was inserted
+        # after VIB and placed after it, so "AB" < "B" reads as a decrease while
+        # the document is in perfect order.  What this invariant is really for --
+        # a chapter row misparsed, or the tree assembled out of order -- moves the
+        # PAGES backwards too, and is still caught below.
+        if a_pg is not None and b_pg is not None and b_pg > a_pg:
+            continue
+        bad.append(f"chapter numerals not increasing: {a_code} then {b_code}")
     if md.get("chapters_count", -1) != n_chapters:
         bad.append(f"metadata chapters_count {md.get('chapters_count')} != "
                    f"chapters in tree {n_chapters}")
@@ -1509,7 +1548,22 @@ def inv_no_footnote_note_in_body(doc):
     edit-verb note line ("Inserted by the Finance Act ...", "The word ...
     substituted") -- footnote apparatus that belongs in the footnotes[] array,
     not mid-section.  Guards the RC-1 class (2018-2020 editions leaked 25-71
-    such blocks each) document-wide."""
+    such blocks each) document-wide.
+
+    A document zoned ``"none"`` is exempt.  There, calibration could not tell
+    body text from footnote text at all (Sales Tax Rules 2006 01-01-2025 sets
+    both at 12.0/11.0pt, inside ``SIZE_GAP_MIN``), so the pipeline DELIBERATELY
+    reads every page as body and produces no footnotes -- which
+    ``zone_mode_none_has_no_footnotes`` asserts.  Notes 245/337/338 sitting in
+    150ZEB and 150ZQZP are that decision working as designed, not a leak out of
+    a footnote array that was never built, and flagging them here would demand
+    the exact body/footnote split the calibrator just declined to guess at.
+    ``no_footnote_text_in_body`` is the check that still applies to those
+    documents, and it passes.
+    """
+    cal = ((doc.get("metadata") or {}).get("calibration") or {})
+    if cal.get("zone_mode") == "none":
+        return []
     bad = []
     for leaf in iter_all_leaves(doc):
         lines = (leaf.get("plain_text", "") or "").split("\n")

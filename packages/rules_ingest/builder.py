@@ -1831,6 +1831,12 @@ def is_structural_boundary(text: str) -> bool:
 #: an em/en dash sitting BETWEEN two word characters ("customs–ports") -- a
 #: compound separator, not a heading terminator (see _words_after_heading_dash)
 _INTERIOR_DASH_RE = re.compile(r"[A-Za-z0-9][—–―─][A-Za-z0-9]")
+#: A run of 1-3 ASCII hyphens, and the same run closing a title ("period. --").
+#: The heading terminator is not always a single hyphen: Federal Excise Rules
+#: prints "78. Extension of time and period. -- Where any rule ..." with a
+#: DOUBLE hyphen, as the three tokens `period.` `--` `Where`.
+_DASH_RUN_RE = re.compile(r"-{1,3}")
+_DOT_DASH_RUN_RE = re.compile(r"[.,]-{1,3}")
 
 # A token that is only the section code plus a trailing dash ("227D.-", "[236C.-"),
 # i.e. inserted-code decoration -- NOT the "<title>.-" heading terminator.
@@ -1858,10 +1864,17 @@ def _words_after_heading_dash(words, allow_first=False):
     for i, w in enumerate(words):
         t = w.text
         em = ("—" in t or "–" in t or "―" in t or "─" in t)
+        run = _DASH_RUN_RE.match(t)
+        run_len = len(run.group(0)) if run else 0
+        # Every hyphen test below reads a RUN, not a single "-".  With a
+        # single-hyphen test, Federal Excise Rules 78 ("...and period. -- Where
+        # any rule specifies any time or") matched nothing on the line: the
+        # heading fell back to the TOC title and the prefix-consumption then
+        # dropped the whole first body line, so "Where any rule specifies any
+        # time or" was missing from the html while staying in plain_text.
         hit = (em
-               or t.endswith(".-") or ".-" in t
-               or t.endswith(",-") or ",-" in t
-               or (t == "-" and prev.rstrip().endswith((".", ",")))
+               or bool(_DOT_DASH_RUN_RE.search(t))
+               or (run_len == len(t) > 0 and prev.rstrip().endswith((".", ",")))
                # ...and the hyphen fused to the first operative word, which a
                # scan sets without the space: PSW 2021 prints `20. Delegation.
                # -The Federal may, ...` as the two tokens `Delegation.` `-The`.
@@ -1869,7 +1882,7 @@ def _words_after_heading_dash(words, allow_first=False):
                # previous token must close the title with "." or "," and what
                # follows the hyphen must open a word, so a wrapped compound
                # ("sub-" / "-section") cannot match.
-               or (len(t) > 1 and t[0] == "-" and t[1].isalpha()
+               or (run_len and len(t) > run_len and t[run_len].isalpha()
                    and prev.rstrip().endswith((".", ","))))
         # An en/em dash INSIDE a word is a compound separator, never the heading
         # terminator: the pre-2012 editions print s.9 as "Declaration of
@@ -1901,6 +1914,13 @@ def _words_after_heading_dash(words, allow_first=False):
                     head_suffix = t[: p + len(pat)]
                     oper_suffix = t[p + len(pat):]
                     break
+            else:
+                # A hyphen RUN carries no pattern above ("--", "--Where").  The
+                # caller only accepts a heading whose rendered text ENDS in a
+                # dash, so the run has to reach the heading side or the split is
+                # discarded and the section falls back to its TOC title.
+                if run_len:
+                    head_suffix, oper_suffix = t[:run_len], t[run_len:]
             before = list(words[:i])
             if head_suffix:
                 before.append(replace(w, text=head_suffix))

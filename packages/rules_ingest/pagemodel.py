@@ -483,6 +483,72 @@ def _is_number_continuation(at: str, bt: str) -> bool:
     return at.isdigit() and bool(_NUM_FRAG_RE.fullmatch(bt))
 
 
+def _reattach_raised_ordinals(raw_words: list) -> list:
+    """Re-attach an ordinal suffix that sorted onto a NEIGHBOURING line.
+
+    ``_merge_split_words`` compares STREAM-consecutive words, which is enough
+    while the suffix stays next to its number.  It is not enough here.  Sales
+    Tax Special Procedures 05.03.2015 p15 raises the "th" of "24th March" by
+    3.48pt and draws it at FULL body size (8.04pt, not a reduced 5.04pt
+    superscript).  Above pdfplumber's y-tolerance that raise makes the suffix
+    its own line, so the stream order runs ``... '16.', 'th', 'Substituted'
+    ...`` -- the "th" lands next to the footnote MARKER, 253pt away from the
+    "24" it belongs to, and no stream-order rule can reach it.  The note then
+    read "dated 24 March" and the orphan became a bare footnote continuation
+    of its own ("14.^cont" = the single word "th").
+
+    Position says what the stream cannot: the suffix's x0 (347.35) meets the
+    number's x1 (347.38) to within 0.03pt, and their vertical boxes overlap.
+    So this matches on geometry -- touching horizontally, overlapping
+    vertically, and RAISED -- and leaves everything else to the caller.
+
+    The raise requirement is what keeps a same-baseline "21 st" apart from a
+    genuine superscript: FE 10.07.2014 p55 prints that one at dtop 0.00 with a
+    real space glyph, and is rejected here on both counts.
+    """
+    nums = [w for w in raw_words if w["text"][-1:].isdigit()]
+    if not nums:
+        return raw_words
+    dropped = set()
+    for b in raw_words:
+        if not _ORDINAL_RE.match(b["text"]) or b.get("_space_before"):
+            continue
+        b_x0, b_top = float(b["x0"]), float(b["top"])
+        b_bot = float(b.get("bottom", b_top))
+        best = None
+        for a in nums:
+            if a is b or id(a) in dropped:
+                continue
+            a_top = float(a["top"])
+            a_bot = float(a.get("bottom", a_top))
+            # touching horizontally, overlapping vertically, superscripted
+            if abs(float(a["x1"]) - b_x0) > 1.5:
+                continue
+            # Superscript by SIZE or by RAISE -- the same disjunction the
+            # stream-order rule uses, because the corpus prints both.  Sales Tax
+            # Rules 2006 30-06-2025 p40 sets the table's "18th"/"21st" at
+            # 6.48pt against 9.96pt body but lifts them only 0.75pt, so a raise
+            # test alone misses them; STSP 05.03.2015 p15 lifts "24th" 3.48pt at
+            # full 8.04pt size, so a size test alone misses that one.
+            if not (float(b["size"]) < float(a["size"]) - 0.5
+                    or b_top < a_top - 1.0):
+                continue
+            overlap = min(a_bot, b_bot) - max(a_top, b_top)
+            if overlap <= 0 or overlap < 0.5 * max(1e-6, b_bot - b_top):
+                continue
+            best = a
+            break
+        if best is not None:
+            best["text"] = best["text"] + b["text"]
+            best["x1"] = b["x1"]
+            best["_last_size"] = float(b["size"])
+            best["_last_top"] = float(b["top"])
+            dropped.add(id(b))
+    if not dropped:
+        return raw_words
+    return [w for w in raw_words if id(w) not in dropped]
+
+
 def _merge_split_words(raw_words: list) -> list:
     """Re-join word fragments that pdfplumber splits apart.
 
@@ -521,11 +587,24 @@ def _merge_split_words(raw_words: list) -> list:
                     and (_is_number_continuation(at, bt)
                          or (not _is_bare_marker_token(at)
                              and not _is_bare_marker_token(bt))))
+            # The Rules corpus raises its ordinal superscripts higher, and sets
+            # them looser, than the Acts corpus these bounds were measured on.
+            # Sales Tax Special Procedures 05.03.2015 draws them at dtop 3.34-5.69
+            # (body 8.04pt, suffix 3.96-6.48pt) and one at gap 2.22 -- 19 ordinals
+            # on 12 pages fell outside `dtop <= 2.5` / `gap <= 1.0`, and because a
+            # raised "th" that misses this merge drags onto a NEIGHBOURING line it
+            # did not merely read "11 th": it left a bare "th" as its own footnote
+            # continuation (14.^cont) and stripped the suffix off "w.e.f. 1 st day".
+            # What actually separates a superscript from a same-size "21 st" typo
+            # is the size drop and the absence of a space GLYPH, both required
+            # below and both unchanged -- FE 10.07.2014 p55 ("21 st June", equal
+            # 8.04pt, dtop 0.00, a real space) and the "PTCL 2008 St. 1872"
+            # citations are still rejected on those two tests, not on geometry.
             ordinal = (bool(_ORDINAL_RE.match(bt))
                        and float(b["size"]) < a_size - 0.5
                        and at[-1:].isdigit()
                        and not b.get("_space_before")
-                       and -1.0 <= gap <= 1.0 and dtop <= 2.5)
+                       and -1.0 <= gap <= 2.5 and dtop <= 6.0)
             if kern or ordinal:
                 # a leading punctuation-only fragment ("(") can be drawn from a
                 # bold font subset while the token's real glyphs are regular:
@@ -778,6 +857,7 @@ def build_page_model(page, index: int, cal, pdf_path: str | None = None,
             extra_attrs=["size", "fontname"],
         )
         _mark_space_before(raw_words, page)
+    raw_words = _reattach_raised_ordinals(raw_words)
     raw_words = _merge_split_words(raw_words)
     words = [
         Word(

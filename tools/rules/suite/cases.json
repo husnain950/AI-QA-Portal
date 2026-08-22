@@ -1,4 +1,85 @@
 {
-  "_comment": "Data-driven regression cases for the FBR Acts corpus. status: 'active' = must pass; 'known_gap' = tracked but not counted as a regression; 'needs_review' = subjective QA note. applies_to is a substring of metadata.filename. Add cases with add_test_case.py or by hand.",
-  "cases": []
+  "_comment": "Data-driven regression cases for the FBR Rules corpus. status: 'active' = must pass; 'known_gap' = tracked but not counted as a regression; 'needs_review' = subjective QA note. applies_to is a substring of metadata.filename. Add cases with add_test_case.py or by hand. NOTE: CI cannot run these -- it has no private corpus and tools/run_tests_smoke.py is an import smoke test -- so `python tools/rules/run_tests.py` against data/corpora/rules/ is a required local step before merging a pipeline change.",
+  "cases": [
+    {
+      "id": "fe_r78_double_hyphen_heading_keeps_body",
+      "source": "rules-pipeline",
+      "description": "Rule 78: the heading terminator is a DOUBLE hyphen ('...and period. -- Where any rule ...'). It must split there, so the first body line survives into the html; a single-hyphen-only test dropped 'Where any rule specifies any time or'.",
+      "target": {
+        "kind": "section",
+        "code": "78"
+      },
+      "check": "html_contains",
+      "arg": "Where any rule specifies any time or period",
+      "status": "active",
+      "applies_to": "Federal Excise Rule"
+    },
+    {
+      "id": "stsp_fn25_ordinal_reattached",
+      "source": "rules-pipeline",
+      "description": "Footnote 25.35: 'w.e.f. 1st day of July, 2008' -- the raised ordinal must re-attach. The suffix is a 5.04pt superscript 2.22pt away from its digit, outside the Acts-calibrated gap bound.",
+      "target": {
+        "kind": "section",
+        "code": "39A"
+      },
+      "check": "footnote_not_contains",
+      "arg": "1 st day",
+      "status": "active",
+      "applies_to": "05.03.2015",
+      "ref": "25.35"
+    },
+    {
+      "id": "stsp_fn14_no_orphan_th_continuation",
+      "source": "rules-pipeline",
+      "description": "Footnote 14: the 'th' of '24th March' is drawn at FULL body size, merely raised, and sorts onto the footnote MARKER's line -- it used to survive as a bare '14.^cont' footnote reading only 'th'.",
+      "target": {
+        "kind": "section",
+        "code": "13"
+      },
+      "check": "footnote_contains",
+      "arg": "dated 24th March, 2008",
+      "status": "active",
+      "applies_to": "05.03.2015",
+      "ref": "14.16"
+    },
+    {
+      "id": "str_bracketed_chapters_classify",
+      "source": "rules-pipeline",
+      "description": "Chapter XIV-A is printed '[CHAPTER XIV-A' with the amendment-insertion bracket. 15 of the 40 chapters carry it; anchoring hard on the keyword left them unclassified, their rows glued into the previous section's heading and their rules parented to the wrong chapter.",
+      "target": {
+        "kind": "chapter",
+        "code": "CHAPTER XIV-A"
+      },
+      "check": "chapter_heading_equals",
+      "arg": "MONITORING OR TRACKING OF CERTAIN REGISTERED PERSONS BY ELECTRONIC OR OTHER MEANS",
+      "status": "active",
+      "applies_to": "01-01-2025"
+    },
+    {
+      "id": "str_subchapter_row_not_glued_into_heading",
+      "source": "rules-pipeline",
+      "description": "Rule 150ZQT's heading must not absorb the TOC's 'SUB-CHAPTER 2 126 APPROVAL OF THE VENDOR 126' row. Sales Tax Rules is the only document here with a sub-chapter level; the tree does not model it, so the row is consumed.",
+      "target": {
+        "kind": "section",
+        "code": "150ZQT"
+      },
+      "check": "section_heading_equals",
+      "arg": "Goods to be monitored electronically through video cameras etc",
+      "status": "active",
+      "applies_to": "01-01-2025"
+    },
+    {
+      "id": "customs_2001_is_a_compilation",
+      "source": "rules-pipeline",
+      "description": "KNOWN GAP -- Customs Rules 2001 is not one instrument: 563 pages bind 44 separate S.R.O. rule-sets (Baggage, Auction, Frustrated Cargo, ATA Carnet ...) behind a roman-numeral 'Chapter Contents' index and a MEMORANDUM table. The tree models one instrument, so it comes out as 1 chapter / 62 sections whose codes are the MEMORANDUM's S.No. column. Supporting compilations is a document-class feature, not a parser fix; until then this edition should not be in output/. Tracked by section_codes_ordered (32 failures).",
+      "target": {
+        "kind": "section",
+        "code": "1"
+      },
+      "check": "plain_contains",
+      "arg": "Short title and commencement",
+      "status": "known_gap",
+      "applies_to": "Customs Rules, 2001"
+    }
+  ]
 }

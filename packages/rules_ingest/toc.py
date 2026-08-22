@@ -29,6 +29,7 @@ from .grammar import (  # noqa: F401
     CODE,
     CODE_TOC,
     DIVISION_RE,
+    NUMERAL,
     PAGE_TOC,
     PART_RE,
     SCHEDULE_RE,
@@ -159,6 +160,18 @@ _HDR_TOKEN = (rf"(?:{spaced('SECTION')}S?|{spaced('PAGE')}|{spaced('NO')}\.?"
 TOC_HEADER_LINE_RE = re.compile(rf"^\s*{_HDR_TOKEN}(?:\s+{_HDR_TOKEN})*\s*$",
                                 re.IGNORECASE)
 TOC_HEADER_TAIL_RE = re.compile(rf"(?:\s+{_HDR_TOKEN})+\s*$", re.IGNORECASE)
+
+# A SUB-CHAPTER row.  Sales Tax Rules 2006 subdivides three of its chapters
+# ("SUB-CHAPTER 2 LICENSING ..... 113"), a level no other corpus in this
+# pipeline has and one the document tree does not model -- six tree walkers
+# hardcode chapter/part/division/section as the child keys.  Modelling it is a
+# much larger change than the defect warrants, so the row is CONSUMED instead:
+# recognising it stops it falling through to heading-continuation, which is
+# what glued "SUB-CHAPTER 2 126 APPROVAL OF THE VENDOR 126" onto rule 150ZQT's
+# title.  The sections keep their real parent, the enclosing chapter.
+SUBCHAPTER_TOC_RE = re.compile(
+    rf"^\s*\[?\s*SUB[\s\-]*{spaced('CHAPTER')}[\s\-]+(?:{NUMERAL})\b.*$",
+    re.IGNORECASE)
 # A part row may carry its printed page inline ("Part IIB 503" -- First
 # Schedule) exactly like the division rows below; without the optional page
 # group it fails to classify and its text (and the following part's title) get
@@ -593,6 +606,12 @@ def parse_toc(lines: list[str]):
             else:
                 pending_heading_for.heading = _join_heading(
                     pending_heading_for.heading, txt)
+            continue
+
+        # ---- sub-chapter row: consume, never glue ------------------------
+        if SUBCHAPTER_TOC_RE.match(line):
+            pending_heading_for = None
+            last_section = None
             continue
 
         # ---- wrapped section heading continuation ------------------------

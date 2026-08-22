@@ -294,8 +294,16 @@ NUMERAL = rf"(?:{ROMAN}|\d{{1,3}}[A-Z]{{0,3}})"
 #:     Preliminary 5" where the other acts put the title on the next line.  Only
 #:     the long dashes separate a title: a HYPHEN is the numeral's own suffix
 #:     separator ("CHAPTER XVI-A"), so admitting it would split that numeral.
+#:   * an optional leading INSERTION BRACKET.  A chapter added by amendment is
+#:     printed "[CHAPTER XIV-A" (and once "[ CHAPTER XV"), the same square
+#:     bracket the amendment markers use.  Anchoring hard on the keyword left 15
+#:     of the 39 chapters in Sales Tax Rules 2006 01-01-2025 unclassified -- XII,
+#:     XIVA, XIV-A, XIV-AA, XIV-AB, XIV-AD, XIV-B, XIV-BA, XIV-BB, XIV-C, XIV-D,
+#:     XV, V-A, VIIA and VIII-A -- so their rows fell through to
+#:     heading-continuation and glued themselves onto the preceding section's
+#:     title, and the sections under them were parented to the wrong chapter.
 CHAPTER_RE = re.compile(
-    rf"^\s*{spaced('CHAPTER')}[\s\-]+({NUMERAL})"
+    rf"^\s*\[?\s*{spaced('CHAPTER')}[\s\-]+({NUMERAL})"
     rf"(?:\s*[–—]\s*(?P<title>\S.*?))?"
     rf"(?:\s+{PAGE_TOC})?\s*$",
     re.IGNORECASE)
