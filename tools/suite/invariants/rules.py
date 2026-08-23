@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import re
 
-from .loader import (
+from ..loader import (
+    _iter_leaves,
     html_fragments,
     iter_all_leaves,
     iter_schedule_leaves,
@@ -191,7 +192,7 @@ def _ref_key(ref: str):
     unsorted, because it has no place for the letter suffix the Customs Act
     prints (33a, 36b, 36c) -- the ordering was right and the invariant wrong.
     """
-    from acts_ingest.footnotes import ref_sort_key
+    from rules_ingest.footnotes import ref_sort_key
     return ref_sort_key(ref)
 
 
@@ -220,7 +221,7 @@ def inv_no_year_marker_refs(doc):
     digits; the Customs Act runs past 130 and Sales Tax into the 800s, so that
     rule flagged 57 perfectly good markers here (and, in the parser, would have
     discarded them).  See grammar.is_year_like."""
-    from acts_ingest.grammar import is_year_like
+    from rules_ingest.grammar import is_year_like
     bad = []
     for leaf in iter_all_leaves(doc):
         for fn in leaf.get("footnotes", []):
@@ -232,7 +233,12 @@ def inv_no_year_marker_refs(doc):
 
 # a split ordinal ("30 th June", "1 st day") or a stray leading suffix line --
 # both mean the superscript ordinal was not re-attached to its number
-_SPLIT_ORDINAL = re.compile(r"\b\d+ (st|nd|rd|th)\b")
+# The negative lookahead keeps the PTCL law-report citation out of this.
+# "reported as PTCL 2008 st.1882" (Sales Tax Rules 2006, both editions) is
+# a volume/page reference -- "st" abbreviates Sales Tax -- not "2008th",
+# and the source prints it in exactly the shape a split ordinal takes.  A
+# real ordinal suffix is never followed by a period and a page number.
+_SPLIT_ORDINAL = re.compile(r"\b\d+ (st|nd|rd|th)\b(?!\s*\.\s*\d)")
 _LEAD_ORDINAL = re.compile(r"^(st|nd|rd|th)\b")
 
 
@@ -465,7 +471,7 @@ def _is_amendment_instrument(doc) -> bool:
     an invariant is handed.  Amendment instruments score 4.05 (Income Tax 3rd
     Amdt 2016) to 34.49; the consolidated families score 0.09-0.11.
     """
-    from acts_ingest.discover import _AMENDING_RE, AMENDING_DENSITY_MIN
+    from rules_ingest.discover import _AMENDING_RE, AMENDING_DENSITY_MIN
     # The CLAUSE side only.  A Finance Act's amending language lives in its
     # clauses; its schedules are tariff data and carry none, so including them
     # measures how big the tariff annex is rather than what the instrument does.
@@ -1028,23 +1034,37 @@ _CHAPTER_NUM_RE = re.compile(r"^CHAPTER\s+([IVXLC]+)(?:[\s\-]*([A-Z]{1,3}))?$",
 
 
 def _chapter_numeral_value(code):
-    """Sortable value of a chapter code ("CHAPTER XVI-A" -> 16.1), or None.
+    """Sortable key of a chapter code ("CHAPTER XVI-A" -> (16, "A")), or None.
 
     A letter-suffixed chapter is an INSERTED one and sorts just after its base
     ("CHAPTER XVI" < "CHAPTER XVI-A" < "CHAPTER XVII"), which is the order the
     statute prints them in.
+
+    The suffix ranks LEXICOGRAPHICALLY, as a tuple member rather than as a
+    fraction added to the numeral.  Summing its letters (the previous rule, "AA"
+    -> 0.02) is not an order at all once a chapter runs past a single letter:
+    Sales Tax Rules 2006 inserts XIV-A, XIV-AA, XIV-AB, XIV-AC, XIV-AD, XIV-B,
+    XIV-BA, XIV-BB, XIV-C and XIV-D, where the sum makes "B" (2) collide with
+    "AA" (1+1), "BA" (3) with "AB", and "BB" (4) with "AC" -- so the real
+    printed order reads as a numeral going backwards.  "" < "A" < "AA" < "AD" <
+    "B" < "BA" < "C" is exactly Python's string order, so the tuple IS the rule.
     """
     m = _CHAPTER_NUM_RE.match((code or "").strip())
     if not m:
         return None
-    num, total, prev = 0, 0, 0
+    total, prev = 0, 0
     for ch in reversed(m.group(1).upper()):
         v = _ROMAN_VALUES[ch]
         total += v if v >= prev else -v
         prev = max(prev, v)
-    num = total
-    suffix = m.group(2) or ""
-    return num + sum(ord(c) - 64 for c in suffix.upper()) / 100.0
+    return (total, (m.group(2) or "").upper())
+
+
+def _first_printed_page(node):
+    """Lowest printed page of any leaf under a node, or None if it carries none."""
+    pages = [p for leaf in _iter_leaves(node)
+             if isinstance(p := leaf.get("page_number"), int)]
+    return min(pages) if pages else None
 
 
 def inv_structure_counts(doc):
@@ -1073,10 +1093,30 @@ def inv_structure_counts(doc):
     n_chapters = len(doc.get("chapters") or [])
     if n_chapters < 1:
         bad.append("no chapters in tree")
-    seq = [_chapter_numeral_value(c.get("code")) for c in doc.get("chapters") or []]
-    for a, b in zip(seq, seq[1:]):
-        if a is not None and b is not None and b <= a:
-            bad.append(f"chapter numerals not increasing: {a} then {b}")
+    # Pair each key with its RAW code.  "CHAPTER XIVA" and "CHAPTER XIV-A" are
+    # two different chapters of Sales Tax Rules 2006 -- the first omitted, the
+    # second the monitoring chapter -- and the dash is the only thing telling
+    # them apart, so they share a key.  Distinct codes at the same key are the
+    # source's own spelling, not a misparse; only a STRICT decrease, or the same
+    # code printed twice, means the tree assembled out of order.
+    seq = [(_chapter_numeral_value(c.get("code")), (c.get("code") or "").strip(),
+            _first_printed_page(c))
+           for c in doc.get("chapters") or []]
+    for (a, a_code, a_pg), (b, b_code, b_pg) in zip(seq, seq[1:]):
+        if a is None or b is None:
+            continue
+        if not (b < a or (b == a and b_code == a_code)):
+            continue
+        # A numeral that goes backwards WHILE the printed pages go forwards is
+        # the statute's own doing, not a misparse.  Sales Tax Rules 2006 prints
+        # CHAPTER VIA (p66), VIB (p68) and then VIAB (p70): VIAB was inserted
+        # after VIB and placed after it, so "AB" < "B" reads as a decrease while
+        # the document is in perfect order.  What this invariant is really for --
+        # a chapter row misparsed, or the tree assembled out of order -- moves the
+        # PAGES backwards too, and is still caught below.
+        if a_pg is not None and b_pg is not None and b_pg > a_pg:
+            continue
+        bad.append(f"chapter numerals not increasing: {a_code} then {b_code}")
     if md.get("chapters_count", -1) != n_chapters:
         bad.append(f"metadata chapters_count {md.get('chapters_count')} != "
                    f"chapters in tree {n_chapters}")
@@ -1122,25 +1162,62 @@ def inv_structure_counts(doc):
 
 
 def inv_section_codes_ordered(doc):
-    """Chapter-side section codes are non-decreasing in document order.
+    """Rule codes are non-decreasing WITHIN each chapter.
 
-    Section codes advance monotonically through the ordinance (4 < 4A < 4AB
-    < 4B < 5; the sole legitimate repeat is an omitted-then-reinserted code
-    like 236Y, hence non-strict).  A violation means a body line was
-    mistaken for a section start (cross-reference, definitions clause) or
-    the tree was assembled out of order -- both silent-corruption modes of
-    the body-driven discovery fallback and the TOC matcher alike.
+    Codes advance monotonically (4 < 4A < 4AB < 4B < 5; the sole legitimate repeat is
+    an omitted-then-reinserted code, hence non-strict). A violation means a body line
+    was mistaken for a rule start -- a cross-reference, a definitions clause -- or the
+    tree was assembled out of order, both silent-corruption modes.
+
+    Per chapter, not document-wide, which is where this differs from the Acts suite it
+    was seeded from. An amending S.R.O. inserts a whole chapter and numbers its rules
+    to continue from the chapter it amends, so the codes run backwards at the seam
+    while the document is perfectly correct. Measured: the Sales Tax Special Procedures
+    Rules prints 24 (Chapter IV), then 18A/18B/18C (Chapter IVA, "inserted by
+    Notification No. S.R.O. 510(I)/2013"), then 25 (Chapter V). Document-wide
+    monotonicity would call that corruption; it is the statute.
+
+    The protection is not weakened -- codes scrambled inside a chapter still fail, and
+    that is where a mistaken rule start actually shows up.
     """
-    from acts_ingest.discover import code_sort_key
-    bad, prev, prev_code = [], None, None
-    for leaf in iter_section_leaves(doc):
-        code = str(leaf.get("code") or "")
-        key = code_sort_key(code)
-        if prev is not None and key < prev:
-            bad.append(f"section {code!r} out of order after {prev_code!r}")
-        prev, prev_code = key, code
-    return bad
+    from itertools import groupby
 
+    from rules_ingest.discover import code_sort_key
+
+    bad = []
+    for chapter in doc.get("chapters", []):
+        label = str(chapter.get("code") or "").strip() or "(unnamed chapter)"
+        leaves = sorted(
+            _iter_leaves(chapter), key=lambda leaf: (leaf.get("start_page") or 0)
+        )
+        # Walk PAGE GROUPS, comparing each rule against the highest code seen on a
+        # strictly earlier page.
+        #
+        # Not leaf-to-leaf: several rules share a page and their order within it is
+        # not recoverable from the export -- `json_parser._apply_reading_order`
+        # records the same limitation where it sorts the portal's reading order.
+        # Chapter VI prints 35, 36 and 37 all on page 25 and the tree lists them
+        # 36, 37, 35, which leaf-to-leaf reads as corruption and is not.
+        #
+        # This still catches what the check is for: a body line mistaken for a rule
+        # start carries a code from earlier in the chapter, so it fails against the
+        # earlier-page maximum whichever page it lands on.
+        highest = highest_code = None
+        for page, group in groupby(leaves, key=lambda leaf: leaf.get("start_page") or 0):
+            page_keys = []
+            for leaf in group:
+                code = str(leaf.get("code") or "")
+                key = code_sort_key(code)
+                if highest is not None and key < highest:
+                    bad.append(
+                        f"{label}: rule {code!r} on page {page} comes after "
+                        f"{highest_code!r} on an earlier page"
+                    )
+                page_keys.append((key, code))
+            for key, code in page_keys:
+                if highest is None or key > highest:
+                    highest, highest_code = key, code
+    return bad
 
 def inv_toc_first_chapter_parse(_doc):
     """Pure-function pin on the TOC column-header sanitizer.
@@ -1151,7 +1228,7 @@ def inv_toc_first_chapter_parse(_doc):
     sanitizer or the Roman-numeral normalisation fails every suite run,
     independent of which JSON is under test.
     """
-    from acts_ingest.toc import parse_toc
+    from rules_ingest.toc import parse_toc
     layouts = {
         "merged-headers (30.06.2024)": [
             "TABLE OF CONTENTS",
@@ -1206,7 +1283,7 @@ def inv_toc_schedule_regexes(_doc):
       * a Division letter suffix printed with a space ("Division III A") keeps
         that spaced code instead of collapsing onto a "Division III" sibling.
     """
-    from acts_ingest.toc import parse_toc
+    from rules_ingest.toc import parse_toc
     lines = [
         "CHAPTER I",
         "PRELIMINARY",
@@ -1471,7 +1548,22 @@ def inv_no_footnote_note_in_body(doc):
     edit-verb note line ("Inserted by the Finance Act ...", "The word ...
     substituted") -- footnote apparatus that belongs in the footnotes[] array,
     not mid-section.  Guards the RC-1 class (2018-2020 editions leaked 25-71
-    such blocks each) document-wide."""
+    such blocks each) document-wide.
+
+    A document zoned ``"none"`` is exempt.  There, calibration could not tell
+    body text from footnote text at all (Sales Tax Rules 2006 01-01-2025 sets
+    both at 12.0/11.0pt, inside ``SIZE_GAP_MIN``), so the pipeline DELIBERATELY
+    reads every page as body and produces no footnotes -- which
+    ``zone_mode_none_has_no_footnotes`` asserts.  Notes 245/337/338 sitting in
+    150ZEB and 150ZQZP are that decision working as designed, not a leak out of
+    a footnote array that was never built, and flagging them here would demand
+    the exact body/footnote split the calibrator just declined to guess at.
+    ``no_footnote_text_in_body`` is the check that still applies to those
+    documents, and it passes.
+    """
+    cal = ((doc.get("metadata") or {}).get("calibration") or {})
+    if cal.get("zone_mode") == "none":
+        return []
     bad = []
     for leaf in iter_all_leaves(doc):
         lines = (leaf.get("plain_text", "") or "").split("\n")
@@ -1635,6 +1727,27 @@ def inv_calibration_sane(doc):
         bad.append(f"implausible page offset {offset}"
                    + (f" (only {support:.0%} of sampled pages agree)"
                       if support is not None else ""))
+    # A SMALL offset can be just as wrong and is not caught by magnitude. Sales Tax
+    # Rules 2006 derived offset 16 with 0% support from folios it could not read
+    # ("(104)"); the real offset is 17, so every "{printed_page}.{n}" footnote ref in
+    # the document would have been off by a page -- plausible, and wrong.
+    #
+    # Only fires when the document DOES print folios: a scan, or a document with no
+    # page numbers at all, reads none and falls back to the front-matter count, which
+    # is a principled default rather than a guess. `page_offset_samples` is what tells
+    # the two apart -- both look like 0% support.
+    samples = cal.get("page_offset_samples")
+    if (
+        offset
+        and samples is not None
+        and samples >= 3
+        and support is not None
+        and support < 0.25
+    ):
+        bad.append(
+            f"page offset {offset} contradicts the folios: {samples} were read and "
+            f"only {support:.0%} agree -- every footnote ref derives from this"
+        )
     if not cal.get("pages_sampled"):
         # ``calibrate`` samples the TEXT LAYER (``_page_lines``), which a wholly
         # scanned document does not have, so it derives nothing and the document
@@ -1817,7 +1930,7 @@ def inv_clause_codes_plausible(doc):
     # and legitimately restarts and jumps.
     if (meta.get("chapters_count") or 0) != 1:
         return []
-    from acts_ingest.discover import code_sort_key
+    from rules_ingest.discover import code_sort_key
 
     # Sections under CHAPTERS only.  iter_all_leaves also walks ``schedules``,
     # whose codes ("SCHEDULE", "TABLE-1") are not clause numbers at all --

@@ -6,7 +6,7 @@ Two tiers, because the two kinds of check need different things:
 * **Self-checks** (``<module>._demo()``) are pure and need no corpus, so they run
   everywhere including CI. They are where the grammars and calibration are pinned --
   the code a new pipeline fork diverges from first.
-* **Regression suites** (``tools/<lane>/run_tests.py``) assert invariants and cases
+* **Regression suites** (``tools/run_suite.py <lane>``) assert invariants and cases
   against converted output under ``data/corpora/<lane>/output/``, which is gitignored
   and absent from CI. Missing corpus is a SKIP, never a failure; a present corpus that
   fails is a hard failure.
@@ -63,25 +63,26 @@ def _self_checks(package: str, errors: list[str]) -> None:
     print(f"OK {package}: {ran} self-check(s) passed")
 
 
-def _regression(runner: str, output: Path, errors: list[str]) -> None:
+def _regression(runner: list[str], output: Path, errors: list[str]) -> None:
+    label = " ".join(runner)
     if not any(output.glob("*.json")):
-        print(f"SKIP {runner}: no converted output under {output}")
+        print(f"SKIP {label}: no converted output under {output}")
         return
     environ = {**os.environ, "PYTHONPATH": os.pathsep.join(
         [str(ROOT / "packages"), os.environ.get("PYTHONPATH", "")]
     ).rstrip(os.pathsep)}
     result = subprocess.run(
-        [sys.executable, str(ROOT / runner)],
+        [sys.executable, str(ROOT / runner[0]), *runner[1:]],
         cwd=ROOT, env=environ, capture_output=True, text=True,
     )
     # the per-edition banner is "########## name ##########", so count LINES
     editions = sum(1 for ln in result.stdout.splitlines()
                    if ln.startswith("##########")) or 1
     if result.returncode == 0:
-        print(f"OK {runner}: {editions} edition(s) pass")
+        print(f"OK {label}: {editions} edition(s) pass")
         return
-    errors.append(f"{runner}: exit {result.returncode}")
-    print(f"FAIL {runner}: exit {result.returncode}")
+    errors.append(f"{label}: exit {result.returncode}")
+    print(f"FAIL {label}: exit {result.returncode}")
     for line in result.stdout.splitlines():
         if "FAIL" in line or "RESULT:" in line:
             print(f"    {line}")
@@ -102,7 +103,7 @@ def main() -> int:
 
     for corpus in CORPORA:
         package = corpus.package
-        runner = f"tools/{corpus.label}/run_tests.py"
+        runner = ["tools/run_suite.py", corpus.label]
         try:
             module = importlib.import_module(package)
             print(f"OK import {package} from {getattr(module, '__file__', '?')}")

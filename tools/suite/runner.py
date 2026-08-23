@@ -1,16 +1,32 @@
-"""Run all global invariants + data-driven cases against a converted JSON."""
+"""Run all global invariants + data-driven cases against a converted JSON.
+
+One copy, parameterised by lane. There used to be three byte-identical copies of this
+file (and of checks.py and loader.py) under tools/<lane>/suite/, because the lane was
+carried by *which* `suite` package sys.path happened to find. The lane now arrives as
+arguments instead: an invariants module and a cases file.
+"""
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
+from types import ModuleType
 
-from . import checks, invariants
+from . import checks
 
-CASES_PATH = os.path.join(os.path.dirname(__file__), "cases.json")
+CASES_DIR = os.path.join(os.path.dirname(__file__), "cases")
 
 
-def run(doc: dict, cases_path: str = CASES_PATH) -> dict:
+def invariants_for(lane: str) -> ModuleType:
+    return importlib.import_module(f"{__package__}.invariants.{lane}")
+
+
+def cases_path_for(lane: str) -> str:
+    return os.path.join(CASES_DIR, f"{lane}.json")
+
+
+def run(doc: dict, invariants: ModuleType, cases_path: str) -> dict:
     results = {"invariants": [], "cases": [], "known_gaps": [], "skipped": []}
 
     # 1) global invariants

@@ -14,7 +14,7 @@ drift: its lane table had two entries long after the Rules corpus shipped, so
 path no matter how it was configured.
 
 What this module still earns its place for is the ``sys.path`` bootstrap below: the
-lane scripts are run as ``python tools/<lane>/run_tests.py``, so ``apps/api`` is not
+lane scripts are run as ``python tools/run_suite.py <lane>``, so ``apps/api`` is not
 importable until someone puts it there. Doing it once here beats five copies.
 """
 

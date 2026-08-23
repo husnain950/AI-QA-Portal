@@ -121,13 +121,50 @@ against `main`.
 deliberately untouched — its docstring records that the CLI, the API request body and the
 worker payload all speak it, so it is a public contract, not a hardcode to remove.
 
-## Phase 3 — One lane-parameterised suite · not started
-- [ ] `tools/suite/{checks,loader,runner}.py` — one copy (was 3x md5-identical)
-- [ ] `tools/suite/cases/{acts,rules,ordinance}.json`
-- [ ] `invariants/common.py` + thin per-lane modules (acts vs rules differ by 179 of ~2,100 lines)
-- [ ] `tools/run_suite.py <lane>` replaces 3x `run_tests.py`
-- [ ] One suite README (was 3 near-copies, all citing the dead `scripts/` layout)
-- Result: −___ LOC · gate ___
+## Phase 3 — One lane-parameterised suite · **done (invariants split deferred)**
+- [x] `tools/suite/{checks,loader,runner,__init__}.py` — one copy each (was 3× md5-identical)
+- [x] `tools/suite/cases/{acts,rules,ordinance}.json`
+- [x] `tools/suite/invariants/{acts,rules,ordinance}.py` (moved; **not yet split** — see below)
+- [x] `tools/run_suite.py <lane>` replaces 3× `run_tests.py` (differed by 4 lines)
+- [x] One `tools/suite/README.md`; deleted `tools/ordinance/README.md` (4th copy) and the
+      two duplicate suite READMEs
+- [x] Repaired `tools/add_test_case.py` and `tools/import_qa_report.py` — both were dead
+- [x] `run_tests_smoke.py` invokes `run_suite.py <lane>`
+
+**Result: 31 files, −2,550 / +189. Code LOC 83,120 → 81,247 (−1,873).**
+pytest **436** · gate ordinance **12 ✅** acts **80 ✅** rules ❌ · ruff clean
+
+**Rules failure set verified byte-identical to baseline** — same 8 lines, same counts
+(`section_codes_ordered` 32 + 5, `no_jammed_words` 1 + 3 + 1, `no_split_ordinals` 1 + 1,
+`no_orphan_marker_li` 1). The consolidation changed no behaviour.
+
+### Two tools repaired rather than deleted
+
+`add_test_case.py` said `from tests import checks, loader` and `import_qa_report.py` pointed
+`CASES` at a `tests/cases.json` that has never existed in this repo — neither could start.
+They are how a regression case gets added, which is the workflow the suite README documents,
+so they were worth fixing rather than dropping. Both now resolve against `tools/suite/`, and
+`add_test_case.py` takes the lane as an argument instead of hardcoding acts.
+
+### Deferred: the invariants split (~2,000 lines still duplicated)
+
+Measured precisely before deciding:
+
+| | count |
+|---|---|
+| functions identical across all three lanes | 32 |
+| identical acts↔rules only | 20 |
+| differing acts↔rules | 11 (+1 rules-only) |
+| module constants identical across all three | 39 |
+| module constants differing acts↔rules | **1** (`_SPLIT_ORDINAL`) |
+
+So the split is well-defined — but a dependency check showed the 32 "common" functions call
+lane-specific `_ref_key` and `_SPLIT_ORDINAL`, and `ALL_INVARIANTS` fixes every invariant's
+signature to `fn(doc)`, so there is nowhere to pass a lane in. Injecting it needs exactly the
+per-corpus profile Phase 4 introduces. Splitting now would mean inventing a second, parallel
+injection mechanism and then unpicking it — so this moves to **Phase 6b**, immediately after
+the packages are unified. The files are already in their destination directory, so that step
+is purely a content split.
 
 ## Phase 4 — Unify acts+rules behind a profile · not started
 - [ ] 4a: share the 6 docstring-only-diff modules verbatim (~5,036 LOC)

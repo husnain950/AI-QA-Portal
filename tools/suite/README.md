@@ -1,15 +1,17 @@
 # Post-conversion regression tests
 
-> **Vendored.** Copied from the standalone pipeline repository (`CC-FBR/tests/`), which is
-> not part of this monorepo. Paths below are written for that layout; here the runner is
-> [`tools/ordinance/run_tests.py`](../run_tests.py) and the corpus it defaults to is `$CORPUS_ORDINANCE`
-> (`data/corpora/ordinance/`), not `./output/`. The package is imported as `suite`, not
-> `tests`, so it cannot collide with `tools/tests` (the deploy-script tests).
+> **One suite, three lanes.** `checks.py`, `loader.py` and `runner.py` are shared; the
+> per-lane parts are `invariants/<lane>.py` and `cases/<lane>.json`. This began as a
+> vendored copy of a standalone pipeline repository's `tests/`, and was then copied
+> again per lane — three byte-identical cores whose only difference was which `suite`
+> package `sys.path` happened to find first. The lane is an argument now.
 >
-> `python tools/run_tests_smoke.py` runs this suite whenever that corpus is present, and
-> skips it when it is not — which is what CI does, since the corpus is gitignored.
+> The package is imported as `suite`, not `tests`, so it cannot collide with
+> `tools/tests` (the deploy-script tests).
 >
-> Re-syncing from upstream is an `rsync` plus the two edits above; keep it that way.
+> `python tools/run_tests_smoke.py` runs every lane's suite whenever its corpus is
+> present and skips it when it is not — which is what CI does, since the corpora are
+> gitignored.
 
 A safety net so that fixing one extraction issue can't silently break another.
 It runs against a converted JSON and checks both broad invariants and specific,
@@ -22,8 +24,8 @@ For a legally binding text, the worst failure is *silent loss* — a missing `[`
 guards conservation**. Run it after every regeneration:
 
 ```bash
-python scripts/audit_completeness.py            # compares source (page cache) vs output
-python scripts/audit_completeness.py --pdf X.pdf  # or scan the PDF directly
+python tools/<lane>/audit_completeness.py            # compares source (page cache) vs output
+python tools/<lane>/audit_completeness.py --pdf X.pdf  # or scan the PDF directly
 ```
 
 It reconstructs the text the pipeline *saw* (zoned body + footnote words for every
@@ -42,14 +44,14 @@ a *drop in the conservation number* between runs as a regression to investigate.
 Every fix or reported issue gets a locked-in test **in the same change**, so it
 can never silently regress. The rule of thumb:
 
-1. **Reproduce** — inspect the target (`python scripts/add_test_case.py inspect --section N`)
+1. **Reproduce** — inspect the target (`python tools/add_test_case.py inspect <lane> --section N`)
    and confirm what's wrong.
 2. **Fix** the pipeline.
 3. **Lock it** — add an `active` case asserting the corrected behaviour
    (`add_test_case.py add ...`, or by hand in `cases.json`). If the class of bug
    can occur elsewhere, add a **global invariant** instead of / in addition to
    the case (e.g. `no_page_number_bleed`, `no_footnote_text_in_body`).
-4. **Re-run everything** — `python scripts/run_tests.py` must be green before moving on.
+4. **Re-run everything** — `python tools/run_suite.py <lane>` must be green before moving on.
 
 Guidelines:
 - Prefer the **most specific** assertion that still reads as intent (e.g.
@@ -59,7 +61,7 @@ Guidelines:
   A one-off location → a data-driven case.
 - Un-verifiable / subjective items go in as `needs_review` (tracked, non-failing)
   until they can be turned into a real assertion.
-- New QA reports: `python scripts/import_qa_report.py REPORT.json`, then triage the
+- New QA reports: `python tools/import_qa_report.py REPORT.json`, then triage the
   `needs_review` items into `active` as they're addressed.
 
 The suite currently covers, among others: page-number bleed, PUA glyph, printed-
@@ -108,10 +110,10 @@ continuation text, leaving Divisions II/III without their canonical headings
 ## Run
 
 ```bash
-python scripts/run_tests.py                       # test ./output/*.json
-python scripts/run_tests.py path/to/output.json   # test a specific file
-python scripts/run_tests.py --pdf INPUT.pdf       # (re)convert first, then test
-python scripts/run_tests.py --json report.json    # also write a machine-readable report
+python tools/run_suite.py <lane>                       # test ./output/*.json
+python tools/run_suite.py <lane> path/to/output.json   # test a specific file
+python tools/run_suite.py <lane> --pdf INPUT.pdf       # (re)convert first, then test
+python tools/run_suite.py <lane> --json report.json    # also write a machine-readable report
 ```
 
 Exit code is non-zero if any invariant or **active** case fails — drop it into CI
@@ -143,7 +145,7 @@ regression anywhere is caught, not just in the one section originally reported:
 | `no_toc_row_in_heading` | a TOC row ("Division I 533") swallowed into a structural heading |
 | `structure_counts` | 13 chapters, ≥440 sections, ≥14 schedules |
 
-**Data-driven cases** (`tests/cases.json`) pin specific issues. Each case targets
+**Data-driven cases** (`cases/<lane>.json`) pin specific issues. Each case targets
 a section / schedule / footnote and runs one `check`. `status: active` must pass;
 `status: known_gap` is tracked but doesn't fail the build (documents something we
 don't fully match yet, e.g. the ~8% of citations with no resolved footnote text).
@@ -153,9 +155,9 @@ don't fully match yet, e.g. the ~8% of citations with no resolved footnote text)
 When you get a new QA-review export, turn its findings into cases automatically:
 
 ```bash
-python scripts/import_qa_report.py QA_Report.json --dry-run   # preview classification
-python scripts/import_qa_report.py QA_Report.json             # append new cases
-python scripts/run_tests.py                                   # see which are open
+python tools/import_qa_report.py QA_Report.json --dry-run   # preview classification
+python tools/import_qa_report.py QA_Report.json             # append new cases
+python tools/run_suite.py <lane>                                   # see which are open
 ```
 
 Each annotation becomes a case with a **stable id** (hash of section + flagged
@@ -181,16 +183,16 @@ behaviour as a case:
 
 ```bash
 # 1) inspect what a section/schedule currently produces
-python scripts/add_test_case.py inspect --section 4
-python scripts/add_test_case.py inspect --schedule FIFTEENTH
+python tools/add_test_case.py inspect acts --section 4
+python tools/add_test_case.py inspect acts --schedule FIFTEENTH
 
 # 2) log the expectation (it is verified against the current output before saving)
-python scripts/add_test_case.py add --id sec3_no_page_31 --section 3 \
+python tools/add_test_case.py add acts --id sec3_no_page_31 --section 3 \
     --check plain_not_matches --arg "\b31\s*$" \
     --desc "Sec 3: page number 31 must not bleed into text"
 
 # 3) fix the pipeline, then re-run everything
-python scripts/run_tests.py
+python tools/run_suite.py <lane>
 ```
 
 ### check types
@@ -224,13 +226,5 @@ exist under some *chapter* with a heading containing `arg` — pins structural
 headings like Chapter III's "Division II — Deductions: General Principles",
 which the old reference JSON had swallowed into a neighbouring section's body).
 
-Add a new kind of assertion by adding one function to `tests/checks.py` and the
+Add a new kind of assertion by adding one function to `checks.py` and the
 name to its `REGISTRY`.
-
-## Making this a Cowork skill
-
-The `inspect → add → fix → run` loop is exactly a skill-shaped workflow. Skills
-are installed from **Settings → Capabilities** (they can't be registered from a
-chat session). To package this, wrap these two scripts in a `SKILL.md` that tells
-the agent to (1) `inspect` the reported target, (2) `add` a case for the expected
-behaviour, (3) fix the pipeline, (4) `run_tests.py` until green.

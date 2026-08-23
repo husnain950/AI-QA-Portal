@@ -33,20 +33,21 @@ import json
 import os
 import sys
 
-# scripts/ lives one level below the repo root -- make the root importable and
-# anchor all default paths there, so this works from any working directory.
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Make tools/ importable so this works from any working directory. It used to say
+# `from tests import checks, loader`, a package that has not existed since the suite
+# moved to tools/suite/ -- so this script could not even start.
+_ROOT = os.path.dirname(os.path.abspath(__file__))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from corpus_paths import output_dir  # noqa: E402 (sys.path bootstrap above)
-from tests import checks, loader  # noqa: E402 (sys.path bootstrap above)
+# Relies on the sys.path bootstrap above; corpus_paths also adds packages/.
+from corpus_paths import LABELS, get  # noqa: E402
+from suite import checks, loader  # noqa: E402
+from suite.runner import cases_path_for  # noqa: E402
 
-CASES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "suite", "cases.json")
 
-
-def _default_json():
-    hits = sorted(glob.glob(os.path.join(output_dir("acts"), "*.json")))
+def _default_json(lane):
+    hits = sorted(glob.glob(os.path.join(str(get(lane).output_path()), "*.json")))
     return hits[0] if hits else None
 
 
@@ -59,7 +60,7 @@ def _target(args):
 
 
 def cmd_inspect(args):
-    doc = loader.load(args.data or _default_json())
+    doc = loader.load(args.data or _default_json(args.lane))
     tgt = _target(args)
     leaf = loader.find_leaf(doc, tgt["kind"], tgt["code"])
     if leaf is None:
@@ -92,21 +93,22 @@ def cmd_add(args):
         raise SystemExit(f"unknown check {args.check!r}; see --help")
 
     # verify the case runs against the current output before saving
-    data = args.data or _default_json()
+    data = args.data or _default_json(args.lane)
     if data and os.path.exists(data):
         doc = loader.load(data)
         msg = checks.run_case(doc, case)
         status = "PASSES now" if msg is None else f"FAILS now -> {msg}"
         print(f"[check against current output] {status}")
 
-    with open(CASES, encoding="utf-8") as fh:
+    cases = cases_path_for(args.lane)
+    with open(cases, encoding="utf-8") as fh:
         reg = json.load(fh)
     if any(c["id"] == args.id for c in reg["cases"]):
         raise SystemExit(f"case id {args.id!r} already exists")
     reg["cases"].append(case)
-    with open(CASES, "w", encoding="utf-8") as fh:
+    with open(cases, "w", encoding="utf-8") as fh:
         json.dump(reg, fh, ensure_ascii=False, indent=2)
-    print(f"added case {args.id!r} to {CASES}")
+    print(f"added case {args.id!r} to {cases}")
     return 0
 
 
@@ -116,6 +118,8 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def common(p):
+        p.add_argument("lane", choices=LABELS,
+                       help="which corpus's case file to inspect or append to")
         p.add_argument("--section", help="section code, e.g. 4 or 109A")
         p.add_argument("--schedule", help="schedule name fragment, e.g. FIFTEENTH")
         p.add_argument("--data", help="JSON to inspect/verify against (default: output/*.json)")

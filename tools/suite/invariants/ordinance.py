@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 
-from .loader import (
+from ..loader import (
     html_fragments,
     iter_all_leaves,
     iter_schedule_leaves,

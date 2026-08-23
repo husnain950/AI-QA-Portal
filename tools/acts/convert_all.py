@@ -55,7 +55,7 @@ CORPUS = _CORPUS_ACTS.path()
 ACTS = _CORPUS_ACTS.source_path()
 OUT = _CORPUS_ACTS.output_path()
 #: run artifacts and quarantine.  Both are SUBDIRECTORIES of output/ so that the
-#: ``output/*.json`` glob defining the corpus (run_tests.py, audit_all.py) does
+#: ``output/*.json`` glob defining the corpus (run_suite.py, audit_all.py) does
 #: not see them.
 RUN_DIR = OUT / "_run"
 REFUSED = OUT / "_refused"

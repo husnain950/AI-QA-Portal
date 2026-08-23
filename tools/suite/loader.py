@@ -1,7 +1,7 @@
 """Shared helpers for loading a converted JSON and locating nodes within it.
 
 The regression suite runs against an already-generated output JSON (fast).  Use
-``run_tests.py --pdf <PDF>`` to regenerate first, or point it at any JSON.
+``run_suite.py <lane> --pdf <PDF>`` to regenerate first, or point it at any JSON.
 """
 
 from __future__ import annotations

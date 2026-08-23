@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import a QA-review report into the regression case registry (tests/cases.json).
+"""Import a QA-review report into the regression case registry (tools/suite/cases/ordinance.json).
 
 Point it at any QA report JSON (the reviewer export) and it turns each annotation
 into a regression case, so review findings become permanent, re-runnable checks.
@@ -29,13 +29,17 @@ import os
 import re
 import sys
 
-# scripts/ lives one level below the repo root -- make the root importable and
-# anchor all default paths there, so this works from any working directory.
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Make tools/ importable so this works from any working directory. `CASES` used to
+# point at a `tools/suite/cases/ordinance.json` that has never existed in this repo, so every run
+# ended in FileNotFoundError.
+_ROOT = os.path.dirname(os.path.abspath(__file__))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-CASES = os.path.join(_ROOT, "tests", "cases.json")
+from suite.runner import cases_path_for  # noqa: E402
+
+#: This importer reads Ordinance QA reports, so it writes the Ordinance case file.
+CASES = cases_path_for("ordinance")
 
 _REMOVE_HINTS = ("remove", "removed", "should be removed", "there is no",
                  "no need", "there should no", "should no", "is no ")
@@ -81,7 +85,7 @@ def classify(hl: str, desc: str, severity: str) -> dict:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Import a QA report into tests/cases.json")
+    ap = argparse.ArgumentParser(description="Import a QA report into the Ordinance regression cases")
     ap.add_argument("qa_report", help="path to the QA report JSON")
     ap.add_argument("--dry-run", action="store_true", help="print, don't write")
     args = ap.parse_args(argv)
@@ -126,12 +130,12 @@ def main(argv=None) -> int:
         print(f"    + [{c['status']:>12}] {c['id']}  {c['check']}({c['arg'][:24]!r})")
 
     if args.dry_run:
-        print("\n(dry-run: tests/cases.json not modified)")
+        print("\n(dry-run: tools/suite/cases/ordinance.json not modified)")
         return 0
     with open(CASES, "w", encoding="utf-8") as fh:
         json.dump(reg, fh, ensure_ascii=False, indent=2)
     print(f"\nwrote {len(added)} new case(s) to {CASES}")
-    print("next: python run_tests.py   (review 'needs_review' items and promote to 'active')")
+    print("next: python tools/run_suite.py ordinance   (review 'needs_review' items and promote to 'active')")
     return 0
 
 
