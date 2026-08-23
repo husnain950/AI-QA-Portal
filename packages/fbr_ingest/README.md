@@ -1,7 +1,7 @@
 # `fbr_ingest` — the pdfplumber pipeline
 
 The primary PDF → JSON extraction package (MIT-licensed dependency stack).
-Entry point: `python scripts/fbr_pdf_to_json.py <PDF>` from the repository root.
+Entry point: `python tools/convert.py ordinance <PDF>` from the repository root.
 Output schema, design decisions and the full numbered list of QA fixes live in
 the [top-level README](../README.md).
 
@@ -15,5 +15,5 @@ the [top-level README](../README.md).
 | `tables.py` | Detects tables in body/schedule text and renders `<table class="fbr-table">`. |
 | `pipeline.py` | Orchestrates: TOC → calibrate page offset → sanitize misprinted footers → scan body + schedules → assemble → JSON. |
 
-Every behaviour change must keep `python scripts/run_tests.py` green (17 invariants +
+Every behaviour change must keep `python tools/run_suite.py ordinance` green (51 invariants +
 the active cases in `tests/cases.json`).

@@ -380,31 +380,85 @@ place where a mistake corrupts stored review state rather than throwing. Splitti
 is worth doing, but it wants its own change with its own tests rather than being the
 tail end of a nine-phase sweep. Left as debt with the seams already identified.
 
-## Phase 8 — Frontend consolidation · not started
-- [ ] Fix latent `TypeError`: `TriagePage.jsx:69` `setReviewer` (delete obsolete block `:165-179`)
-- [ ] Fix `confirmOnly` ignored by `promptDialog` (stray input on sign-out)
-- [ ] Delete dead: `CopyButton` (via adopting it in `HtmlPanel`), `REVIEW_STATUS_*`,
-      combined `usePdfRenderer`, `onUserChange` no-op, `getRole` re-export
-- [ ] Delete unreachable retry branch `utils/api.js:112-115`
-- [ ] Extract: `ProgressBar` (5 copies), `isTypingTarget` (4 divergent), `DocumentListItem`,
-      metrics row, PDF page canvas, diff classifier, `setStatus`, corpus sync, `useDebounce`
-- [ ] Split `TriagePage` 800 / `DashboardPage` 686 / `ReviewPage` 582 / `Sidebar` 510
-- [ ] **State convergence** (own commit): react-query owns server state, Zustand owns UI only
-- [ ] CSS: dead rules, `.spin` dup, one chip system, trim inline styles
-- [ ] Delete unused assets; set `index.html` title
-- [ ] Enable `react-hooks/exhaustive-deps` last; report findings
-- Result: −___ LOC · web ___ · smoke ___
+## Phase 8 — Frontend consolidation · **done (hook migration deferred)**
+- [x] Fixed latent `TypeError`: `TriagePage` selected `s.setReviewer`, which does not
+      exist — the whole obsolete onboarding block is gone
+- [x] Fixed `confirmOnly` being ignored: sign-out uses `confirmDialog`, so it no longer
+      shows a stray text input
+- [x] Deleted the unreachable retry branch in `utils/api.js`
+- [x] `CopyButton` adopted in `HtmlPanel` — **and its `execCommand` fallback preserved**
+      by moving the robust logic to `utils/clipboard.js` first
+- [x] `<ProgressBar>` — 5 byte-identical copies
+- [x] `isTypingTarget()` — 4 divergent versions across 6 sites (a real bug: shortcuts
+      leaked into `<select>` and contentEditable depending on which copy was watching)
+- [x] `<QualityMetrics>` — the metrics row was written out in full twice
+- [x] `patchSection` / `patchFootnote` / `refreshReviewData` — one cache strategy per
+      write; `reviewStore` 241 → 161 lines, no more cross-store `setState`
+- [x] Deleted dead: combined `usePdfRenderer`, `onUserChange` + its listener Set,
+      `REVIEW_STATUS_TONES`/`_LABELS`, `getRole`, 4 unused assets
+- [x] `index.html` title (was "frontend")
 
-## Phase 9 — Docs, config, CI · not started
-- [ ] `docs/pipeline-readme.md` (350 lines describing a repo layout that no longer exists)
-- [ ] `docs/architecture.md` (no rules lane)
-- [ ] `README.md` (layout, 10-of-27 Make targets, broken `import_qa_report`, non-goals)
-- [ ] `AGENTS.md` (stale package list, "121 tests" → 439, ruff claims)
-- [ ] `.env.example` `SEED_CORPUS_RULES`; `pyproject.toml` `testpaths`; `Makefile check`/`.PHONY`
-- [ ] `ci.yml` duplicated postgres service block
-- [ ] `.gitignore`: `prod-review-snapshot.json/`, `prod-verify.json/`
-- [ ] Northflank naming drift
-- Result: −___ LOC · `actionlint` ___
+**Result (two commits): 32 files, −468 / +375. Code LOC 69,266 → ~69,200.**
+web **134 ✅** lint ✅ build ✅ · pytest **441**
+
+### Deferred: the full react-query migration
+
+`documentStore` is still a Zustand cache wrapping the query cache. Converting its **9
+production consumers** to `useQuery` hooks also means rewriting the mocking strategy of
+the **14 test files** that would have to verify it — the whole review workspace, and the
+tests that prove it works, changing together. That is a standalone piece of work, not the
+last item of a nine-phase sweep.
+
+What *was* the actual defect is fixed: the triple-caching in `updateSectionStatus`, the
+70-line cross-store patching in `updateFootnoteStatus`, the 4-refetch fan-out in
+`toggleAnnotationStatus`, and the duplicate fan-outs in `ReviewToolbar`/`ReviewPage`.
+`TriagePage`'s local mirror of `useInfiniteQuery` also remains — it enables the
+optimistic undo, and moving it to `useMutation` belongs with the same migration.
+
+Also not done: splitting `TriagePage` (800), `DashboardPage` (686), `ReviewPage` (582)
+and `Sidebar` (510). The seams are identified in the plan; the extractions above removed
+~150 lines from them but they are still the four largest files. Deliberately left, for
+the same reason — they are where the hook migration will land.
+
+### A regression I introduced, and fixed
+
+`make seed-fixtures` broke: Phase 2 had `corpus_sync` derive the PDF directory from
+`corpus.source_path()`, which reads `$CORPUS_ACTS`, but that command syncs
+`data/fixtures/acts`. The rule is now `source_within(root)`, a function of the root being
+synced. **Two tests pin it.** Found by running the seed path to get the Playwright smoke
+a portal to drive.
+
+### The Playwright smoke could not gate this
+
+It fails 3/3 on this machine (`pdf_canvas_missing` × 3 plus
+`dashboard_missing_expected_labels`) — **byte-identical before and after**, verified by
+stashing and re-running, so pre-existing here. The 134 web tests and 441 backend tests
+were the gate instead. Worth a look separately: the fixture PDFs are written with a real
+text layer precisely so this check works.
+
+## Phase 9 — Docs, config, CI · **done**
+- [x] `docs/pipeline-readme.md` — replaced the two sections written for the standalone
+      repo with a Then/Now table; every command now names a real path. Kept the
+      QA-issue catalogue, which still describes `fbr_ingest` accurately.
+- [x] `docs/architecture.md` — `legal_ingest` + profiles (done in Phase 4)
+- [x] `README.md` — layout block rewritten; Make-targets table went from **10 of 27** to
+      complete, and every entry is verified to exist; Northflank named as the deploy path;
+      non-goals corrected
+- [x] `AGENTS.md` — "~121 tests" → 441, "~93" → 134, ruff claims corrected, the two-tier
+      gate and the red rules suite documented
+- [x] `packages/fbr_ingest/README.md` — dead `scripts/` entry point, "17 invariants" → 51
+- [x] `.env.example` — the `SEED_CORPUS_*` trio the registry expects and nothing set
+- [x] `pyproject.toml` — `testpaths` now includes `tools/tests`, so a bare `pytest` runs
+      what CI runs (441, not 406)
+- [x] `Makefile` — `test-api` covers `tools/tests` too; `check`'s comment no longer
+      claims to be exactly CI; dropped the unreferenced `seed` alias; `.PHONY` fixed
+- [x] `northflank.template.json` — `fbr-qa-staging` → `qa-pdf-portal`, the project it
+      actually deploys
+- [x] `.gitignore` — the two untracked snapshot dirs (pulled forward to Phase 1)
+
+**Verified:** every `make` target named in the README exists; the tools import chain is
+**stdlib-only** (checked explicitly — CI's pipeline job installs no API deps, and Phase 2
+made `tools/` read the registry from `apps/api`).
 
 ---
 

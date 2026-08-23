@@ -66,19 +66,24 @@ Run the API and web dev servers directly (do NOT rely on `make up`, which uses D
   and upload the report plus screenshots as an artifact.
 
 ### Lint / test / build
-- Backend lint: `.venv/bin/ruff check` (config in `pyproject.toml`). Note: the repo currently
-  has many pre-existing ruff findings — treat existing findings as baseline, not regressions.
+- Backend lint: `.venv/bin/ruff check` (config in `pyproject.toml`). `apps/api` and `tools`
+  are clean and gate merges; `packages/` carries a small advisory backlog (9 findings, all
+  E741/E402/E702 style).
 - Frontend lint: `cd apps/web && npm run lint` (`oxlint --deny-warnings`).
-- Tests: `make test` runs API pytest (`apps/api/backend/tests`, ~121 tests) + pipeline import
-  smoke (`tools/run_tests_smoke.py`) + `apps/web` vite build. The web unit suite is separate:
-  `cd apps/web && npm run test` (vitest, ~93 tests). All pass on a clean setup.
+- Tests: `make test` runs API pytest (`apps/api/backend/tests` + `tools/tests`, ~441 tests)
+  + the pipeline gate (`tools/run_tests_smoke.py`) + `apps/web` vite build. The web unit
+  suite is separate: `cd apps/web && npm run test` (vitest, 134 tests).
+- The pipeline gate has two tiers: package self-checks (`_demo()`) always run, and each
+  lane's regression suite (`tools/run_suite.py <lane>`) runs only when its corpus is
+  staged. Missing corpus is a SKIP; a present one that fails is a hard failure. The
+  **rules** suite is currently red against a staged corpus — see `tasks.md`.
 
 ### CI/CD
 - GitHub Actions runs `.github/workflows/ci.yml` on every PR and push to `main`, then
   `.github/workflows/deploy-northflank.yml` builds and deploys the commit to Northflank via
   `tools/northflank_deploy.py`.
-- The backend ruff step is deliberately `continue-on-error` because of the pre-existing findings
-  described above; only `tools/northflank_deploy.py` and `tools/tests` are lint-gated.
+- The repo-wide ruff step is `continue-on-error` because of the `packages/` backlog; the
+  blocking step lints all of `apps/api` and `tools`.
 - Deploys need `NORTHFLANK_API_TOKEN` as a GitHub Actions repository secret. A token in `.env` is
   only usable for local runs of the script.
 - `python tools/northflank_deploy.py enable-cicd` switches deploys over to Northflank's own CI/CD,

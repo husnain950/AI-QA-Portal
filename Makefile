@@ -1,4 +1,4 @@
-.PHONY: seed-archive up down build sync seed seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts convert-rules export-qa logs shell-api health vendor-corpora push-remote backup-remote backfill-provenance
+.PHONY: seed-archive up down build sync seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts convert-rules export-qa logs shell-api health vendor-corpora push-remote backup-remote backfill-provenance
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ifneq (,$(wildcard $(ROOT)/.venv/bin/python))
@@ -39,7 +39,6 @@ backfill-provenance:
 sync:
 	$(PYTHON) tools/sync_corpus.py --metrics
 
-seed: sync
 
 # Populate a fresh clone with a generated micro-corpus, for review-page smoke tests
 # and local UI work. Independent of `sync`, which needs the private data/corpora/.
@@ -59,8 +58,10 @@ export-qa:
 
 test: test-api test-pipeline test-web
 
+# Both suites, matching CI: tools/tests covers the deploy and snapshot scripts and
+# was only ever run there, so a green `make test-api` could hide a break in them.
 test-api:
-	cd $(ROOT) && PYTHONPATH=$(ROOT)/apps/api $(PYTHON) -m pytest apps/api/backend/tests -q
+	cd $(ROOT) && PYTHONPATH=$(ROOT)/apps/api $(PYTHON) -m pytest apps/api/backend/tests tools/tests -q
 
 test-pipeline:
 	$(PYTHON) tools/run_tests_smoke.py
@@ -68,7 +69,8 @@ test-pipeline:
 test-web:
 	cd $(ROOT)/apps/web && npm run lint && npm run test && npm run build
 
-# Exactly what CI gates on, in one command.
+# What CI gates on, minus the jobs that need a container: `npm audit` and the
+# Playwright review-page smoke (see AGENTS.md for running that one).
 check: test-api test-pipeline test-web
 	$(ROOT)/.venv/bin/ruff check apps/api tools 2>/dev/null || ruff check apps/api tools
 

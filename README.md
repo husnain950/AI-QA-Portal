@@ -19,13 +19,21 @@ convert PDF  →  data/output JSON  →  make sync  →  review in UI  →  expo
 ## Layout
 
 ```
-apps/api          FastAPI (Python package name: backend)
-apps/web          Vite + React review UI
-packages/fbr_ingest   Income Tax Ordinance pipeline
-packages/legal_ingest  Acts + Rules pipeline (one profile per corpus) + OCR
-tools/            sync_corpus, convert_*, import_qa, bootstrap_corpora, smoke tests
-data/             gitignored uploads / corpora / output / ocr_cache (the DB lives in PostgreSQL)
-data/corpora/     Ordinance + Acts PDFs and pipeline JSON (local only)
+apps/api                 FastAPI (Python package name: backend)
+apps/web                 Vite + React review UI
+packages/fbr_ingest      Income Tax Ordinance pipeline
+packages/legal_ingest    Acts + Rules pipeline + OCR; one Profile per corpus
+packages/{acts,rules}_ingest
+                         Profile bindings, so `from <lane>_ingest import run` works
+tools/convert.py         Convert one PDF:      tools/convert.py <lane> <PDF>
+tools/run_suite.py       Regression suite:     tools/run_suite.py <lane>
+tools/run_tests_smoke.py The pipeline gate (self-checks + each staged corpus)
+tools/suite/             Shared checks/loader/runner; invariants + cases per lane
+tools/{acts,ordinance}/  Lane-specific audits and diagnostics
+tools/sync_corpus.py     Load converted JSON into PostgreSQL
+tools/northflank_deploy.py, snapshot_review.py, fixture_corpus.py, backfill_provenance.py
+data/                    gitignored uploads / corpora / output / ocr_cache
+data/corpora/<lane>/     Source PDFs + pipeline JSON, one dir per corpus (local only)
 ```
 
 ## Quick start
@@ -91,15 +99,29 @@ Compose mounts `./data/corpora/...` **read-only** into the API container. Large 
 
 | Target | What it does |
 |--------|----------------|
-| `make up` / `down` | Docker Compose stack |
-| `make vendor-corpora` | Optional re-copy from sibling CC-FBR |
-| `make sync` | Sync Ordinance + Acts (`--metrics`) |
+| `make up` / `down` / `build` / `logs` | Docker Compose stack |
+| `make health` | Hit the API health endpoints |
+| `make shell-api` | Shell into the api container |
+| `make vendor-corpora` | Optional re-copy from a sibling CC-FBR tree |
+| `make sync` | Sync all three corpora into PostgreSQL (`--metrics`) |
 | `make seed-fixtures` | Generate + load a micro-corpus (no private data needed) |
-| `make convert-ordinance PDF=…` | Run `fbr_ingest` |
-| `make convert-acts PDF=…` | Convert an Act |
-| `make test` | API pytest + pipeline smoke + web lint/tests/build |
-| `make check` | Exactly what CI gates on, including `ruff check apps/api tools` |
-| `make export-qa DOC=…` | Download QA report JSON |
+| `make convert-ordinance PDF=…` | Convert an Ordinance edition (`fbr_ingest`) |
+| `make convert-acts PDF=…` | Convert an Act (`legal_ingest`, acts profile) |
+| `make convert-rules PDF=…` | Convert a Rules set (`legal_ingest`, rules profile) |
+| `make test` | `test-api` + `test-pipeline` + `test-web` |
+| `make test-api` | pytest over `apps/api/backend/tests` + `tools/tests` |
+| `make test-pipeline` | Package self-checks, plus each lane's suite when its corpus is staged |
+| `make test-web` | `npm run lint && npm run test && npm run build` |
+| `make check` | `make test` plus `ruff check apps/api tools` |
+| `make export-qa DOC=…` | Download a QA report as JSON |
+| `make backfill-provenance` | Repair `document_provenance` rows |
+| `make seed-archive` | Package `data/corpora/` into `data/seed/` for the API image |
+| `make push-remote BASE_URL=…` | Push the local corpus into a deployed portal |
+| `make backup-remote BASE_URL=…` | Snapshot a deployed portal's review state |
+
+Deployment is Northflank, automatic on green CI to `main`
+(`.github/workflows/deploy-northflank.yml`); `python tools/northflank_deploy.py check`
+reports the current service state.
 
 ### Production web image
 

@@ -22,39 +22,29 @@ not the physical PDF page. The same printed-page ref is used by the inline
 `TABLE` — a `<div class="fn-table">` flex grid whose columns are recovered from
 the footnote's word x-positions.
 
-## Repository layout
+## Where things live
 
-```
-fbr_ingest/              the pdfplumber pipeline package (see its README)
-scripts/                 all CLI entry points (run from the repo root or anywhere):
-  fbr_pdf_to_json.py       PDF -> JSON via the pdfplumber pipeline
-  run_tests.py             run the regression suite against an output JSON
-  add_test_case.py         inspect a section / add a regression case
-  import_qa_report.py      turn a QA-review export into regression cases
-  audit_completeness.py    word/punctuation conservation audit (source vs output)
-output/                  generated JSON — pdfplumber pipeline (do not hand-edit)
-tests/                   the regression suite: 17 invariants + cases.json;
-                         see tests/README.md
-Income Tax Ordinance, …/ source document: the PDF, the reference JSON the
-                         website currently serves, and the QA-review exports
-docs/session-logs/       archived working-session transcripts (not code)
-```
+This document was written for the standalone ordinance repository, where the pipeline
+sat beside its own `output/` and `tests/`. In this monorepo:
 
-The QA workflow in one line: `import_qa_report.py` a new review export, triage
-each imported case (promote to `active` with a precise check, or record it as a
-`known_gap` with the reason), fix the pipeline, and keep `run_tests.py` green
-on the output — the full loop is documented in `tests/README.md`.
+| Then | Now |
+|---|---|
+| `fbr_ingest/` | `packages/fbr_ingest/` — the Ordinance pipeline |
+| — | `packages/legal_ingest/` — the Acts **and** Rules pipeline, one `Profile` per corpus |
+| `scripts/fbr_pdf_to_json.py` | `tools/convert.py <lane> <PDF>` (or `make convert-<lane> PDF=…`) |
+| `scripts/run_tests.py` | `tools/run_suite.py <lane>` |
+| `tools/add_test_case.py` | `tools/add_test_case.py <lane>` |
+| `tools/import_qa_report.py` | `tools/import_qa_report.py` |
+| `tools/ordinance/audit_completeness.py` | `tools/<lane>/audit_completeness.py` |
+| `tests/` | `tools/suite/` — `checks.py`/`loader.py`/`runner.py` shared, `invariants/<lane>.py` and `cases/<lane>.json` per lane |
+| `output/` | `$CORPUS_<LANE>/output/` (gitignored; see `.env.example`) |
 
-## Usage
+`python tools/run_tests_smoke.py` is the gate: package self-checks always, each lane's
+regression suite when its corpus is staged.
 
-```bash
-pip install pdfplumber
-python scripts/fbr_pdf_to_json.py "Income Tax Ordinance, 2001 Amended upto 20.02.2026.pdf"
-# -> writes the JSON next to the PDF. Use -o PATH to choose the output file.
-```
-
-Runtime is ~1–2 minutes for the 821-page ordinance (single pass, no network,
-fully reproducible).
+The QA-issue catalogue below is the Ordinance pipeline's own history and still describes
+`fbr_ingest` accurately. `legal_ingest` was forked from it and has since diverged; for
+what differs per corpus there, read `packages/legal_ingest/profiles.py`.
 
 ## How it works (`fbr_ingest/`)
 
@@ -67,7 +57,7 @@ fully reproducible).
 | `schedules.py` | Extracts the Schedules (First–Fifteenth), segmenting by Schedule/Part/Division headings and attaching rendered content to each terminal node. |
 | `tables.py` | Detects tables in section/schedule *body* text and renders them as `<table class="fbr-table">` (thead = title + numbering row, tbody = data rows). |
 | `pipeline.py` | Orchestrates: TOC → calibrate page offset → scan body + schedules → assemble → JSON. |
-| `scripts/fbr_pdf_to_json.py` | CLI entry point. |
+| `tools/convert.py` | CLI entry point (lane-dispatched; see the table above). |
 
 The printed-to-PDF page mapping is auto-calibrated (a constant offset of 19 for
 this document: printed page 1 = PDF page 20). Footer page numbers are then

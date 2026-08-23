@@ -72,6 +72,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r packages/requirements.txt
 
+      # The gate reads the corpus registry from apps/api (stdlib-only module), so
+      # PYTHONPATH must include it even though this job installs no API deps.
       - name: Import smoke test
         run: python tools/run_tests_smoke.py
         env:
