@@ -73,14 +73,53 @@ pytest 439 → 436 is exactly the 3 tests in the deleted `tools/tests/test_filte
 - **`tools/acts/why_unbuilt.py` KEPT** — import-clean, and it explains `build_sections` decisions,
   which is the exact code Phases 4 and 6 change. Useful as a diagnostic during that work.
 
-## Phase 2 — One lane registry · not started
-- [ ] `Corpus.source_path()` on the registry; drop the 3 copies of the `Acts/`-else-root rule
-- [ ] Resolve relative-path split (registry = CWD-anchored vs tools = repo-root-anchored)
-- [ ] Repoint `corpus_paths.py`, `run_tests_smoke.PIPELINES`, 3x `run_tests.py`, `convert_all.py`
-- [ ] Fix live gap: `CORPUS_RULES`/`SEED_CORPUS_RULES` + mount in `docker-compose.yml`,
-      `northflank.template.json`, `apps/api/Dockerfile`
-- [ ] YAML anchors for the duplicated `api`/`worker` blocks (compose + northflank template)
-- Result: −___ LOC · pytest ___ · gate ___ · `docker compose config` renders rules ___
+## Phase 2 — One lane registry · **done**
+- [x] `Corpus.source_path()` / `output_path()` / `package` on the registry
+- [x] `Corpus.path()` anchors relative values to the repo root (was CWD-relative)
+- [x] `tools/corpus_paths.py` → adapter over the registry (was a 2-lane table of its own)
+- [x] `tools/{acts,rules,ordinance}/run_tests.py` × 3 inline resolvers → `output_dir(lane)`
+- [x] `tools/run_tests_smoke.py` `PIPELINES` + `_corpus_dir` → iterate `CORPORA`
+- [x] `tools/acts/convert_all.py` bootstrap → registry
+- [x] `tools/sync_corpus.py` per-lane flags generated from `CORPORA` (CLI surface identical)
+- [x] Deleted `corpus_sync.default_{ordinance,acts,rules}_path` (3 one-line aliases)
+- [x] `corpus_sync` passes `corpus.source_path()` instead of `pdf_dir=None`
+- [x] `docker-compose.yml`: YAML anchors + **rules lane** (env + mount, api *and* worker)
+- [x] `apps/api/Dockerfile`: rules corpus dirs + `CORPUS_RULES`/`SEED_CORPUS_RULES`
+- [x] `northflank.template.json`: `CORPUS_RULES` on both `crx-api` and `crx-worker`
+
+**Result: 12 files, −195 / +209. Code LOC 83,110 → 83,120 (+10).**
+pytest **436** · gate ordinance **12 ✅** acts **80 ✅** rules ❌ · ruff clean ·
+`docker compose config` VALID, rules env+mount on both services
+
+Net LOC is flat, which is the honest number: ~90 lines of duplicated resolvers came out,
+and the registry gained three documented methods plus the self-check coverage for them.
+The win here is defect removal, not line count.
+
+### Defects fixed (all were live)
+
+- **`Corpus.path()` was CWD-relative.** Demonstrated: with `CORPUS_ACTS=./data/corpora/acts`
+  it returned the bare relative `data/corpora/acts`, so the API and worker — which run from
+  different working directories — could resolve the same variable to different places. Now
+  always absolute and repo-anchored.
+- **`source_path()` hardcoded `Acts/`.** The rules corpus keeps its PDFs under `Rules/`, so
+  `sync_acts` never found them directly and only worked because its fallback recursive scan
+  happened to reach them. Now `<title>/`-else-root, so it is right by construction.
+- **The rules lane could not mount in Docker or production.** `docker-compose.yml`,
+  `apps/api/Dockerfile` and `northflank.template.json` all declared two lanes.
+- **`corpus_paths.CORPUS_ENV` had two entries**, so `$CORPUS_RULES` was silently ignored by
+  every tool importing it, regardless of configuration.
+
+### Plan correction
+
+`corpus_sync.default_{ordinance,acts,rules}_path` were reported as having zero callers. They
+did not — `tools/sync_corpus.py` imported all three. Caught by ruff/import failure immediately
+after deleting them. Resolved by generating the CLI's per-lane flags from `CORPORA`, which
+removes both the aliases and the six hand-written flags; `--help` output verified byte-identical
+against `main`.
+
+`run_corpus_sync`'s `ordinance=` / `acts=` / `rules=` / `*_only=` keyword signature is
+deliberately untouched — its docstring records that the CLI, the API request body and the
+worker payload all speak it, so it is a public contract, not a hardcode to remove.
 
 ## Phase 3 — One lane-parameterised suite · not started
 - [ ] `tools/suite/{checks,loader,runner}.py` — one copy (was 3x md5-identical)

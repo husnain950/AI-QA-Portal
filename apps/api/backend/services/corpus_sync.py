@@ -19,18 +19,6 @@ from backend.services.corpus_registry import (  # noqa: F401  (re-exported)
 from backend.sync_acts import run_sync
 
 
-def default_ordinance_path() -> Path:
-    return get("ordinance").path()
-
-
-def default_acts_path() -> Path:
-    return get("acts").path()
-
-
-def default_rules_path() -> Path:
-    return get("rules").path()
-
-
 async def _record_sync(summary: Dict[str, Any], status: str) -> None:
     def _counted(label: str) -> int:
         part = summary.get(label) or {}
@@ -212,7 +200,12 @@ async def run_corpus_sync(
             force=force,
             strict=strict,
             metrics=metrics,
-            pdf_dir=None,
+            # The registry names each corpus's source-PDF subdirectory (`Acts/`,
+            # `Rules/`, or the root when it has none). Passing None here let
+            # `_source_pdf_index` apply its own hardcoded `Acts/`-else-root rule to
+            # every lane, so the Rules corpus only worked because the fallback
+            # recursive scan happened to reach `Rules/` anyway.
+            pdf_dir=corpus.source_path(),
         )
         combined[corpus.label] = part
         # `sync_one` already counts an unusable corpus root as one failure and also

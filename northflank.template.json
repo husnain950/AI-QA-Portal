@@ -110,6 +110,7 @@
               "UPLOAD_DIR": "/app/data/uploads",
               "CORPUS_ORDINANCE": "/data/corpus/ordinance",
               "CORPUS_ACTS": "/data/corpus/acts",
+              "CORPUS_RULES": "/data/corpus/rules",
               "PYTHONPATH": "/app",
               "PYTHONUNBUFFERED": "1",
               "CSP_ENFORCE": "1"
@@ -171,6 +172,7 @@
               "UPLOAD_DIR": "/app/data/uploads",
               "CORPUS_ORDINANCE": "/data/corpus/ordinance",
               "CORPUS_ACTS": "/data/corpus/acts",
+              "CORPUS_RULES": "/data/corpus/rules",
               "PYTHONPATH": "/app",
               "PYTHONUNBUFFERED": "1",
               "CSP_ENFORCE": "1"

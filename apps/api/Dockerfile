@@ -15,7 +15,9 @@ RUN groupadd --system crx && useradd --system --gid crx --home-dir /app crx
 COPY apps/api/backend /app/backend
 COPY packages/acts_ingest /app/acts_ingest
 
-RUN mkdir -p /app/data/uploads /data/corpus/ordinance /data/corpus/acts /seed/corpus/ordinance /seed/corpus/acts \
+RUN mkdir -p /app/data/uploads \
+      /data/corpus/ordinance /data/corpus/acts /data/corpus/rules \
+      /seed/corpus/ordinance /seed/corpus/acts /seed/corpus/rules \
     && chown -R crx:crx /app /data /seed
 
 # Bake pipeline corpus into the image for auto-seeding on first boot.
@@ -29,10 +31,14 @@ ENV PYTHONOPTIMIZE=2
 ENV DATABASE_URL=postgresql+psycopg://crx:crx@postgres:5432/crx
 ENV STORAGE_BACKEND=s3
 ENV UPLOAD_DIR=/app/data/uploads
+# One per corpus in backend.services.corpus_registry.CORPORA. A lane missing here
+# reports as "not mounted on this host" no matter what is actually in the volume.
 ENV CORPUS_ORDINANCE=/data/corpus/ordinance
 ENV CORPUS_ACTS=/data/corpus/acts
+ENV CORPUS_RULES=/data/corpus/rules
 ENV SEED_CORPUS_ORDINANCE=/seed/corpus/ordinance
 ENV SEED_CORPUS_ACTS=/seed/corpus/acts
+ENV SEED_CORPUS_RULES=/seed/corpus/rules
 
 EXPOSE 8000
 

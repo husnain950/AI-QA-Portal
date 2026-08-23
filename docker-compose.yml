@@ -1,3 +1,34 @@
+# The api and worker are the same image with different entrypoints, so everything
+# they share is declared once here. Both must see identical corpus paths and blob
+# storage: a worker that resolves a corpus differently from the API syncs documents
+# the API then reports as missing.
+x-api-env: &api-env
+  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://crx:crx@postgres:5432/crx}
+  STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
+  UPLOAD_DIR: /app/data/uploads
+  S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+  S3_BUCKET: ${S3_BUCKET:-crx-blobs}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-crx-minio}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-crx-minio-development}
+  CORPUS_ORDINANCE: /data/corpus/ordinance
+  CORPUS_ACTS: /data/corpus/acts
+  CORPUS_RULES: /data/corpus/rules
+  SEED_CORPUS_ORDINANCE: /data/corpus/ordinance
+  SEED_CORPUS_ACTS: /data/corpus/acts
+  SEED_CORPUS_RULES: /data/corpus/rules
+
+x-api-volumes: &api-volumes
+  - blob-cache:/app/data/uploads
+  - ./data/corpora/ordinance:/data/corpus/ordinance:ro
+  - ./data/corpora/acts:/data/corpus/acts:ro
+  - ./data/corpora/rules:/data/corpus/rules:ro
+
+x-api-depends: &api-depends
+  postgres:
+    condition: service_healthy
+  minio-init:
+    condition: service_completed_successfully
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -60,8 +91,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://crx:crx@postgres:5432/crx}
-      STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
+      <<: *api-env
       # Compose serves plain http on localhost, so a Secure session cookie would never
       # come back and the app would bounce to sign-in after every login.
       INSECURE_COOKIES: ${INSECURE_COOKIES:-1}
@@ -71,30 +101,14 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_NAME: ${ADMIN_NAME:-}
       SESSION_HOURS: ${SESSION_HOURS:-12}
-      UPLOAD_DIR: /app/data/uploads
-      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
-      S3_BUCKET: ${S3_BUCKET:-crx-blobs}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-crx-minio}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-crx-minio-development}
-      CORPUS_ORDINANCE: /data/corpus/ordinance
-      CORPUS_ACTS: /data/corpus/acts
-      SEED_CORPUS_ORDINANCE: /data/corpus/ordinance
-      SEED_CORPUS_ACTS: /data/corpus/acts
-    volumes:
-      - blob-cache:/app/data/uploads
-      - ./data/corpora/ordinance:/data/corpus/ordinance:ro
-      - ./data/corpora/acts:/data/corpus/acts:ro
+    volumes: *api-volumes
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready')"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 20s
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
+    depends_on: *api-depends
     restart: unless-stopped
 
   worker:
@@ -104,27 +118,9 @@ services:
     command: ["python", "-m", "backend.worker"]
     env_file:
       - .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://crx:crx@postgres:5432/crx}
-      STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
-      UPLOAD_DIR: /app/data/uploads
-      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
-      S3_BUCKET: ${S3_BUCKET:-crx-blobs}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-crx-minio}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-crx-minio-development}
-      CORPUS_ORDINANCE: /data/corpus/ordinance
-      CORPUS_ACTS: /data/corpus/acts
-      SEED_CORPUS_ORDINANCE: /data/corpus/ordinance
-      SEED_CORPUS_ACTS: /data/corpus/acts
-    volumes:
-      - blob-cache:/app/data/uploads
-      - ./data/corpora/ordinance:/data/corpus/ordinance:ro
-      - ./data/corpora/acts:/data/corpus/acts:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
+    environment: *api-env
+    volumes: *api-volumes
+    depends_on: *api-depends
     restart: unless-stopped
 
   web:

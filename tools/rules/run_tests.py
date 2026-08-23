@@ -26,11 +26,14 @@ import sys
 # with tools/tests (the deploy-script tests), which is a different package entirely.
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(os.path.dirname(_HERE))
-for _path in (_HERE, os.path.join(_ROOT, "packages")):
+for _path in (_HERE, os.path.join(_ROOT, "tools")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-from suite import loader, runner  # noqa: E402 (sys.path bootstrap above)
+# Both rely on the sys.path bootstrap above; corpus_paths also puts packages/ there.
+from suite import loader, runner  # noqa: E402
+
+from corpus_paths import output_dir  # noqa: E402
 
 
 def _default_jsons() -> list[str]:
@@ -39,13 +42,7 @@ def _default_jsons() -> list[str]:
     (It used to test only whichever file sorted first, which silently gated
     the 30.06.2024 edition and nothing else.)
     """
-    root = os.environ.get("CORPUS_RULES") or os.path.join(
-        _ROOT, "data", "corpora", "rules"
-    )
-    # .env ships CORPUS_RULES as a repo-relative path, so anchor it; join leaves
-    # an absolute value untouched.
-    root = os.path.join(_ROOT, root)
-    return sorted(glob.glob(os.path.join(root, "output", "*.json")))
+    return sorted(glob.glob(os.path.join(str(output_dir("rules")), "*.json")))
 
 
 def main(argv=None) -> int:
