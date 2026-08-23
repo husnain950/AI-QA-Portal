@@ -54,6 +54,7 @@ const ReviewPage = () => {
         fetchSections,
         fetchSection,
         fetchSectionsByPage,
+        refreshReviewData,
     } = useDocumentStore();
 
     const { currentPage, viewMode, setViewMode, setCurrentPage } = useReviewStore();
@@ -351,10 +352,7 @@ const ReviewPage = () => {
                 documentId={documentId}
                 open={versionsOpen}
                 onClose={() => setVersionsOpen(false)}
-                onChanged={async () => {
-                    await fetchDocument(documentId);
-                    await fetchSections(documentId);
-                }}
+                onChanged={() => refreshReviewData()}
             />
 
             {reviewSessionId && queueFinding ? (

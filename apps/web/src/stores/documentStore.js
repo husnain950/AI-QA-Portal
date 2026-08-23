@@ -11,6 +11,49 @@ const query = (queryKey, path, options = {}) => queryClient.fetchQuery({
     ...options,
 });
 
+// A section appears in three slices at once: `activeSection`, the `sections` list the
+// sidebar reads, and `pageSections` in page view. Every write used to patch all three
+// inline, and three different actions across two stores had their own copy of that --
+// which is how a status could land in one slice and not the others.
+const applyToSection = (state, sectionId, changes) => {
+    const patch = (s) => (s.id === sectionId ? { ...s, ...changes } : s);
+    return {
+        activeSection:
+            state.activeSection?.id === sectionId
+                ? { ...state.activeSection, ...changes }
+                : state.activeSection,
+        sections: state.sections.map(patch),
+        pageSections: state.pageSections.map(patch),
+    };
+};
+
+const applyToFootnote = (state, footnoteId, changes) => {
+    const patchFootnotes = (s) =>
+        s?.footnotes?.some((f) => f.id === footnoteId)
+            ? {
+                ...s,
+                footnotes: s.footnotes.map((f) =>
+                    f.id === footnoteId ? { ...f, ...changes } : f,
+                ),
+                // a footnote raising an issue raises it on its parent too
+                review_status:
+                    changes.review_status === 'has_issues' ? 'has_issues' : s.review_status,
+            }
+            : s;
+    return {
+        activeSection: patchFootnotes(state.activeSection),
+        pageSections: state.pageSections.map(patchFootnotes),
+        sections:
+            changes.review_status === 'has_issues'
+                ? state.sections.map((s) =>
+                    s.id === state.activeSection?.id && patchFootnotes(state.activeSection) !== state.activeSection
+                        ? { ...s, review_status: 'has_issues' }
+                        : s,
+                )
+                : state.sections,
+    };
+};
+
 export const useDocumentStore = create((set, get) => ({
     documents: [],
     activeDocument: null,
@@ -97,35 +140,42 @@ export const useDocumentStore = create((set, get) => ({
         }
     },
 
+    /** Patch a section across every slice it appears in. */
+    patchSection: (sectionId, changes) => set((state) => applyToSection(state, sectionId, changes)),
+
+    /** Patch a footnote, and its parent section's status, across every slice. */
+    patchFootnote: (footnoteId, changes) => set((state) => applyToFootnote(state, footnoteId, changes)),
+
+    /** Reconcile the review workspace with the server after a write.
+     *
+     * One strategy, in one place. `updateSectionStatus` used to invalidate two query
+     * keys, hand-patch three slices, AND refetch the document -- three overlapping
+     * caches for one PATCH -- while `reviewStore` did its own version of the same
+     * thing twice more.
+     */
+    refreshReviewData: async ({ sectionId = null, page = null } = {}) => {
+        const docId = get().activeDocument?.id;
+        if (!docId) return;
+        await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['document', docId] }),
+            queryClient.invalidateQueries({ queryKey: ['sections', docId] }),
+        ]);
+        const target = sectionId ?? get().activeSection?.id;
+        await Promise.all([
+            get().fetchDocument(docId),
+            get().fetchSections(docId),
+            ...(target ? [get().fetchSection(docId, target)] : []),
+            ...(page != null ? [get().fetchSectionsByPage(docId, page)] : []),
+        ]);
+    },
+
     updateSectionStatus: async (docId, sectionId, status) => {
         try {
             const res = await api.patch(`/documents/${docId}/sections/${sectionId}/status`, {
                 review_status: status
             });
-            await queryClient.invalidateQueries({ queryKey: ['document', docId] });
-            await queryClient.invalidateQueries({ queryKey: ['sections', docId] });
-            
-            // Update active section status
-            const activeSection = get().activeSection;
-            if (activeSection && activeSection.id === sectionId) {
-                set({ activeSection: { ...activeSection, review_status: status } });
-            }
-
-            // Update page sections status
-            const pageSections = get().pageSections;
-            set({
-                pageSections: pageSections.map(s => s.id === sectionId ? { ...s, review_status: status } : s)
-            });
-
-            // Update sections list
-            const sections = get().sections;
-            set({
-                sections: sections.map(s => s.id === sectionId ? { ...s, review_status: status } : s)
-            });
-
-            // Refresh document meta/stats
-            get().fetchDocument(docId);
-            
+            get().patchSection(sectionId, { review_status: status });
+            await get().refreshReviewData({ sectionId });
             return res;
         } catch (e) {
             console.error('Failed to update section status', e);

@@ -66,15 +66,25 @@ class Corpus:
         return self.path() / "output"
 
     def source_path(self) -> Path:
-        """Where this corpus's source PDFs live: ``<title>/`` when present, else the root.
+        """Where this corpus's source PDFs live, under its configured root."""
+        return self.source_within(self.path())
 
-        The Acts keep theirs under ``Acts/`` and the Rules under ``Rules/``, while the
-        Ordinance keeps them beside ``output/``. Stated once here because the converter,
-        the regression runner and ``sync_acts`` must all agree on what counts as a
-        source; they used to say it separately, and only the Acts spelling was right.
+    def source_within(self, root: Path) -> Path:
+        """Apply this corpus's source rule to ``root``: ``<title>/`` if present, else root.
+
+        Takes the root rather than reading `path()` because a caller may be syncing
+        somewhere else entirely -- `make seed-fixtures` points the acts sync at
+        `data/fixtures/acts`, and resolving the PDF directory from the registry there
+        would send it to the real corpus instead.
+
+        The Acts keep their sources under ``Acts/`` and the Rules under ``Rules/``,
+        while the Ordinance keeps them beside ``output/``. Stated once here because the
+        converter, the regression runner and ``sync_acts`` must all agree on what counts
+        as a source; they used to say it separately, and only the Acts spelling was
+        right.
         """
-        nested = self.path() / self.title
-        return nested if nested.is_dir() else self.path()
+        nested = Path(root) / self.title
+        return nested if nested.is_dir() else Path(root)
 
     def seed_path(self) -> Optional[Path]:
         raw = os.environ.get(self.seed_env)

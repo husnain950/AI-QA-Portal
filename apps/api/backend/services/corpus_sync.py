@@ -205,7 +205,11 @@ async def run_corpus_sync(
             # `_source_pdf_index` apply its own hardcoded `Acts/`-else-root rule to
             # every lane, so the Rules corpus only worked because the fallback
             # recursive scan happened to reach `Rules/` anyway.
-            pdf_dir=corpus.source_path(),
+            #
+            # Derived from `path`, not from the registry: `path` may be an override
+            # (`make seed-fixtures` syncs `data/fixtures/acts`), and reading the
+            # registry here would point the sync at the real corpus instead.
+            pdf_dir=corpus.source_within(path),
         )
         combined[corpus.label] = part
         # `sync_one` already counts an unusable corpus root as one failure and also
