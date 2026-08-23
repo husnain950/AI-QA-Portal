@@ -25,6 +25,9 @@ data/ocr_cache/*
 !data/ocr_cache/.gitkeep
 # Review snapshots (tools/snapshot_review.py); CI keeps them as workflow artifacts.
 data/backups/
+# --out targets people pass to snapshot_review.py from the repo root.
+prod-review-snapshot.json/
+prod-verify.json/
 data/corpora/*
 !data/corpora/README.md
 

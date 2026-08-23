@@ -1,4 +1,4 @@
-.PHONY: up down build sync seed seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts convert-rules export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backup-remote backfill-provenance
+.PHONY: seed-archive up down build sync seed seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts convert-rules export-qa logs shell-api health vendor-corpora push-remote backup-remote backfill-provenance
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ifneq (,$(wildcard $(ROOT)/.venv/bin/python))
@@ -115,9 +115,6 @@ seed-archive:
 	fi
 	@echo "Seed archive ready (local build artifact, not committed to git)."
 	@du -sh $(ROOT)/data/seed
-
-deploy-prod: seed-archive
-	bash $(ROOT)/tools/deploy_coderun.sh
 
 # Re-seed a deployed portal from the local Postgres corpus. Needs ADMIN_EMAIL /
 # ADMIN_PASSWORD in .env (admin role) and a prior `make sync` so local blobs exist.

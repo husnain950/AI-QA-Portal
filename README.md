@@ -14,7 +14,7 @@ convert PDF  →  data/output JSON  →  make sync  →  review in UI  →  expo
 2. **Sync** — `make sync` loads Ordinance (~12) + Acts (~80) editions into PostgreSQL from `data/corpora/`
 3. **Review** — side-by-side PDF + HTML, versions, annotations
 4. **Export** — dashboard JSON/CSV or `make export-qa DOC=<id>`
-5. **Import findings** — `python tools/import_qa_report.py …` into pipeline regression cases
+5. **Import findings** — feed portal findings back into the pipeline regression cases
 
 ## Layout
 
@@ -75,7 +75,7 @@ See [`.env.example`](.env.example). Important knobs:
 | `CORPUS_ORDINANCE` | `./data/corpora/ordinance` (`output/*.json` + Ordinance PDFs) |
 | `CORPUS_ACTS` | `./data/corpora/acts` (`output/*.json` + `Acts/**`) |
 
-These `CORPUS_*` / `DATABASE_URL` / `UPLOAD_DIR` values are **host-local**. Compose and the API image override them inside the container (`/data/corpus/...`, `/app/data/...`). `make deploy-prod` strips them from `--env-file` (see [`tools/filter_deploy_env.py`](tools/filter_deploy_env.py)) so a local `.env` cannot point production at your laptop's database or make it report missing mounts.
+These `CORPUS_*` / `DATABASE_URL` / `UPLOAD_DIR` values are **host-local**. Compose and the API image override them inside the container (`/data/corpus/...`, `/app/data/...`), and Northflank injects its own, so a local `.env` is never shipped to production.
 
 The Library subtitle (`last sync` / `seeded by upload` / `pipeline mounts not on this host`) is **pipeline-mount health** — whether those directories exist on the API host with `output/*.json` — not whether Ordinance or Acts documents are already in the library. `make push-remote` fills the library as uploads and does not record a corpus sync. Northflank builds from git have no baked seed and no pipeline mounts, so a fresh (or post-migration) deploy shows an empty Library until someone runs:
 
