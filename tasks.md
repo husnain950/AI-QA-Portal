@@ -249,13 +249,84 @@ notification PDF sitting in the corpus directory (it indexes past the end lookin
 TOC). `packages/fbr_ingest` has **zero files changed** since the baseline commit, so
 this predates the refactor entirely. Filed under Deferred.
 
-## Phase 6 — Fix the red rules suite · not started
-- [ ] `section_codes_ordered` (largest cluster — suspect 4-digit CODE / `code_sort_key`)
-- [ ] `no_jammed_words`
-- [ ] `no_split_ordinals`
-- [ ] `no_orphan_marker_li`
-- [ ] Each fix carries a `_demo()` assertion so the gate covers it corpus-free
-- Result: rules ___/11 editions · acts still ___/80
+## Phase 6 — Fix the red rules suite · **diagnosed, needs your call**
+
+Investigated all four failure classes down to the source PDFs. **None is a refactor
+regression, and none is a small parser bug.** Two need an ingest feature, one is not
+deterministically fixable, and one is a trade-off the pipeline already makes on purpose.
+
+| invariant | hits | root cause | fixable here? |
+|---|---|---|---|
+| `section_codes_ordered` | 37 | compilation embeds separately-notified instruments | **feature** |
+| `no_orphan_marker_li` | 1 | same document, same cause | **feature** |
+| `no_jammed_words` | 5 | source PDF emits one 75-char token, no space glyphs | **no** |
+| `no_split_ordinals` | 2 | source prints `21 st`; parser refuses on purpose | **no — by design** |
+
+### 1 + 2. Compilations that embed other instruments (38 of 42 hits)
+
+`Customs Rules, 2001` is 563 pages and parses to **one chapter and 62 leaves**. Its TOC
+is not a chapter/section contents at all but a *compilation index* of 44 separately
+notified rule sets (`17. Duty and Tax Remission (DTRE) for Export S.R.O.185(I)/2020`),
+and the literal first line of page 1 is a stray `CHAPTER VII` — which is where the one
+chapter's name comes from. TOC detection itself is correct: pages 1-5 score 54-86% and
+page 6 drops to 2%.
+
+`Federal Excise Rules 2005` shows the same thing in miniature and is worth reading,
+because it makes the shape unambiguous. PDF page 75 is:
+
+```
+The
+ELECTRONIC FILING OF FEDERAL EXCISE RETURN
+RULES, 2005
+CONTENTS
+1. Short title, application and commencement.
+2. Definitions.
+...
+```
+
+A whole second instrument, with its own contents page, inside the body — so rules 1-5
+land after rule 86 inside `CHAPTER XVI`. The invariant is right; the document tree has
+no level above chapter for "instrument", and six tree walkers hardcode
+chapter/part/division/section as the child keys. `toc.py`'s own `SUBCHAPTER_TOC_RE`
+comment already declined a smaller version of this change as "a much larger change than
+the defect warrants".
+
+I tried the cheap fix first — refusing a body line whose heading ends in a leader run —
+and **reverted it**, because the diagnosis showed those rows do not come through
+`_candidate_code` at all, and shipping a guard that fixes nothing measurable is exactly
+the speculative complexity this refactor is removing.
+
+### 3. Jammed words (5 hits)
+
+Not a spacing heuristic to tune. pdfplumber reports the run as **one 75-character
+token** — `whetherthemonthlyreturnsfurnishedbytheregisteredpersoncorrectlyreflect` — so
+there is no positional information inside it to split on. Recovering the spaces needs
+dictionary or language-model word splitting, which is non-deterministic and against
+both the pipeline's determinism and the README's "no LLM/vision in the conversion path".
+
+### 4. Split ordinals (2 hits)
+
+Footnote 54.104 reads `dated 21 st June, 2006`. The parser refuses to merge it
+**deliberately**, and `pagemodel` says why: the discriminators are a size drop and the
+absence of a space glyph, and this one is equal size (8.04pt), dtop 0.00, with a real
+space — indistinguishable from a genuine `21 st` typo in the source. Merging it would
+mean merging real typos too. The invariant does not know the parser made that choice.
+
+### The decision
+
+Making this suite green needs one of:
+
+- **(a)** an `instrument` level in the document tree + a body-side contents-block
+  suppressor — a real ingest feature touching the tree, six walkers, the JSON schema
+  and the portal's leaf labelling;
+- **(b)** a per-document invariant exemption mechanism (the suite has `known_gap` for
+  *cases* but invariant failures are unconditionally hard), recording these four with
+  their reasons so the suite gates everything else;
+- **(c)** leave it red and keep the baseline documented, as it was before this work.
+
+I have not chosen for you: (a) is a feature, (b) changes the suite's contract, and (c)
+is the status quo. **Raised with the user.** The failure set is byte-identical to the
+pre-refactor baseline either way, verified after every phase.
 
 ## Phase 7 — Backend consolidation · not started
 - [ ] `_now()` — 7 copies / 3 formats → one source, per-call-site wire format preserved
