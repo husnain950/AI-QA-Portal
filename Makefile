@@ -47,17 +47,10 @@ seed-fixtures:
 	$(PYTHON) tools/fixture_corpus.py
 	$(PYTHON) tools/sync_corpus.py --acts $(ROOT)/data/fixtures/acts --acts-only
 
-convert-ordinance:
-	@test -n "$(PDF)" || (echo "Usage: make convert-ordinance PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
-	$(PYTHON) tools/convert_ordinance.py "$(PDF)" $(if $(OUT),-o "$(OUT)",)
-
-convert-acts:
-	@test -n "$(PDF)" || (echo "Usage: make convert-acts PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
-	$(PYTHON) tools/convert_acts.py "$(PDF)" $(if $(OUT),-o "$(OUT)",)
-
-convert-rules:
-	@test -n "$(PDF)" || (echo "Usage: make convert-rules PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
-	$(PYTHON) tools/convert_rules.py "$(PDF)" $(if $(OUT),-o "$(OUT)",)
+# One converter, one recipe per lane so the documented command surface is unchanged.
+convert-ordinance convert-acts convert-rules:
+	@test -n "$(PDF)" || (echo "Usage: make $@ PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
+	$(PYTHON) tools/convert.py $(@:convert-%=%) "$(PDF)" $(if $(OUT),-o "$(OUT)",)
 
 export-qa:
 	@test -n "$(DOC)" || (echo "Usage: make export-qa DOC=<document_id> [OUT=report.json]"; exit 1)

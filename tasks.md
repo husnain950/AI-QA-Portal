@@ -222,11 +222,32 @@ it changes nothing. Conversely the folio reader needed **two** flags, not one: i
 pattern also accepted `(104)`, and a centred subsection marker in a footer band is
 printed the same way, which is why the Acts reader had required `str.isdigit()`.
 
-## Phase 5 — Collapse converter CLIs · not started
-- [ ] One `tools/convert.py <lane> <pdf>` replacing 3x `convert_*.py` + 3x `*_pdf_to_json.py`
-- [ ] Makefile `convert-*` become thin wrappers (command surface unchanged)
-- [ ] `convert_all.py` path bootstrap reads `CORPORA` (keep the orchestrator itself)
-- Result: −___ LOC · all three `make convert-*` produce suite-valid JSON ___
+## Phase 5 — Collapse converter CLIs · **done**
+- [x] `tools/convert.py <lane> <pdf>` replaces 6 files:
+      `convert_{acts,rules,ordinance}.py` (18 lines each, differed in 3) and
+      `{acts/acts,rules/rules,ordinance/fbr}_pdf_to_json.py` (86/86/68; the first two
+      differed by one import line)
+- [x] Dropped the `importlib.util.spec_from_file_location` indirection — the shims
+      loaded a sibling script *by path* to call its `main()`
+- [x] Makefile `convert-{ordinance,acts,rules}` collapse to one pattern recipe; the
+      documented command surface is unchanged (`make -n` verified for all three)
+- [x] `convert_all.py` invokes the unified CLI
+
+**Result: 8 files, −238 / +42. Code LOC 69,577 → 69,388 (−189).**
+pytest **436** · gate ordinance **12 ✅** acts **80 ✅** rules ❌ · ruff clean
+
+End-to-end: one real PDF per lane converted through the new CLI —
+acts 2 sections/1 page, rules 8 sections/6 pages, ordinance **431 sections/784 pages**.
+
+`--admit-below-floor` applies only to lanes with an OCR stage. Rather than record that
+as another per-lane fact, the CLI asks the pipeline (`inspect.signature`), so a lane
+that grows an OCR stage starts accepting the flag with no edit here, and one that has
+none gets a clear error instead of a `TypeError`.
+
+Noted, not a regression: the ordinance pipeline raises `IndexError` on a stray one-page
+notification PDF sitting in the corpus directory (it indexes past the end looking for a
+TOC). `packages/fbr_ingest` has **zero files changed** since the baseline commit, so
+this predates the refactor entirely. Filed under Deferred.
 
 ## Phase 6 — Fix the red rules suite · not started
 - [ ] `section_codes_ordered` (largest cluster — suspect 4-digit CODE / `code_sort_key`)
@@ -278,6 +299,13 @@ printed the same way, which is why the Acts reader had required `str.isdigit()`.
 ---
 
 ## Deferred
+
+- **`fbr_ingest` crashes on a non-edition PDF.** `data/corpora/ordinance/Income Tax
+  Ordinance, 2001/` contains a one-page notification alongside the real editions;
+  converting it raises `IndexError` from `_toc_lines` indexing past the last page.
+  Pre-existing (fbr_ingest is untouched), and it does not affect the suite because the
+  corpus is defined by `output/*.json`, not by the PDFs present. A `len(pdf.pages)`
+  guard would fix it.
 
 - **The `data/seed/` bake-into-image path now has no deploy consumer.** `apps/api/Dockerfile`
   implements it and `docker-compose.yml` sets `SEED_CORPUS_ORDINANCE`/`_ACTS`, but

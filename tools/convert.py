@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
-"""CLI: convert an FBR legal-text PDF into the structured JSON format.
+"""Convert one FBR legal-text PDF into the structured JSON format.
 
-Usage:
-    python scripts/fbr_pdf_to_json.py INPUT.pdf [-o OUTPUT.json] [--quiet]
+    python tools/convert.py acts       "Acts/Customs Act 1969/....pdf"
+    python tools/convert.py ordinance  "....pdf" -o out.json
+    python tools/convert.py rules      "....pdf" --admit-below-floor
 
-Example:
-    python scripts/fbr_pdf_to_json.py "Income Tax Ordinance, 2001 Amended upto 20.02.2026.pdf"
+Replaces six files that said this between them: three 18-line `convert_<lane>.py`
+shims which differed in three lines and loaded a sibling script by path through
+`importlib.util.spec_from_file_location`, and three `<lane>_pdf_to_json.py` of which
+two differed by a single import. The lane is an argument, and the pipeline behind it
+comes from the one registry in `backend.services.corpus_registry`.
 
-The output JSON matches the schema of
-``_Income_Tax_Ordinance__2001_Amended_upto_20.02.2026.json``:
+The output JSON is
 
     { "metadata": {...},
       "chapters":  [ {code, heading, parts, divisions, sections}, ... ],
       "schedules": [ ... ] }
 
-where each leaf *section* is
+where each leaf is
     { code, heading, page_number, html, plain_text,
       start_page, end_page, footnotes: [{ref, marker, text}, ...] }
 """
@@ -22,21 +25,24 @@ where each leaf *section* is
 from __future__ import annotations
 
 import argparse
+import importlib
+import inspect
 import json
 import os
 import sys
 
-# scripts/ lives one level below the repo root -- make the root importable and
-# anchor all default paths there, so this works from any working directory.
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+if os.path.join(_ROOT, "tools") not in sys.path:
+    sys.path.insert(0, os.path.join(_ROOT, "tools"))
 
-from rules_ingest import run  # noqa: E402 (sys.path bootstrap above)
+# Relies on the sys.path bootstrap above; also puts packages/ on the path.
+from corpus_paths import LABELS, get  # noqa: E402
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Convert an FBR PDF to structured JSON.")
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("lane", choices=LABELS, help="which corpus this PDF belongs to")
     ap.add_argument("pdf", help="path to the input PDF")
     ap.add_argument("-o", "--output", help="output JSON path "
                     "(default: alongside the PDF)")
@@ -46,19 +52,32 @@ def main(argv=None) -> int:
                          "the fidelity floor instead of refusing it. The result "
                          "is written to _provisional/ beside the normal output, "
                          "never into it, and carries "
-                         "metadata.ocr.provisional=true. Off by default.")
+                         "metadata.ocr.provisional=true. Off by default. Only the "
+                         "lanes with an OCR stage accept it.")
     args = ap.parse_args(argv)
 
     if not os.path.exists(args.pdf):
         print(f"error: file not found: {args.pdf}", file=sys.stderr)
         return 2
 
+    run = importlib.import_module(get(args.lane).package).run
+
     def progress(msg):
         if not args.quiet:
-            print(f"[fbr] {msg}", file=sys.stderr)
+            print(f"[{args.lane}] {msg}", file=sys.stderr)
 
-    result = run(args.pdf, progress=progress,
-                 admit_below_floor=args.admit_below_floor)
+    # Asked of the pipeline rather than recorded as another per-lane fact: the
+    # Ordinance has no OCR stage, so its `run` has no such parameter, and a lane
+    # that grows one starts accepting the flag without an edit here.
+    kwargs = {}
+    if "admit_below_floor" in inspect.signature(run).parameters:
+        kwargs["admit_below_floor"] = args.admit_below_floor
+    elif args.admit_below_floor:
+        print(f"error: the {args.lane} pipeline has no OCR stage, so "
+              f"--admit-below-floor does not apply", file=sys.stderr)
+        return 2
+
+    result = run(args.pdf, progress=progress, **kwargs)
 
     out = args.output or os.path.splitext(args.pdf)[0] + ".json"
     # A provisional document must not be able to reach the corpus, and this is

@@ -197,7 +197,7 @@ def convert(pdf: pathlib.Path, timeout: float | None = None,
     log = (RUN_DIR / f"{dest.stem}.log") if keep_log else None
     if log is not None:
         RUN_DIR.mkdir(parents=True, exist_ok=True)
-    argv = [sys.executable, str(_HERE / "acts_pdf_to_json.py"),
+    argv = [sys.executable, str(_ROOT / "tools" / "convert.py"), "acts",
             str(pdf), "-o", str(dest)]
     if admit_below_floor:
         argv.append("--admit-below-floor")
