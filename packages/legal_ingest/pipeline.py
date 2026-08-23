@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import re as _re
-
 import re
+import re as _re
 
 import pdfplumber
 
@@ -18,6 +17,7 @@ from .footnotes import (
     ref_sort_key,
 )
 from .pagemodel import build_page_model
+from .profiles import ACTS, Profile
 from .schedules import _kind, _sched_ordinal, build_schedules
 from .toc import Node, parse_toc
 
@@ -221,8 +221,12 @@ def _demo() -> None:
     print("pipeline self-check passed")
 
 def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = None,
-        admit_below_floor: bool = False) -> dict:
+        admit_below_floor: bool = False, profile: Profile = ACTS) -> dict:
     """Convert one PDF to the document dict.
+
+    ``profile`` says which corpus this document belongs to; see
+    :mod:`legal_ingest.profiles` for what varies. It defaults to the Acts, whose
+    profile turns every corpus-specific widening off.
 
     ``admit_below_floor`` converts a scan whose inter-engine agreement is under
     ``ocr.AGREEMENT_FLOOR`` instead of refusing it, stamping
@@ -244,14 +248,14 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     pdf = pdfplumber.open(pdf_path)
     total_pages = len(pdf.pages)
 
-    cal = calibrate(pdf)
+    cal = calibrate(pdf, profile=profile)
     toc_pages = cal.toc_pages
     progress(f"calibrated: box {cal.page_w:.0f}x{cal.page_h:.0f}, "
              f"zone={cal.zone_mode}, body={cal.body_size}pt, "
              f"footnote={cal.footnote_size}pt, TOC pages={toc_pages}, "
              f"offset={cal.page_offset}")
 
-    chapters, schedules, ordered_sections = parse_toc(_toc_lines(pdf, toc_pages))
+    chapters, schedules, ordered_sections = parse_toc(_toc_lines(pdf, toc_pages), profile)
     progress(f"TOC parsed: {len(chapters)} chapters, {len(schedules)} schedules, "
              f"{len(ordered_sections)} sections")
 
@@ -633,10 +637,6 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
 
     metadata = {
         "filename": pdf_path.split("/")[-1],
-        # What KIND of instrument this is. The leaf of a rule set is a Rule, not a
-        # Section, and the portal labels leaves from one function -- without this it
-        # would have to infer the instrument from the document's title.
-        "instrument_kind": "rules",
         "total_pages": total_pages,
         "toc_pages_scanned": toc_pages,
         "chapters_count": len(chapters),
@@ -647,14 +647,22 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         # from them, and the ``calibration_sane`` invariant checks them each run.
         "calibration": cal.as_dict(),
     }
+    # What KIND of instrument this is. The leaf of a rule set is a Rule, not a
+    # Section, and the portal labels leaves from one function -- without this it
+    # would have to infer the instrument from the document's title. Only set where
+    # the profile names one: the Acts corpus has never carried the key, and adding
+    # it would change every Act's output.
+    if profile.instrument_kind:
+        metadata["instrument_kind"] = profile.instrument_kind
     # The S.R.O. that notified these rules. Every rule set in this corpus is made
     # under one, its number is the instrument's real identity (titles are
     # inconsistent across editions -- "Sales Tax Rules 2006" and "THE SALES TAX
     # RULES, 2006" are the same instrument), and the reviewer needs it to check an
     # amendment against the gazette. It is printed on the first body page.
-    sro = _notifying_sro(body_refs)
-    if sro:
-        metadata["notified_by"] = sro
+    if profile.notifying_sro:
+        sro = _notifying_sro(body_refs)
+        if sro:
+            metadata["notified_by"] = sro
     if fidelity is not None:
         # File-level OCR provenance.  A consumer of a scanned edition must be
         # able to see, from the JSON alone, that this text was recognised rather

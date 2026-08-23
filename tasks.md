@@ -166,14 +166,61 @@ injection mechanism and then unpicking it — so this moves to **Phase 6b**, imm
 the packages are unified. The files are already in their destination directory, so that step
 is purely a content split.
 
-## Phase 4 — Unify acts+rules behind a profile · not started
-- [ ] 4a: share the 6 docstring-only-diff modules verbatim (~5,036 LOC)
-- [ ] 4b: `profiles.py` with `ACTS` / `RULES`
-- [ ] 4c: adopt the cross-corpus fixes unconditionally (`SCHEDULE_TOC_RE`, dash-run terminator,
-      `_precedes_first_chapter_in_toc`, real `calibrate._demo`, `CHAPTER_RE` bracket, `folio_value`)
-- [ ] 4d: fix `is_code_like` / `_CODE_PARTS_RE` ordering wart
-- [ ] Keep `acts_ingest` / `rules_ingest` `__init__.py` shims so the public API is untouched
-- Result: −___ LOC · acts ___/80 · ordinance ___/12 · self-checks ___ · acts output moved? ___
+## Phase 4 — Unify acts+rules behind a profile · **done**
+- [x] `packages/legal_ingest/` — one pipeline, 12 modules (was 2 × 12 forks)
+- [x] `packages/legal_ingest/profiles.py` — `Profile` dataclass, `ACTS` / `RULES`
+- [x] Profile threaded explicitly (no global state): `run` → `calibrate` → `Calibration.profile`
+      → `build_page_model`; `parse_toc(lines, profile)`
+- [x] Adopted unconditionally: `SCHEDULE_TOC_RE`, dash-run heading terminator,
+      `_precedes_first_chapter_in_toc`, real `calibrate._demo`, `CHAPTER_RE` insertion
+      bracket, 4-digit `CODE` + `is_code_like` year guard, `page_offset_samples`
+- [x] Gated per corpus: ordinal gap/dtop bounds, `_reattach_raised_ordinals`, folio
+      parenthesised + running-title forms, subchapter TOC rows, hyphen leaders,
+      codeless TOC rows, TOC-tail density floor, `instrument_kind`, notifying S.R.O.
+- [x] `acts_ingest` / `rules_ingest` reduced to profile-binding shims — `from
+      <lane>_ingest import run` unchanged
+- [x] Submodule importers repointed to `legal_ingest` (backend provenance, 4 acts
+      tools, both invariants modules, `apps/api/Dockerfile`)
+- [x] `is_code_like` / `_CODE_PARTS_RE` ordering wart fixed by taking the clean base
+
+**Result: 41 files, −12,090 / +393. Code LOC 81,247 → 69,577 (−11,670).**
+`packages/` Python: 31,029 → 19,322. pytest **436** · web **134 ✅** build ✅ ·
+gate ordinance **12 ✅** acts **80 ✅** rules ❌ (identical failure set) ·
+ruff repo-wide **27 → 17** · self-checks **9** (acts had 7; it gains `calibrate`,
+`pipeline` and `profiles` coverage it never had)
+
+### Acts output: measured, not assumed
+
+A byte-compare against the committed `output/*.json` showed three differences — but the
+control was wrong: **the corpus JSON on disk is stale relative to `main`**. It predates
+`metadata.source_kind` and the semantic preamble markup, both of which are in *both*
+pre-merge forks. So the golden files are not a baseline for this change.
+
+The correct control is the same PDF converted by pre-change `main` and by the unified
+package. Run on three Acts editions, the entire difference is:
+
+```
+only in unified: ['.metadata.calibration.page_offset_samples']
+differing values: 0
+```
+
+One additive metadata field, zero content changes. That is deliberate behaviour change
+#4 from the plan and nothing else — the Acts reading is otherwise byte-identical.
+
+### Design notes
+
+`Calibration` carries the profile. `build_page_model` already receives a `Calibration`
+at every call site, so this avoided threading a second argument through the page model
+and kept the change to signatures small.
+
+Two things the plan expected to be profile knobs turned out not to need to be. The
+4-digit `CODE` widening feeds nine *import-time* compiled regexes, so making it vary per
+corpus would have meant a lazy per-profile regex layer; instead the widening is adopted
+for both with the year guard that accompanies it, which is exactly how the Rules
+pipeline already ran — and the 80-edition Acts suite plus the byte-compare above confirm
+it changes nothing. Conversely the folio reader needed **two** flags, not one: its "bare"
+pattern also accepted `(104)`, and a centred subsection marker in a footer band is
+printed the same way, which is why the Acts reader had required `str.isdigit()`.
 
 ## Phase 5 — Collapse converter CLIs · not started
 - [ ] One `tools/convert.py <lane> <pdf>` replacing 3x `convert_*.py` + 3x `*_pdf_to_json.py`

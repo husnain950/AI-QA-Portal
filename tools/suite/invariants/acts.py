@@ -191,7 +191,7 @@ def _ref_key(ref: str):
     unsorted, because it has no place for the letter suffix the Customs Act
     prints (33a, 36b, 36c) -- the ordering was right and the invariant wrong.
     """
-    from acts_ingest.footnotes import ref_sort_key
+    from legal_ingest.footnotes import ref_sort_key
     return ref_sort_key(ref)
 
 
@@ -220,7 +220,7 @@ def inv_no_year_marker_refs(doc):
     digits; the Customs Act runs past 130 and Sales Tax into the 800s, so that
     rule flagged 57 perfectly good markers here (and, in the parser, would have
     discarded them).  See grammar.is_year_like."""
-    from acts_ingest.grammar import is_year_like
+    from legal_ingest.grammar import is_year_like
     bad = []
     for leaf in iter_all_leaves(doc):
         for fn in leaf.get("footnotes", []):
@@ -465,7 +465,7 @@ def _is_amendment_instrument(doc) -> bool:
     an invariant is handed.  Amendment instruments score 4.05 (Income Tax 3rd
     Amdt 2016) to 34.49; the consolidated families score 0.09-0.11.
     """
-    from acts_ingest.discover import _AMENDING_RE, AMENDING_DENSITY_MIN
+    from legal_ingest.discover import _AMENDING_RE, AMENDING_DENSITY_MIN
     # The CLAUSE side only.  A Finance Act's amending language lives in its
     # clauses; its schedules are tariff data and carry none, so including them
     # measures how big the tariff annex is rather than what the instrument does.
@@ -1131,7 +1131,7 @@ def inv_section_codes_ordered(doc):
     the tree was assembled out of order -- both silent-corruption modes of
     the body-driven discovery fallback and the TOC matcher alike.
     """
-    from acts_ingest.discover import code_sort_key
+    from legal_ingest.discover import code_sort_key
     bad, prev, prev_code = [], None, None
     for leaf in iter_section_leaves(doc):
         code = str(leaf.get("code") or "")
@@ -1151,7 +1151,7 @@ def inv_toc_first_chapter_parse(_doc):
     sanitizer or the Roman-numeral normalisation fails every suite run,
     independent of which JSON is under test.
     """
-    from acts_ingest.toc import parse_toc
+    from legal_ingest.toc import parse_toc
     layouts = {
         "merged-headers (30.06.2024)": [
             "TABLE OF CONTENTS",
@@ -1206,7 +1206,7 @@ def inv_toc_schedule_regexes(_doc):
       * a Division letter suffix printed with a space ("Division III A") keeps
         that spaced code instead of collapsing onto a "Division III" sibling.
     """
-    from acts_ingest.toc import parse_toc
+    from legal_ingest.toc import parse_toc
     lines = [
         "CHAPTER I",
         "PRELIMINARY",
@@ -1817,7 +1817,7 @@ def inv_clause_codes_plausible(doc):
     # and legitimately restarts and jumps.
     if (meta.get("chapters_count") or 0) != 1:
         return []
-    from acts_ingest.discover import code_sort_key
+    from legal_ingest.discover import code_sort_key
 
     # Sections under CHAPTERS only.  iter_all_leaves also walks ``schedules``,
     # whose codes ("SCHEDULE", "TABLE-1") are not clause numbers at all --

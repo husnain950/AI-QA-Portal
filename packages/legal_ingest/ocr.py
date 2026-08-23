@@ -28,7 +28,7 @@ guard that needs in ``builder._bold_title``.
 Both engines are imported lazily, inside the functions that use them, so the
 Phase-1 (text-layer) pipeline never pays for onnxruntime.
 
-Self-check: ``python -m rules_ingest.ocr``.
+Self-check: ``python -m legal_ingest.ocr``.
 """
 
 from __future__ import annotations
@@ -1257,7 +1257,7 @@ def _demo() -> None:
                               PageOCR(page=2, words=[], agreed=0, total=0)])
     assert f.admitted and f.blank == 1 and f.mean_agreement == 99.0, f.reason
 
-    print("rules_ingest.ocr: self-check OK")
+    print("legal_ingest.ocr: self-check OK")
 
 
 if __name__ == "__main__":

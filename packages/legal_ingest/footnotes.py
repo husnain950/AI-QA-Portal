@@ -1,6 +1,6 @@
 """Parse the footnote block at the bottom of each page.
 
-Within the footnote zone (already separated by :mod:`acts_ingest.pagemodel`)
+Within the footnote zone (already separated by :mod:`legal_ingest.pagemodel`)
 each footnote starts with a small superscript *marker* -- a digit or ``*`` --
 at the left margin, followed by size-8 body text that may wrap over several
 lines until the next marker.
@@ -13,7 +13,7 @@ Each footnote is rendered to three fields, matching the target JSON:
             columns are recovered from the word x-positions on the page.
 
 The globally-unique reference (``"{printed_page}.{marker}"``, e.g. ``"1.*"``)
-is assembled later in :mod:`acts_ingest.builder`, which knows the printed-page
+is assembled later in :mod:`legal_ingest.builder`, which knows the printed-page
 offset.
 """
 

@@ -13,7 +13,7 @@ RUN groupadd --system crx && useradd --system --gid crx --home-dir /app crx
 
 # Keep the `backend` package name so imports stay stable.
 COPY apps/api/backend /app/backend
-COPY packages/acts_ingest /app/acts_ingest
+COPY packages/legal_ingest /app/legal_ingest
 
 RUN mkdir -p /app/data/uploads \
       /data/corpus/ordinance /data/corpus/acts /data/corpus/rules \

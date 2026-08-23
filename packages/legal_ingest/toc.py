@@ -8,7 +8,7 @@ hierarchy of the document:
 Every *section* row carries a printed page number.  Because the printed page
 numbers are offset from the physical PDF page numbers by a constant (the TOC
 pages themselves), we can turn a printed page number into a PDF page index by
-adding ``page_offset`` (see :mod:`acts_ingest.pipeline`).
+adding ``page_offset`` (see :mod:`legal_ingest.pipeline`).
 
 This module is deliberately conservative: it only classifies a line as a
 section row when it starts with a section *code* (e.g. ``12``, ``15A``,
@@ -29,16 +29,20 @@ from .grammar import (  # noqa: F401
     CODE,
     CODE_TOC,
     DIVISION_RE,
+    NUMERAL,
     PAGE_TOC,
     PART_RE,
     SCHEDULE_RE,
+    SCHEDULE_TOC_RE,
     TABLE_RE,
     code_sort_key,
+    is_code_like,
     norm_code,
     page_num,
     spaced,
     unspace,
 )
+from .profiles import ACTS, Profile
 
 # em dash / en dash / hyphen -- same set as builder.HEAD_SPLIT_RE
 _DASHES = "—–-"
@@ -157,6 +161,18 @@ _HDR_TOKEN = (rf"(?:{spaced('SECTION')}S?|{spaced('PAGE')}|{spaced('NO')}\.?"
 TOC_HEADER_LINE_RE = re.compile(rf"^\s*{_HDR_TOKEN}(?:\s+{_HDR_TOKEN})*\s*$",
                                 re.IGNORECASE)
 TOC_HEADER_TAIL_RE = re.compile(rf"(?:\s+{_HDR_TOKEN})+\s*$", re.IGNORECASE)
+
+# A SUB-CHAPTER row.  Sales Tax Rules 2006 subdivides three of its chapters
+# ("SUB-CHAPTER 2 LICENSING ..... 113"), a level no other corpus in this
+# pipeline has and one the document tree does not model -- six tree walkers
+# hardcode chapter/part/division/section as the child keys.  Modelling it is a
+# much larger change than the defect warrants, so the row is CONSUMED instead:
+# recognising it stops it falling through to heading-continuation, which is
+# what glued "SUB-CHAPTER 2 126 APPROVAL OF THE VENDOR 126" onto rule 150ZQT's
+# title.  The sections keep their real parent, the enclosing chapter.
+SUBCHAPTER_TOC_RE = re.compile(
+    rf"^\s*\[?\s*SUB[\s\-]*{spaced('CHAPTER')}[\s\-]+(?:{NUMERAL})\b.*$",
+    re.IGNORECASE)
 # A part row may carry its printed page inline ("Part IIB 503" -- First
 # Schedule) exactly like the division rows below; without the optional page
 # group it fails to classify and its text (and the following part's title) get
@@ -347,7 +363,7 @@ def _completes_heading_year(heading: str, extra: str) -> bool:
             and _YEAR_TAIL_RE.fullmatch(extra) is not None)
 
 
-def parse_toc(lines: list[str]):
+def parse_toc(lines: list[str], profile: Profile = ACTS):
     """Parse TOC text lines into (chapters, schedules, ordered_sections)."""
     chapters: list[Node] = []
     schedules: list[Node] = []
@@ -410,7 +426,7 @@ def parse_toc(lines: list[str]):
             line = TOC_HEADER_TAIL_RE.sub("", line)
 
         # ---- schedule marker (switches us into schedule mode) -------------
-        if SCHEDULE_RE.match(line) and not SECTION_RE.match(line):
+        if SCHEDULE_TOC_RE.match(line) and not SECTION_RE.match(line):
             in_schedules = True
             code = re.sub(r"\s+", " ", line.strip())
             node = Node(kind="schedule", code=code)
@@ -490,6 +506,13 @@ def parse_toc(lines: list[str]):
 
         # ---- section row --------------------------------------------------
         m = SECTION_RE.match(line)
+        # A YEAR is not a rule code. `CODE` allows four digits because Customs Rules
+        # runs to 1110, which also admits the year every one of these documents prints
+        # in its own title -- "... (WITHHOLDING) RULES, 2007" opened a phantom rule
+        # 2007 ahead of rule 1, and `clause_codes_plausible` then reported the opening
+        # clauses missing.
+        if m and not in_schedules and not is_code_like(norm_code(m.group("code"))):
+            m = None
         if m and not in_schedules:
             code = norm_code(m.group("code"))
             heading = _clean_heading(m.group("heading"))
@@ -515,6 +538,8 @@ def parse_toc(lines: list[str]):
 
         # ---- a code-led section row with no page number on its line -------
         nm = SECTION_NOPAGE_RE.match(line) if not in_schedules else None
+        if nm and not is_code_like(norm_code(nm.group("code"))):
+            nm = None
         if nm:
             code = norm_code(nm.group("code"))
             prev = last_section.code if last_section is not None else None
@@ -582,6 +607,12 @@ def parse_toc(lines: list[str]):
             else:
                 pending_heading_for.heading = _join_heading(
                     pending_heading_for.heading, txt)
+            continue
+
+        # ---- sub-chapter row: consume, never glue ------------------------
+        if profile.subchapter_rows and SUBCHAPTER_TOC_RE.match(line):
+            pending_heading_for = None
+            last_section = None
             continue
 
         # ---- wrapped section heading continuation ------------------------
@@ -782,6 +813,24 @@ def _demo() -> None:
         "Omitted",
         "Recovery of tax by the department",
     ], [e.heading for e in dup_secs]
+
+    # SUB-CHAPTER rows: consumed for the Rules, invisible to the Acts. Sales Tax
+    # Rules 2006 is the only document with the level; reading the row is what stops
+    # it gluing onto the preceding rule's title.
+    from .profiles import RULES as _RULES
+    subch = [
+        "CHAPTER I  PRELIMINARY .... 1",
+        "1. Short title ............ 1",
+        "SUB-CHAPTER 2  LICENSING ...... 113",
+        "2. Application ............ 2",
+    ]
+    _c, _s, rules_secs = parse_toc(subch, _RULES)
+    assert [s.code for s in rules_secs] == ["1", "2"], [s.code for s in rules_secs]
+    assert all("SUB-CHAPTER" not in (s.heading or "") for s in rules_secs), rules_secs
+    # With the gate off the row is not consumed here, so the Acts reading is
+    # unchanged from before the two pipelines merged.
+    _c, _s, acts_secs = parse_toc(subch, ACTS)
+    assert [s.code for s in acts_secs] == ["1", "2"], [s.code for s in acts_secs]
 
     print("toc self-check passed")
 

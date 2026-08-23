@@ -1,4 +1,4 @@
-# Phase-2 OCR only (rules_ingest/ocr.py).  Deliberately NOT in the main
+# Phase-2 OCR only (legal_ingest/ocr.py).  Deliberately NOT in the main
 # requirements: both engines are imported lazily inside the functions that use
 # them, so a text-layer conversion never loads onnxruntime.
 #

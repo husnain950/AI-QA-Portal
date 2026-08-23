@@ -23,7 +23,7 @@ find out.  A derived value that is also asserted cannot rot silently.
 
 Run standalone to inspect what a document calibrates to::
 
-    python -m rules_ingest.calibrate "Acts/Customs Act, 1969/....pdf"
+    python -m legal_ingest.calibrate "Acts/Customs Act, 1969/....pdf"
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ from dataclasses import asdict, dataclass
 
 from .grammar import folio_value
 from .pagemodel import Word, _group_into_lines, normalize_text
+from .profiles import ACTS, Profile
 
 # A table-of-contents row: a section code, a title, then the printed page it
 # starts on -- optionally a range ("2. Definitions.....7-29", Sales Tax) and
@@ -56,6 +57,9 @@ TOC_ROW_RE = re.compile(
 # no TOC at all in a 946-page document whose contents occupy pages 2-20 -- and
 # `first_body_page = toc_pages + 1` then read all nineteen of them as body.
 TOC_LEADER_RE = re.compile(r"(?:[.…]{5,}|[-_]{6,}|(?:[-_]{2,}[\s]){2,})[\s.…\-_]*\d{0,4}\s*$")
+#: Dots only -- what the Acts corpus was calibrated against, kept so that widening
+#: the leader charset for the Rules cannot change how an Act's contents is found.
+TOC_DOT_LEADER_RE = re.compile(r"(?:[.…]{5,})[\s.…]*\d{0,4}\s*$")
 
 
 # A contents row carrying NO rule code -- words, then the folio. The Income Tax Rules
@@ -71,12 +75,23 @@ TOC_CODELESS_RE = re.compile(
     r"^\s*(?=.*[A-Za-z]{3})[^\d\n].{3,90}?[\s.\-…]+\d{1,4}\s*$")
 
 
-def _is_toc_row(line: str) -> bool:
-    return bool(
-        TOC_ROW_RE.match(line)
-        or TOC_LEADER_RE.search(line)
-        or TOC_CODELESS_RE.match(line)
-    )
+def _is_toc_row(line: str, profile: Profile = ACTS) -> bool:
+    """Whether ``line`` looks like a contents row, in the forms this corpus sets.
+
+    The coded form is universal. The other two are opt-in: a hyphen-leader run and a
+    codeless "words then folio" row are both shapes ordinary body prose can take, and
+    the Acts contents needs neither, so admitting them there would only add ways for a
+    body page to be mistaken for contents.
+    """
+    if TOC_ROW_RE.match(line):
+        return True
+    if profile.toc_hyphen_leaders and TOC_LEADER_RE.search(line):
+        return True
+    if not profile.toc_hyphen_leaders and TOC_DOT_LEADER_RE.search(line):
+        return True
+    if profile.toc_codeless_rows and TOC_CODELESS_RE.match(line):
+        return True
+    return False
 
 # Folio grammar lives in `grammar` -- `pagemodel` reads the same forms per page and
 # cannot import this module (this module imports it).
@@ -148,8 +163,16 @@ class Calibration:
     #: positionally has to change.
     header_keys: tuple = ()
 
+    #: Which corpus this document belongs to. Carried here because `pagemodel`
+    #: already receives a `Calibration` everywhere it needs the profile, so this
+    #: saves threading a second argument through every page-model call site.
+    #: Excluded from `as_dict`, which is emitted as `metadata.calibration`.
+    profile: Profile = ACTS
+
     def as_dict(self) -> dict:
-        return asdict(self)
+        # `profile` is configuration, not a measurement, and this dict is emitted as
+        # `metadata.calibration` -- adding it would change every document's output.
+        return {k: v for k, v in asdict(self).items() if k != "profile"}
 
 
 # --------------------------------------------------------------------------
@@ -213,7 +236,7 @@ def _thin_ink(page):
     return out
 
 
-def detect_toc_pages(pdf, max_scan: int = 40) -> int:
+def detect_toc_pages(pdf, max_scan: int = 40, profile: Profile = ACTS) -> int:
     """Number of leading pages before the body starts (title pages + TOC).
 
     Replaces the Ordinance's ``commencement.-|This Ordinance may be`` signature,
@@ -229,7 +252,7 @@ def detect_toc_pages(pdf, max_scan: int = 40) -> int:
     for i in range(limit):
         lns = [ln for ln in (pdf.pages[i].extract_text() or "").split("\n")
                if ln.strip()]
-        r = sum(1 for ln in lns if _is_toc_row(ln))
+        r = sum(1 for ln in lns if _is_toc_row(ln, profile))
         rows.append(r)
         ratio.append(r / max(1, len(lns)))
 
@@ -258,7 +281,9 @@ def detect_toc_pages(pdf, max_scan: int = 40) -> int:
     #
     # A real contents tail is SHORT but still DENSE: few lines, most of them rows.
     # The title page is long and sparse (8%). Requiring both separates them.
-    while end + 1 < limit and rows[end + 1] >= 3 and ratio[end + 1] >= 0.20:
+    floor = profile.toc_tail_density_floor
+    while (end + 1 < limit and rows[end + 1] >= 3
+           and (floor is None or ratio[end + 1] >= floor)):
         end += 1
     return end + 1
 
@@ -266,13 +291,13 @@ def detect_toc_pages(pdf, max_scan: int = 40) -> int:
 # --------------------------------------------------------------------------
 
 
-def calibrate(pdf, sample: int = 36) -> Calibration:
+def calibrate(pdf, sample: int = 36, profile: Profile = ACTS) -> Calibration:
     """Derive this document's geometry and typography from a page sample."""
     n = len(pdf.pages)
     page_w = _modal((p.width for p in pdf.pages[: min(n, 8)]), 612.0)
     page_h = _modal((p.height for p in pdf.pages[: min(n, 8)]), 792.0)
 
-    toc_pages = detect_toc_pages(pdf)
+    toc_pages = detect_toc_pages(pdf, profile=profile)
 
     # Sample body pages evenly.  Front matter is skipped: its typography (title
     # blocks, TOC leaders, roman folios) is not the body's and would skew every
@@ -309,7 +334,7 @@ def calibrate(pdf, sample: int = 36) -> Calibration:
             if ln.top < page_h * 0.75:
                 break
             t = ln.text().strip()
-            value = folio_value(t)
+            value = folio_value(t, profile)
             if value is not None:
                 foot_tops.append(ln.top)
                 # A folio must be a plausible page of THIS document.  One Sales
@@ -516,6 +541,7 @@ def calibrate(pdf, sample: int = 36) -> Calibration:
     marker_max_value = 9999 if footnote_size < body_size else 999
 
     return Calibration(
+        profile=profile,
         page_w=page_w, page_h=page_h,
         header_max_top=round(header_max_top, 1),
         footer_min_top=round(footer_min_top, 1),
@@ -552,29 +578,43 @@ def _demo() -> None:
     import pdfplumber
 
     # The three folio forms this corpus prints, all measured.
-    assert folio_value("226") == 226                      # Customs Rules: bare
-    assert folio_value("(104)") == 104                    # Sales Tax Rules: bracketed
-    assert folio_value("Income Tax Rules, 2002 289") == 289   # title, then folio
-    assert folio_value("Customs Rules 1969 42") == 42
+    from .profiles import ACTS as _ACTS
+    from .profiles import RULES as _RULES
+    assert folio_value("226", _RULES) == 226                    # Customs Rules: bare
+    assert folio_value("(104)", _RULES) == 104                  # Sales Tax: bracketed
+    assert folio_value("Income Tax Rules, 2002 289", _RULES) == 289  # title, then folio
+    assert folio_value("Customs Rules 1969 42", _RULES) == 42
+    # The Acts read the plain form only: a centred subsection marker in a footer
+    # band must not be mistaken for a folio, which is what `str.isdigit()` used to
+    # guarantee before the two pipelines merged.
+    assert folio_value("226", _ACTS) == 226
+    assert folio_value("(104)", _ACTS) is None
+    assert folio_value("(2)", _ACTS) is None
+    assert folio_value("Income Tax Rules, 2002 289", _ACTS) is None
     # ... and what is NOT a folio
-    assert folio_value("Sales Tax Rules, 2006") is None   # the title's own year
-    assert folio_value("Federal Excise Rules, 2005") is None
-    assert folio_value("(i)") is None                     # roman front matter
-    assert folio_value("12 34") is None                   # two numbers, no words
-    assert folio_value("") is None
+    assert folio_value("Sales Tax Rules, 2006", _RULES) is None   # the title's own year
+    assert folio_value("Federal Excise Rules, 2005", _RULES) is None
+    assert folio_value("(i)", _RULES) is None             # roman front matter
+    assert folio_value("12 34", _RULES) is None           # two numbers, no words
+    assert folio_value("", _RULES) is None
 
-    # Contents rows: dot leaders (Sales Tax) and hyphen leaders (Income Tax Rules),
-    # the latter being why a 946-page document reported toc_pages 0.
-    assert _is_toc_row("2. Definitions. ....................... 1")
-    assert _is_toc_row("Valuation of accommodation ---------- ------ ----------- 3")
-    assert _is_toc_row("13A. Acquisition of securities---------------- 11")
-    assert not _is_toc_row("the licensee shall ensure that each factory premises")
-    assert not _is_toc_row("(2) The licensee shall arrange testing for all equipment.")
+    # Contents rows. The coded form and dot leaders are read for every corpus; hyphen
+    # leaders and codeless rows are Rules-only, the former being why a 946-page
+    # document reported toc_pages 0.
+    for _p in (_ACTS, _RULES):
+        assert _is_toc_row("2. Definitions. ....................... 1", _p)
+        assert not _is_toc_row("the licensee shall ensure that each factory premises", _p)
+        assert not _is_toc_row("(2) The licensee shall arrange testing for all equipment.", _p)
+        assert not _is_toc_row("(f) the amount of capital expenditure incurred in the year", _p)
+        assert not _is_toc_row("41", _p)     # a bare folio is not a contents row
+    assert _is_toc_row("Valuation of accommodation ---------- ------ ----------- 3", _RULES)
+    assert _is_toc_row("13A. Acquisition of securities---------------- 11", _RULES)
     # codeless contents rows -- most of the Income Tax Rules contents looks like this
-    assert _is_toc_row("Responsibilities of the Authority 71")
-    assert _is_toc_row("Valuation of conveyance 3")
-    assert not _is_toc_row("(f) the amount of capital expenditure incurred in the year")
-    assert not _is_toc_row("41")            # a bare folio is not a contents row
+    assert _is_toc_row("Responsibilities of the Authority 71", _RULES)
+    assert _is_toc_row("Valuation of conveyance 3", _RULES)
+    # ...and none of those three shapes may pull an Acts body line into the contents
+    assert not _is_toc_row("Responsibilities of the Authority 71", _ACTS)
+    assert not _is_toc_row("Valuation of accommodation ---------- ------ --- 3", _ACTS)
     print("calibrate self-check passed")
 
     for path in sys.argv[1:] or []:

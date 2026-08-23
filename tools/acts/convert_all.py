@@ -265,7 +265,7 @@ def is_scanned(pdf: pathlib.Path, sample: int = 8) -> bool:
 
         import pdfplumber
 
-        from acts_ingest.pagemodel import _page_is_scan
+        from legal_ingest.pagemodel import _page_is_scan
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             with pdfplumber.open(pdf) as doc:

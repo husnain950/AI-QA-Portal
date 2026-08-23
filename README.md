@@ -1,6 +1,6 @@
 # FBR Corpus Platform (`crx`)
 
-Unified monorepo: **PDF → JSON pipelines** (`packages/fbr_ingest`, `packages/acts_ingest`) and the **QA review portal** (`apps/api`, `apps/web`) share one Docker stack, Makefile, and sync CLI.
+Unified monorepo: **PDF → JSON pipelines** (`packages/fbr_ingest`, `packages/legal_ingest`) and the **QA review portal** (`apps/api`, `apps/web`) share one Docker stack, Makefile, and sync CLI.
 
 Live portal without a seed is empty; this repo is meant to run locally with in-tree corpora under `data/corpora/` and `make sync`.
 
@@ -22,7 +22,7 @@ convert PDF  →  data/output JSON  →  make sync  →  review in UI  →  expo
 apps/api          FastAPI (Python package name: backend)
 apps/web          Vite + React review UI
 packages/fbr_ingest   Income Tax Ordinance pipeline
-packages/acts_ingest  Acts + OCR fork (kept separate on purpose)
+packages/legal_ingest  Acts + Rules pipeline (one profile per corpus) + OCR
 tools/            sync_corpus, convert_*, import_qa, bootstrap_corpora, smoke tests
 data/             gitignored uploads / corpora / output / ocr_cache (the DB lives in PostgreSQL)
 data/corpora/     Ordinance + Acts PDFs and pipeline JSON (local only)
@@ -96,7 +96,7 @@ Compose mounts `./data/corpora/...` **read-only** into the API container. Large 
 | `make sync` | Sync Ordinance + Acts (`--metrics`) |
 | `make seed-fixtures` | Generate + load a micro-corpus (no private data needed) |
 | `make convert-ordinance PDF=…` | Run `fbr_ingest` |
-| `make convert-acts PDF=…` | Run `acts_ingest` |
+| `make convert-acts PDF=…` | Convert an Act |
 | `make test` | API pytest + pipeline smoke + web lint/tests/build |
 | `make check` | Exactly what CI gates on, including `ruff check apps/api tools` |
 | `make export-qa DOC=…` | Download QA report JSON |
@@ -255,7 +255,9 @@ Operations, backup, and restore are in [`docs/operations.md`](docs/operations.md
 
 ## Non-goals (v1)
 
-- Merging `fbr_ingest` and `acts_ingest`
+- Merging `fbr_ingest` into `legal_ingest` (the Acts and Rules pipelines ARE merged;
+  the Ordinance stays separate -- it diverges by 3,500+ lines and has no `grammar`,
+  `calibrate` or `ocr` module to share)
 - Re-converting the full Acts corpus in-session
 - Shipping PDFs or DB blobs in git
 - LLM/vision in the conversion path

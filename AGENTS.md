@@ -3,7 +3,7 @@
 ## Cursor Cloud specific instructions
 
 FBR Corpus Platform (`crx`) is a single-product monorepo: PDF→JSON conversion pipelines
-(`packages/fbr_ingest`, `packages/acts_ingest`) plus a QA review portal (`apps/api` FastAPI
+(`packages/fbr_ingest`, `packages/legal_ingest`) plus a QA review portal (`apps/api` FastAPI
 backend + `apps/web` Vite/React frontend). Standard commands live in `README.md` and the
 `Makefile`; below are only the non-obvious things for running this in a cloud VM.
 

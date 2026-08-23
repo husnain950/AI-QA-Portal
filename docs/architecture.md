@@ -8,7 +8,9 @@
   detectors, PDF renders, evidence exports, AI proposals.
 - **apps/web** — Vite/React review UI (Zustand, vanilla CSS).
 - **packages/fbr_ingest** — Ordinance digital-PDF pipeline (unchanged internals).
-- **packages/acts_ingest** — Acts pipeline + OCR fork (kept separate; intentional drift).
+- **packages/legal_ingest** — Acts *and* Rules pipeline + OCR, one `Profile` per corpus
+  (`packages/legal_ingest/profiles.py`). `acts_ingest` / `rules_ingest` are thin profile
+  bindings that keep `from <lane>_ingest import run` working.
 - **tools/sync_corpus** — Calls `backend.services.corpus_sync` for both corpus roots.
 
 ## Data path

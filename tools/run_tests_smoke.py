@@ -4,8 +4,10 @@
 Two tiers, because the two kinds of check need different things:
 
 * **Self-checks** (``<module>._demo()``) are pure and need no corpus, so they run
-  everywhere including CI. They are where the grammars and calibration are pinned --
-  the code a new pipeline fork diverges from first.
+  everywhere including CI. They are where the grammars, the calibration and each
+  corpus profile are pinned -- and since the Acts and Rules lanes are now one
+  implementation behind two profiles, they are also where a profile-gated behaviour is
+  asserted for both corpora without needing either.
 * **Regression suites** (``tools/run_suite.py <lane>``) assert invariants and cases
   against converted output under ``data/corpora/<lane>/output/``, which is gitignored
   and absent from CI. Missing corpus is a SKIP, never a failure; a present corpus that
@@ -100,6 +102,12 @@ def main() -> int:
         except Exception as err:
             errors.append(f"{module_name}: {err}")
             print(f"FAIL {module_name}: {err}")
+
+    # The Acts and Rules lanes are two profiles of one implementation, so their
+    # self-checks live in the shared package and must run once rather than per lane.
+    # The lane packages themselves are thin profile bindings with no _demo() of their
+    # own -- without this the gate silently ran zero self-checks after the merge.
+    _self_checks("legal_ingest", errors)
 
     for corpus in CORPORA:
         package = corpus.package

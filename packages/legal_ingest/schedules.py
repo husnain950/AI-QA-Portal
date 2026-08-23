@@ -12,7 +12,7 @@ heading and the next heading -- mirroring the target JSON, where a terminal
 Part/Division holds the content directly.
 
 Footnote refs use each page's *printed* page number (read from the footer by
-:mod:`acts_ingest.pagemodel`), because the printed-to-PDF page offset is not
+:mod:`legal_ingest.pagemodel`), because the printed-to-PDF page offset is not
 constant across the schedules.
 """
 
