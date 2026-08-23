@@ -1,7 +1,51 @@
-# Refactor tasks
+# Refactor tasks — **complete**
 
-Working ledger for the repo-wide refactor. Delete or fold into the final summary when Phase 9 lands —
-this is not meant to become a second source of truth alongside `README.md`.
+Working ledger for the repo-wide refactor, kept as the audit trail for what was measured
+and what was deliberately not done. Safe to delete once read; it is not meant to become a
+second source of truth alongside `README.md`.
+
+## Outcome
+
+| | baseline `8112585` | now | delta |
+|---|---|---|---|
+| code LOC (`py,jsx,js,mjs,css`) | 84,702 | **69,278** | **−15,424 (−18%)** |
+| `packages/` | 31,002 | 19,322 | −11,680 |
+| `tools/` | 14,168 | 10,916 | −3,252 |
+| `apps/web` | 17,833 | 17,535 | −298 |
+| `apps/api` | 21,699 | 21,505 | −194 |
+| files | — | — | 70 deleted, 11 added, 26 renamed |
+| pytest | 439 | **441** | +5 new, −3 with deleted code |
+| web tests | 134 | **134** | — |
+| ruff (repo) | 27 | **17** | −10 |
+| pipeline gate | ord 12 ✅ acts 80 ✅ rules ❌ | **identical** | failure set byte-identical |
+
+Nine commits, one per phase. Every phase verified against the baseline before committing.
+
+### Defects found and fixed (none were in scope; all were live)
+
+1. **The Rules corpus could not mount in Docker or production** — `docker-compose.yml`,
+   `apps/api/Dockerfile` and `northflank.template.json` all declared two lanes.
+2. **`$CORPUS_RULES` was silently ignored** by every tool importing `corpus_paths`,
+   whose lane table had two entries.
+3. **`Corpus.path()` resolved relative values against the process CWD**, so the API and
+   worker could resolve the same variable to different directories.
+4. **The source-PDF rule hardcoded `Acts/`**, so the Rules sync only worked because a
+   fallback recursive scan happened to reach `Rules/`.
+5. **`make deploy-prod` shipped a local relative path to production** — fixed by
+   deleting the dead CodeRun path.
+6. **`tools/add_test_case.py` and `tools/import_qa_report.py` could not start** — both
+   imported packages that have never existed in this repo.
+7. **A latent frontend `TypeError`** — `TriagePage` selected a store action that does
+   not exist.
+8. **Keyboard shortcuts leaked into form controls** — four divergent `isTypingTarget`
+   checks disagreed about `<select>` and contentEditable.
+9. **Sign-out showed a stray text input** — `confirmOnly` was passed to a dialog that
+   ignores it.
+10. **A dead retry branch in the network path** — unreachable, since `request()` throws
+    on any non-ok response.
+
+Plus one regression I introduced in Phase 2 and fixed in Phase 8 (`source_within`),
+with two tests pinning it.
 
 **Baseline** on `main` @ `8112585`:
 
