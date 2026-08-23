@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { isTypingTarget } from '../utils/keyboard';
 
 export const useKeyboardNav = ({ 
     onArrowLeft, 
@@ -9,14 +10,7 @@ export const useKeyboardNav = ({
 }) => {
     useEffect(() => {
         const handleKeyDown = (e) => {
-            // Do not trigger navigation if the user is typing in a form input or textarea
-            const activeEl = document.activeElement;
-            const isTyping = activeEl && (
-                activeEl.tagName === 'INPUT' || 
-                activeEl.tagName === 'TEXTAREA' || 
-                activeEl.contentEditable === 'true'
-            );
-            if (isTyping) return;
+            if (isTypingTarget(e)) return;
 
             if (e.key === 'ArrowLeft' && onArrowLeft) {
                 e.preventDefault();

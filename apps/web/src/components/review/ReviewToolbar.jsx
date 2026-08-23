@@ -10,6 +10,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useAiFixStore } from '../../stores/aiFixStore';
 import { hasApprovedFix } from '../../utils/aiFix';
 import AiFixPanel from './AiFixPanel';
+import { isTypingTarget } from '../../utils/keyboard';
 
 /**
  * @param {{ section?: object | null }} props
@@ -101,7 +102,7 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
         if (!isPrimaryToolbar || !targetSection) return undefined;
         const onKey = (e) => {
             if (e.metaKey || e.ctrlKey || e.altKey) return;
-            if (e.target.matches?.('input, textarea, select') || e.target.isContentEditable) return;
+            if (isTypingTarget(e)) return;
             // Ignore while a dialog/modal is open (confirm, AI fix, palette…).
             if (aiFixOpen || document.querySelector('dialog[open], .cp-overlay')) return;
             if (e.key === 'a' || e.key === 'A') {

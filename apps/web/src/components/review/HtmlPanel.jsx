@@ -6,8 +6,9 @@ import FootnotePanel from '../footnotes/FootnotePanel';
 import { formatQualityFlagList } from '../../utils/qualityFlags';
 import { useUiStore } from '../../stores/uiStore';
 import SegmentedControl from '../ui/SegmentedControl';
+import CopyButton from '../ui/CopyButton';
 import EmptyState from '../ui/EmptyState';
-import { Copy, Check, Code, Eye, AlignLeft, AlertTriangle, Braces, FileQuestion, X } from 'lucide-react';
+import { Code, Eye, AlignLeft, AlertTriangle, Braces, FileQuestion, X } from 'lucide-react';
 
 const MODE_TITLES = {
     rendered: 'Parsed HTML Content',
@@ -33,7 +34,6 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
     const [popoverCoords, setPopoverCoords] = useState(null);
     const [selectionData, setSelectionData] = useState(null);
     const [paneMode, setPaneMode] = useState('rendered');
-    const [copied, setCopied] = useState(false);
     const [hoverFootnote, setHoverFootnote] = useState(null);
     const [clickFootnote, setClickFootnote] = useState(null);
 
@@ -217,65 +217,16 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
         setPopoverCoords(coords);
     };
 
-    const handleCopyContent = () => {
-        let textToCopy = '';
+    const copyText = () => {
         if (paneMode === 'json') {
-            const sectionData = section || { id: sectionId, html_content: htmlContent, footnotes };
-            textToCopy = JSON.stringify(sectionData, null, 2);
-        } else if (paneMode === 'plain') {
-            textToCopy = section?.plain_text || '';
-        } else {
-            textToCopy = htmlContent;
+            return JSON.stringify(
+                section || { id: sectionId, html_content: htmlContent, footnotes },
+                null,
+                2,
+            );
         }
-        if (!textToCopy) return;
-
-        const copyToClipboard = async (text) => {
-            // 1. Try modern Clipboard API first
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                try {
-                    await navigator.clipboard.writeText(text);
-                    return; // Successfully copied
-                } catch (err) {
-                    console.warn('Modern clipboard API failed, trying fallback method...', err);
-                }
-            }
-
-            // 2. Fallback using a temporary textarea
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'absolute';
-            textarea.style.left = '-9999px';
-            textarea.style.top = '0';
-            textarea.setAttribute('readonly', ''); // Prevent visual keyboard on mobile
-            document.body.appendChild(textarea);
-
-            const activeEl = document.activeElement;
-            textarea.select();
-            textarea.setSelectionRange(0, 99999); // Safe selection range for iOS
-
-            try {
-                const successful = document.execCommand('copy');
-                if (!successful) {
-                    throw new Error('execCommand returned false');
-                }
-            } catch (err) {
-                console.error('Fallback copy method failed:', err);
-            } finally {
-                document.body.removeChild(textarea);
-                if (activeEl && typeof activeEl.focus === 'function') {
-                    activeEl.focus();
-                }
-            }
-        };
-
-        copyToClipboard(textToCopy)
-            .then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-            })
-            .catch(() => {
-                pushToast({ type: 'error', message: 'Copy to clipboard failed' });
-            });
+        if (paneMode === 'plain') return section?.plain_text || '';
+        return htmlContent;
     };
 
     return (
@@ -296,14 +247,14 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                             { value: 'json', label: 'Raw JSON', icon: <Braces size={13} />, title: 'Raw section JSON' },
                         ]}
                     />
-                    <button
+                    <CopyButton
                         className="btn btn-sm btn-secondary"
-                        onClick={handleCopyContent}
+                        getText={copyText}
+                        label="Copy"
+                        copiedLabel="Copied!"
                         title={`Copy ${paneMode === 'json' ? 'JSON' : paneMode === 'plain' ? 'plain text' : 'HTML'} to clipboard`}
-                    >
-                        {copied ? <Check size={14} style={{ color: 'var(--color-success)' }} /> : <Copy size={14} />}
-                        <span>{copied ? 'Copied!' : 'Copy'}</span>
-                    </button>
+                        onError={() => pushToast({ type: 'error', message: 'Copy to clipboard failed' })}
+                    />
                 </div>
             </div>
 

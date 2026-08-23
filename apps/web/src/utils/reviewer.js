@@ -6,7 +6,6 @@
 // UI can label things without asking again.
 
 let currentUser = null;
-const listeners = new Set();
 
 export function getCurrentUser() {
     return currentUser;
@@ -14,23 +13,13 @@ export function getCurrentUser() {
 
 export function setCurrentUser(user) {
     currentUser = user || null;
-    for (const listener of listeners) listener(currentUser);
     return currentUser;
-}
-
-export function onUserChange(listener) {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
 }
 
 /** Display name for attribution labels; empty when signed out. */
 export function getReviewerName() {
     if (!currentUser) return '';
     return currentUser.display_name || currentUser.email || '';
-}
-
-export function getRole() {
-    return currentUser?.role || null;
 }
 
 /** Role gate for UI affordances. The server enforces the same order. */

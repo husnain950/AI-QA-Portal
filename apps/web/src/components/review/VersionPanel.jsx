@@ -11,16 +11,9 @@ import {
 import { versionsApi } from '../../utils/api';
 import DiffView from '../diff/DiffView';
 import Drawer from '../ui/Drawer';
+import QualityMetrics from '../ui/QualityMetrics';
 import { useUiStore } from '../../stores/uiStore';
-import {
-    BODY_GATE,
-    FOOTNOTE_GATE,
-    conservationState,
-    formatConserved,
-    gateState,
-    invariantLabel,
-    metricsDelta,
-} from '../../utils/versionHealth';
+import { gateState, metricsDelta } from '../../utils/versionHealth';
 
 const formatWhen = (value) => {
     if (!value) return '';
@@ -60,52 +53,9 @@ const MetricsRow = ({ metrics }) => {
     if (!metrics) {
         return <span className="version-metric version-metric-unknown">not measured</span>;
     }
-    const invariants = invariantLabel(metrics);
-    const body = formatConserved(metrics.body_conserved);
-    const footnotes = formatConserved(metrics.footnote_conserved);
-
     return (
         <div className="version-metrics">
-            {invariants && (
-                <span
-                    className={`version-metric version-metric-${
-                        metrics.invariants_passed === metrics.invariants_total
-                            ? 'pass'
-                            : 'fail'
-                    }`}
-                    title={
-                        metrics.failing_invariants?.length
-                            ? `Failing: ${metrics.failing_invariants.join(', ')}`
-                            : 'All invariants pass'
-                    }
-                >
-                    invariants {invariants}
-                </span>
-            )}
-            {body && (
-                <span
-                    className={`version-metric version-metric-${conservationState(
-                        metrics.body_conserved,
-                        BODY_GATE,
-                    )}`}
-                    title={`Gate is ${BODY_GATE}% · ${metrics.body_missing ?? 0} words missing`}
-                >
-                    body {body}
-                </span>
-            )}
-            {footnotes && (
-                <span
-                    className={`version-metric version-metric-${conservationState(
-                        metrics.footnote_conserved,
-                        FOOTNOTE_GATE,
-                    )}`}
-                    title={`Gate is ${FOOTNOTE_GATE}% · ${
-                        metrics.footnote_missing ?? 0
-                    } words missing`}
-                >
-                    footnotes {footnotes}
-                </span>
-            )}
+            <QualityMetrics metrics={metrics} classPrefix="version-metric" />
         </div>
     );
 };

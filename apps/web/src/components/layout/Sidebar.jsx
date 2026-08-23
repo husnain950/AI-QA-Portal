@@ -9,6 +9,7 @@ import { hasCriticalQualityFlags, normalizeQualityFlags } from '../../utils/qual
 import { sectionWasOcrd } from '../../utils/documentTags';
 import { documentLane, laneLabel } from '../../utils/corpusLanes';
 import { editionDateFromName } from '../../utils/editions';
+import { isTypingTarget } from '../../utils/keyboard';
 
 const SearchSnippet = ({ result }) => {
     const text = result.snippet_text ?? result.snippet ?? '';
@@ -102,9 +103,7 @@ const Sidebar = ({ documentId }) => {
 
     useEffect(() => {
         const focusFilter = (event) => {
-            const tagName = document.activeElement?.tagName;
-            const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(tagName);
-            if (event.key === '/' && !isTyping && sidebarTab === 'toc') {
+            if (event.key === '/' && !isTypingTarget(event) && sidebarTab === 'toc') {
                 event.preventDefault();
                 sidebarRef.current?.querySelector('#toc-filter')?.focus();
             }
