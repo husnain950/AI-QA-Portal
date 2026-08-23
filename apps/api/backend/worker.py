@@ -33,101 +33,135 @@ async def _beat(state: str, job_id: str | None = None) -> None:
         await db.commit()
 
 
-async def _execute(job: dict) -> dict:
-    payload = job["payload"] or {}
-    if job["type"] == "corpus_sync":
-        from backend.services.corpus_sync import run_corpus_sync
+async def _corpus_sync(job: dict, payload: dict) -> dict:
+    from backend.services.corpus_sync import run_corpus_sync
 
-        # `only` is what routes.corpus puts in the payload; the *_only flags are read
-        # too so a job enqueued before this change still runs the corpora it meant.
-        return await run_corpus_sync(
-            only=payload.get("only"),
-            dry_run=bool(payload.get("dry_run", False)),
-            metrics=bool(payload.get("metrics", True)),
-            ordinance_only=bool(payload.get("ordinance_only", False)),
-            acts_only=bool(payload.get("acts_only", False)),
-            rules_only=bool(payload.get("rules_only", False)),
+    # `only` is what routes.corpus puts in the payload; the *_only flags are read
+    # too so a job enqueued before this change still runs the corpora it meant.
+    return await run_corpus_sync(
+        only=payload.get("only"),
+        dry_run=bool(payload.get("dry_run", False)),
+        metrics=bool(payload.get("metrics", True)),
+        ordinance_only=bool(payload.get("ordinance_only", False)),
+        acts_only=bool(payload.get("acts_only", False)),
+        rules_only=bool(payload.get("rules_only", False)),
+    )
+
+
+async def _detectors(job: dict, payload: dict) -> dict:
+    from backend.services.findings_store import run_detectors_and_store
+
+    async with database_connection() as db:
+        result = await run_detectors_and_store(
+            db, seed_flags=bool(payload.get("seed_flags", True))
         )
-    if job["type"] == "detectors":
-        from backend.services.findings_store import run_detectors_and_store
+        await db.commit()
+        return result
 
-        async with database_connection() as db:
-            result = await run_detectors_and_store(db, seed_flags=bool(payload.get("seed_flags", True)))
-            await db.commit()
-            return result
-    if job["type"] == "provenance_scan":
-        from backend.services import blob_store
-        from backend.services.document_provenance import backfill_provenance_row
 
-        changed = 0
-        async with database_connection() as db:
-            async with db.execute(
-                "SELECT id, pdf_filename, json_filename, total_pages, provenance FROM documents ORDER BY id"
-            ) as cur:
-                rows = await cur.fetchall()
-            for index, row in enumerate(rows, 1):
-                if await jobs.heartbeat(db, job["id"], WORKER_ID, current=index, total=len(rows)):
-                    raise asyncio.CancelledError
-                result = await backfill_provenance_row(
-                    db,
-                    document_id=row["id"],
-                    json_filename=row["json_filename"],
-                    total_pages=row["total_pages"],
-                    existing_raw=row["provenance"],
-                    pdf_path=blob_store.blob_path(row["pdf_filename"]),
-                    force_native_reinfer=bool(payload.get("force", False)),
-                )
-                changed += int(result is not None)
-                await db.commit()
-        return {"processed": len(rows), "derived": changed}
-    if job["type"] in {"export", "regression_bundle"}:
-        from backend.services.evidence import (
-            build_document_bundle,
-            build_regression_bundle,
-        )
+async def _provenance_scan(job: dict, payload: dict) -> dict:
+    from backend.services import blob_store
+    from backend.services.document_provenance import backfill_provenance_row
 
-        async with database_connection() as db:
-            if job["type"] == "export":
-                return await build_document_bundle(db, payload["document_id"])
-            return await build_regression_bundle(db, int(payload["finding_id"]))
-    if job["type"] == "ai_proposal":
-        from backend.services.ai_fix import create_proposal
-
-        async with database_connection() as db:
-            row = await create_proposal(
+    changed = 0
+    async with database_connection() as db:
+        async with db.execute(
+            "SELECT id, pdf_filename, json_filename, total_pages, provenance "
+            "FROM documents ORDER BY id"
+        ) as cur:
+            rows = await cur.fetchall()
+        for index, row in enumerate(rows, 1):
+            if await jobs.heartbeat(db, job["id"], WORKER_ID, current=index, total=len(rows)):
+                raise asyncio.CancelledError
+            result = await backfill_provenance_row(
                 db,
-                payload["document_id"],
-                payload["section_id"],
-                payload["instructions"],
-                actor=job["actor"],
-                model=payload.get("model"),
+                document_id=row["id"],
+                json_filename=row["json_filename"],
+                total_pages=row["total_pages"],
+                existing_raw=row["provenance"],
+                pdf_path=blob_store.blob_path(row["pdf_filename"]),
+                force_native_reinfer=bool(payload.get("force", False)),
             )
+            changed += int(result is not None)
             await db.commit()
-            return {"proposal_id": row["id"], "status": row["status"]}
-    if job["type"] == "render_pdf":
-        import io
+    return {"processed": len(rows), "derived": changed}
 
-        import pypdfium2 as pdfium
 
-        from backend.services import blob_store
+async def _export(job: dict, payload: dict) -> dict:
+    from backend.services.evidence import build_document_bundle
 
-        async with database_connection() as db:
-            async with db.execute(
-                "SELECT pdf_filename FROM documents WHERE id = ?", (payload["document_id"],)
-            ) as cur:
-                row = await cur.fetchone()
-            if not row:
-                raise KeyError(payload["document_id"])
-        pdf = pdfium.PdfDocument(blob_store.blob_path(row["pdf_filename"]))
-        page_number = int(payload["page"])
-        if page_number < 1 or page_number > len(pdf):
-            raise ValueError("page outside PDF")
-        image = pdf[page_number - 1].render(scale=float(payload.get("scale", 1.5))).to_pil()
-        buffer = io.BytesIO()
-        image.save(buffer, format="PNG")
-        key = blob_store.store_bytes(buffer.getvalue(), "render")
-        return {"key": key, "download_url": f"/uploads/{key}", "page": page_number}
-    raise ValueError(f"job handler not implemented for {job['type']}")
+    async with database_connection() as db:
+        return await build_document_bundle(db, payload["document_id"])
+
+
+async def _regression_bundle(job: dict, payload: dict) -> dict:
+    from backend.services.evidence import build_regression_bundle
+
+    async with database_connection() as db:
+        return await build_regression_bundle(db, int(payload["finding_id"]))
+
+
+async def _ai_proposal(job: dict, payload: dict) -> dict:
+    from backend.services.ai_fix import create_proposal
+
+    async with database_connection() as db:
+        row = await create_proposal(
+            db,
+            payload["document_id"],
+            payload["section_id"],
+            payload["instructions"],
+            actor=job["actor"],
+            model=payload.get("model"),
+        )
+        await db.commit()
+        return {"proposal_id": row["id"], "status": row["status"]}
+
+
+async def _render_pdf(job: dict, payload: dict) -> dict:
+    import io
+
+    import pypdfium2 as pdfium
+
+    from backend.services import blob_store
+
+    async with database_connection() as db:
+        async with db.execute(
+            "SELECT pdf_filename FROM documents WHERE id = ?", (payload["document_id"],)
+        ) as cur:
+            row = await cur.fetchone()
+        if not row:
+            raise KeyError(payload["document_id"])
+    pdf = pdfium.PdfDocument(blob_store.blob_path(row["pdf_filename"]))
+    page_number = int(payload["page"])
+    if page_number < 1 or page_number > len(pdf):
+        raise ValueError("page outside PDF")
+    image = pdf[page_number - 1].render(scale=float(payload.get("scale", 1.5))).to_pil()
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    key = blob_store.store_bytes(buffer.getvalue(), "render")
+    return {"key": key, "download_url": f"/uploads/{key}", "page": page_number}
+
+
+#: job type -> handler. Was a seven-branch if/elif chain with each handler's body
+#: inlined, the longest of them a full PDF render. The imports stay inside the
+#: handlers: the worker runs in the API image and a job type nobody enqueues should
+#: not make the process pay for pypdfium2 at startup.
+_HANDLERS = {
+    "corpus_sync": _corpus_sync,
+    "detectors": _detectors,
+    "provenance_scan": _provenance_scan,
+    "export": _export,
+    "regression_bundle": _regression_bundle,
+    "ai_proposal": _ai_proposal,
+    "render_pdf": _render_pdf,
+}
+
+
+async def _execute(job: dict) -> dict:
+    handler = _HANDLERS.get(job["type"])
+    if handler is None:
+        raise ValueError(f"job handler not implemented for {job['type']}")
+    return await handler(job, job["payload"] or {})
 
 
 async def run() -> None:

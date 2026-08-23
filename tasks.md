@@ -328,18 +328,57 @@ I have not chosen for you: (a) is a feature, (b) changes the suite's contract, a
 is the status quo. **Raised with the user.** The failure set is byte-identical to the
 pre-refactor baseline either way, verified after every phase.
 
-## Phase 7 — Backend consolidation · not started
-- [ ] `_now()` — 7 copies / 3 formats → one source, per-call-site wire format preserved
-- [ ] Byte-identical twins: `_norm_text`, `_html_shape`, `usable`/`_usable_path`
-- [ ] 14 `hashlib.sha256` sites → existing `blob_store.sha256_*`
-- [ ] 6 JSON-column guards → one `as_json_dict()`
-- [ ] 7 "document exists" 404s → one dep (keep each message string verbatim)
-- [ ] Family-key: 3 implementations + a 4-deep fallback ladder → `services/editions.py`
-- [ ] Split `apply_parsed_document` (427), `parse_json_document` (253), `export_qa_report` (205),
-      `worker._execute` (95)
-- [ ] Delete verified-dead symbols + dead params
-- [ ] Merge 2 duplicated tests; drop ~60 redundant `@pytest.mark.asyncio`
-- Result: −___ LOC · pytest ___ · smoke ___
+## Phase 7 — Backend consolidation · **done (2 monoliths deferred)**
+- [x] `services/clock.py` — 7 `_now()` definitions in 3 formats → one source, **all three
+      formats kept** (each is already on the wire); call sites untouched via aliasing
+      imports. Removed the last deprecated `datetime.utcnow()`.
+- [x] `services/textnorm.py` — `_norm_text` + `_html_shape` were byte-identical in
+      `variants` and `detectors`, the two modules that must agree on whether two
+      editions say the same thing
+- [x] `database.json_column()` — 6 hand-rolled TEXT-or-JSONB guards, 3 of which
+      disagreed about malformed values. Strict by default, tolerant where display-only
+- [x] `deps.ensure_exists()` — 4 `SELECT 1 / fetchone / 404` probes; message stays a
+      caller argument so no client-visible text changed
+- [x] `family_id_for_slug` inlined in `v2/governance` → calls `services/identity`
+- [x] `worker._execute` — 7-branch chain with bodies inlined (incl. a whole PDF render)
+      → dispatch table + one handler each
+- [x] `routes/export.py` — 205-line handler → fetch + `_json_response` + `_csv_response`
+      + one `_attachment()` (the filename rule was written twice, 3 lines apart)
+- [x] Deleted verified-dead: `require_admin`, `get_upload_path`, `lane_label`,
+      `family_and_year`, `set_triage`, `DocumentCreate`, and the 5-model export cluster
+      `routes/export.py` never imported
+- [x] Removed **155** redundant `@pytest.mark.asyncio` (auto mode since `pyproject:10`)
+- [x] Disambiguated two same-named-but-different tests
+- [x] **Added `tests/test_export.py`** (3 tests) — the route had none, and it was being
+      restructured
+
+**Result: 55 files, −498 / +455. Code LOC 69,388 → 69,345.**
+pytest **439** (436 + 3 new) · ruff clean
+
+### Three findings rejected, with reasons
+
+- **"14 `hashlib.sha256` sites bypass `blob_store.sha256_bytes`."** Not duplication —
+  those sites hash strings for keys, and `sha256_bytes` is itself a one-line wrapper
+  around the stdlib idiom. Importing the blob store (which pulls S3 config) to avoid
+  `hashlib.sha256(x).hexdigest()` would be worse. Nothing re-implements chunked *file*
+  hashing, which is the one that earns a helper.
+- **"Two duplicated tests."** `test_review_events_append_only` exists in two files with
+  **different bodies** — one tests the triggers directly, the other after a sync. Not
+  duplicates; renamed the second so the pair reads clearly.
+- **"Converge the 3 family-key implementations, delete `timeline._family_candidates`."**
+  That ladder is **load-bearing**: rows written under all three spellings are still in
+  `section_variants`, so deleting it would silently stop resolving timelines for every
+  document keyed the older way. Converging needs a data migration, not a refactor.
+  Documented in the code and left in place.
+
+### Deliberately not done
+
+`services/document_store.apply_parsed_document` (427 lines) and
+`services/json_parser.parse_json_document` (253, wrapping two oversized closures) are
+the two largest functions in the backend and both sit on the ingest write path — the one
+place where a mistake corrupts stored review state rather than throwing. Splitting them
+is worth doing, but it wants its own change with its own tests rather than being the
+tail end of a nine-phase sweep. Left as debt with the seams already identified.
 
 ## Phase 8 — Frontend consolidation · not started
 - [ ] Fix latent `TypeError`: `TriagePage.jsx:69` `setReviewer` (delete obsolete block `:165-179`)

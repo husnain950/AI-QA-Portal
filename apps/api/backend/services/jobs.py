@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Any
 
 from backend.database import DatabaseConnection
+from backend.services.clock import utc_now as now
 
 JOB_TYPES = frozenset(
     {
@@ -23,8 +24,6 @@ JOB_TYPES = frozenset(
 LEASE_SECONDS = 60
 
 
-def now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 async def enqueue(

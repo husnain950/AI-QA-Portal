@@ -60,7 +60,6 @@ def test_blob_store_rejects_unknown_kind(runtime_sandbox):
         blob_store.store_bytes(b"x", "docx")
 
 
-@pytest.mark.asyncio
 async def test_upload_creates_version_one_and_further_versions_stack(runtime_sandbox):
     async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
@@ -73,7 +72,6 @@ async def test_upload_creates_version_one_and_further_versions_stack(runtime_san
     assert created.total_sections == 2
 
 
-@pytest.mark.asyncio
 async def test_identical_json_is_not_a_new_version(runtime_sandbox):
     async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
@@ -85,7 +83,6 @@ async def test_identical_json_is_not_a_new_version(runtime_sandbox):
     assert row["version_no"] == 1
 
 
-@pytest.mark.asyncio
 async def test_activate_rolls_back_to_the_previous_parse(runtime_sandbox):
     async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
@@ -121,7 +118,6 @@ async def test_activate_rolls_back_to_the_previous_parse(runtime_sandbox):
             assert (await cursor.fetchone())[0] == 1, "exactly one active version"
 
 
-@pytest.mark.asyncio
 async def test_only_one_version_can_be_active(runtime_sandbox):
     """The partial unique index, not convention, is what enforces this."""
     async with database_connection() as db:
@@ -139,7 +135,6 @@ async def test_only_one_version_can_be_active(runtime_sandbox):
         await db.rollback()
 
 
-@pytest.mark.asyncio
 async def test_version_diff_reports_changed_added_and_removed_leaves(runtime_sandbox):
     async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
@@ -161,7 +156,6 @@ async def test_version_diff_reports_changed_added_and_removed_leaves(runtime_san
     assert "-Second section" in body and "+Corrected second section" in body
 
 
-@pytest.mark.asyncio
 async def test_diff_of_the_first_version_is_empty_not_an_error(runtime_sandbox):
     async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
@@ -171,7 +165,6 @@ async def test_diff_of_the_first_version_is_empty_not_an_error(runtime_sandbox):
     assert result["sections"] == []
 
 
-@pytest.mark.asyncio
 async def test_unknown_version_activation_is_404(runtime_sandbox):
     async with database_connection() as db:
         created = await upload_document(**_upload(_pdf_bytes(), sample_document()), db=db)
@@ -186,7 +179,6 @@ async def test_unknown_version_activation_is_404(runtime_sandbox):
 # ----------------------------------------------------------------------- anchoring
 
 
-@pytest.mark.asyncio
 async def test_annotation_survives_a_reparse_and_is_flagged_when_unfindable(
     runtime_sandbox,
 ):
@@ -246,7 +238,6 @@ async def test_annotation_survives_a_reparse_and_is_flagged_when_unfindable(
     assert found["loses"]["start_offset"] == 0
 
 
-@pytest.mark.asyncio
 async def test_container_text_matches_the_pipelines_real_markup():
     """Offsets index the rendered container's textContent, not the raw html."""
     html = (
@@ -262,7 +253,6 @@ async def test_container_text_matches_the_pipelines_real_markup():
 # ------------------------------------------------------------------ the whole story
 
 
-@pytest.mark.asyncio
 async def test_the_workflow_this_all_exists_for(runtime_sandbox):
     """Upload once, annotate, fix the pipeline, push JSON only, see and undo the change.
 
@@ -376,7 +366,6 @@ async def test_the_workflow_this_all_exists_for(runtime_sandbox):
             assert (await cursor.fetchone())[0] == 1, "rollback must not drop findings"
 
 
-@pytest.mark.asyncio
 async def test_upload_is_streamed_not_buffered(runtime_sandbox):
     """A large PDF must never be held in memory in one piece.
 
@@ -409,7 +398,6 @@ async def test_upload_is_streamed_not_buffered(runtime_sandbox):
     assert leftovers == [], leftovers
 
 
-@pytest.mark.asyncio
 async def test_failed_stream_leaves_no_partial_blob(runtime_sandbox):
     class ExplodingUpload:
         def __init__(self):

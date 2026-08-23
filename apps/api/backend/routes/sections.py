@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.database import DatabaseConnection, get_db
-from backend.deps import require_reviewer
+from backend.deps import ensure_exists, require_reviewer
 from backend.models import (
     FootnoteResponse,
     QualityFlag,
@@ -70,9 +70,7 @@ _SECTION_META_COLS = """
 @router.get("/{document_id}/sections", response_model=list[SectionMetadataResponse])
 async def list_sections(document_id: str, db: DatabaseConnection = Depends(get_db)):
     # Check if document exists first
-    async with db.execute("SELECT 1 FROM documents WHERE id = ?", (document_id,)) as cursor:
-        if not await cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Document not found")
+    await ensure_exists(db, "documents", document_id, "Document not found")
 
     query = f"""
         SELECT 

@@ -9,8 +9,6 @@ do not work the same finding.
 import json
 from datetime import datetime, timezone
 
-import pytest
-
 from backend.database import database_connection
 from backend.tests.conftest import ADMIN_EMAIL, add_finding, seed_document
 
@@ -55,7 +53,6 @@ def _bulk(ids, triage="parse_bug", prior="new"):
 # --------------------------------------------------------------------- bulk triage
 
 
-@pytest.mark.asyncio
 async def test_bulk_triage_applies_the_whole_batch_once(runtime_sandbox, client):
     async with database_connection() as db:
         ids = await _queue(db)
@@ -83,7 +80,6 @@ async def test_bulk_triage_applies_the_whole_batch_once(runtime_sandbox, client)
     assert len(detail["changes"]) == 3
 
 
-@pytest.mark.asyncio
 async def test_one_stale_row_fails_the_batch_and_writes_nothing(runtime_sandbox, client):
     """The point of the endpoint: no partially applied bulk action."""
     async with database_connection() as db:
@@ -110,7 +106,6 @@ async def test_one_stale_row_fails_the_batch_and_writes_nothing(runtime_sandbox,
         }
 
 
-@pytest.mark.asyncio
 async def test_an_unknown_id_fails_the_batch(runtime_sandbox, client):
     async with database_connection() as db:
         ids = await _queue(db)
@@ -128,7 +123,6 @@ async def test_an_unknown_id_fails_the_batch(runtime_sandbox, client):
         assert (await _triages(db, [ids[0]]))[ids[0]] == "new"
 
 
-@pytest.mark.asyncio
 async def test_replaying_the_same_key_returns_the_first_answer(runtime_sandbox, client):
     """A retried request after a dropped response must not triage twice."""
     async with database_connection() as db:
@@ -154,7 +148,6 @@ async def test_replaying_the_same_key_returns_the_first_answer(runtime_sandbox, 
             assert (await cursor.fetchone())[0] == 1
 
 
-@pytest.mark.asyncio
 async def test_reusing_a_key_for_a_different_batch_is_refused(runtime_sandbox, client):
     async with database_connection() as db:
         ids = await _queue(db)
@@ -173,7 +166,6 @@ async def test_reusing_a_key_for_a_different_batch_is_refused(runtime_sandbox, c
     assert "another request" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_a_batch_needs_a_key_unique_ids_and_at_least_one_item(runtime_sandbox, client):
     async with database_connection() as db:
         ids = await _queue(db)
@@ -199,7 +191,6 @@ async def test_a_batch_needs_a_key_unique_ids_and_at_least_one_item(runtime_sand
 # ------------------------------------------------------------------ review sessions
 
 
-@pytest.mark.asyncio
 async def test_a_session_starts_on_the_highest_risk_finding(runtime_sandbox, client):
     async with database_connection() as db:
         ids = await _queue(db)
@@ -214,7 +205,6 @@ async def test_a_session_starts_on_the_highest_risk_finding(runtime_sandbox, cli
     assert body["snapshot_at"]
 
 
-@pytest.mark.asyncio
 async def test_a_session_can_be_resumed_and_walked_forwards_and_back(runtime_sandbox, client):
     async with database_connection() as db:
         ids = await _queue(db)
@@ -248,7 +238,6 @@ async def test_a_session_can_be_resumed_and_walked_forwards_and_back(runtime_san
         assert (await _triages(db, [ids[0]]))[ids[0]] == "parse_bug"
 
 
-@pytest.mark.asyncio
 async def test_a_session_ignores_findings_that_arrived_after_its_snapshot(runtime_sandbox, client):
     """A queue that grows under the reviewer must not reshuffle mid-session."""
     async with database_connection() as db:
@@ -275,7 +264,6 @@ async def test_a_session_ignores_findings_that_arrived_after_its_snapshot(runtim
     assert advanced.json()["current_finding_id"] is None, "the late finding is out of scope"
 
 
-@pytest.mark.asyncio
 async def test_advancing_a_finding_someone_else_changed_is_a_conflict(runtime_sandbox, client):
     async with database_connection() as db:
         ids = await _queue(db)
@@ -298,7 +286,6 @@ async def test_advancing_a_finding_someone_else_changed_is_a_conflict(runtime_sa
     assert response.json()["detail"]["code"] == "stale_finding"
 
 
-@pytest.mark.asyncio
 async def test_another_reviewer_cannot_drive_someone_elses_session(
     runtime_sandbox, client, sign_in
 ):
@@ -319,13 +306,11 @@ async def test_another_reviewer_cannot_drive_someone_elses_session(
     assert response.status_code == 409
 
 
-@pytest.mark.asyncio
 async def test_an_unknown_session_is_404(runtime_sandbox, client):
     response = await client.get("/api/v2/review-sessions/00000000-0000-0000-0000-000000000000")
     assert response.status_code == 404
 
 
-@pytest.mark.asyncio
 async def test_a_session_filter_narrows_the_queue(runtime_sandbox, client):
     async with database_connection() as db:
         ids = await _queue(db)
@@ -340,7 +325,6 @@ async def test_a_session_filter_narrows_the_queue(runtime_sandbox, client):
 # ------------------------------------------------------------------- review leases
 
 
-@pytest.mark.asyncio
 async def test_a_lease_stops_a_second_reviewer_but_not_a_renewal(
     runtime_sandbox, client, sign_in
 ):
@@ -369,7 +353,6 @@ async def test_a_lease_stops_a_second_reviewer_but_not_a_renewal(
     assert taken.json()["detail"]["actor"] == ADMIN_EMAIL
 
 
-@pytest.mark.asyncio
 async def test_an_expired_lease_can_be_taken_over(runtime_sandbox, client, sign_in):
     async with database_connection() as db:
         ids = await _queue(db)

@@ -1,7 +1,6 @@
 import io
 import json
 
-import pytest
 from fastapi import UploadFile
 
 from backend.database import database_connection
@@ -13,7 +12,6 @@ from backend.sync_acts import run_sync
 from backend.tests.conftest import active_version_id, sample_document, write_pair
 
 
-@pytest.mark.asyncio
 async def test_flagging_a_footnote_blocks_its_section_until_reverted(runtime_sandbox):
     """Footnote state feeds the review-state engine, not the document status directly.
 
@@ -62,7 +60,6 @@ async def test_flagging_a_footnote_blocks_its_section_until_reverted(runtime_san
         assert cleared["document_status"] != "blocked"
 
 
-@pytest.mark.asyncio
 async def test_act_corpus_json_can_be_replaced_and_becomes_a_new_version(
     runtime_sandbox,
 ):
@@ -114,7 +111,6 @@ async def test_act_corpus_json_can_be_replaced_and_becomes_a_new_version(
     assert text == "Corrected first section"
 
 
-@pytest.mark.asyncio
 async def test_replacing_with_identical_json_creates_no_version(runtime_sandbox):
     source = runtime_sandbox["root"] / "export"
     write_pair(source)

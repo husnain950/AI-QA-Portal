@@ -8,10 +8,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 
-from backend.database import DatabaseConnection, get_db
+from backend.database import DatabaseConnection, get_db, json_column
 from backend.routes.documents import _document_response_by_id
 from backend.routes.search import _safe_snippet
-from backend.routes.v2.pagination import decode_cursor, encode_cursor, refreshed_at
+from backend.routes.v2.pagination import decode_cursor, encode_cursor
+from backend.services.clock import iso_now
 
 router = APIRouter(tags=["v2-library"])
 
@@ -62,7 +63,7 @@ async def documents_page(
         "items": items,
         "total": total,
         "next_cursor": encode_cursor(next_offset, fp) if next_offset < total else None,
-        "refreshed_at": refreshed_at(),
+        "refreshed_at": iso_now(),
     }
 
 
@@ -103,7 +104,7 @@ async def sections_page(
         "items": items,
         "total": total,
         "next_cursor": encode_cursor(next_offset, fp) if next_offset < total else None,
-        "refreshed_at": refreshed_at(),
+        "refreshed_at": iso_now(),
     }
 
 
@@ -179,9 +180,7 @@ async def findings_page(
         items = []
         for row in await cur.fetchall():
             item = dict(row)
-            detail = item.get("detail_json") or {}
-            if not isinstance(detail, dict):
-                detail = json.loads(detail)
+            detail = json_column(item.get("detail_json"), {}) or {}
             item["detail"] = detail
             item["summary"] = detail.get("assertion")
             items.append(item)
@@ -193,7 +192,7 @@ async def findings_page(
         "items": items,
         "total": total,
         "next_cursor": encode_cursor(next_offset, fp) if next_offset < total else None,
-        "refreshed_at": refreshed_at(),
+        "refreshed_at": iso_now(),
         "stats": {
             "total": all_total,
             "done": all_total - by_triage.get("new", 0),
@@ -250,5 +249,5 @@ async def search_page(
         "items": items,
         "total": total,
         "next_cursor": encode_cursor(next_offset, fp) if next_offset < total else None,
-        "refreshed_at": refreshed_at(),
+        "refreshed_at": iso_now(),
     }

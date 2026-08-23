@@ -8,7 +8,6 @@ files, checks them against each other, and only then hands back a token to commi
 import io
 import json
 
-import pytest
 from pypdf import PdfWriter
 
 from backend.database import database_connection
@@ -40,7 +39,6 @@ async def _preflight(client, **kwargs):
     return await client.post("/api/v2/uploads/preflight", files=_files(**kwargs))
 
 
-@pytest.mark.asyncio
 async def test_preflight_reports_what_it_actually_counted(runtime_sandbox, client):
     response = await _preflight(client)
     assert response.status_code == 201, response.text
@@ -65,14 +63,12 @@ async def test_preflight_reports_what_it_actually_counted(runtime_sandbox, clien
     assert storage.exists(staged["pdf_key"]) and storage.exists(staged["json_key"])
 
 
-@pytest.mark.asyncio
 async def test_a_renamed_non_pdf_is_caught_by_its_bytes(runtime_sandbox, client):
     response = await _preflight(client, pdf_bytes=b"GIF89a not a pdf at all")
     assert response.status_code == 400
     assert response.json()["detail"]["errors"][0]["code"] == "invalid_magic"
 
 
-@pytest.mark.asyncio
 async def test_broken_json_points_at_the_line(runtime_sandbox, client):
     response = await _preflight(client, json_text='{"chapters": [')
     assert response.status_code == 400
@@ -81,7 +77,6 @@ async def test_broken_json_points_at_the_line(runtime_sandbox, client):
     assert "line" in error["message"], "a reviewer needs the position, not just 'invalid'"
 
 
-@pytest.mark.asyncio
 async def test_a_json_with_nothing_to_review_is_refused(runtime_sandbox, client):
     response = await _preflight(client, json_text=json.dumps({"chapters": [], "schedules": []}))
     assert response.status_code == 422
@@ -89,7 +84,6 @@ async def test_a_json_with_nothing_to_review_is_refused(runtime_sandbox, client)
     assert "zero_sections" in codes
 
 
-@pytest.mark.asyncio
 async def test_page_spans_are_checked_against_the_real_pdf(runtime_sandbox, client):
     payload = json.loads(sample_document())
     payload["chapters"][0]["sections"][0]["end_page"] = 99
@@ -102,7 +96,6 @@ async def test_page_spans_are_checked_against_the_real_pdf(runtime_sandbox, clie
     assert any("1-3" in error["message"] for error in errors), "say what the PDF actually has"
 
 
-@pytest.mark.asyncio
 async def test_a_declared_page_count_that_disagrees_is_reported(runtime_sandbox, client):
     payload = json.loads(sample_document())
     payload["metadata"]["total_pages"] = 7
@@ -113,7 +106,6 @@ async def test_a_declared_page_count_that_disagrees_is_reported(runtime_sandbox,
     assert errors["page_count_mismatch"]["pointer"] == "/metadata/total_pages"
 
 
-@pytest.mark.asyncio
 async def test_commit_creates_the_document_and_burns_the_token(runtime_sandbox, client):
     token = (await _preflight(client)).json()["token"]
 
@@ -147,7 +139,6 @@ async def test_commit_creates_the_document_and_burns_the_token(runtime_sandbox, 
     assert replay.status_code == 409, "a token commits once"
 
 
-@pytest.mark.asyncio
 async def test_committing_an_unknown_or_expired_token_fails_clearly(runtime_sandbox, client):
     unknown = await client.post(
         "/api/v2/documents", json={"token": "00000000-0000-0000-0000-000000000000", "name": "x"}
@@ -166,7 +157,6 @@ async def test_committing_an_unknown_or_expired_token_fails_clearly(runtime_sand
     assert expired.status_code == 410
 
 
-@pytest.mark.asyncio
 async def test_uploading_needs_a_session_and_the_admin_role(
     runtime_sandbox, anonymous, sign_in
 ):

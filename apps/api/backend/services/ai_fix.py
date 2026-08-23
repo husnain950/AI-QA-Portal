@@ -22,11 +22,11 @@ import io
 import json
 import re
 import uuid
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from backend.database import DatabaseConnection, DatabaseRow
 from backend.services import blob_store, llm_client, overlays, versions
+from backend.services.clock import iso_now_z as _now
 from backend.services.html_sanitizer import visible_text
 
 MAX_PAGES_SENT = 4
@@ -72,8 +72,6 @@ Rules:
 """
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 # ---------------------------------------------------------------------------

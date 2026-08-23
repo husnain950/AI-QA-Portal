@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import PlainTextResponse
@@ -12,6 +11,7 @@ from fastapi.responses import PlainTextResponse
 from backend.database import DatabaseConnection, get_db
 from backend.deps import require_reviewer
 from backend.services import jobs
+from backend.services.clock import iso_now
 from backend.services.detectors import DETECTOR_VERSION
 
 router = APIRouter(tags=["v2-operations"])
@@ -34,7 +34,7 @@ async def system_info(db: DatabaseConnection = Depends(get_db)):
         "server_version": os.environ.get("CRX_VERSION", "dev"),
         "detector_version": DETECTOR_VERSION,
         "totals": totals,
-        "refreshed_at": datetime.now(timezone.utc).isoformat(),
+        "refreshed_at": iso_now(),
     }
 
 

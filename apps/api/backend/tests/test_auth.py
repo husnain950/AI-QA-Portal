@@ -68,7 +68,6 @@ def test_role_ranking_is_cumulative():
 # ------------------------------------------------------------------------- accounts
 
 
-@pytest.mark.asyncio
 async def test_an_account_is_created_normalized_and_uniquely(runtime_sandbox):
     async with database_connection() as db:
         user = await auth.create_user(
@@ -89,7 +88,6 @@ async def test_an_account_is_created_normalized_and_uniquely(runtime_sandbox):
         await db.rollback()
 
 
-@pytest.mark.asyncio
 async def test_an_unknown_role_or_email_is_refused(runtime_sandbox):
     async with database_connection() as db:
         with pytest.raises(ValueError, match="role must be"):
@@ -102,7 +100,6 @@ async def test_an_unknown_role_or_email_is_refused(runtime_sandbox):
             )
 
 
-@pytest.mark.asyncio
 async def test_authenticate_rejects_a_wrong_password_and_a_disabled_account(runtime_sandbox):
     async with database_connection() as db:
         user = await auth.create_user(
@@ -119,7 +116,6 @@ async def test_authenticate_rejects_a_wrong_password_and_a_disabled_account(runt
         assert await auth.authenticate(db, "bob@example.com", TEST_PASSWORD) is None
 
 
-@pytest.mark.asyncio
 async def test_only_the_token_digest_is_stored(runtime_sandbox):
     async with database_connection() as db:
         user = await auth.create_user(
@@ -136,7 +132,6 @@ async def test_only_the_token_digest_is_stored(runtime_sandbox):
         assert await auth.resolve_session(db, "some-other-token") is None
 
 
-@pytest.mark.asyncio
 async def test_an_expired_session_is_rejected_and_cleaned_up(runtime_sandbox):
     async with database_connection() as db:
         user = await auth.create_user(
@@ -153,7 +148,6 @@ async def test_an_expired_session_is_rejected_and_cleaned_up(runtime_sandbox):
             assert (await cursor.fetchone())[0] == 0
 
 
-@pytest.mark.asyncio
 async def test_disabling_an_account_kills_its_live_sessions(runtime_sandbox):
     async with database_connection() as db:
         user = await auth.create_user(
@@ -167,7 +161,6 @@ async def test_disabling_an_account_kills_its_live_sessions(runtime_sandbox):
         assert await auth.resolve_session(db, token) is None
 
 
-@pytest.mark.asyncio
 async def test_bootstrap_creates_the_first_admin_and_then_stays_out_of_the_way(
     runtime_sandbox, monkeypatch
 ):
@@ -185,7 +178,6 @@ async def test_bootstrap_creates_the_first_admin_and_then_stays_out_of_the_way(
         assert await auth.bootstrap_admin(db) is None
 
 
-@pytest.mark.asyncio
 async def test_bootstrap_does_nothing_without_credentials(runtime_sandbox, monkeypatch):
     monkeypatch.delenv("ADMIN_EMAIL", raising=False)
     monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
@@ -196,7 +188,6 @@ async def test_bootstrap_does_nothing_without_credentials(runtime_sandbox, monke
 # ----------------------------------------------------------------------- login flow
 
 
-@pytest.mark.asyncio
 async def test_login_sets_a_session_cookie_and_me_resolves_it(runtime_sandbox, accounts, anonymous):
     response = await anonymous.post(
         "/api/auth/login", json={"email": ADMIN_EMAIL, "password": TEST_PASSWORD}
@@ -216,7 +207,6 @@ async def test_login_sets_a_session_cookie_and_me_resolves_it(runtime_sandbox, a
     assert me.json()["role"] == "admin"
 
 
-@pytest.mark.asyncio
 async def test_a_bad_login_says_the_same_thing_either_way(runtime_sandbox, accounts, anonymous):
     wrong_password = await anonymous.post(
         "/api/auth/login", json={"email": ADMIN_EMAIL, "password": "not-it-at-all"}
@@ -237,7 +227,6 @@ def test_engine_settings_fail_fast_when_postgres_is_gone():
     assert settings["pool_timeout"] == 5
 
 
-@pytest.mark.asyncio
 async def test_login_returns_503_when_the_database_is_unreachable(
     runtime_sandbox, monkeypatch
 ):
@@ -268,7 +257,6 @@ async def test_login_returns_503_when_the_database_is_unreachable(
         await dispose_engine()
 
 
-@pytest.mark.asyncio
 async def test_logout_revokes_the_session_server_side(runtime_sandbox, client):
     assert (await client.get("/api/auth/me")).status_code == 200
     assert (await client.post("/api/auth/logout")).status_code == 204
@@ -279,7 +267,6 @@ async def test_logout_revokes_the_session_server_side(runtime_sandbox, client):
     assert (await client.get("/api/auth/me")).status_code == 401
 
 
-@pytest.mark.asyncio
 async def test_a_tampered_cookie_is_not_a_session(runtime_sandbox, accounts, anonymous):
     await anonymous.post(
         "/api/auth/login", json={"email": ADMIN_EMAIL, "password": TEST_PASSWORD}
@@ -291,7 +278,6 @@ async def test_a_tampered_cookie_is_not_a_session(runtime_sandbox, accounts, ano
 # ---------------------------------------------------------------------------- RBAC
 
 
-@pytest.mark.asyncio
 async def test_every_api_path_needs_a_session(runtime_sandbox, anonymous):
     for method, path in (
         ("GET", "/api/documents"),
@@ -306,14 +292,12 @@ async def test_every_api_path_needs_a_session(runtime_sandbox, anonymous):
         assert response.status_code == 401, f"{method} {path} answered {response.status_code}"
 
 
-@pytest.mark.asyncio
 async def test_the_probes_and_the_login_form_stay_open(runtime_sandbox, anonymous):
     for path in ("/health/live", "/health/ready"):
         assert (await anonymous.get(path)).status_code in (200, 503), path
     assert (await anonymous.post("/api/v2/csp-reports", content=b"{}")).status_code == 204
 
 
-@pytest.mark.asyncio
 async def test_a_reader_can_look_but_not_touch(runtime_sandbox, sign_in):
     async with database_connection() as db:
         await seed_document(db, DOCUMENT_ID, section_ids=(SECTION_ID,), with_active_version=True)
@@ -329,7 +313,6 @@ async def test_a_reader_can_look_but_not_touch(runtime_sandbox, sign_in):
     assert blocked.json()["required_role"] == "reviewer"
 
 
-@pytest.mark.asyncio
 async def test_a_reviewer_reviews_but_does_not_reshape_the_corpus(runtime_sandbox, sign_in):
     async with database_connection() as db:
         await seed_document(db, DOCUMENT_ID, section_ids=(SECTION_ID,), with_active_version=True)
@@ -351,14 +334,12 @@ async def test_a_reviewer_reviews_but_does_not_reshape_the_corpus(runtime_sandbo
         assert response.json()["required_role"] == "admin"
 
 
-@pytest.mark.asyncio
 async def test_an_admin_reaches_the_operator_surface(runtime_sandbox, client):
     assert (await client.get("/api/v2/operator/audit-events")).status_code == 200
     assert (await client.get("/api/v2/operator/backups")).status_code == 200
     assert (await client.get("/api/v2/system")).status_code == 200
 
 
-@pytest.mark.asyncio
 async def test_metrics_answers_a_scraper_with_a_token_and_nobody_else(
     runtime_sandbox, anonymous, monkeypatch
 ):
@@ -378,7 +359,6 @@ async def test_metrics_answers_a_scraper_with_a_token_and_nobody_else(
     assert wrong.status_code == 401
 
 
-@pytest.mark.asyncio
 async def test_the_actor_recorded_is_the_session_not_a_header(runtime_sandbox, sign_in):
     """The header used to be the whole identity; now it is ignored."""
     async with database_connection() as db:

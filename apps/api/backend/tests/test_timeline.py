@@ -2,8 +2,6 @@
 
 import json
 
-import pytest
-
 from backend.database import database_connection
 from backend.routes.documents import upload_document
 from backend.routes.timeline import timeline, timeline_query
@@ -65,7 +63,6 @@ async def _insert_edition(db, *, doc_id: str, name: str, section_id: str, text: 
     )
 
 
-@pytest.mark.asyncio
 async def test_foreign_assets_section_id_and_review_family_key(runtime_sandbox):
     """The Review-style key used to miss the stored detectors key for this act."""
     assert family_key(FOREIGN_ASSETS) == (
@@ -114,7 +111,6 @@ async def test_foreign_assets_section_id_and_review_family_key(runtime_sandbox):
         assert by_path["editions"] == 2
 
 
-@pytest.mark.asyncio
 async def test_upload_indexes_section_variants(runtime_sandbox):
     async with database_connection() as db:
         created = await upload_document(
@@ -150,7 +146,6 @@ async def test_upload_indexes_section_variants(runtime_sandbox):
         assert payload["events"][0]["kind"] == "first"
 
 
-@pytest.mark.asyncio
 async def test_rebuild_if_empty_heals_upload_only_db(runtime_sandbox):
     async with database_connection() as db:
         await _insert_edition(

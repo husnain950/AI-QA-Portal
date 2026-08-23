@@ -24,14 +24,12 @@ async def _shift_heartbeat(db, job_id: str, *, seconds: int):
     await db.commit()
 
 
-@pytest.mark.asyncio
 async def test_an_unknown_job_type_is_refused(runtime_sandbox):
     async with database_connection() as db:
         with pytest.raises(ValueError, match="unsupported job type"):
             await jobs.enqueue(db, "mine_bitcoin", payload={}, actor="tester")
 
 
-@pytest.mark.asyncio
 async def test_enqueue_starts_queued_and_carries_its_payload(runtime_sandbox):
     async with database_connection() as db:
         job = await jobs.enqueue(
@@ -45,7 +43,6 @@ async def test_enqueue_starts_queued_and_carries_its_payload(runtime_sandbox):
         assert (await jobs.get(db, job["id"]))["actor"] == "tester"
 
 
-@pytest.mark.asyncio
 async def test_the_idempotency_key_makes_a_replay_a_no_op(runtime_sandbox):
     async with database_connection() as db:
         first = await jobs.enqueue(
@@ -69,7 +66,6 @@ async def test_the_idempotency_key_makes_a_replay_a_no_op(runtime_sandbox):
         assert other["id"] != first["id"]
 
 
-@pytest.mark.asyncio
 async def test_two_workers_racing_for_one_job_produce_one_winner(runtime_sandbox):
     """FOR UPDATE SKIP LOCKED is the whole reason a second worker is safe to run."""
     async with database_connection() as db:
@@ -87,13 +83,11 @@ async def test_two_workers_racing_for_one_job_produce_one_winner(runtime_sandbox
     assert won[0]["attempts"] == 1
 
 
-@pytest.mark.asyncio
 async def test_a_claim_on_an_empty_queue_is_none(runtime_sandbox):
     async with database_connection() as db:
         assert await jobs.claim(db, "worker-a") is None
 
 
-@pytest.mark.asyncio
 async def test_a_crashed_worker_lease_is_requeued_then_finally_failed(runtime_sandbox):
     async with database_connection() as db:
         job = await jobs.enqueue(db, "detectors", payload={}, actor="tester")
@@ -120,7 +114,6 @@ async def test_a_crashed_worker_lease_is_requeued_then_finally_failed(runtime_sa
         assert dead["error"]["type"] == "LeaseExpired"
 
 
-@pytest.mark.asyncio
 async def test_a_permanent_failure_does_not_retry(runtime_sandbox):
     async with database_connection() as db:
         await jobs.enqueue(db, "export", payload={"document_id": "nope"}, actor="tester")
@@ -134,7 +127,6 @@ async def test_a_permanent_failure_does_not_retry(runtime_sandbox):
         assert await jobs.claim(db, "worker-a") is None, "a failed job is not re-served"
 
 
-@pytest.mark.asyncio
 async def test_a_transient_failure_is_requeued_with_a_backoff(runtime_sandbox):
     async with database_connection() as db:
         await jobs.enqueue(db, "render_pdf", payload={"page": 1}, actor="tester")
@@ -149,7 +141,6 @@ async def test_a_transient_failure_is_requeued_with_a_backoff(runtime_sandbox):
         assert await jobs.claim(db, "worker-a") is None, "not available until the backoff ends"
 
 
-@pytest.mark.asyncio
 async def test_success_records_the_result_and_completes_progress(runtime_sandbox):
     async with database_connection() as db:
         await jobs.enqueue(db, "detectors", payload={}, actor="tester")
@@ -167,7 +158,6 @@ async def test_success_records_the_result_and_completes_progress(runtime_sandbox
         assert done["progress_current"] == 10, "a finished job does not sit at 3/10"
 
 
-@pytest.mark.asyncio
 async def test_a_heartbeat_from_the_wrong_worker_changes_nothing(runtime_sandbox):
     async with database_connection() as db:
         await jobs.enqueue(db, "detectors", payload={}, actor="tester")
@@ -178,7 +168,6 @@ async def test_a_heartbeat_from_the_wrong_worker_changes_nothing(runtime_sandbox
         assert (await jobs.get(db, job["id"]))["progress_current"] == 0
 
 
-@pytest.mark.asyncio
 async def test_cancelling_a_queued_job_is_immediate(runtime_sandbox):
     async with database_connection() as db:
         job = await jobs.enqueue(db, "corpus_sync", payload={}, actor="tester")
@@ -190,7 +179,6 @@ async def test_cancelling_a_queued_job_is_immediate(runtime_sandbox):
         assert await jobs.claim(db, "worker-a") is None
 
 
-@pytest.mark.asyncio
 async def test_cancelling_a_running_job_asks_it_to_stop(runtime_sandbox):
     """A running job cannot be yanked; it learns from its next heartbeat."""
     async with database_connection() as db:
@@ -207,7 +195,6 @@ async def test_cancelling_a_running_job_asks_it_to_stop(runtime_sandbox):
         assert (await jobs.get(db, job["id"]))["state"] == "cancelled"
 
 
-@pytest.mark.asyncio
 async def test_cancelling_a_finished_job_is_ignored(runtime_sandbox):
     async with database_connection() as db:
         await jobs.enqueue(db, "detectors", payload={}, actor="tester")
@@ -218,7 +205,6 @@ async def test_cancelling_a_finished_job_is_ignored(runtime_sandbox):
         assert (await jobs.cancel(db, job["id"]))["state"] == "succeeded"
 
 
-@pytest.mark.asyncio
 async def test_queues_are_independent(runtime_sandbox):
     async with database_connection() as db:
         await jobs.enqueue(db, "detectors", payload={}, actor="tester", queue="slow")

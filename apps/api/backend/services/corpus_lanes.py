@@ -62,12 +62,6 @@ _INSTRUMENT_RE = re.compile(r"\b(rules?|regulations?)\b")
 _KNOWN = frozenset(LANE_ORDER)
 
 
-def lane_label(lane: Optional[str]) -> str:
-    if not lane:
-        return "Unknown"
-    return LANE_LABELS.get(lane, lane)
-
-
 def classify_lane(
     name: str,
     *,

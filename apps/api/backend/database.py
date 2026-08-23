@@ -8,6 +8,7 @@ the engine, transactions, pooling, migrations, and production database are Postg
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from collections.abc import AsyncIterator, Iterable, Mapping, Sequence
 from pathlib import Path
@@ -41,6 +42,33 @@ UNREACHABLE_DB_ERRORS = (
     PsycopgInterfaceError,
 )
 DATABASE_UNREACHABLE_MESSAGE = "the database is not reachable"
+
+
+_RAISE = object()
+
+
+def json_column(value: Any, default: Any = _RAISE) -> Any:
+    """Read a JSON payload column that may be either JSONB or TEXT.
+
+    ``db_schema`` keeps the legacy payload columns as text while newer operational
+    records use JSONB, so the driver hands back a parsed object for some columns and a
+    string for others. Six route handlers each carried their own version of this
+    check and three of them disagreed about what a malformed value should do.
+
+    Without ``default`` a malformed value raises, which is right where the payload was
+    written by this application and a bad one means a real bug. Pass ``default`` where
+    the value is display-only and a broken row should not take the whole page down.
+    """
+    if isinstance(value, (dict, list)):
+        return value
+    if value is None or value == "":
+        return None if default is _RAISE else default
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError):
+        if default is _RAISE:
+            raise
+        return default
 
 
 def db_connect_timeout() -> int:

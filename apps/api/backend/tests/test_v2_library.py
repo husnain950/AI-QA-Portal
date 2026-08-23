@@ -6,7 +6,6 @@ no sign that a thousand were missing. These endpoints exist so a page can say
 different filter and quietly return the wrong slice.
 """
 
-import pytest
 
 from backend.database import database_connection
 from backend.routes.v2.pagination import encode_cursor
@@ -38,7 +37,6 @@ async def _corpus(db, documents=3, sections_each=2):
     return ids
 
 
-@pytest.mark.asyncio
 async def test_documents_page_reports_the_true_total_behind_a_small_page(runtime_sandbox, client):
     async with database_connection() as db:
         await _corpus(db, documents=5, sections_each=1)
@@ -57,7 +55,6 @@ async def test_documents_page_reports_the_true_total_behind_a_small_page(runtime
         assert len(seen) == len(set(seen)) == 5, "every document appears exactly once"
 
 
-@pytest.mark.asyncio
 async def test_a_cursor_minted_under_another_filter_is_rejected(runtime_sandbox, client):
     """Otherwise page 2 of one search silently returns rows from a different one."""
     async with database_connection() as db:
@@ -73,7 +70,6 @@ async def test_a_cursor_minted_under_another_filter_is_rejected(runtime_sandbox,
             assert response.status_code == 400, bad
 
 
-@pytest.mark.asyncio
 async def test_documents_page_filters_and_sorts(runtime_sandbox, client):
     async with database_connection() as db:
         await _corpus(db, documents=3, sections_each=1)
@@ -91,7 +87,6 @@ async def test_documents_page_filters_and_sorts(runtime_sandbox, client):
         assert [item["id"] for item in searched["items"]] == ["doc-2"]
 
 
-@pytest.mark.asyncio
 async def test_sections_page_paginates_within_one_document(runtime_sandbox, client):
     async with database_connection() as db:
         await _corpus(db, documents=2, sections_each=4)
@@ -106,7 +101,6 @@ async def test_sections_page_paginates_within_one_document(runtime_sandbox, clie
         assert [item["sort_order"] for item in first["items"]] == [1, 2, 3], "stable order"
 
 
-@pytest.mark.asyncio
 async def test_sections_page_can_narrow_to_a_pdf_page(runtime_sandbox, client):
     async with database_connection() as db:
         await _corpus(db, documents=1, sections_each=3)
@@ -117,7 +111,6 @@ async def test_sections_page_can_narrow_to_a_pdf_page(runtime_sandbox, client):
         assert [item["section_code"] for item in page_two["items"]] == ["2"]
 
 
-@pytest.mark.asyncio
 async def test_findings_page_carries_queue_stats_and_a_stable_slice(runtime_sandbox, client):
     async with database_connection() as db:
         documents = await _corpus(db, documents=2, sections_each=2)
@@ -145,7 +138,6 @@ async def test_findings_page_carries_queue_stats_and_a_stable_slice(runtime_sand
         assert len(set(ids)) == 4
 
 
-@pytest.mark.asyncio
 async def test_findings_page_filters_by_triage_detector_and_text(runtime_sandbox, client):
     async with database_connection() as db:
         (document_id, section_ids), *_ = await _corpus(db, documents=1, sections_each=2)
@@ -169,7 +161,6 @@ async def test_findings_page_filters_by_triage_detector_and_text(runtime_sandbox
         assert nothing["items"] == [] and nothing["total"] == 0
 
 
-@pytest.mark.asyncio
 async def test_findings_page_orders_errors_before_warnings(runtime_sandbox, client):
     async with database_connection() as db:
         (document_id, section_ids), *_ = await _corpus(db, documents=1, sections_each=2)

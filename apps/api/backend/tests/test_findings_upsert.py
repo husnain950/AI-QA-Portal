@@ -1,13 +1,11 @@
 """Tests for findings upsert — dismissal survives score/version bump."""
 
-import pytest
 
 from backend.database import database_connection
 from backend.services import findings_store
 from backend.services.detectors import Finding
 
 
-@pytest.mark.asyncio
 async def test_upsert_inserts_new_finding(runtime_sandbox):
     async with database_connection() as db:
 
@@ -36,7 +34,6 @@ async def test_upsert_inserts_new_finding(runtime_sandbox):
         assert result["refreshed"] == 0
 
 
-@pytest.mark.asyncio
 async def test_dismissal_survives_score_bump(runtime_sandbox):
     """A human triage must not be overwritten by a detector re-run."""
     async with database_connection() as db:
@@ -97,7 +94,6 @@ async def test_dismissal_survives_score_bump(runtime_sandbox):
         assert row["score"] == 0.95  # score updated
 
 
-@pytest.mark.asyncio
 async def test_close_stale_only_closes_new(runtime_sandbox):
     """close_stale only closes triage='new', not human-triaged findings."""
     async with database_connection() as db:

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 
 from backend.database import DatabaseConnection, get_db
-from backend.deps import require_reviewer
+from backend.deps import ensure_exists, require_reviewer
 from backend.models import AnnotationCreate, AnnotationResponse, AnnotationUpdate
 from backend.services import events, review_state
 from backend.services.disposition import normalize_disposition
@@ -47,9 +47,7 @@ def _annotation_from_row(r) -> AnnotationResponse:
 
 @router.get("/sections/{section_id}/annotations", response_model=list[AnnotationResponse])
 async def list_annotations(section_id: str, db: DatabaseConnection = Depends(get_db)):
-    async with db.execute("SELECT 1 FROM sections WHERE id = ?", (section_id,)) as cursor:
-        if not await cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Section not found")
+    await ensure_exists(db, "sections", section_id, "Section not found")
 
     query = """
         SELECT a.id, a.document_id, a.section_id, a.footnote_id, a.highlighted_text,
@@ -311,9 +309,7 @@ async def delete_annotation(
 
 @router.get("/documents/{document_id}/annotations", response_model=list[AnnotationResponse])
 async def list_document_annotations(document_id: str, db: DatabaseConnection = Depends(get_db)):
-    async with db.execute("SELECT 1 FROM documents WHERE id = ?", (document_id,)) as cursor:
-        if not await cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Document not found")
+    await ensure_exists(db, "documents", document_id, "Document not found")
 
     query = """
         SELECT a.id, a.document_id, a.section_id, a.footnote_id, a.highlighted_text,

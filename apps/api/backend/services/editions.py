@@ -7,7 +7,7 @@ propagation unsound.
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict
 
 _DATE_PATTERNS = [
     re.compile(
@@ -123,9 +123,3 @@ def edition_date_from_name(name: str) -> Dict[str, Any]:
         if 1900 <= year <= 2100:
             return {"year": year, "sort_key": year, "label": str(year), "unknown": False}
     return {"year": None, "sort_key": 9999, "label": "year unknown", "unknown": True}
-
-
-def family_and_year(name: str) -> Tuple[str, Optional[int], int]:
-    fk = family_key_from_name(name)
-    ed = edition_date_from_name(name)
-    return fk, ed["year"], int(ed["sort_key"])

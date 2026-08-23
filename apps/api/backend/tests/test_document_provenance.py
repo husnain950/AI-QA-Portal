@@ -1,7 +1,6 @@
 import io
 import json
 
-import pytest
 from fastapi import UploadFile
 from pypdf import PdfWriter
 
@@ -203,7 +202,6 @@ def test_json_ocr_block_wins_over_pdf_inference(monkeypatch):
         os.unlink(pdf_path)
 
 
-@pytest.mark.asyncio
 async def test_list_documents_includes_provenance(runtime_sandbox):
     payload = json.loads(sample_document())
     payload["metadata"] = {
@@ -239,7 +237,6 @@ async def test_list_documents_includes_provenance(runtime_sandbox):
         assert match.provenance.pages_ocred == [1]
 
 
-@pytest.mark.asyncio
 async def test_upload_document_uses_pdf_fallback_provenance(runtime_sandbox, monkeypatch):
     import legal_ingest.pagemodel as pagemodel
 
@@ -259,7 +256,6 @@ async def test_upload_document_uses_pdf_fallback_provenance(runtime_sandbox, mon
         assert TAG_PDF_INFERRED in created.provenance.tags
 
 
-@pytest.mark.asyncio
 async def test_backfill_provenance_reinferences_native_when_json_has_no_ocr(
     runtime_sandbox, monkeypatch
 ):
@@ -316,7 +312,6 @@ async def test_backfill_provenance_reinferences_native_when_json_has_no_ocr(
         assert proven.pages_ocred == [1, 2, 3]
 
 
-@pytest.mark.asyncio
 async def test_reinfer_provenance_route_pages_and_is_idempotent(
     runtime_sandbox, monkeypatch
 ):

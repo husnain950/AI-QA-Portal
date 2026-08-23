@@ -17,6 +17,15 @@ router = APIRouter(tags=["timeline"])
 
 
 def _family_candidates(family: str) -> List[str]:
+    """Every spelling of a family key that might be in the database.
+
+    Three functions have computed family keys over this schema's life --
+    ``detectors.family_key``, a bare ``lower()``, and ``editions.family_key_from_name``
+    -- and rows written under each are still stored. Converging on one is a DATA
+    migration (rewriting ``section_variants``), not a refactor: deleting this ladder
+    without it would silently stop resolving timelines for every document keyed the
+    older way. Kept deliberately; see tasks.md.
+    """
     raw = (family or "").strip()
     if not raw:
         return []

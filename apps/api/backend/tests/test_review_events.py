@@ -7,7 +7,6 @@ from backend.database import database_connection
 from backend.services import events
 
 
-@pytest.mark.asyncio
 async def test_review_events_append_only(runtime_sandbox):
     """Triggers prevent UPDATE and DELETE on review_events."""
     async with database_connection() as db:
@@ -33,7 +32,6 @@ async def test_review_events_append_only(runtime_sandbox):
             )
 
 
-@pytest.mark.asyncio
 async def test_record_on_approve(runtime_sandbox):
     """Event is recorded with from/to values."""
     async with database_connection() as db:
@@ -64,7 +62,6 @@ async def test_record_on_approve(runtime_sandbox):
         assert row["version_id"] == "ver-1"
 
 
-@pytest.mark.asyncio
 async def test_record_with_detail(runtime_sandbox):
     """detail_json round-trips correctly."""
     async with database_connection() as db:

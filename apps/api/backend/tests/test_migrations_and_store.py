@@ -6,7 +6,6 @@ from backend.services.json_parser import parse_json_document
 from backend.tests.conftest import add_annotation, sample_document
 
 
-@pytest.mark.asyncio
 async def test_store_preserves_state_and_rejects_annotated_content_changes_in_strict_mode(
     runtime_sandbox,
 ):
@@ -85,7 +84,6 @@ async def test_store_preserves_state_and_rejects_annotated_content_changes_in_st
             assert (await cursor.fetchone())[0] == "pending"
 
 
-@pytest.mark.asyncio
 async def test_store_strict_mode_rejects_removing_reviewed_evidence(runtime_sandbox):
     document_id = "remove-document"
     sections, footnotes = parse_json_document(
@@ -120,7 +118,6 @@ async def test_store_strict_mode_rejects_removing_reviewed_evidence(runtime_sand
         await db.rollback()
 
 
-@pytest.mark.asyncio
 async def test_store_strict_mode_rejects_reviewed_footnote_removal(
     runtime_sandbox,
 ):
@@ -157,7 +154,6 @@ async def test_store_strict_mode_rejects_reviewed_footnote_removal(
         await db.rollback()
 
 
-@pytest.mark.asyncio
 async def test_parser_autoflag_does_not_block_an_upstream_fix(tmp_path):
     """`has_issues` is machine-assigned, so it must not veto a corrected parse.
 

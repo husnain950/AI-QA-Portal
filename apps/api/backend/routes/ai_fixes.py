@@ -6,11 +6,9 @@ Nothing is ever applied without an explicit human approval.
 
 from __future__ import annotations
 
-import json
-
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.database import DatabaseConnection, get_db
+from backend.database import DatabaseConnection, get_db, json_column
 from backend.deps import require_reviewer
 from backend.models import (
     FixApprovalResponse,
@@ -38,12 +36,7 @@ async def list_models():
 
 
 def _loads(value):
-    if not value:
-        return None
-    try:
-        return json.loads(value)
-    except ValueError:
-        return None
+    return json_column(value, None)
 
 
 def _response(row) -> FixProposalResponse:

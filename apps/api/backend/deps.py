@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from fastapi import HTTPException, Request
 
+from backend.database import DatabaseConnection
+
 
 async def require_reviewer(request: Request) -> str:
     actor = getattr(request.state, "actor", None)
@@ -20,10 +22,23 @@ async def require_reviewer(request: Request) -> str:
     return actor
 
 
-async def require_admin(request: Request) -> str:
-    """For the rare route that needs the role in its own body as well."""
-    if getattr(request.state, "role", None) != "admin":
-        raise HTTPException(
-            status_code=403, detail={"code": "forbidden", "required_role": "admin"}
-        )
-    return await require_reviewer(request)
+#: Tables `ensure_exists` may probe. An allowlist rather than a formatted parameter,
+#: because the table name cannot be bound as a query parameter and every caller passes
+#: a literal anyway.
+_EXISTS_TABLES = frozenset({"documents", "sections", "footnotes", "annotations"})
+
+
+async def ensure_exists(
+    db: DatabaseConnection, table: str, row_id, detail: str
+) -> None:
+    """404 unless ``table`` has a row with this id.
+
+    Seven handlers wrote this out longhand -- the same SELECT 1, the same fetchone
+    check -- and the message casing had already drifted across the v1/v2 seam. The
+    message stays a caller's argument so no client-visible text changes here.
+    """
+    if table not in _EXISTS_TABLES:
+        raise ValueError(f"ensure_exists: unknown table {table!r}")
+    async with db.execute(f"SELECT 1 FROM {table} WHERE id = ?", (row_id,)) as cursor:
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail=detail)

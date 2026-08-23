@@ -7,35 +7,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
-import unicodedata
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from backend.database import DatabaseConnection, DatabaseRow
 from backend.services import review_state
+from backend.services.clock import iso_now as _now
 from backend.services.detectors import edition_date, family_key
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _norm_text(text: str) -> str:
-    """NFKC + whitespace collapse, no casefolding."""
-    text = unicodedata.normalize("NFKC", text)
-    return re.sub(r"\s+", " ", text).strip()
-
-
-def _html_shape(html: str) -> str:
-    """SHA256 of ordered block-tag sequence."""
-    tags = re.findall(
-        r"<(/?(?:p|div|table|tr|td|th|ul|ol|li|h[1-6]|blockquote|pre|section|article|aside|nav|header|footer|figure|figcaption|details|summary|dl|dt|dd))\b",
-        html or "",
-        re.IGNORECASE,
-    )
-    shape_str = "|".join(t.lower() for t in tags)
-    return hashlib.sha256(shape_str.encode()).hexdigest()
+from backend.services.textnorm import html_shape as _html_shape
+from backend.services.textnorm import norm_text as _norm_text
 
 
 def compute_variant_key(
