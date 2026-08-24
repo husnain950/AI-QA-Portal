@@ -645,6 +645,10 @@ made `tools/` read the registry from `apps/api`).
 - **`tools/acts/{add_test_case,ocr_review,why_unbuilt,audit_all,audit_completeness}.py` and
   `convert_all.py` are acts-only.** The rules and ordinance lanes have no equivalents. Not creating
   siblings in this refactor; noted so the asymmetry is a decision rather than an oversight.
+  **Closed for `convert_all.py` on 2026-08-24** — it is now `tools/convert_all.py` with the lane
+  as an argument, because converting the Rules corpus had no path except one
+  `make convert-rules PDF=` at a time. See `tasks-rules.md`. The five audit/diagnostic
+  scripts are still acts-only.
 
 ### Still open after Phases 6b/6c — scoped out deliberately
 

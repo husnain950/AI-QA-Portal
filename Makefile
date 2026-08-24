@@ -1,4 +1,4 @@
-.PHONY: seed-archive up down build sync seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts convert-rules export-qa logs shell-api health vendor-corpora push-remote backup-remote backfill-provenance
+.PHONY: seed-archive up down build sync seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts convert-rules convert-all export-qa logs shell-api health vendor-corpora push-remote backup-remote backfill-provenance
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ifneq (,$(wildcard $(ROOT)/.venv/bin/python))
@@ -50,6 +50,13 @@ seed-fixtures:
 convert-ordinance convert-acts convert-rules:
 	@test -n "$(PDF)" || (echo "Usage: make $@ PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
 	$(PYTHON) tools/convert.py $(@:convert-%=%) "$(PDF)" $(if $(OUT),-o "$(OUT)",)
+
+# A whole corpus, one process per PDF, resumable. ARGS is passed straight through:
+# --skip-existing to resume, --skip-scanned to convert only what needs no OCR,
+# --list to see the targets. Audit trail lands in <corpus>/output/_run/.
+convert-all:
+	@test -n "$(LANE)" || (echo "Usage: make convert-all LANE=rules [ARGS='--skip-existing --skip-scanned']"; exit 1)
+	$(PYTHON) tools/convert_all.py $(LANE) $(ARGS)
 
 export-qa:
 	@test -n "$(DOC)" || (echo "Usage: make export-qa DOC=<document_id> [OUT=report.json]"; exit 1)

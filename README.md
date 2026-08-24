@@ -26,6 +26,7 @@ packages/legal_ingest    Acts + Rules pipeline + OCR; one Profile per corpus
 packages/{acts,rules}_ingest
                          Profile bindings, so `from <lane>_ingest import run` works
 tools/convert.py         Convert one PDF:      tools/convert.py <lane> <PDF>
+tools/convert_all.py     Convert a whole corpus: tools/convert_all.py <lane>
 tools/run_suite.py       Regression suite:     tools/run_suite.py <lane>
 tools/run_tests_smoke.py The pipeline gate (self-checks + each staged corpus)
 tools/suite/             Shared checks/loader/runner; invariants + cases per lane
@@ -108,6 +109,7 @@ Compose mounts `./data/corpora/...` **read-only** into the API container. Large 
 | `make convert-ordinance PDF=…` | Convert an Ordinance edition (`fbr_ingest`) |
 | `make convert-acts PDF=…` | Convert an Act (`legal_ingest`, acts profile) |
 | `make convert-rules PDF=…` | Convert a Rules set (`legal_ingest`, rules profile) |
+| `make convert-all LANE=… ARGS='…'` | Convert a whole corpus, one process per PDF, resumable (`--skip-existing`, `--skip-scanned`, `--list`) |
 | `make test` | `test-api` + `test-pipeline` + `test-web` |
 | `make test-api` | pytest over `apps/api/backend/tests` + `tools/tests` |
 | `make test-pipeline` | Package self-checks, plus each lane's suite when its corpus is staged |
