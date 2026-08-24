@@ -190,7 +190,7 @@ They are how a regression case gets added, which is the workflow the suite READM
 so they were worth fixing rather than dropping. Both now resolve against `tools/suite/`, and
 `add_test_case.py` takes the lane as an argument instead of hardcoding acts.
 
-### Deferred: the invariants split (~2,000 lines still duplicated)
+### Deferred: the invariants split (~2,000 lines still duplicated) — **done in Phase 6c**
 
 Measured precisely before deciding:
 
@@ -413,6 +413,72 @@ What this does **not** do: fix the documents. Option (a) is still the real fix f
 compilation hits and is still unbuilt; the 7 others are still not deterministically
 fixable. The gain is that the rules lane now gates its other ~50 invariants across 11
 editions instead of being uniformly red.
+
+## Phase 6c — One copy of the invariants · **done**
+
+The split Phase 3 deferred. Re-measured at AST level before touching anything, because the
+Phase 3 numbers were close but the *dependency* claim turned out to be wrong.
+
+| | count | lines |
+|---|---|---|
+| blocks byte-identical `acts` ↔ `rules` | **103** (56 fn + 47 const) | 1,480 |
+| ...of those, identical in `ordinance` too | 71 | — |
+| comment drift among the 103 | **0** | — |
+| functions genuinely differing `acts` ↔ `rules` | 7 | — |
+| constants genuinely differing `acts` ↔ `rules` | 1 (`_SPLIT_ORDINAL`) | — |
+
+- [x] `tools/suite/invariants/_common.py` — the 103 shared blocks, verbatim
+- [x] `acts.py` 2,099 → **336** · `rules.py` 2,214 → **464** · `ordinance.py` 1,249 → **479**
+- [x] `_common.all_invariants(ns, order=None)` — a lane's own `inv_<name>` wins by name, so
+      an override is never registered twice. Unknown name raises instead of skipping.
+- [x] `tools/tests/test_suite_invariants.py` — **5 tests**
+
+**Result: 5,562 → 3,109 lines, −2,453. Code LOC 69,278 → 66,825.**
+pytest **452** (447 + 5 new) · gate ordinance 12 ✅ acts 80 ✅ rules 11 ✅ ·
+ruff `apps/api`+`tools` clean, repo-wide **17** (unchanged)
+
+### The injection point Phase 3 expected was not needed
+
+Phase 3 deferred this on the grounds that the 32 common functions call lane-specific
+`_ref_key` and `_SPLIT_ORDINAL`, that `ALL_INVARIANTS` fixes every signature to `fn(doc)`,
+and that injecting a lane therefore needed the Phase 4 profile. The first claim is true but
+far narrower than it reads: **exactly two** shared invariants reference a lane-varying name,
+and **no** shared function calls a lane-specific one.
+
+So the mechanism is two keyword-only parameters, each defaulting to the form *two of the
+three* lanes use, and only the outlier lane binds a `partial`:
+
+| invariant | reads | default | rebound by |
+|---|---|---|---|
+| `inv_no_split_ordinals` | `_SPLIT_ORDINAL` | Acts/Ordinance form | `rules.py` |
+| `inv_footnotes_in_numeric_order` | `_ref_key` | Acts/Rules form | `ordinance.py` |
+
+No profile object, no registry, and **nothing here imports `packages/`** — so the `tools/`
+import chain stays stdlib-only, which CI's pipeline job requires (it installs no API deps).
+`legal_ingest.profiles` would have coupled the suite to the pipeline it is supposed to
+audit, which is worth avoiding on its own.
+
+### Verified by byte-compare, not by inspection
+
+The gate is the suite's own report for **all 103 staged editions**, captured before and
+after and diffed: `acts` **IDENTICAL**, `rules` **IDENTICAL**, `ordinance` **IDENTICAL**.
+Separately, each lane's resolved `ALL_INVARIANTS` was compared against the pre-split module
+function by function: same names, same order, and every body AST-identical (53 / 53 / 43).
+
+Two defects were caught *during* the split by that discipline rather than after it:
+
+1. **`rules.py` imported the Acts `_SPLIT_ORDINAL`** and bound its partial to it, silently
+   dropping the negative lookahead that stops `21 st.3` being flagged. Fixed by keeping the
+   constant local to the lane that differs.
+2. **Each lane imported the very invariant it then rebinds** (ruff F811). The generator was
+   collecting assignment *targets* as dependencies; only names actually read are.
+
+`tools/tests/test_suite_invariants.py` covers the part a corpus-less CI can run, which is
+the failure mode this split introduced: an invariant resolving to the wrong lane's
+implementation, which no import error would catch. It asserts the 53/53/43 counts, that
+both injection points bind per lane, that a lane-local `inv_*` never sits unbound as dead
+code, and that an unknown name raises. Both properties were mutation-tested — inverting the
+resolver's precedence and stripping the Rules lookahead each fail 3 of the 5.
 
 ## Phase 7 — Backend consolidation · **done (2 monoliths deferred)**
 - [x] `services/clock.py` — 7 `_now()` definitions in 3 formats → one source, **all three
