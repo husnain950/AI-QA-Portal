@@ -1,7 +1,6 @@
 import io
 import json
 
-import pytest
 from fastapi import UploadFile
 from pypdf import PdfWriter
 
@@ -138,7 +137,7 @@ def _pdf_path_from_bytes(pdf_bytes: bytes, *, suffix: str = ".pdf"):
 
 def test_pdf_fallback_infers_scanned_when_no_ocr(monkeypatch):
     # Force the scan heuristic to consider every sampled page as scan-heavy.
-    import acts_ingest.pagemodel as pagemodel
+    import legal_ingest.pagemodel as pagemodel
 
     monkeypatch.setattr(pagemodel, "_page_is_scan", lambda page, **_: True)
 
@@ -157,7 +156,7 @@ def test_pdf_fallback_infers_scanned_when_no_ocr(monkeypatch):
 
 def test_pdf_fallback_infers_mixed_when_partial_scan(monkeypatch):
     # Mark the first 2/3 pages as scan-heavy => 0.66 ratio => mixed-ocr.
-    import acts_ingest.pagemodel as pagemodel
+    import legal_ingest.pagemodel as pagemodel
 
     def infer(page, **_):
         return page.page_number <= 2
@@ -178,7 +177,7 @@ def test_pdf_fallback_infers_mixed_when_partial_scan(monkeypatch):
 
 
 def test_json_ocr_block_wins_over_pdf_inference(monkeypatch):
-    import acts_ingest.pagemodel as pagemodel
+    import legal_ingest.pagemodel as pagemodel
 
     monkeypatch.setattr(pagemodel, "_page_is_scan", lambda page, **_: True)
 
@@ -203,7 +202,6 @@ def test_json_ocr_block_wins_over_pdf_inference(monkeypatch):
         os.unlink(pdf_path)
 
 
-@pytest.mark.asyncio
 async def test_list_documents_includes_provenance(runtime_sandbox):
     payload = json.loads(sample_document())
     payload["metadata"] = {
@@ -239,9 +237,8 @@ async def test_list_documents_includes_provenance(runtime_sandbox):
         assert match.provenance.pages_ocred == [1]
 
 
-@pytest.mark.asyncio
 async def test_upload_document_uses_pdf_fallback_provenance(runtime_sandbox, monkeypatch):
-    import acts_ingest.pagemodel as pagemodel
+    import legal_ingest.pagemodel as pagemodel
 
     monkeypatch.setattr(pagemodel, "_page_is_scan", lambda page, **_: True)
 
@@ -259,11 +256,10 @@ async def test_upload_document_uses_pdf_fallback_provenance(runtime_sandbox, mon
         assert TAG_PDF_INFERRED in created.provenance.tags
 
 
-@pytest.mark.asyncio
 async def test_backfill_provenance_reinferences_native_when_json_has_no_ocr(
     runtime_sandbox, monkeypatch
 ):
-    import acts_ingest.pagemodel as pagemodel
+    import legal_ingest.pagemodel as pagemodel
     from backend.models import DocumentProvenance
     from backend.services import blob_store
     from backend.services.document_provenance import serialize_provenance
@@ -316,7 +312,6 @@ async def test_backfill_provenance_reinferences_native_when_json_has_no_ocr(
         assert proven.pages_ocred == [1, 2, 3]
 
 
-@pytest.mark.asyncio
 async def test_reinfer_provenance_route_pages_and_is_idempotent(
     runtime_sandbox, monkeypatch
 ):
@@ -331,7 +326,7 @@ async def test_reinfer_provenance_route_pages_and_is_idempotent(
     corpus in one request. A short page must end the walk, and a second pass must
     change nothing.
     """
-    import acts_ingest.pagemodel as pagemodel
+    import legal_ingest.pagemodel as pagemodel
     from backend.routes.documents import reinfer_provenance
     from backend.services import blob_store
 

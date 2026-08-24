@@ -216,7 +216,6 @@ def test_broken_extra_providers_json_disables_the_feature(gateway, monkeypatch):
 # proposal lifecycle
 # ---------------------------------------------------------------------------
 
-@pytest.mark.asyncio
 async def test_proposal_happy_path(runtime_sandbox, gateway):
     db, document_id, section_id = await synced_document(runtime_sandbox)
     try:
@@ -238,7 +237,6 @@ async def test_proposal_happy_path(runtime_sandbox, gateway):
         await db.close()
 
 
-@pytest.mark.asyncio
 async def test_proposal_uses_the_requested_dropdown_model(runtime_sandbox, gateway):
     db, document_id, section_id = await synced_document(runtime_sandbox)
     try:
@@ -258,7 +256,6 @@ async def test_proposal_uses_the_requested_dropdown_model(runtime_sandbox, gatew
         await db.close()
 
 
-@pytest.mark.asyncio
 async def test_unsafe_reply_is_stored_as_failed(runtime_sandbox, gateway):
     gateway["reply"] = model_reply(html="<script>alert(1)</script>")
     db, document_id, section_id = await synced_document(runtime_sandbox)
@@ -272,7 +269,6 @@ async def test_unsafe_reply_is_stored_as_failed(runtime_sandbox, gateway):
         await db.close()
 
 
-@pytest.mark.asyncio
 async def test_gateway_error_is_stored_as_failed(runtime_sandbox, gateway):
     gateway["reply"] = llm_client.LLMError("gateway returned HTTP 500: boom")
     db, document_id, section_id = await synced_document(runtime_sandbox)
@@ -286,7 +282,6 @@ async def test_gateway_error_is_stored_as_failed(runtime_sandbox, gateway):
         await db.close()
 
 
-@pytest.mark.asyncio
 async def test_approve_creates_version_overlay_and_approval(runtime_sandbox, gateway):
     db, document_id, section_id = await synced_document(runtime_sandbox)
     try:
@@ -327,7 +322,6 @@ async def test_approve_creates_version_overlay_and_approval(runtime_sandbox, gat
         await db.close()
 
 
-@pytest.mark.asyncio
 async def test_approve_refuses_when_leaf_changed_since_proposal(
     runtime_sandbox, gateway
 ):
@@ -354,7 +348,6 @@ async def test_approve_refuses_when_leaf_changed_since_proposal(
         await db.close()
 
 
-@pytest.mark.asyncio
 async def test_reject_closes_the_proposal(runtime_sandbox, gateway):
     db, document_id, section_id = await synced_document(runtime_sandbox)
     try:
@@ -406,7 +399,6 @@ async def _approve_fix(db, document_id, section_id):
     await db.commit()
 
 
-@pytest.mark.asyncio
 async def test_sync_reapplies_overlay_when_pipeline_output_is_unchanged(
     runtime_sandbox, gateway
 ):
@@ -433,7 +425,6 @@ async def test_sync_reapplies_overlay_when_pipeline_output_is_unchanged(
             assert (await cursor.fetchone())["status"] == "active"
 
 
-@pytest.mark.asyncio
 async def test_sync_marks_overlay_stale_when_pipeline_leaf_changed(
     runtime_sandbox, gateway
 ):
@@ -464,7 +455,6 @@ async def test_sync_marks_overlay_stale_when_pipeline_leaf_changed(
             assert (await cursor.fetchone())["status"] == "stale"
 
 
-@pytest.mark.asyncio
 async def test_sync_supersedes_overlay_when_pipeline_catches_up(
     runtime_sandbox, gateway
 ):
@@ -498,7 +488,6 @@ async def test_sync_supersedes_overlay_when_pipeline_catches_up(
 # route guard
 # ---------------------------------------------------------------------------
 
-@pytest.mark.asyncio
 async def test_models_route_returns_the_dropdown_list(runtime_sandbox, gateway):
     from backend.routes.ai_fixes import list_models
 
@@ -507,7 +496,6 @@ async def test_models_route_returns_the_dropdown_list(runtime_sandbox, gateway):
     assert response.default == "test-model"
 
 
-@pytest.mark.asyncio
 async def test_request_route_returns_503_when_unconfigured(
     runtime_sandbox, monkeypatch
 ):

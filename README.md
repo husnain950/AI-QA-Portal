@@ -1,6 +1,6 @@
 # FBR Corpus Platform (`crx`)
 
-Unified monorepo: **PDF → JSON pipelines** (`packages/fbr_ingest`, `packages/acts_ingest`) and the **QA review portal** (`apps/api`, `apps/web`) share one Docker stack, Makefile, and sync CLI.
+Unified monorepo: **PDF → JSON pipelines** (`packages/fbr_ingest`, `packages/legal_ingest`) and the **QA review portal** (`apps/api`, `apps/web`) share one Docker stack, Makefile, and sync CLI.
 
 Live portal without a seed is empty; this repo is meant to run locally with in-tree corpora under `data/corpora/` and `make sync`.
 
@@ -14,18 +14,26 @@ convert PDF  →  data/output JSON  →  make sync  →  review in UI  →  expo
 2. **Sync** — `make sync` loads Ordinance (~12) + Acts (~80) editions into PostgreSQL from `data/corpora/`
 3. **Review** — side-by-side PDF + HTML, versions, annotations
 4. **Export** — dashboard JSON/CSV or `make export-qa DOC=<id>`
-5. **Import findings** — `python tools/import_qa_report.py …` into pipeline regression cases
+5. **Import findings** — feed portal findings back into the pipeline regression cases
 
 ## Layout
 
 ```
-apps/api          FastAPI (Python package name: backend)
-apps/web          Vite + React review UI
-packages/fbr_ingest   Income Tax Ordinance pipeline
-packages/acts_ingest  Acts + OCR fork (kept separate on purpose)
-tools/            sync_corpus, convert_*, import_qa, bootstrap_corpora, smoke tests
-data/             gitignored uploads / corpora / output / ocr_cache (the DB lives in PostgreSQL)
-data/corpora/     Ordinance + Acts PDFs and pipeline JSON (local only)
+apps/api                 FastAPI (Python package name: backend)
+apps/web                 Vite + React review UI
+packages/fbr_ingest      Income Tax Ordinance pipeline
+packages/legal_ingest    Acts + Rules pipeline + OCR; one Profile per corpus
+packages/{acts,rules}_ingest
+                         Profile bindings, so `from <lane>_ingest import run` works
+tools/convert.py         Convert one PDF:      tools/convert.py <lane> <PDF>
+tools/run_suite.py       Regression suite:     tools/run_suite.py <lane>
+tools/run_tests_smoke.py The pipeline gate (self-checks + each staged corpus)
+tools/suite/             Shared checks/loader/runner; invariants + cases per lane
+tools/{acts,ordinance}/  Lane-specific audits and diagnostics
+tools/sync_corpus.py     Load converted JSON into PostgreSQL
+tools/northflank_deploy.py, snapshot_review.py, fixture_corpus.py, backfill_provenance.py
+data/                    gitignored uploads / corpora / output / ocr_cache
+data/corpora/<lane>/     Source PDFs + pipeline JSON, one dir per corpus (local only)
 ```
 
 ## Quick start
@@ -75,7 +83,7 @@ See [`.env.example`](.env.example). Important knobs:
 | `CORPUS_ORDINANCE` | `./data/corpora/ordinance` (`output/*.json` + Ordinance PDFs) |
 | `CORPUS_ACTS` | `./data/corpora/acts` (`output/*.json` + `Acts/**`) |
 
-These `CORPUS_*` / `DATABASE_URL` / `UPLOAD_DIR` values are **host-local**. Compose and the API image override them inside the container (`/data/corpus/...`, `/app/data/...`). `make deploy-prod` strips them from `--env-file` (see [`tools/filter_deploy_env.py`](tools/filter_deploy_env.py)) so a local `.env` cannot point production at your laptop's database or make it report missing mounts.
+These `CORPUS_*` / `DATABASE_URL` / `UPLOAD_DIR` values are **host-local**. Compose and the API image override them inside the container (`/data/corpus/...`, `/app/data/...`), and Northflank injects its own, so a local `.env` is never shipped to production.
 
 The Library subtitle (`last sync` / `seeded by upload` / `pipeline mounts not on this host`) is **pipeline-mount health** — whether those directories exist on the API host with `output/*.json` — not whether Ordinance or Acts documents are already in the library. `make push-remote` fills the library as uploads and does not record a corpus sync. Northflank builds from git have no baked seed and no pipeline mounts, so a fresh (or post-migration) deploy shows an empty Library until someone runs:
 
@@ -91,15 +99,29 @@ Compose mounts `./data/corpora/...` **read-only** into the API container. Large 
 
 | Target | What it does |
 |--------|----------------|
-| `make up` / `down` | Docker Compose stack |
-| `make vendor-corpora` | Optional re-copy from sibling CC-FBR |
-| `make sync` | Sync Ordinance + Acts (`--metrics`) |
+| `make up` / `down` / `build` / `logs` | Docker Compose stack |
+| `make health` | Hit the API health endpoints |
+| `make shell-api` | Shell into the api container |
+| `make vendor-corpora` | Optional re-copy from a sibling CC-FBR tree |
+| `make sync` | Sync all three corpora into PostgreSQL (`--metrics`) |
 | `make seed-fixtures` | Generate + load a micro-corpus (no private data needed) |
-| `make convert-ordinance PDF=…` | Run `fbr_ingest` |
-| `make convert-acts PDF=…` | Run `acts_ingest` |
-| `make test` | API pytest + pipeline smoke + web lint/tests/build |
-| `make check` | Exactly what CI gates on, including `ruff check apps/api tools` |
-| `make export-qa DOC=…` | Download QA report JSON |
+| `make convert-ordinance PDF=…` | Convert an Ordinance edition (`fbr_ingest`) |
+| `make convert-acts PDF=…` | Convert an Act (`legal_ingest`, acts profile) |
+| `make convert-rules PDF=…` | Convert a Rules set (`legal_ingest`, rules profile) |
+| `make test` | `test-api` + `test-pipeline` + `test-web` |
+| `make test-api` | pytest over `apps/api/backend/tests` + `tools/tests` |
+| `make test-pipeline` | Package self-checks, plus each lane's suite when its corpus is staged |
+| `make test-web` | `npm run lint && npm run test && npm run build` |
+| `make check` | `make test` plus `ruff check apps/api tools` |
+| `make export-qa DOC=…` | Download a QA report as JSON |
+| `make backfill-provenance` | Repair `document_provenance` rows |
+| `make seed-archive` | Package `data/corpora/` into `data/seed/` for the API image |
+| `make push-remote BASE_URL=…` | Push the local corpus into a deployed portal |
+| `make backup-remote BASE_URL=…` | Snapshot a deployed portal's review state |
+
+Deployment is Northflank, automatic on green CI to `main`
+(`.github/workflows/deploy-northflank.yml`); `python tools/northflank_deploy.py check`
+reports the current service state.
 
 ### Production web image
 
@@ -255,7 +277,9 @@ Operations, backup, and restore are in [`docs/operations.md`](docs/operations.md
 
 ## Non-goals (v1)
 
-- Merging `fbr_ingest` and `acts_ingest`
+- Merging `fbr_ingest` into `legal_ingest` (the Acts and Rules pipelines ARE merged;
+  the Ordinance stays separate -- it diverges by 3,500+ lines and has no `grammar`,
+  `calibrate` or `ocr` module to share)
 - Re-converting the full Acts corpus in-session
 - Shipping PDFs or DB blobs in git
 - LLM/vision in the conversion path

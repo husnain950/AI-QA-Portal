@@ -12,8 +12,7 @@ from backend.sync_acts import run_sync
 from backend.tests.conftest import write_pair
 
 
-@pytest.mark.asyncio
-async def test_review_events_append_only(runtime_sandbox):
+async def test_review_events_append_only_after_a_sync(runtime_sandbox):
     source = runtime_sandbox["root"] / "export"
     write_pair(source)
     await run_sync(source)
@@ -43,7 +42,6 @@ async def test_review_events_append_only(runtime_sandbox):
         await db.rollback()
 
 
-@pytest.mark.asyncio
 async def test_finding_dismissal_survives_score_bump(runtime_sandbox):
     source = runtime_sandbox["root"] / "export"
     write_pair(source)

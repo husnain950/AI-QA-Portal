@@ -1,0 +1,58 @@
+{
+  "_comment": [
+    "Per-document invariant exemptions. An invariant listed here still RUNS, and its",
+    "failures are still counted and printed -- they just do not fail the build for the",
+    "one document named in `applies_to`. Everything else on the lane still gates.",
+    "",
+    "`applies_to` is a substring of metadata.filename, the same scoping rule cases use.",
+    "`invariant` must name an entry in the lane's ALL_INVARIANTS (a test asserts this,",
+    "so a typo is a failure rather than a silently ineffective exemption).",
+    "",
+    "Every entry below was traced to its source PDF before being written. The bar for",
+    "adding one is that the invariant is RIGHT and the document is genuinely outside",
+    "what the pipeline can read today -- never that a check is inconvenient. If an",
+    "exemption's invariant starts passing, the suite says so and the entry is deleted."
+  ],
+  "exemptions": [
+    {
+      "applies_to": "Customs Rules, 2001",
+      "invariant": "section_codes_ordered",
+      "reason": "Compilation, not a single instrument. The 563-page document's TOC is an index of 44 separately-notified rule sets ('17. Duty and Tax Remission (DTRE) for Export S.R.O.185(I)/2020'), each of which restarts its own rule numbering, so codes cannot ascend document-wide. The tree has no level above chapter for 'instrument' and six walkers hardcode chapter/part/division/section as the child keys. Needs the ingest feature in tasks.md Phase 6 option (a)."
+    },
+    {
+      "applies_to": "Customs Rules, 2001",
+      "invariant": "no_orphan_marker_li",
+      "reason": "Same document, same cause as section_codes_ordered above. The literal first line of page 1 is a stray 'CHAPTER VII', so the whole compilation parses to one chapter and 62 leaves and a marker list item lands outside the leaf that cites it. TOC detection itself is correct (pages 1-5 score 54-86%, page 6 drops to 2%)."
+    },
+    {
+      "applies_to": "Customs Rules, 2001",
+      "invariant": "no_jammed_words",
+      "reason": "The source PDF's text layer emits the run as ONE 75-character token with no space glyphs inside it, so there is no positional information to split on. Recovering the spaces needs dictionary or language-model word splitting, which is non-deterministic and excluded by the README's 'no LLM/vision in the conversion path'."
+    },
+    {
+      "applies_to": "Sales Tax Rules 2006 updated upto 30-06-2025",
+      "invariant": "no_jammed_words",
+      "reason": "Same cause as Customs Rules above: a single jammed token in the source PDF's text layer, no space glyphs to split on."
+    },
+    {
+      "applies_to": "Sales Tax Rules, 2006 (Updated upto 01-01-2025)",
+      "invariant": "no_jammed_words",
+      "reason": "Same cause: jammed tokens in the source PDF's text layer, e.g. 'whetherthemonthlyreturnsfurnishedbytheregisteredpersoncorrectlyreflect' arrives from pdfplumber as one token."
+    },
+    {
+      "applies_to": "Federal Excise Rules 2005",
+      "invariant": "section_codes_ordered",
+      "reason": "Compilation in miniature. PDF page 75 starts a whole second instrument inside the body -- 'ELECTRONIC FILING OF FEDERAL EXCISE RETURN RULES, 2005' with its own CONTENTS page -- so its rules 1-5 land after rule 86 inside CHAPTER XVI. Same missing 'instrument' tree level as Customs Rules, 2001."
+    },
+    {
+      "applies_to": "Federal Excise Rules 2005",
+      "invariant": "no_split_ordinals",
+      "reason": "The parser refuses this merge DELIBERATELY. Footnote 54.104 prints 'dated 21 st June, 2006'; pagemodel's discriminators for a raised suffix are a size drop and the absence of a space glyph, and this token is equal size (8.04pt), dtop 0.00, with a real space -- indistinguishable from a genuine '21 st' typo in the source. Merging it would merge real typos too. The invariant does not know the parser made that choice."
+    },
+    {
+      "applies_to": "Federal Excise Rule Updated Upto 10.07.2014",
+      "invariant": "no_split_ordinals",
+      "reason": "Same deliberate parser refusal as the 2005 edition above: an equal-size, space-separated ordinal suffix that cannot be told apart from a source typo."
+    }
+  ]
+}

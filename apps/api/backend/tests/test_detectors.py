@@ -1,6 +1,5 @@
 """Tests for services/detectors.py — at least heading_only + fingerprint stability."""
 
-import pytest
 
 from backend.database import database_connection
 from backend.services.detectors import (
@@ -32,7 +31,6 @@ def test_fingerprint_stable_across_versions():
     assert "score" not in fp
 
 
-@pytest.mark.asyncio
 async def test_heading_only_detector(runtime_sandbox):
     """Detect sections whose body is just the heading."""
     async with database_connection() as db:
@@ -57,7 +55,6 @@ async def test_heading_only_detector(runtime_sandbox):
         assert "sec-h2" not in section_ids
 
 
-@pytest.mark.asyncio
 async def test_glyph_split_detector(runtime_sandbox):
     """Detect OCR glyph split artifacts."""
     async with database_connection() as db:

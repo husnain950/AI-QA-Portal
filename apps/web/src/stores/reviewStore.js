@@ -103,12 +103,10 @@ export const useReviewStore = create((set, get) => ({
                 globalAnnotations: state.globalAnnotations.filter(a => a.id !== annotationId)
             }));
 
-            // side effects: refresh section and sidebar counts
             if (deleted) {
-                const docStore = useDocumentStore.getState();
-                docStore.fetchSection(docStore.activeDocument.id, deleted.section_id);
-                docStore.fetchSections(docStore.activeDocument.id);
-                docStore.fetchDocument(docStore.activeDocument.id);
+                await useDocumentStore.getState().refreshReviewData({
+                    sectionId: deleted.section_id,
+                });
             }
         } catch (e) {
             console.error('Failed to delete annotation', e);
@@ -121,67 +119,13 @@ export const useReviewStore = create((set, get) => ({
             const res = await api.patch(`/footnotes/${footnoteId}/status`, {
                 review_status: status
             });
-            
+            // This used to reach into useDocumentStore.setState() three separate times
+            // to patch activeSection.footnotes, pageSections and sections by hand, then
+            // refetch the document. The store that owns those slices knows how to patch
+            // them; this only has to say what changed.
             const docStore = useDocumentStore.getState();
-            
-            // 1. Update activeSection if it contains the footnote
-            const activeSection = docStore.activeSection;
-            if (activeSection && activeSection.footnotes && activeSection.footnotes.some(f => f.id === footnoteId)) {
-                const updatedFootnotes = activeSection.footnotes.map(fn => 
-                    fn.id === footnoteId ? { ...fn, review_status: status } : fn
-                );
-                
-                let newSectionStatus = activeSection.review_status;
-                if (status === 'has_issues') {
-                    newSectionStatus = 'has_issues';
-                }
-
-                useDocumentStore.setState({
-                    activeSection: { 
-                        ...activeSection, 
-                        footnotes: updatedFootnotes,
-                        review_status: newSectionStatus
-                    }
-                });
-            }
-            
-            // 2. Update pageSections if they contain the footnote
-            const pageSections = docStore.pageSections;
-            if (pageSections && pageSections.length > 0) {
-                useDocumentStore.setState({
-                    pageSections: pageSections.map(s => {
-                        if (s.footnotes && s.footnotes.some(f => f.id === footnoteId)) {
-                            return {
-                                ...s,
-                                review_status: status === 'has_issues' ? 'has_issues' : s.review_status,
-                                footnotes: s.footnotes.map(fn => fn.id === footnoteId ? { ...fn, review_status: status } : fn)
-                            };
-                        }
-                        return s;
-                    })
-                });
-            }
-
-            // 3. Find the section ID of the footnote to update sidebar status
-            let targetSectionId = null;
-            if (activeSection && activeSection.footnotes && activeSection.footnotes.some(f => f.id === footnoteId)) {
-                targetSectionId = activeSection.id;
-            } else if (pageSections && pageSections.length > 0) {
-                const foundSec = pageSections.find(s => s.footnotes && s.footnotes.some(f => f.id === footnoteId));
-                if (foundSec) targetSectionId = foundSec.id;
-            }
-
-            if (targetSectionId && status === 'has_issues') {
-                const sections = docStore.sections;
-                useDocumentStore.setState({
-                    sections: sections.map(s => s.id === targetSectionId ? { ...s, review_status: 'has_issues' } : s)
-                });
-            }
-            
-            if (docStore.activeDocument) {
-                docStore.fetchDocument(docStore.activeDocument.id);
-            }
-            
+            docStore.patchFootnote(footnoteId, { review_status: status });
+            await docStore.refreshReviewData();
             return res;
         } catch (e) {
             console.error('Failed to update footnote status', e);
@@ -195,40 +139,16 @@ export const useReviewStore = create((set, get) => ({
             const res = await api.patch(`/annotations/${annotationId}`, {
                 status: nextStatus
             });
-            
-            // 1. Update globalAnnotations state
+            const setStatus = (a) => (a.id === annotationId ? { ...a, status: nextStatus } : a);
             set((state) => ({
-                globalAnnotations: state.globalAnnotations.map(a => a.id === annotationId ? { ...a, status: nextStatus } : a)
+                globalAnnotations: state.globalAnnotations.map(setStatus),
+                annotations: state.annotations.map(setStatus),
             }));
-
-            // 2. Update active annotations state (for the active section)
-            set((state) => ({
-                annotations: state.annotations.map(a => a.id === annotationId ? { ...a, status: nextStatus } : a)
-            }));
-
-            // 3. Side effects: update parent section status
-            const docStore = useDocumentStore.getState();
-            const activeSection = docStore.activeSection;
-            
-            // Re-fetch document metadata to keep stats in sync
-            if (docStore.activeDocument) {
-                docStore.fetchDocument(docStore.activeDocument.id);
-                docStore.fetchSections(docStore.activeDocument.id);
-                
-                // If in page view, refresh page sections
-                if (get().viewMode === 'page') {
-                    docStore.fetchSectionsByPage(docStore.activeDocument.id, get().currentPage);
-                }
-            }
-            
-            // If the active section is the parent of the resolved annotation, refresh activeSection from API
-            const targetAnnot = get().globalAnnotations.find(a => a.id === annotationId);
-            if (targetAnnot) {
-                if (activeSection && activeSection.id === targetAnnot.section_id) {
-                    docStore.fetchSection(docStore.activeDocument.id, activeSection.id);
-                }
-            }
-            
+            const target = get().globalAnnotations.find((a) => a.id === annotationId);
+            await useDocumentStore.getState().refreshReviewData({
+                sectionId: target?.section_id ?? null,
+                page: get().viewMode === 'page' ? get().currentPage : null,
+            });
             return res;
         } catch (e) {
             console.error('Failed to toggle annotation status', e);

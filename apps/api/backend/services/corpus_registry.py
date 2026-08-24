@@ -41,14 +41,50 @@ class Corpus:
     label: str
     env: str
     seed_env: str
-    #: Human name for API errors and the Library subtitle.
+    #: Human name for API errors and the Library subtitle. Doubles as the
+    #: conventional name of the source-PDF subdirectory -- see `source_path`.
     title: str
+    #: The ingest package under `packages/` that converts this corpus.
+    package: str
 
     def path(self) -> Path:
+        """The corpus root, honouring ``$<env>``.
+
+        A relative value anchors to the repo root, not the working directory:
+        ``.env`` ships these as ``./data/corpora/acts``, and resolving that against
+        the cwd meant the same variable named two different directories depending on
+        where a tool was launched from. Absolute values -- what Docker and Northflank
+        set -- are untouched either way.
+        """
         raw = os.environ.get(self.env)
         if raw:
-            return Path(raw).expanduser()
+            return REPO_ROOT / Path(raw).expanduser()  # a no-op when already absolute
         return REPO_ROOT / "data" / "corpora" / self.label
+
+    def output_path(self) -> Path:
+        """Where this corpus's converted JSON lives. The glob that defines a corpus."""
+        return self.path() / "output"
+
+    def source_path(self) -> Path:
+        """Where this corpus's source PDFs live, under its configured root."""
+        return self.source_within(self.path())
+
+    def source_within(self, root: Path) -> Path:
+        """Apply this corpus's source rule to ``root``: ``<title>/`` if present, else root.
+
+        Takes the root rather than reading `path()` because a caller may be syncing
+        somewhere else entirely -- `make seed-fixtures` points the acts sync at
+        `data/fixtures/acts`, and resolving the PDF directory from the registry there
+        would send it to the real corpus instead.
+
+        The Acts keep their sources under ``Acts/`` and the Rules under ``Rules/``,
+        while the Ordinance keeps them beside ``output/``. Stated once here because the
+        converter, the regression runner and ``sync_acts`` must all agree on what counts
+        as a source; they used to say it separately, and only the Acts spelling was
+        right.
+        """
+        nested = Path(root) / self.title
+        return nested if nested.is_dir() else Path(root)
 
     def seed_path(self) -> Optional[Path]:
         raw = os.environ.get(self.seed_env)
@@ -59,9 +95,9 @@ class Corpus:
 
 
 CORPORA: tuple[Corpus, ...] = (
-    Corpus("ordinance", "CORPUS_ORDINANCE", "SEED_CORPUS_ORDINANCE", "Ordinance"),
-    Corpus("acts", "CORPUS_ACTS", "SEED_CORPUS_ACTS", "Acts"),
-    Corpus("rules", "CORPUS_RULES", "SEED_CORPUS_RULES", "Rules"),
+    Corpus("ordinance", "CORPUS_ORDINANCE", "SEED_CORPUS_ORDINANCE", "Ordinance", "fbr_ingest"),
+    Corpus("acts", "CORPUS_ACTS", "SEED_CORPUS_ACTS", "Acts", "acts_ingest"),
+    Corpus("rules", "CORPUS_RULES", "SEED_CORPUS_RULES", "Rules", "rules_ingest"),
 )
 
 LABELS: tuple[str, ...] = tuple(c.label for c in CORPORA)
@@ -121,8 +157,17 @@ def _demo() -> None:
         raise AssertionError("an unknown corpus must raise, not be ignored")
     os.environ["CORPUS_RULES"] = "/tmp/rules-elsewhere"
     assert get("rules").path() == Path("/tmp/rules-elsewhere")
+    # a repo-relative value anchors to the repo, not the cwd
+    os.environ["CORPUS_RULES"] = "./data/corpora/rules"
+    assert get("rules").path() == REPO_ROOT / "data" / "corpora" / "rules"
     del os.environ["CORPUS_RULES"]
     assert get("rules").path() == REPO_ROOT / "data" / "corpora" / "rules"
+    assert get("acts").output_path() == get("acts").path() / "output"
+    # source_path falls back to the root when the <title>/ subdirectory is absent
+    os.environ["CORPUS_ACTS"] = "/tmp/no-such-corpus"
+    assert get("acts").source_path() == Path("/tmp/no-such-corpus")
+    del os.environ["CORPUS_ACTS"]
+    assert [c.package for c in CORPORA] == ["fbr_ingest", "acts_ingest", "rules_ingest"]
     assert not corpus_root_configured(None)
     assert not corpus_root_configured(Path("/nonexistent-corpus"))
     print("corpus_registry self-check passed")

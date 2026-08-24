@@ -239,19 +239,3 @@ async def run_detectors_and_store(
 
 
 # Back-compat alias used by routes
-async def set_triage(
-    db: DatabaseConnection,
-    finding_id: int,
-    triage: str,
-    *,
-    actor: str,
-    note: str = "",
-) -> Dict[str, Any]:
-    row = await triage_finding(
-        db, finding_id, triage=triage, note=note or None, actor=actor
-    )
-    if row is None:
-        raise KeyError(finding_id)
-    async with db.execute("SELECT * FROM findings WHERE id = ?", (finding_id,)) as cur:
-        full = await cur.fetchone()
-    return dict(full) if full else row

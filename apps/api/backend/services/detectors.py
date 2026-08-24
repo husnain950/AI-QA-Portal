@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import hashlib
 import re
-import unicodedata
 from collections import defaultdict
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from backend.database import DatabaseConnection
+from backend.services.textnorm import html_shape as _html_shape
+from backend.services.textnorm import norm_text as _norm_text
 
 DETECTOR_VERSION = "1"
 
@@ -59,10 +60,6 @@ def _text_len(plain_text: Optional[str]) -> int:
     return len((plain_text or "").strip())
 
 
-def _norm_text(text: str) -> str:
-    """NFKC + whitespace collapse, no casefolding."""
-    text = unicodedata.normalize("NFKC", text)
-    return re.sub(r"\s+", " ", text).strip()
 
 
 # ---------------------------------------------------------------------------
@@ -243,11 +240,6 @@ async def _detect_glyph_split(db: DatabaseConnection) -> List[Tuple[str, str, Fi
     return findings
 
 
-def _html_shape(html: str) -> str:
-    """SHA256 of ordered block-tag sequence."""
-    tags = re.findall(r"<(/?(?:p|div|table|tr|td|th|ul|ol|li|h[1-6]|blockquote|pre|section|article|aside|nav|header|footer|figure|figcaption|details|summary|dl|dt|dd))\b", html or "", re.IGNORECASE)
-    shape_str = "|".join(t.lower() for t in tags)
-    return hashlib.sha256(shape_str.encode()).hexdigest()
 
 
 async def _detect_markup_drift(db: DatabaseConnection) -> List[Tuple[str, str, Finding]]:

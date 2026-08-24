@@ -2,8 +2,6 @@
 
 import json
 
-import pytest
-
 from backend.database import database_connection
 from backend.services.document_store import apply_parsed_document
 from backend.services.json_parser import parse_json_document
@@ -113,7 +111,6 @@ def test_serialize_roundtrip():
     assert deserialize_quality_flags(None) == []
 
 
-@pytest.mark.asyncio
 async def test_store_persists_quality_flags_and_elevates_pending(runtime_sandbox):
     document_id = "quality-document"
     html, plain = _conclusion_style_body()

@@ -2,13 +2,8 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import datetime, timezone
 
 from fastapi import HTTPException
-
-
-def refreshed_at() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def encode_cursor(offset: int, fingerprint: str) -> str:

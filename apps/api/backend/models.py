@@ -17,9 +17,6 @@ class DocumentStats(BaseModel):
 class DocumentBase(BaseModel):
     name: str
 
-class DocumentCreate(DocumentBase):
-    pass
-
 class DocumentProvenance(BaseModel):
     """Auto-derived document tags from pipeline metadata.ocr / source_kind."""
 
@@ -256,38 +253,3 @@ class SearchResultResponse(BaseModel):
     match_ranges: List[dict] = Field(default_factory=list)
     match_count: int
 
-# --- Export Models ---
-
-class ExportSummary(BaseModel):
-    total_annotations: int
-    by_severity: dict
-    completion_percentage: float
-    generated_at: str
-
-class SectionExport(BaseModel):
-    code: str
-    heading: str
-    chapter: str
-    pages: str
-    review_status: str
-    annotations: List[AnnotationBase]
-
-class FootnoteExport(BaseModel):
-    section_code: str
-    marker: str
-    text: str
-    review_status: str
-
-class DocumentExport(BaseModel):
-    name: str
-    uploaded_at: str
-    total_sections: int
-    reviewed: int
-    approved: int
-    has_issues: int
-
-class ExportResponse(BaseModel):
-    document: DocumentExport
-    sections: List[SectionExport]
-    footnotes: List[FootnoteExport]
-    summary: ExportSummary

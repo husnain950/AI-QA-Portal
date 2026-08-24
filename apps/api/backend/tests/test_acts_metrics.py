@@ -53,7 +53,6 @@ def _reports(directory, *, invariants=True, conservation=True, stem="act"):
     return directory
 
 
-@pytest.mark.asyncio
 async def test_metrics_attach_to_the_active_version(runtime_sandbox):
     source = runtime_sandbox["root"] / "export"
     write_pair(source, name="act")
@@ -85,7 +84,6 @@ async def test_metrics_attach_to_the_active_version(runtime_sandbox):
     assert detail["failures"]["no_bold_body_subsection_marker"] == ["s.37C", "s.37E"]
 
 
-@pytest.mark.asyncio
 async def test_ingest_is_idempotent_and_reingests_over_itself(runtime_sandbox):
     source = runtime_sandbox["root"] / "export"
     write_pair(source, name="act")
@@ -137,14 +135,12 @@ async def test_ingest_is_idempotent_and_reingests_over_itself(runtime_sandbox):
             assert (await cursor.fetchone())[0] == 1
 
 
-@pytest.mark.asyncio
 async def test_absent_reports_are_a_skip_not_a_failure(runtime_sandbox):
     async with database_connection() as db:
         result = await acts_metrics.ingest(db, runtime_sandbox["root"] / "nowhere")
     assert result["status"] == "skipped"
 
 
-@pytest.mark.asyncio
 async def test_editions_without_a_portal_document_are_reported_not_dropped(
     runtime_sandbox,
 ):
@@ -160,7 +156,6 @@ async def test_editions_without_a_portal_document_are_reported_not_dropped(
     assert result["unmatched"] == ["some other edition"]
 
 
-@pytest.mark.asyncio
 async def test_sync_can_ingest_metrics_in_the_same_run(runtime_sandbox):
     source = runtime_sandbox["root"] / "export"
     write_pair(source, name="act")

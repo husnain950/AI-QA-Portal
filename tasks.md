@@ -1,0 +1,671 @@
+# Refactor tasks — **complete**
+
+Working ledger for the repo-wide refactor, kept as the audit trail for what was measured
+and what was deliberately not done. Safe to delete once read; it is not meant to become a
+second source of truth alongside `README.md`.
+
+## Outcome
+
+| | baseline `8112585` | now | delta |
+|---|---|---|---|
+| code LOC (`py,jsx,js,mjs,css`) | 84,702 | **67,103** | **−17,599 (−21%)** |
+| `packages/` | 31,002 | 19,322 | −11,680 |
+| `tools/` | 14,168 | 8,741 | −5,427 |
+| `apps/web` | 17,833 | 17,535 | −298 |
+| `apps/api` | 21,699 | 21,505 | −194 |
+| files | — | — | 70 deleted, 13 added, 26 renamed |
+| pytest | 439 | **452** | +16 new, −3 with deleted code |
+| web tests | 134 | **134** | — |
+| ruff (repo) | 27 | **17** | −10 |
+| pipeline gate | ord 12 ✅ acts 80 ✅ rules ❌ | **ord 12 ✅ acts 80 ✅ rules 11 ✅** | all three lanes green |
+
+Twelve commits, one per phase. Every phase verified against the baseline before committing.
+
+The rules lane is green because the 8 document×invariant failures diagnosed in Phase 6 are
+recorded as per-document exemptions with their reasons (Phase 6b) — the invariants still run
+and still print their 45 hits, they just no longer stop the other ~50 checks from gating 11
+editions. The documents themselves are unchanged; option (a), the real fix for the 38
+compilation hits, is still unbuilt.
+
+### Defects found and fixed (none were in scope; all were live)
+
+1. **The Rules corpus could not mount in Docker or production** — `docker-compose.yml`,
+   `apps/api/Dockerfile` and `northflank.template.json` all declared two lanes.
+2. **`$CORPUS_RULES` was silently ignored** by every tool importing `corpus_paths`,
+   whose lane table had two entries.
+3. **`Corpus.path()` resolved relative values against the process CWD**, so the API and
+   worker could resolve the same variable to different directories.
+4. **The source-PDF rule hardcoded `Acts/`**, so the Rules sync only worked because a
+   fallback recursive scan happened to reach `Rules/`.
+5. **`make deploy-prod` shipped a local relative path to production** — fixed by
+   deleting the dead CodeRun path.
+6. **`tools/add_test_case.py` and `tools/import_qa_report.py` could not start** — both
+   imported packages that have never existed in this repo.
+7. **A latent frontend `TypeError`** — `TriagePage` selected a store action that does
+   not exist.
+8. **Keyboard shortcuts leaked into form controls** — four divergent `isTypingTarget`
+   checks disagreed about `<select>` and contentEditable.
+9. **Sign-out showed a stray text input** — `confirmOnly` was passed to a dialog that
+   ignores it.
+10. **A dead retry branch in the network path** — unreachable, since `request()` throws
+    on any non-ok response.
+
+Plus one regression I introduced in Phase 2 and fixed in Phase 8 (`source_within`),
+with two tests pinning it.
+
+**Baseline** on `main` @ `8112585`:
+
+| Check | Result |
+|---|---|
+| `pytest apps/api/backend/tests tools/tests -q` | **439 passed** |
+| `npm run test` (apps/web) | **134 passed / 23 files** |
+| `npm run lint` + `npm run build` (apps/web) | **clean** |
+| `tools/run_tests_smoke.py` | ordinance **12 ✅** · acts **80 ✅** · rules **❌ (7 invariant failures)** |
+| `ruff check --statistics` | 27 findings, all in `packages/` |
+| `ruff check apps/api tools` | clean |
+| tracked LOC (`py,jsx,js,mjs,css`) | **84,702** |
+
+Golden corpus JSON under `data/corpora/*/output/`: **90 acts · 12 ordinance · 11 rules = 113**.
+sha256 manifests in the session scratchpad (`manifest-{acts,ordinance,rules}.txt`) — the net for
+Phase 4, since the agreed verification bar is suite-level rather than a full byte-compare.
+
+Pre-existing rules failures (baseline, not regressions): `section_codes_ordered` (32 + 5 hits),
+`no_jammed_words` (1 + 3 + 1), `no_split_ordinals` (1 + 1), `no_orphan_marker_li` (1).
+
+## Ground rules
+
+- A phase is checked off only once its verification gate has actually run, with numbers recorded.
+  "Done" without numbers is not done.
+- LOC deltas come from `git diff --stat`, not from the plan's estimates. Correct the estimate in
+  place when reality differs.
+- Anything found mid-phase and deliberately not done goes under **Deferred** with a one-line reason.
+- If a phase moves acts/ordinance conversion output, name the invariant and edition inline.
+
+---
+
+## Phase 0 — Freeze the baseline · **done**
+- [x] Re-run all five checks, record above
+- [x] sha256 manifests for acts + ordinance + rules output
+- [x] `tasks.md` created
+- Correction: golden JSON count is 113 (90 acts), not the 228 estimated in the plan.
+
+## Phase 1 — Delete dead/broken · **done**
+- [x] `apps/api/backend/Dockerfile` (zero refs; pre-monorepo ancestor)
+- [x] `apps/api/backend/requirements.txt` (byte-identical to `apps/api/requirements.txt`)
+- [x] `apps/api/backend/requirements-dev.txt`
+- [x] `apps/api/backend/migrations/` (pycache-only residue of 8 migrations deleted in `8f37a0c`)
+- [x] `apps/api/backend/audit_parse_quality.py`
+- [x] `apps/web/scripts/toc_acts_audit.mjs` + report + `toc_acts_shots/` (19 tracked PNGs)
+- [x] Broken tools: `acts/density_table.py`, `acts/why_missing.py`, `acts/structure_diff.py`,
+      `acts/add_scanned_tab.py`, `ordinance/add_test_case.py`, `import_finding_case.py`,
+      `import_qa_report.py` (shim)
+- [x] Dead tools: `sample_pages_qa.py`, `check_html_sanitizer.py`
+- [x] CodeRun: `deploy_coderun.sh`, `filter_deploy_env.py` + test, Makefile `deploy-prod`
+- [x] `.env.example`: dead `OCR_CACHE_DIR` → working `ACTS_OCR_CACHE=./data/ocr_cache`
+- [x] `.gitignore`: `prod-review-snapshot.json/`, `prod-verify.json/` (pulled forward from Phase 9)
+- [x] Fixed dangling doc refs in `README.md` and `data/seed/README.md`
+
+**Result: 42 files, −3,410 / +156 lines. Code LOC 84,702 → 83,110 (−1,592).**
+pytest **436** · web **134 ✅** lint/build ✅ · gate ordinance **12 ✅** acts **80 ✅** rules ❌ · ruff clean
+
+pytest 439 → 436 is exactly the 3 tests in the deleted `tools/tests/test_filter_deploy_env.py`
+(verified by counting `def test_` in `git show HEAD:...`). Not a regression.
+
+### Three plan corrections — things the plan called dead that are not
+
+- **`tools/acts/ocr_review.py` KEPT.** It is the *producer* of `data/corpora/acts/reports/
+  ocr-disagreements-*.md`, which `backend/services/ocr_ingest.py` parses into findings during
+  `sync_acts` (`sync_acts.py:508`). 11+ such reports exist on disk. "No caller" only because it is
+  manually driven — deleting it would have removed the only way to regenerate a live input.
+- **`make seed-archive` KEPT** (only `deploy-prod` deleted). `apps/api/Dockerfile:24` still does
+  `COPY data/seed/ /seed/corpus/` and sets `SEED_CORPUS_*`; `seed-archive` is the sole populator of
+  `data/seed/`. Deleting it would have removed a live capability, not dead code.
+- **`tools/acts/why_unbuilt.py` KEPT** — import-clean, and it explains `build_sections` decisions,
+  which is the exact code Phases 4 and 6 change. Useful as a diagnostic during that work.
+
+## Phase 2 — One lane registry · **done**
+- [x] `Corpus.source_path()` / `output_path()` / `package` on the registry
+- [x] `Corpus.path()` anchors relative values to the repo root (was CWD-relative)
+- [x] `tools/corpus_paths.py` → adapter over the registry (was a 2-lane table of its own)
+- [x] `tools/{acts,rules,ordinance}/run_tests.py` × 3 inline resolvers → `output_dir(lane)`
+- [x] `tools/run_tests_smoke.py` `PIPELINES` + `_corpus_dir` → iterate `CORPORA`
+- [x] `tools/acts/convert_all.py` bootstrap → registry
+- [x] `tools/sync_corpus.py` per-lane flags generated from `CORPORA` (CLI surface identical)
+- [x] Deleted `corpus_sync.default_{ordinance,acts,rules}_path` (3 one-line aliases)
+- [x] `corpus_sync` passes `corpus.source_path()` instead of `pdf_dir=None`
+- [x] `docker-compose.yml`: YAML anchors + **rules lane** (env + mount, api *and* worker)
+- [x] `apps/api/Dockerfile`: rules corpus dirs + `CORPUS_RULES`/`SEED_CORPUS_RULES`
+- [x] `northflank.template.json`: `CORPUS_RULES` on both `crx-api` and `crx-worker`
+
+**Result: 12 files, −195 / +209. Code LOC 83,110 → 83,120 (+10).**
+pytest **436** · gate ordinance **12 ✅** acts **80 ✅** rules ❌ · ruff clean ·
+`docker compose config` VALID, rules env+mount on both services
+
+Net LOC is flat, which is the honest number: ~90 lines of duplicated resolvers came out,
+and the registry gained three documented methods plus the self-check coverage for them.
+The win here is defect removal, not line count.
+
+### Defects fixed (all were live)
+
+- **`Corpus.path()` was CWD-relative.** Demonstrated: with `CORPUS_ACTS=./data/corpora/acts`
+  it returned the bare relative `data/corpora/acts`, so the API and worker — which run from
+  different working directories — could resolve the same variable to different places. Now
+  always absolute and repo-anchored.
+- **`source_path()` hardcoded `Acts/`.** The rules corpus keeps its PDFs under `Rules/`, so
+  `sync_acts` never found them directly and only worked because its fallback recursive scan
+  happened to reach them. Now `<title>/`-else-root, so it is right by construction.
+- **The rules lane could not mount in Docker or production.** `docker-compose.yml`,
+  `apps/api/Dockerfile` and `northflank.template.json` all declared two lanes.
+- **`corpus_paths.CORPUS_ENV` had two entries**, so `$CORPUS_RULES` was silently ignored by
+  every tool importing it, regardless of configuration.
+
+### Plan correction
+
+`corpus_sync.default_{ordinance,acts,rules}_path` were reported as having zero callers. They
+did not — `tools/sync_corpus.py` imported all three. Caught by ruff/import failure immediately
+after deleting them. Resolved by generating the CLI's per-lane flags from `CORPORA`, which
+removes both the aliases and the six hand-written flags; `--help` output verified byte-identical
+against `main`.
+
+`run_corpus_sync`'s `ordinance=` / `acts=` / `rules=` / `*_only=` keyword signature is
+deliberately untouched — its docstring records that the CLI, the API request body and the
+worker payload all speak it, so it is a public contract, not a hardcode to remove.
+
+## Phase 3 — One lane-parameterised suite · **done** (invariants split landed in Phase 6c)
+- [x] `tools/suite/{checks,loader,runner,__init__}.py` — one copy each (was 3× md5-identical)
+- [x] `tools/suite/cases/{acts,rules,ordinance}.json`
+- [x] `tools/suite/invariants/{acts,rules,ordinance}.py` (moved; **not yet split** — see below)
+- [x] `tools/run_suite.py <lane>` replaces 3× `run_tests.py` (differed by 4 lines)
+- [x] One `tools/suite/README.md`; deleted `tools/ordinance/README.md` (4th copy) and the
+      two duplicate suite READMEs
+- [x] Repaired `tools/add_test_case.py` and `tools/import_qa_report.py` — both were dead
+- [x] `run_tests_smoke.py` invokes `run_suite.py <lane>`
+
+**Result: 31 files, −2,550 / +189. Code LOC 83,120 → 81,247 (−1,873).**
+pytest **436** · gate ordinance **12 ✅** acts **80 ✅** rules ❌ · ruff clean
+
+**Rules failure set verified byte-identical to baseline** — same 8 lines, same counts
+(`section_codes_ordered` 32 + 5, `no_jammed_words` 1 + 3 + 1, `no_split_ordinals` 1 + 1,
+`no_orphan_marker_li` 1). The consolidation changed no behaviour.
+
+### Two tools repaired rather than deleted
+
+`add_test_case.py` said `from tests import checks, loader` and `import_qa_report.py` pointed
+`CASES` at a `tests/cases.json` that has never existed in this repo — neither could start.
+They are how a regression case gets added, which is the workflow the suite README documents,
+so they were worth fixing rather than dropping. Both now resolve against `tools/suite/`, and
+`add_test_case.py` takes the lane as an argument instead of hardcoding acts.
+
+### Deferred: the invariants split (~2,000 lines still duplicated) — **done in Phase 6c**
+
+Measured precisely before deciding:
+
+| | count |
+|---|---|
+| functions identical across all three lanes | 32 |
+| identical acts↔rules only | 20 |
+| differing acts↔rules | 11 (+1 rules-only) |
+| module constants identical across all three | 39 |
+| module constants differing acts↔rules | **1** (`_SPLIT_ORDINAL`) |
+
+So the split is well-defined — but a dependency check showed the 32 "common" functions call
+lane-specific `_ref_key` and `_SPLIT_ORDINAL`, and `ALL_INVARIANTS` fixes every invariant's
+signature to `fn(doc)`, so there is nowhere to pass a lane in. Injecting it needs exactly the
+per-corpus profile Phase 4 introduces. Splitting now would mean inventing a second, parallel
+injection mechanism and then unpicking it — so this moves to **Phase 6b**, immediately after
+the packages are unified. The files are already in their destination directory, so that step
+is purely a content split.
+
+## Phase 4 — Unify acts+rules behind a profile · **done**
+- [x] `packages/legal_ingest/` — one pipeline, 12 modules (was 2 × 12 forks)
+- [x] `packages/legal_ingest/profiles.py` — `Profile` dataclass, `ACTS` / `RULES`
+- [x] Profile threaded explicitly (no global state): `run` → `calibrate` → `Calibration.profile`
+      → `build_page_model`; `parse_toc(lines, profile)`
+- [x] Adopted unconditionally: `SCHEDULE_TOC_RE`, dash-run heading terminator,
+      `_precedes_first_chapter_in_toc`, real `calibrate._demo`, `CHAPTER_RE` insertion
+      bracket, 4-digit `CODE` + `is_code_like` year guard, `page_offset_samples`
+- [x] Gated per corpus: ordinal gap/dtop bounds, `_reattach_raised_ordinals`, folio
+      parenthesised + running-title forms, subchapter TOC rows, hyphen leaders,
+      codeless TOC rows, TOC-tail density floor, `instrument_kind`, notifying S.R.O.
+- [x] `acts_ingest` / `rules_ingest` reduced to profile-binding shims — `from
+      <lane>_ingest import run` unchanged
+- [x] Submodule importers repointed to `legal_ingest` (backend provenance, 4 acts
+      tools, both invariants modules, `apps/api/Dockerfile`)
+- [x] `is_code_like` / `_CODE_PARTS_RE` ordering wart fixed by taking the clean base
+
+**Result: 41 files, −12,090 / +393. Code LOC 81,247 → 69,577 (−11,670).**
+`packages/` Python: 31,029 → 19,322. pytest **436** · web **134 ✅** build ✅ ·
+gate ordinance **12 ✅** acts **80 ✅** rules ❌ (identical failure set) ·
+ruff repo-wide **27 → 17** · self-checks **9** (acts had 7; it gains `calibrate`,
+`pipeline` and `profiles` coverage it never had)
+
+### Acts output: measured, not assumed
+
+A byte-compare against the committed `output/*.json` showed three differences — but the
+control was wrong: **the corpus JSON on disk is stale relative to `main`**. It predates
+`metadata.source_kind` and the semantic preamble markup, both of which are in *both*
+pre-merge forks. So the golden files are not a baseline for this change.
+
+The correct control is the same PDF converted by pre-change `main` and by the unified
+package. Run on three Acts editions, the entire difference is:
+
+```
+only in unified: ['.metadata.calibration.page_offset_samples']
+differing values: 0
+```
+
+One additive metadata field, zero content changes. That is deliberate behaviour change
+#4 from the plan and nothing else — the Acts reading is otherwise byte-identical.
+
+### Design notes
+
+`Calibration` carries the profile. `build_page_model` already receives a `Calibration`
+at every call site, so this avoided threading a second argument through the page model
+and kept the change to signatures small.
+
+Two things the plan expected to be profile knobs turned out not to need to be. The
+4-digit `CODE` widening feeds nine *import-time* compiled regexes, so making it vary per
+corpus would have meant a lazy per-profile regex layer; instead the widening is adopted
+for both with the year guard that accompanies it, which is exactly how the Rules
+pipeline already ran — and the 80-edition Acts suite plus the byte-compare above confirm
+it changes nothing. Conversely the folio reader needed **two** flags, not one: its "bare"
+pattern also accepted `(104)`, and a centred subsection marker in a footer band is
+printed the same way, which is why the Acts reader had required `str.isdigit()`.
+
+## Phase 5 — Collapse converter CLIs · **done**
+- [x] `tools/convert.py <lane> <pdf>` replaces 6 files:
+      `convert_{acts,rules,ordinance}.py` (18 lines each, differed in 3) and
+      `{acts/acts,rules/rules,ordinance/fbr}_pdf_to_json.py` (86/86/68; the first two
+      differed by one import line)
+- [x] Dropped the `importlib.util.spec_from_file_location` indirection — the shims
+      loaded a sibling script *by path* to call its `main()`
+- [x] Makefile `convert-{ordinance,acts,rules}` collapse to one pattern recipe; the
+      documented command surface is unchanged (`make -n` verified for all three)
+- [x] `convert_all.py` invokes the unified CLI
+
+**Result: 8 files, −238 / +42. Code LOC 69,577 → 69,388 (−189).**
+pytest **436** · gate ordinance **12 ✅** acts **80 ✅** rules ❌ · ruff clean
+
+End-to-end: one real PDF per lane converted through the new CLI —
+acts 2 sections/1 page, rules 8 sections/6 pages, ordinance **431 sections/784 pages**.
+
+`--admit-below-floor` applies only to lanes with an OCR stage. Rather than record that
+as another per-lane fact, the CLI asks the pipeline (`inspect.signature`), so a lane
+that grows an OCR stage starts accepting the flag with no edit here, and one that has
+none gets a clear error instead of a `TypeError`.
+
+Noted, not a regression: the ordinance pipeline raises `IndexError` on a stray one-page
+notification PDF sitting in the corpus directory (it indexes past the end looking for a
+TOC). `packages/fbr_ingest` has **zero files changed** since the baseline commit, so
+this predates the refactor entirely. Filed under Deferred.
+
+## Phase 6 — Fix the red rules suite · **diagnosed; resolved by Phase 6b**
+
+Investigated all four failure classes down to the source PDFs. **None is a refactor
+regression, and none is a small parser bug.** Two need an ingest feature, one is not
+deterministically fixable, and one is a trade-off the pipeline already makes on purpose.
+
+| invariant | hits | root cause | fixable here? |
+|---|---|---|---|
+| `section_codes_ordered` | 37 | compilation embeds separately-notified instruments | **feature** |
+| `no_orphan_marker_li` | 1 | same document, same cause | **feature** |
+| `no_jammed_words` | 5 | source PDF emits one 75-char token, no space glyphs | **no** |
+| `no_split_ordinals` | 2 | source prints `21 st`; parser refuses on purpose | **no — by design** |
+
+### 1 + 2. Compilations that embed other instruments (38 of 42 hits)
+
+`Customs Rules, 2001` is 563 pages and parses to **one chapter and 62 leaves**. Its TOC
+is not a chapter/section contents at all but a *compilation index* of 44 separately
+notified rule sets (`17. Duty and Tax Remission (DTRE) for Export S.R.O.185(I)/2020`),
+and the literal first line of page 1 is a stray `CHAPTER VII` — which is where the one
+chapter's name comes from. TOC detection itself is correct: pages 1-5 score 54-86% and
+page 6 drops to 2%.
+
+`Federal Excise Rules 2005` shows the same thing in miniature and is worth reading,
+because it makes the shape unambiguous. PDF page 75 is:
+
+```
+The
+ELECTRONIC FILING OF FEDERAL EXCISE RETURN
+RULES, 2005
+CONTENTS
+1. Short title, application and commencement.
+2. Definitions.
+...
+```
+
+A whole second instrument, with its own contents page, inside the body — so rules 1-5
+land after rule 86 inside `CHAPTER XVI`. The invariant is right; the document tree has
+no level above chapter for "instrument", and six tree walkers hardcode
+chapter/part/division/section as the child keys. `toc.py`'s own `SUBCHAPTER_TOC_RE`
+comment already declined a smaller version of this change as "a much larger change than
+the defect warrants".
+
+I tried the cheap fix first — refusing a body line whose heading ends in a leader run —
+and **reverted it**, because the diagnosis showed those rows do not come through
+`_candidate_code` at all, and shipping a guard that fixes nothing measurable is exactly
+the speculative complexity this refactor is removing.
+
+### 3. Jammed words (5 hits)
+
+Not a spacing heuristic to tune. pdfplumber reports the run as **one 75-character
+token** — `whetherthemonthlyreturnsfurnishedbytheregisteredpersoncorrectlyreflect` — so
+there is no positional information inside it to split on. Recovering the spaces needs
+dictionary or language-model word splitting, which is non-deterministic and against
+both the pipeline's determinism and the README's "no LLM/vision in the conversion path".
+
+### 4. Split ordinals (2 hits)
+
+Footnote 54.104 reads `dated 21 st June, 2006`. The parser refuses to merge it
+**deliberately**, and `pagemodel` says why: the discriminators are a size drop and the
+absence of a space glyph, and this one is equal size (8.04pt), dtop 0.00, with a real
+space — indistinguishable from a genuine `21 st` typo in the source. Merging it would
+mean merging real typos too. The invariant does not know the parser made that choice.
+
+### The decision: (b) — taken by the user
+
+Three options were on the table: **(a)** an `instrument` level in the document tree plus a
+body-side contents-block suppressor — a real ingest feature touching the tree, six
+walkers, the JSON schema and the portal's leaf labelling; **(b)** a per-document invariant
+exemption mechanism; **(c)** leave it red.
+
+**(b) was chosen and is implemented in Phase 6b below.**
+
+### Arithmetic correction to the table above
+
+The hit counts in the table are right and the prose total was not: 37 + 1 + 5 + 2 = **45**
+hits, not 42, and the compilation cause is **38 of 45**. Confirmed against a live run of
+all 11 editions. The per-invariant counts (`section_codes_ordered` 32 + 5,
+`no_jammed_words` 1 + 3 + 1, `no_split_ordinals` 1 + 1, `no_orphan_marker_li` 1) are
+unchanged from the Phase 0 baseline and were never wrong.
+
+## Phase 6b — Exempt the diagnosed failures, and gate the lane · **done**
+
+Implements option (b). The suite already had this contract for *cases* — `applies_to` as a
+substring of `metadata.filename`, and a non-`active` status routed to a reporting bucket
+that does not fail the build. Invariant failures were the only thing unconditionally hard.
+So this extends the existing convention rather than inventing a second one.
+
+- [x] `tools/suite/exemptions/rules.json` — the 8 (document, invariant) pairs, each
+      carrying the Phase 6 diagnosis as its `reason`. `acts` and `ordinance` get no file;
+      a missing file means no exemptions.
+- [x] `tools/suite/runner.py` — `exemptions_path_for(lane)`, `_exempt_reasons()`, and a
+      `results["exempt_invariants"]` bucket mirroring the existing `known_gaps` one.
+      `summarize()` prints an `EXEMPT INVARIANTS` block; `ok` ignores that bucket.
+- [x] `tools/run_suite.py` — passes the exemptions path (2 lines)
+- [x] `tools/tests/test_suite_exemptions.py` — **6 tests**
+- [x] `AGENTS.md` + `tools/suite/README.md` document the mechanism and its bar for entry
+
+**Result: 6 files, +324 / −6. Pipeline gate: ordinance 12 ✅ acts 80 ✅ rules 11 ✅ —
+all three lanes green, `Pipeline gate passed`, exit 0.**
+pytest **447** (441 + 6 new) · web **134 ✅** · ruff clean
+
+Three properties the mechanism has deliberately, because an exemption list is exactly the
+kind of thing that rots into a place where checks go to die:
+
+- **The invariant still runs and its hits are still printed.** `RESULT` carries
+  `exempt 3 (34 hits)` and the block lists each count. The exemption documents a failure;
+  it does not shrink it. The 45 hits are still 45 hits on screen.
+- **A stale exemption announces itself.** If an exempt invariant starts *passing*, the
+  report says `no longer failing -- delete the entry`, so a fixed bug retires its own
+  exemption instead of leaving a permanent hole.
+- **The scoping is tested, not trusted.** `applies_to` is a substring match, so an
+  over-broad value would silently widen its own scope. One test asserts every shipped
+  `applies_to` matches **exactly one** document in the staged corpus, every `invariant`
+  names a real entry in that lane's `ALL_INVARIANTS`, and every entry carries a `reason`.
+  A typo'd name would otherwise exempt nothing while looking like it did.
+
+What this does **not** do: fix the documents. Option (a) is still the real fix for the 38
+compilation hits and is still unbuilt; the 7 others are still not deterministically
+fixable. The gain is that the rules lane now gates its other ~50 invariants across 11
+editions instead of being uniformly red.
+
+## Phase 6c — One copy of the invariants · **done**
+
+The split Phase 3 deferred. Re-measured at AST level before touching anything, because the
+Phase 3 numbers were close but the *dependency* claim turned out to be wrong.
+
+| | count | lines |
+|---|---|---|
+| blocks byte-identical `acts` ↔ `rules` | **103** (56 fn + 47 const) | 1,480 |
+| ...of those, identical in `ordinance` too | 71 | — |
+| comment drift among the 103 | **0** | — |
+| functions genuinely differing `acts` ↔ `rules` | 7 | — |
+| constants genuinely differing `acts` ↔ `rules` | 1 (`_SPLIT_ORDINAL`) | — |
+
+- [x] `tools/suite/invariants/_common.py` — the 103 shared blocks, verbatim
+- [x] `acts.py` 2,099 → **336** · `rules.py` 2,214 → **464** · `ordinance.py` 1,249 → **479**
+- [x] `_common.all_invariants(ns, order=None)` — a lane's own `inv_<name>` wins by name, so
+      an override is never registered twice. Unknown name raises instead of skipping.
+- [x] `tools/tests/test_suite_invariants.py` — **5 tests**
+
+**Result: 5,562 → 3,109 lines, −2,453. Code LOC 69,278 → 67,103 (−2,175 net of the
+Phase 6b additions).**
+pytest **452** (447 + 5 new) · gate ordinance 12 ✅ acts 80 ✅ rules 11 ✅ ·
+ruff `apps/api`+`tools` clean, repo-wide **17** (unchanged)
+
+### The injection point Phase 3 expected was not needed
+
+Phase 3 deferred this on the grounds that the 32 common functions call lane-specific
+`_ref_key` and `_SPLIT_ORDINAL`, that `ALL_INVARIANTS` fixes every signature to `fn(doc)`,
+and that injecting a lane therefore needed the Phase 4 profile. The first claim is true but
+far narrower than it reads: **exactly two** shared invariants reference a lane-varying name,
+and **no** shared function calls a lane-specific one.
+
+So the mechanism is two keyword-only parameters, each defaulting to the form *two of the
+three* lanes use, and only the outlier lane binds a `partial`:
+
+| invariant | reads | default | rebound by |
+|---|---|---|---|
+| `inv_no_split_ordinals` | `_SPLIT_ORDINAL` | Acts/Ordinance form | `rules.py` |
+| `inv_footnotes_in_numeric_order` | `_ref_key` | Acts/Rules form | `ordinance.py` |
+
+No profile object, no registry, and **nothing here imports `packages/`** — so the `tools/`
+import chain stays stdlib-only, which CI's pipeline job requires (it installs no API deps).
+`legal_ingest.profiles` would have coupled the suite to the pipeline it is supposed to
+audit, which is worth avoiding on its own.
+
+### Verified by byte-compare, not by inspection
+
+The gate is the suite's own report for **all 103 staged editions**, captured before and
+after and diffed: `acts` **IDENTICAL**, `rules` **IDENTICAL**, `ordinance` **IDENTICAL**.
+Separately, each lane's resolved `ALL_INVARIANTS` was compared against the pre-split module
+function by function: same names, same order, and every body AST-identical (53 / 53 / 43).
+
+Two defects were caught *during* the split by that discipline rather than after it:
+
+1. **`rules.py` imported the Acts `_SPLIT_ORDINAL`** and bound its partial to it, silently
+   dropping the negative lookahead that stops `21 st.3` being flagged. Fixed by keeping the
+   constant local to the lane that differs.
+2. **Each lane imported the very invariant it then rebinds** (ruff F811). The generator was
+   collecting assignment *targets* as dependencies; only names actually read are.
+
+`tools/tests/test_suite_invariants.py` covers the part a corpus-less CI can run, which is
+the failure mode this split introduced: an invariant resolving to the wrong lane's
+implementation, which no import error would catch. It asserts the 53/53/43 counts, that
+both injection points bind per lane, that a lane-local `inv_*` never sits unbound as dead
+code, and that an unknown name raises. Both properties were mutation-tested — inverting the
+resolver's precedence and stripping the Rules lookahead each fail 3 of the 5.
+
+## Phase 7 — Backend consolidation · **done (2 monoliths deferred)**
+- [x] `services/clock.py` — 7 `_now()` definitions in 3 formats → one source, **all three
+      formats kept** (each is already on the wire); call sites untouched via aliasing
+      imports. Removed the last deprecated `datetime.utcnow()`.
+- [x] `services/textnorm.py` — `_norm_text` + `_html_shape` were byte-identical in
+      `variants` and `detectors`, the two modules that must agree on whether two
+      editions say the same thing
+- [x] `database.json_column()` — 6 hand-rolled TEXT-or-JSONB guards, 3 of which
+      disagreed about malformed values. Strict by default, tolerant where display-only
+- [x] `deps.ensure_exists()` — 4 `SELECT 1 / fetchone / 404` probes; message stays a
+      caller argument so no client-visible text changed
+- [x] `family_id_for_slug` inlined in `v2/governance` → calls `services/identity`
+- [x] `worker._execute` — 7-branch chain with bodies inlined (incl. a whole PDF render)
+      → dispatch table + one handler each
+- [x] `routes/export.py` — 205-line handler → fetch + `_json_response` + `_csv_response`
+      + one `_attachment()` (the filename rule was written twice, 3 lines apart)
+- [x] Deleted verified-dead: `require_admin`, `get_upload_path`, `lane_label`,
+      `family_and_year`, `set_triage`, `DocumentCreate`, and the 5-model export cluster
+      `routes/export.py` never imported
+- [x] Removed **155** redundant `@pytest.mark.asyncio` (auto mode since `pyproject:10`)
+- [x] Disambiguated two same-named-but-different tests
+- [x] **Added `tests/test_export.py`** (3 tests) — the route had none, and it was being
+      restructured
+
+**Result: 55 files, −498 / +455. Code LOC 69,388 → 69,345.**
+pytest **439** (436 + 3 new) · ruff clean
+
+### Three findings rejected, with reasons
+
+- **"14 `hashlib.sha256` sites bypass `blob_store.sha256_bytes`."** Not duplication —
+  those sites hash strings for keys, and `sha256_bytes` is itself a one-line wrapper
+  around the stdlib idiom. Importing the blob store (which pulls S3 config) to avoid
+  `hashlib.sha256(x).hexdigest()` would be worse. Nothing re-implements chunked *file*
+  hashing, which is the one that earns a helper.
+- **"Two duplicated tests."** `test_review_events_append_only` exists in two files with
+  **different bodies** — one tests the triggers directly, the other after a sync. Not
+  duplicates; renamed the second so the pair reads clearly.
+- **"Converge the 3 family-key implementations, delete `timeline._family_candidates`."**
+  That ladder is **load-bearing**: rows written under all three spellings are still in
+  `section_variants`, so deleting it would silently stop resolving timelines for every
+  document keyed the older way. Converging needs a data migration, not a refactor.
+  Documented in the code and left in place.
+
+### Deliberately not done
+
+`services/document_store.apply_parsed_document` (427 lines) and
+`services/json_parser.parse_json_document` (253, wrapping two oversized closures) are
+the two largest functions in the backend and both sit on the ingest write path — the one
+place where a mistake corrupts stored review state rather than throwing. Splitting them
+is worth doing, but it wants its own change with its own tests rather than being the
+tail end of a nine-phase sweep. Left as debt with the seams already identified.
+
+## Phase 8 — Frontend consolidation · **done (hook migration deferred)**
+- [x] Fixed latent `TypeError`: `TriagePage` selected `s.setReviewer`, which does not
+      exist — the whole obsolete onboarding block is gone
+- [x] Fixed `confirmOnly` being ignored: sign-out uses `confirmDialog`, so it no longer
+      shows a stray text input
+- [x] Deleted the unreachable retry branch in `utils/api.js`
+- [x] `CopyButton` adopted in `HtmlPanel` — **and its `execCommand` fallback preserved**
+      by moving the robust logic to `utils/clipboard.js` first
+- [x] `<ProgressBar>` — 5 byte-identical copies
+- [x] `isTypingTarget()` — 4 divergent versions across 6 sites (a real bug: shortcuts
+      leaked into `<select>` and contentEditable depending on which copy was watching)
+- [x] `<QualityMetrics>` — the metrics row was written out in full twice
+- [x] `patchSection` / `patchFootnote` / `refreshReviewData` — one cache strategy per
+      write; `reviewStore` 241 → 161 lines, no more cross-store `setState`
+- [x] Deleted dead: combined `usePdfRenderer`, `onUserChange` + its listener Set,
+      `REVIEW_STATUS_TONES`/`_LABELS`, `getRole`, 4 unused assets
+- [x] `index.html` title (was "frontend")
+
+**Result (two commits): 32 files, −468 / +375. Code LOC 69,266 → ~69,200.**
+web **134 ✅** lint ✅ build ✅ · pytest **441**
+
+### Deferred: the full react-query migration
+
+`documentStore` is still a Zustand cache wrapping the query cache. Converting its **9
+production consumers** to `useQuery` hooks also means rewriting the mocking strategy of
+the **14 test files** that would have to verify it — the whole review workspace, and the
+tests that prove it works, changing together. That is a standalone piece of work, not the
+last item of a nine-phase sweep.
+
+What *was* the actual defect is fixed: the triple-caching in `updateSectionStatus`, the
+70-line cross-store patching in `updateFootnoteStatus`, the 4-refetch fan-out in
+`toggleAnnotationStatus`, and the duplicate fan-outs in `ReviewToolbar`/`ReviewPage`.
+`TriagePage`'s local mirror of `useInfiniteQuery` also remains — it enables the
+optimistic undo, and moving it to `useMutation` belongs with the same migration.
+
+Also not done: splitting `TriagePage` (800), `DashboardPage` (686), `ReviewPage` (582)
+and `Sidebar` (510). The seams are identified in the plan; the extractions above removed
+~150 lines from them but they are still the four largest files. Deliberately left, for
+the same reason — they are where the hook migration will land.
+
+### A regression I introduced, and fixed
+
+`make seed-fixtures` broke: Phase 2 had `corpus_sync` derive the PDF directory from
+`corpus.source_path()`, which reads `$CORPUS_ACTS`, but that command syncs
+`data/fixtures/acts`. The rule is now `source_within(root)`, a function of the root being
+synced. **Two tests pin it.** Found by running the seed path to get the Playwright smoke
+a portal to drive.
+
+### The Playwright smoke could not gate this
+
+It fails 3/3 on this machine (`pdf_canvas_missing` × 3 plus
+`dashboard_missing_expected_labels`) — **byte-identical before and after**, verified by
+stashing and re-running, so pre-existing here. The 134 web tests and 441 backend tests
+were the gate instead. Worth a look separately: the fixture PDFs are written with a real
+text layer precisely so this check works.
+
+## Phase 9 — Docs, config, CI · **done**
+- [x] `docs/pipeline-readme.md` — replaced the two sections written for the standalone
+      repo with a Then/Now table; every command now names a real path. Kept the
+      QA-issue catalogue, which still describes `fbr_ingest` accurately.
+- [x] `docs/architecture.md` — `legal_ingest` + profiles (done in Phase 4)
+- [x] `README.md` — layout block rewritten; Make-targets table went from **10 of 27** to
+      complete, and every entry is verified to exist; Northflank named as the deploy path;
+      non-goals corrected
+- [x] `AGENTS.md` — "~121 tests" → 441, "~93" → 134, ruff claims corrected, the two-tier
+      gate and the red rules suite documented
+- [x] `packages/fbr_ingest/README.md` — dead `scripts/` entry point, "17 invariants" → 51
+- [x] `.env.example` — the `SEED_CORPUS_*` trio the registry expects and nothing set
+- [x] `pyproject.toml` — `testpaths` now includes `tools/tests`, so a bare `pytest` runs
+      what CI runs (441, not 406)
+- [x] `Makefile` — `test-api` covers `tools/tests` too; `check`'s comment no longer
+      claims to be exactly CI; dropped the unreferenced `seed` alias; `.PHONY` fixed
+- [x] `northflank.template.json` — `fbr-qa-staging` → `qa-pdf-portal`, the project it
+      actually deploys
+- [x] `.gitignore` — the two untracked snapshot dirs (pulled forward to Phase 1)
+
+**Verified:** every `make` target named in the README exists; the tools import chain is
+**stdlib-only** (checked explicitly — CI's pipeline job installs no API deps, and Phase 2
+made `tools/` read the registry from `apps/api`).
+
+---
+
+## Deferred
+
+- **`fbr_ingest` crashes on a non-edition PDF.** `data/corpora/ordinance/Income Tax
+  Ordinance, 2001/` contains a one-page notification alongside the real editions;
+  converting it raises `IndexError` from `_toc_lines` indexing past the last page.
+  Pre-existing (fbr_ingest is untouched), and it does not affect the suite because the
+  corpus is defined by `output/*.json`, not by the PDFs present. A `len(pdf.pages)`
+  guard would fix it.
+
+- ~~**The `data/seed/` bake-into-image path now has no deploy consumer.**~~ **Resolved — the
+  note's premise was wrong.** It is true that `northflank.template.json` set no
+  `SEED_CORPUS_*`, but that never disabled anything: `apps/api/Dockerfile:39-41` sets all
+  three as image `ENV`, Northflank builds from that Dockerfile, and its `runtimeEnvironment`
+  is *additive* to image ENV rather than a replacement. So the mechanism has been working in
+  production all along, which is why nothing was ever observed to be broken.
+
+  The trio is now named explicitly on `crx-api` and `crx-worker` anyway, for the same reason
+  the template already duplicates the `CORPUS_*` trio the Dockerfile also sets: the deploy
+  config should state its own environment rather than inherit it invisibly from an image ENV
+  a future Dockerfile edit could drop. That is belt-and-braces, **not a fix** — nothing
+  changes at runtime. `seed-archive` and the Dockerfile `COPY` stay.
+- **`tools/acts/{add_test_case,ocr_review,why_unbuilt,audit_all,audit_completeness}.py` and
+  `convert_all.py` are acts-only.** The rules and ordinance lanes have no equivalents. Not creating
+  siblings in this refactor; noted so the asymmetry is a decision rather than an oversight.
+
+### Still open after Phases 6b/6c — scoped out deliberately
+
+These were on the table for this change and were **not** taken, by decision rather than
+oversight. Nothing below is a regression and nothing below blocks the gate.
+
+- **The full react-query migration.** `documentStore` remains a Zustand cache in front of
+  the query cache, with 7 production consumers and 7 test files that would have to change
+  together. Phase 8 fixed the defects that were actually behind it (the triple-caching in
+  `updateSectionStatus`, the cross-store footnote patching, the refetch fan-outs) and the
+  store already delegates its fetching to `queryClient.fetchQuery`, so what remains is an
+  architectural preference with a 14-file blast radius and no user-visible outcome. Same
+  reasoning covers splitting `TriagePage` (800), `DashboardPage` (686), `ReviewPage` (582)
+  and `Sidebar` (510) — that work belongs with the migration that will land in them.
+
+- **`apply_parsed_document` (427 lines) and `parse_json_document` (253).** Still the two
+  largest functions in the backend, still on the ingest write path. Worth noting that the
+  coverage for them is better than the Phase 7 note implies — `test_json_parser`,
+  `test_migrations_and_store`, `test_parse_quality` and `test_versions_and_blobs` all
+  exercise both — so a split would have a real gate whenever it is picked up.
+
+- **`fbr_ingest`'s `IndexError` on a non-edition PDF** (first item above). A one-line
+  `len(pdf.pages)` clamp in `_toc_lines`; left alone only because it was outside the agreed
+  scope for this change, not because it is hard.

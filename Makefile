@@ -1,4 +1,4 @@
-.PHONY: up down build sync seed seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts convert-rules export-qa logs shell-api health vendor-corpora seed-archive deploy-prod push-remote backup-remote backfill-provenance
+.PHONY: seed-archive up down build sync seed-fixtures test check test-api test-pipeline test-web convert-ordinance convert-acts convert-rules export-qa logs shell-api health vendor-corpora push-remote backup-remote backfill-provenance
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 ifneq (,$(wildcard $(ROOT)/.venv/bin/python))
@@ -39,7 +39,6 @@ backfill-provenance:
 sync:
 	$(PYTHON) tools/sync_corpus.py --metrics
 
-seed: sync
 
 # Populate a fresh clone with a generated micro-corpus, for review-page smoke tests
 # and local UI work. Independent of `sync`, which needs the private data/corpora/.
@@ -47,17 +46,10 @@ seed-fixtures:
 	$(PYTHON) tools/fixture_corpus.py
 	$(PYTHON) tools/sync_corpus.py --acts $(ROOT)/data/fixtures/acts --acts-only
 
-convert-ordinance:
-	@test -n "$(PDF)" || (echo "Usage: make convert-ordinance PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
-	$(PYTHON) tools/convert_ordinance.py "$(PDF)" $(if $(OUT),-o "$(OUT)",)
-
-convert-acts:
-	@test -n "$(PDF)" || (echo "Usage: make convert-acts PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
-	$(PYTHON) tools/convert_acts.py "$(PDF)" $(if $(OUT),-o "$(OUT)",)
-
-convert-rules:
-	@test -n "$(PDF)" || (echo "Usage: make convert-rules PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
-	$(PYTHON) tools/convert_rules.py "$(PDF)" $(if $(OUT),-o "$(OUT)",)
+# One converter, one recipe per lane so the documented command surface is unchanged.
+convert-ordinance convert-acts convert-rules:
+	@test -n "$(PDF)" || (echo "Usage: make $@ PDF=path/to.pdf [OUT=data/output/x.json]"; exit 1)
+	$(PYTHON) tools/convert.py $(@:convert-%=%) "$(PDF)" $(if $(OUT),-o "$(OUT)",)
 
 export-qa:
 	@test -n "$(DOC)" || (echo "Usage: make export-qa DOC=<document_id> [OUT=report.json]"; exit 1)
@@ -66,8 +58,10 @@ export-qa:
 
 test: test-api test-pipeline test-web
 
+# Both suites, matching CI: tools/tests covers the deploy and snapshot scripts and
+# was only ever run there, so a green `make test-api` could hide a break in them.
 test-api:
-	cd $(ROOT) && PYTHONPATH=$(ROOT)/apps/api $(PYTHON) -m pytest apps/api/backend/tests -q
+	cd $(ROOT) && PYTHONPATH=$(ROOT)/apps/api $(PYTHON) -m pytest apps/api/backend/tests tools/tests -q
 
 test-pipeline:
 	$(PYTHON) tools/run_tests_smoke.py
@@ -75,7 +69,8 @@ test-pipeline:
 test-web:
 	cd $(ROOT)/apps/web && npm run lint && npm run test && npm run build
 
-# Exactly what CI gates on, in one command.
+# What CI gates on, minus the jobs that need a container: `npm audit` and the
+# Playwright review-page smoke (see AGENTS.md for running that one).
 check: test-api test-pipeline test-web
 	$(ROOT)/.venv/bin/ruff check apps/api tools 2>/dev/null || ruff check apps/api tools
 
@@ -115,9 +110,6 @@ seed-archive:
 	fi
 	@echo "Seed archive ready (local build artifact, not committed to git)."
 	@du -sh $(ROOT)/data/seed
-
-deploy-prod: seed-archive
-	bash $(ROOT)/tools/deploy_coderun.sh
 
 # Re-seed a deployed portal from the local Postgres corpus. Needs ADMIN_EMAIL /
 # ADMIN_PASSWORD in .env (admin role) and a prior `make sync` so local blobs exist.

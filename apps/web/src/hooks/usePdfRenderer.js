@@ -209,16 +209,3 @@ export const usePdfPageRenderer = (pdfDoc, pageNumber, zoom, canvasRef) => {
 
     return { loading, error, blank };
 };
-
-// Backward-compatible original hook
-export const usePdfRenderer = (pdfUrl, pageNumber, zoom, canvasRef) => {
-    const { pdfDoc, loading: docLoading, error: docError, numPages, retry } = usePdfDocument(pdfUrl);
-    const { loading: pageLoading, error: pageError } = usePdfPageRenderer(pdfDoc, pageNumber, zoom, canvasRef);
-
-    return {
-        loading: docLoading || pageLoading,
-        error: docError || pageError,
-        numPages,
-        retry,
-    };
-};

@@ -29,7 +29,6 @@ def test_pair_discovery_rejects_ambiguous_and_symbolic_sources(tmp_path):
         discover_pairs(tmp_path)
 
 
-@pytest.mark.asyncio
 async def test_sync_is_idempotent_and_keeps_fts_and_api_consistent(
     runtime_sandbox,
 ):
@@ -68,7 +67,6 @@ async def test_sync_is_idempotent_and_keeps_fts_and_api_consistent(
     assert len(list(Path(runtime_sandbox["upload_dir"]).iterdir())) == 2
 
 
-@pytest.mark.asyncio
 async def test_sync_replaces_empty_upload_stub(
     runtime_sandbox,
 ):
@@ -90,7 +88,6 @@ async def test_sync_replaces_empty_upload_stub(
     assert pdfs[0].stat().st_size > 0
 
 
-@pytest.mark.asyncio
 async def test_strict_mode_refuses_to_supersede_an_annotated_leaf(runtime_sandbox):
     """--strict keeps the pre-versioning contract: refuse, roll back, change nothing."""
     source = runtime_sandbox["root"] / "export"
@@ -135,7 +132,6 @@ async def test_strict_mode_refuses_to_supersede_an_annotated_leaf(runtime_sandbo
     assert version_count == 1, "a refused sync must not leave a version behind"
 
 
-@pytest.mark.asyncio
 async def test_pipeline_fix_lands_and_carries_the_annotation_forward(runtime_sandbox):
     """The whole point of versioning: an annotated leaf no longer blocks the fix."""
     source = runtime_sandbox["root"] / "export"
@@ -187,7 +183,6 @@ async def test_pipeline_fix_lands_and_carries_the_annotation_forward(runtime_san
     assert carryover["reanchored"] == 1 and carryover["sections_changed"] == 1
 
 
-@pytest.mark.asyncio
 async def test_removed_leaf_keeps_its_finding_as_an_orphan(runtime_sandbox):
     source = runtime_sandbox["root"] / "export"
     pair_directory = write_pair(source)
@@ -224,7 +219,6 @@ async def test_removed_leaf_keeps_its_finding_as_an_orphan(runtime_sandbox):
     assert "Second section" in context["plain_text"], context
 
 
-@pytest.mark.asyncio
 async def test_acts_repo_layout_is_discovered_and_page_ranges_are_flagged(
     runtime_sandbox, tmp_path
 ):
@@ -275,7 +269,6 @@ async def test_acts_repo_layout_is_discovered_and_page_ranges_are_flagged(
     assert "page_range_out_of_bounds" in codes, flagged
 
 
-@pytest.mark.asyncio
 async def test_identical_pdf_across_documents_is_stored_once(runtime_sandbox):
     """Static PDFs: the same source bytes must never be written twice."""
     source = runtime_sandbox["root"] / "export"

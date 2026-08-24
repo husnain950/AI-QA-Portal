@@ -24,16 +24,14 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from backend.database import DatabaseConnection, DatabaseRow
+from backend.services.clock import iso_now_z as _now
 
 _LEAF_SEGMENTS = {"chapters", "schedules", "parts", "divisions", "sections"}
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def leaf_fingerprint(leaf: Dict[str, Any]) -> str:

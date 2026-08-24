@@ -4,6 +4,7 @@ import { usePdfDocument, usePdfPageRenderer } from '../../hooks/usePdfRenderer';
 import { useUiStore } from '../../stores/uiStore';
 import { useReviewStore } from '../../stores/reviewStore';
 import { useDocumentStore } from '../../stores/documentStore';
+import { isTypingTarget } from '../../utils/keyboard';
 
 const PLACEHOLDER_HEIGHT = 1100;
 
@@ -185,8 +186,7 @@ const PdfPanel = ({ pdfUrl }) => {
 
     useEffect(() => {
         const handlePageShortcut = (event) => {
-            const tagName = document.activeElement?.tagName;
-            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tagName)) return;
+            if (isTypingTarget(event)) return;
             if (event.key === '[') {
                 event.preventDefault();
                 handlePrevPage();

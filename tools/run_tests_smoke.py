@@ -4,12 +4,17 @@
 Two tiers, because the two kinds of check need different things:
 
 * **Self-checks** (``<module>._demo()``) are pure and need no corpus, so they run
-  everywhere including CI. They are where the grammars and calibration are pinned --
-  the code a new pipeline fork diverges from first.
-* **Regression suites** (``tools/<pipeline>/run_tests.py``) assert invariants and cases
-  against converted output under ``data/corpora/<pipeline>/output/``, which is
-  gitignored and absent from CI. Missing corpus is a SKIP, never a failure; a present
-  corpus that fails is a hard failure.
+  everywhere including CI. They are where the grammars, the calibration and each
+  corpus profile are pinned -- and since the Acts and Rules lanes are now one
+  implementation behind two profiles, they are also where a profile-gated behaviour is
+  asserted for both corpora without needing either.
+* **Regression suites** (``tools/run_suite.py <lane>``) assert invariants and cases
+  against converted output under ``data/corpora/<lane>/output/``, which is gitignored
+  and absent from CI. Missing corpus is a SKIP, never a failure; a present corpus that
+  fails is a hard failure.
+
+The lanes come from :mod:`backend.services.corpus_registry`, so a fourth pipeline is
+one registry entry rather than another table here.
 """
 
 from __future__ import annotations
@@ -21,14 +26,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "packages"))
+sys.path.insert(0, str(ROOT / "tools"))
 
-#: pipeline package -> (regression runner, corpus env var, corpus default dir)
-PIPELINES = {
-    "fbr_ingest": ("tools/ordinance/run_tests.py", "CORPUS_ORDINANCE", "ordinance"),
-    "acts_ingest": ("tools/acts/run_tests.py", "CORPUS_ACTS", "acts"),
-    "rules_ingest": ("tools/rules/run_tests.py", "CORPUS_RULES", "rules"),
-}
+# Adds apps/api and packages/ to sys.path as a side effect, then hands us the one
+# lane registry. This file used to carry its own three-entry table plus a copy of the
+# corpus-path arithmetic; both are now read from the registry the API reads.
+from corpus_paths import CORPORA  # noqa: E402 (sys.path bootstrap above)
 
 
 def _self_checks(package: str, errors: list[str]) -> None:
@@ -62,31 +65,26 @@ def _self_checks(package: str, errors: list[str]) -> None:
     print(f"OK {package}: {ran} self-check(s) passed")
 
 
-def _corpus_dir(env: str, default: str) -> Path:
-    raw = os.environ.get(env) or str(ROOT / "data" / "corpora" / default)
-    return ROOT / raw  # a no-op when raw is already absolute
-
-
-def _regression(runner: str, env: str, default: str, errors: list[str]) -> None:
-    corpus = _corpus_dir(env, default)
-    if not any(corpus.glob("output/*.json")):
-        print(f"SKIP {runner}: no converted output under {corpus}/output")
+def _regression(runner: list[str], output: Path, errors: list[str]) -> None:
+    label = " ".join(runner)
+    if not any(output.glob("*.json")):
+        print(f"SKIP {label}: no converted output under {output}")
         return
     environ = {**os.environ, "PYTHONPATH": os.pathsep.join(
         [str(ROOT / "packages"), os.environ.get("PYTHONPATH", "")]
     ).rstrip(os.pathsep)}
     result = subprocess.run(
-        [sys.executable, str(ROOT / runner)],
+        [sys.executable, str(ROOT / runner[0]), *runner[1:]],
         cwd=ROOT, env=environ, capture_output=True, text=True,
     )
     # the per-edition banner is "########## name ##########", so count LINES
     editions = sum(1 for ln in result.stdout.splitlines()
                    if ln.startswith("##########")) or 1
     if result.returncode == 0:
-        print(f"OK {runner}: {editions} edition(s) pass")
+        print(f"OK {label}: {editions} edition(s) pass")
         return
-    errors.append(f"{runner}: exit {result.returncode}")
-    print(f"FAIL {runner}: exit {result.returncode}")
+    errors.append(f"{label}: exit {result.returncode}")
+    print(f"FAIL {label}: exit {result.returncode}")
     for line in result.stdout.splitlines():
         if "FAIL" in line or "RESULT:" in line:
             print(f"    {line}")
@@ -96,18 +94,24 @@ def _regression(runner: str, env: str, default: str, errors: list[str]) -> None:
 def main() -> int:
     errors: list[str] = []
 
-    # The path resolver every pipeline tool now depends on. It is checked first
-    # because a wrong repo root makes every result below meaningless.
-    sys.path.insert(0, str(ROOT / "tools"))
-    try:
-        from corpus_paths import _demo as paths_demo
+    # The path resolver every pipeline tool now depends on, and the registry behind
+    # it. Checked first because a wrong repo root makes every result below meaningless.
+    for module_name in ("corpus_paths", "backend.services.corpus_registry"):
+        try:
+            importlib.import_module(module_name)._demo()
+        except Exception as err:
+            errors.append(f"{module_name}: {err}")
+            print(f"FAIL {module_name}: {err}")
 
-        paths_demo()
-    except Exception as err:
-        errors.append(f"tools/corpus_paths.py: {err}")
-        print(f"FAIL tools/corpus_paths.py: {err}")
+    # The Acts and Rules lanes are two profiles of one implementation, so their
+    # self-checks live in the shared package and must run once rather than per lane.
+    # The lane packages themselves are thin profile bindings with no _demo() of their
+    # own -- without this the gate silently ran zero self-checks after the merge.
+    _self_checks("legal_ingest", errors)
 
-    for package, (runner, env, default) in PIPELINES.items():
+    for corpus in CORPORA:
+        package = corpus.package
+        runner = ["tools/run_suite.py", corpus.label]
         try:
             module = importlib.import_module(package)
             print(f"OK import {package} from {getattr(module, '__file__', '?')}")
@@ -116,7 +120,7 @@ def main() -> int:
             print(f"FAIL import {package}: {err}")
             continue
         _self_checks(package, errors)
-        _regression(runner, env, default, errors)
+        _regression(runner, corpus.output_path(), errors)
 
     if errors:
         print(f"Pipeline gate failed ({len(errors)} error(s))")

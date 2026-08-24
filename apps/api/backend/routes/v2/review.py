@@ -5,22 +5,21 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.database import DatabaseConnection, get_db
+from backend.database import DatabaseConnection, get_db, json_column
 from backend.deps import require_reviewer
 from backend.services import events, findings_store, review_state
+from backend.services.clock import utc_now as _now
 from backend.services.disposition import normalize_finding_triage
 
 router = APIRouter(tags=["v2-review"])
 
 
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class BulkItem(BaseModel):
@@ -53,7 +52,7 @@ async def bulk_triage(
     if prior:
         if prior["request_hash"] != request_hash:
             raise HTTPException(status_code=409, detail="idempotency key was used for another request")
-        return prior["response"] if isinstance(prior["response"], dict) else json.loads(prior["response"])
+        return json_column(prior["response"])
 
     ids = [item.id for item in body.items]
     if len(ids) != len(set(ids)):
@@ -123,7 +122,7 @@ async def _next_finding(
     session,
     exclude: list[int] | None = None,
 ) -> int | None:
-    filters = session["filters"] if isinstance(session["filters"], dict) else json.loads(session["filters"])
+    filters = json_column(session["filters"])
     clauses = ["first_seen_at <= ?", "triage = 'new'"]
     params: list = [session["snapshot_at"]]
     for key, column in (("detector", "detector"), ("document_id", "document_id"), ("severity", "severity")):

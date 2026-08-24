@@ -11,10 +11,11 @@ import hashlib
 import os
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from backend.database import DatabaseConnection
+from backend.services.clock import utc_now as _now
 
 ROLES = ("reader", "reviewer", "admin")
 RANK = {role: index for index, role in enumerate(ROLES)}
@@ -29,8 +30,6 @@ _P = 1
 _DKLEN = 64
 
 
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def normalize_email(email: str) -> str:

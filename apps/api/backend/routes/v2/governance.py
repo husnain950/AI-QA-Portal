@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,7 +12,7 @@ from pydantic import BaseModel, Field
 from backend.database import DatabaseConnection, get_db
 from backend.deps import require_reviewer
 from backend.services import events, jobs
-from backend.services.identity import confirm_identity
+from backend.services.identity import confirm_identity, family_id_for_slug
 
 router = APIRouter(tags=["v2-governance"])
 
@@ -31,7 +30,7 @@ async def create_family(
     actor: str = Depends(require_reviewer),
 ):
     slug = re.sub(r"[^a-z0-9]+", "-", body.canonical_slug.lower()).strip("-")
-    family_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"crx:statute-family:{slug}"))
+    family_id = family_id_for_slug(slug)
     now = datetime.now(timezone.utc).isoformat()
     await db.execute(
         """

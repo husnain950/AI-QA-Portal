@@ -1,6 +1,5 @@
 import io
 
-import pytest
 from fastapi import UploadFile
 from pypdf import PdfWriter
 
@@ -67,7 +66,6 @@ def test_family_key_normalization():
     assert family_key_from_name("Finance Act, 2025") == "finance act"
 
 
-@pytest.mark.asyncio
 async def test_upload_and_replace_json_carry_an_explicit_lane(runtime_sandbox):
     """``push_corpus`` re-seeds a deployment whose docs are all ``source_type=upload``.
 

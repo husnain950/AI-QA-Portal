@@ -15,6 +15,7 @@ import Breadcrumbs from '../components/review/Breadcrumbs';
 import DocumentTags from '../components/dashboard/DocumentTags';
 import DocumentHealth from '../components/dashboard/DocumentHealth';
 import SegmentedControl from '../components/ui/SegmentedControl';
+import ProgressBar from '../components/ui/ProgressBar';
 
 import { useDocumentStore } from '../stores/documentStore';
 import { useReviewStore } from '../stores/reviewStore';
@@ -53,6 +54,7 @@ const ReviewPage = () => {
         fetchSections,
         fetchSection,
         fetchSectionsByPage,
+        refreshReviewData,
     } = useDocumentStore();
 
     const { currentPage, viewMode, setViewMode, setCurrentPage } = useReviewStore();
@@ -350,10 +352,7 @@ const ReviewPage = () => {
                 documentId={documentId}
                 open={versionsOpen}
                 onClose={() => setVersionsOpen(false)}
-                onChanged={async () => {
-                    await fetchDocument(documentId);
-                    await fetchSections(documentId);
-                }}
+                onChanged={() => refreshReviewData()}
             />
 
             {reviewSessionId && queueFinding ? (
@@ -430,12 +429,7 @@ const ReviewPage = () => {
                             className="review-doc-progress"
                             title={`${approvedCount} of ${activeDocument.total_sections} sections approved`}
                         >
-                            <span className="progress-bar" aria-hidden="true">
-                                <span
-                                    className={`progress-bar-fill ${progressPct === 100 ? 'is-complete' : ''}`}
-                                    style={{ width: `${progressPct}%` }}
-                                />
-                            </span>
+                            <ProgressBar pct={progressPct} ariaHidden />
                             <span className="review-doc-progress-text">
                                 {approvedCount}/{activeDocument.total_sections} approved · {flaggedCount} flagged · {openNotes} open notes
                             </span>

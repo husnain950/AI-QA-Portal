@@ -38,25 +38,25 @@ import time
 
 # Upstream this file sat at <pipeline-repo>/scripts/, beside the Acts/ sources and
 # output/. In the monorepo the code and the corpus are separate: the pipeline lives
-# under packages/, and the corpus is the gitignored $CORPUS_ACTS tree that
-# sync_corpus.py and run_tests.py already read.
+# under packages/, and the corpus is the gitignored $CORPUS_ACTS tree. Both facts come
+# from tools/corpus_paths.py, which reads the one lane registry the API also reads --
+# this file used to derive them itself, and was the fourth copy of that arithmetic.
 _HERE = pathlib.Path(__file__).resolve().parent
 _ROOT = _HERE.parent.parent
-if str(_ROOT / "packages") not in sys.path:
-    sys.path.insert(0, str(_ROOT / "packages"))
+if str(_ROOT / "tools") not in sys.path:
+    sys.path.insert(0, str(_ROOT / "tools"))
 
-CORPUS = pathlib.Path(
-    os.environ.get("CORPUS_ACTS") or (_ROOT / "data" / "corpora" / "acts")
-)
-if not CORPUS.is_absolute():
-    CORPUS = _ROOT / CORPUS          # .env ships a repo-relative path
-# Sources live under Acts/ where that exists, else at the corpus root -- the same
-# rule sync_acts._source_pdf_index applies, so the two agree on what a source is.
-ACTS = CORPUS / "Acts" if (CORPUS / "Acts").is_dir() else CORPUS
-OUT = CORPUS / "output"
+# Relies on the sys.path bootstrap above; also puts packages/ on the path.
+from corpus_paths import get  # noqa: E402
+
+_CORPUS_ACTS = get("acts")
+CORPUS = _CORPUS_ACTS.path()
+#: Sources live under Acts/ where that exists, else at the corpus root.
+ACTS = _CORPUS_ACTS.source_path()
+OUT = _CORPUS_ACTS.output_path()
 #: run artifacts and quarantine.  Both are SUBDIRECTORIES of output/ so that the
-#: ``output/*.json`` glob defining the corpus (run_tests.py, density_table.py,
-#: audit_all.py) does not see them.
+#: ``output/*.json`` glob defining the corpus (run_suite.py, audit_all.py) does
+#: not see them.
 RUN_DIR = OUT / "_run"
 REFUSED = OUT / "_refused"
 
@@ -197,7 +197,7 @@ def convert(pdf: pathlib.Path, timeout: float | None = None,
     log = (RUN_DIR / f"{dest.stem}.log") if keep_log else None
     if log is not None:
         RUN_DIR.mkdir(parents=True, exist_ok=True)
-    argv = [sys.executable, str(_HERE / "acts_pdf_to_json.py"),
+    argv = [sys.executable, str(_ROOT / "tools" / "convert.py"), "acts",
             str(pdf), "-o", str(dest)]
     if admit_below_floor:
         argv.append("--admit-below-floor")
@@ -265,7 +265,7 @@ def is_scanned(pdf: pathlib.Path, sample: int = 8) -> bool:
 
         import pdfplumber
 
-        from acts_ingest.pagemodel import _page_is_scan
+        from legal_ingest.pagemodel import _page_is_scan
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             with pdfplumber.open(pdf) as doc:

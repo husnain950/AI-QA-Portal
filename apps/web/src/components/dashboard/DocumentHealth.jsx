@@ -1,14 +1,8 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 
-import {
-    BODY_GATE,
-    FOOTNOTE_GATE,
-    conservationState,
-    formatConserved,
-    gateState,
-    invariantLabel,
-} from '../../utils/versionHealth';
+import { gateState } from '../../utils/versionHealth';
+import QualityMetrics from '../ui/QualityMetrics';
 
 /**
  * The conversion pipeline's own verdict on the active parse.
@@ -20,9 +14,6 @@ const DocumentHealth = ({ health }) => {
     if (!health || !health.measured_at) return null;
 
     const state = gateState(health);
-    const invariants = invariantLabel(health);
-    const body = formatConserved(health.body_conserved);
-    const footnotes = formatConserved(health.footnote_conserved);
 
     return (
         <div className={`document-health document-health-${state}`}>
@@ -31,48 +22,7 @@ const DocumentHealth = ({ health }) => {
                 {state === 'pass' ? 'within gate' : 'outside gate'}
             </span>
 
-            {invariants && (
-                <span
-                    className={`document-health-metric document-health-${
-                        health.invariants_passed === health.invariants_total ? 'pass' : 'fail'
-                    }`}
-                    title={
-                        health.failing_invariants?.length
-                            ? `Failing: ${health.failing_invariants.join(', ')}`
-                            : 'Every invariant passes'
-                    }
-                >
-                    invariants {invariants}
-                </span>
-            )}
-
-            {body && (
-                <span
-                    className={`document-health-metric document-health-${conservationState(
-                        health.body_conserved,
-                        BODY_GATE,
-                    )}`}
-                    title={`Body text conserved (gate ${BODY_GATE}%) · ${
-                        health.body_missing ?? 0
-                    } words missing`}
-                >
-                    body {body}
-                </span>
-            )}
-
-            {footnotes && (
-                <span
-                    className={`document-health-metric document-health-${conservationState(
-                        health.footnote_conserved,
-                        FOOTNOTE_GATE,
-                    )}`}
-                    title={`Footnote text conserved (gate ${FOOTNOTE_GATE}%) · ${
-                        health.footnote_missing ?? 0
-                    } words missing`}
-                >
-                    footnotes {footnotes}
-                </span>
-            )}
+            <QualityMetrics metrics={health} classPrefix="document-health-metric" />
         </div>
     );
 };

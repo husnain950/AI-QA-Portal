@@ -10,6 +10,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useAiFixStore } from '../../stores/aiFixStore';
 import { hasApprovedFix } from '../../utils/aiFix';
 import AiFixPanel from './AiFixPanel';
+import { isTypingTarget } from '../../utils/keyboard';
 
 /**
  * @param {{ section?: object | null }} props
@@ -25,9 +26,7 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
         sections,
         activeSection,
         updateSectionStatus,
-        fetchDocument,
-        fetchSections,
-        fetchSection,
+        refreshReviewData,
         loading,
     } = useDocumentStore();
     const [aiFixOpen, setAiFixOpen] = useState(false);
@@ -101,7 +100,7 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
         if (!isPrimaryToolbar || !targetSection) return undefined;
         const onKey = (e) => {
             if (e.metaKey || e.ctrlKey || e.altKey) return;
-            if (e.target.matches?.('input, textarea, select') || e.target.isContentEditable) return;
+            if (isTypingTarget(e)) return;
             // Ignore while a dialog/modal is open (confirm, AI fix, palette…).
             if (aiFixOpen || document.querySelector('dialog[open], .cp-overlay')) return;
             if (e.key === 'a' || e.key === 'A') {
@@ -219,13 +218,11 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
                 onClose={() => setAiFixOpen(false)}
                 documentId={activeDocument.id}
                 section={targetSection}
-                onApplied={async () => {
-                    // The approval created a new active version; refresh everything
-                    // that renders the leaf or its status.
-                    await fetchDocument(activeDocument.id);
-                    await fetchSections(activeDocument.id);
-                    await fetchSection(activeDocument.id, targetSection.id);
-                }}
+                onApplied={() =>
+                    // The approval created a new active version; one refresh knows
+                    // everything that renders the leaf or its status.
+                    refreshReviewData({ sectionId: targetSection.id })
+                }
             />
         </div>
     );

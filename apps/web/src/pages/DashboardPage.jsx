@@ -7,6 +7,7 @@ import {
 import AppShell from '../components/layout/AppShell';
 import NewVersionButton from '../components/review/NewVersionButton';
 import DropdownMenu from '../components/ui/DropdownMenu';
+import ProgressBar from '../components/ui/ProgressBar';
 import EmptyState from '../components/ui/EmptyState';
 import Skeleton from '../components/ui/Skeleton';
 import SegmentedControl from '../components/ui/SegmentedControl';
@@ -271,12 +272,7 @@ const DashboardPage = () => {
                     </div>
                 </div>
                 <div className="doc-row-progress" title={`${doc.stats?.reviewed || 0} of ${doc.total_sections} sections reviewed`}>
-                    <span className="progress-bar">
-                        <span
-                            className={`progress-bar-fill ${compPercent === 100 ? 'is-complete' : ''}`}
-                            style={{ width: `${compPercent}%` }}
-                        />
-                    </span>
+                    <ProgressBar pct={compPercent} />
                     <span className="doc-row-percent">{compPercent}%</span>
                 </div>
                 <div className="doc-row-actions" onClick={(e) => e.stopPropagation()}>
@@ -342,12 +338,7 @@ const DashboardPage = () => {
                 <DocumentHealth health={doc.health} />
                 <div className="document-card-footer">
                     <div className="doc-row-progress" title={`${doc.stats?.reviewed || 0} of ${doc.total_sections} sections reviewed`}>
-                        <span className="progress-bar">
-                            <span
-                                className={`progress-bar-fill ${compPercent === 100 ? 'is-complete' : ''}`}
-                                style={{ width: `${compPercent}%` }}
-                            />
-                        </span>
+                        <ProgressBar pct={compPercent} />
                         <span className="doc-row-percent">{compPercent}%</span>
                     </div>
                     <button
@@ -662,12 +653,7 @@ const DashboardPage = () => {
                                                 className="family-group-progress"
                                                 title={`${groupReviewed.toLocaleString()} of ${groupSections.toLocaleString()} sections reviewed`}
                                             >
-                                                <span className="progress-bar">
-                                                    <span
-                                                        className={`progress-bar-fill ${groupPct === 100 ? 'is-complete' : ''}`}
-                                                        style={{ width: `${groupPct}%` }}
-                                                    />
-                                                </span>
+                                                <ProgressBar pct={groupPct} />
                                                 {groupPct}%
                                             </span>
                                         </div>

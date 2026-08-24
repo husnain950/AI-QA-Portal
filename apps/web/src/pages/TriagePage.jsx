@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
 import EmptyState from '../components/ui/EmptyState';
+import ProgressBar from '../components/ui/ProgressBar';
 import Skeleton from '../components/ui/Skeleton';
 import StatusChip from '../components/ui/StatusChip';
 import { TRIAGE_TONES } from '../components/ui/statusTones';
@@ -16,6 +17,7 @@ import { formatSectionLabel } from '../utils/tocLabels';
 import { editionDateFromName } from '../utils/editions';
 import { timelinePath } from '../utils/timeline';
 import { useUiStore } from '../stores/uiStore';
+import { isTypingTarget } from '../utils/keyboard';
 
 const TRIAGE_FILTERS = [
     { id: 'new', label: 'New' },
@@ -66,7 +68,6 @@ export default function TriagePage() {
     const pushToast = useUiStore((s) => s.pushToast);
     const promptDialog = useUiStore((s) => s.promptDialog);
     const reviewerName = useUiStore((s) => s.reviewerName);
-    const setReviewer = useUiStore((s) => s.setReviewer);
 
     const [findings, setFindings] = useState([]);
     const [stats, setStats] = useState({ total: 0, done: 0, left: 0, by_triage: {} });
@@ -161,21 +162,6 @@ export default function TriagePage() {
             pushToast({ type: 'error', message: err.message || 'Could not start review session' });
         }
     }, [detectorFilter, navigate, pushToast, reviewerName]);
-
-    useEffect(() => {
-        if (!reviewerName) {
-            promptDialog({
-                title: 'Reviewer name',
-                message: 'Recorded on review events via X-Reviewer (attribution only, not authentication).',
-                defaultValue: '',
-                confirmLabel: 'Continue',
-            }).then((v) => {
-                if (v) setReviewer(v);
-            });
-        }
-        // Run once on mount only: this is a first-visit onboarding prompt.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     const detectorOptions = useMemo(() => {
         const set = new Set(findings.map((f) => f.detector).filter(Boolean));
@@ -381,7 +367,7 @@ export default function TriagePage() {
 
     useEffect(() => {
         const onKey = (e) => {
-            if (e.target.matches('input, textarea, select') || e.target.isContentEditable) return;
+            if (isTypingTarget(e)) return;
             if (e.metaKey || e.ctrlKey || e.altKey) return;
             const f = flat[cursor];
             if (e.key === 'j') {
@@ -620,12 +606,7 @@ export default function TriagePage() {
                                 <span className="tq-progress-sep">·</span>
                                 {doneCount} of {stats.total} triaged
                             </span>
-                            <span className="progress-bar" aria-hidden="true">
-                                <span
-                                    className={`progress-bar-fill ${donePct === 100 ? 'is-complete' : ''}`}
-                                    style={{ width: `${donePct}%` }}
-                                />
-                            </span>
+                            <ProgressBar pct={donePct} ariaHidden />
                         </div>
                         <label className="tq-search" htmlFor="tq-filter-input">
                             <Search size={14} aria-hidden="true" />

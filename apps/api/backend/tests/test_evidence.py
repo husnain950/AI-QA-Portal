@@ -53,7 +53,6 @@ def _manifest(result) -> dict:
         return json.loads(archive.read("manifest.json"))
 
 
-@pytest.mark.asyncio
 async def test_a_bundle_names_its_sources_and_keeps_the_awkward_findings(runtime_sandbox):
     async with database_connection() as db:
         ids = await _reviewed_document(db)
@@ -88,7 +87,6 @@ async def test_a_bundle_names_its_sources_and_keeps_the_awkward_findings(runtime
     )
 
 
-@pytest.mark.asyncio
 async def test_an_unknown_document_has_no_bundle(runtime_sandbox):
     async with database_connection() as db:
         with pytest.raises(KeyError):
@@ -97,7 +95,6 @@ async def test_an_unknown_document_has_no_bundle(runtime_sandbox):
             await evidence.build_regression_bundle(db, 999999)
 
 
-@pytest.mark.asyncio
 async def test_a_regression_bundle_carries_the_case_a_pipeline_fix_needs(runtime_sandbox):
     async with database_connection() as db:
         ids = await _reviewed_document(db)
@@ -113,7 +110,6 @@ async def test_a_regression_bundle_carries_the_case_a_pipeline_fix_needs(runtime
     assert case["pdf_filename"] and case["json_filename"]
 
 
-@pytest.mark.asyncio
 async def test_signoff_needs_every_leaf_approved_then_a_second_name(
     runtime_sandbox, client, sign_in
 ):
@@ -153,7 +149,6 @@ async def test_signoff_needs_every_leaf_approved_then_a_second_name(
     assert status.json()["signoff_legal_by"] == "reviewer@crx.test"
 
 
-@pytest.mark.asyncio
 async def test_legal_approval_cannot_skip_the_reviewed_stage(runtime_sandbox, sign_in):
     async with database_connection() as db:
         await _reviewed_document(db)
@@ -167,7 +162,6 @@ async def test_legal_approval_cannot_skip_the_reviewed_stage(runtime_sandbox, si
     assert skipped.status_code == 409
 
 
-@pytest.mark.asyncio
 async def test_an_evidence_request_is_one_job_per_document_revision(runtime_sandbox, client):
     async with database_connection() as db:
         await _reviewed_document(db)

@@ -14,11 +14,11 @@ import difflib
 import json
 import os
 import uuid
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from backend.database import DatabaseConnection, DatabaseRow
 from backend.services import blob_store
+from backend.services.clock import iso_now_z as _now
 from backend.services.document_provenance import (
     derive_from_json_content,
     serialize_provenance,
@@ -40,8 +40,6 @@ class StaleVersion(Exception):
         self.current_version_id = current_version_id
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _version_id(document_id: str, version_no: int) -> str:

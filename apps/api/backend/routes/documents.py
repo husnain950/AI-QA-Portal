@@ -43,12 +43,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
-def get_upload_path(filename: str) -> str:
-    """Absolute path of a stored blob (or a legacy flat upload)."""
-    os.makedirs(blob_store.upload_root(), exist_ok=True)
-    return blob_store.blob_path(filename)
-
-
 def safe_upload_name(filename: str | None, fallback: str) -> str:
     cleaned = os.path.basename(filename or "").replace("\x00", "")
     return cleaned or fallback

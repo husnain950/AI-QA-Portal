@@ -214,3 +214,37 @@ async def test_every_corpus_appears_in_the_summary(monkeypatch, tmp_path):
     assert set(registry.LABELS) <= set(summary)
     assert summary["ordinance"] == {} and summary["rules"] == {}
     assert summary["acts"]
+
+
+def test_the_source_rule_applies_to_the_root_it_is_given(monkeypatch, tmp_path):
+    """`source_within` must follow the root being synced, not the configured corpus.
+
+    Regression: `corpus_sync` briefly derived the PDF directory from
+    `corpus.source_path()`, which reads `$CORPUS_ACTS`. `make seed-fixtures` syncs
+    `data/fixtures/acts` instead, so the sync went looking for its PDFs in the real
+    corpus and failed with "No corpus JSON matched a source PDF".
+    """
+    configured = tmp_path / "corpora" / "acts"
+    (configured / "Acts").mkdir(parents=True)
+    monkeypatch.setenv("CORPUS_ACTS", str(configured))
+
+    acts = registry.get("acts")
+    assert acts.source_path() == configured / "Acts"
+
+    # an override root with its own <title>/ subdirectory
+    elsewhere = tmp_path / "fixtures" / "acts"
+    (elsewhere / "Acts").mkdir(parents=True)
+    assert acts.source_within(elsewhere) == elsewhere / "Acts"
+
+    # ...and one without: the rule falls back to the root, not to the configured corpus
+    flat = tmp_path / "fixtures" / "flat"
+    flat.mkdir(parents=True)
+    assert acts.source_within(flat) == flat
+
+
+def test_each_corpus_names_its_own_source_subdirectory(monkeypatch, tmp_path):
+    """The rule used to hardcode `Acts`, so the Rules corpus never matched it."""
+    for label, title in (("acts", "Acts"), ("rules", "Rules"), ("ordinance", "Ordinance")):
+        root = tmp_path / label
+        (root / title).mkdir(parents=True)
+        assert registry.get(label).source_within(root) == root / title

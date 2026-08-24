@@ -1,15 +1,12 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from backend import audit_pdf_serving
 from backend.database import database_connection
 from backend.sync_acts import run_sync
 from backend.tests.conftest import write_pair
 
 
-@pytest.mark.asyncio
 async def test_audit_reports_ok_and_missing_file(runtime_sandbox):
     source = runtime_sandbox["root"] / "export"
     write_pair(source)

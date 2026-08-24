@@ -9,6 +9,7 @@ import { authApi } from '../../utils/auth';
 import { hasRole } from '../../utils/reviewer';
 import CommandPalette from '../ui/CommandPalette';
 import ShortcutsHelp from '../ui/ShortcutsHelp';
+import { isTypingTarget } from '../../utils/keyboard';
 
 const NAV_ITEMS = [
     { path: '/', label: 'Triage', icon: ListChecks, match: (p) => p === '/' },
@@ -33,7 +34,7 @@ const AppShell = ({
     const reviewerName = useUiStore((s) => s.reviewerName);
     const setCommandPaletteOpen = useUiStore((s) => s.setCommandPaletteOpen);
     const setShortcutsHelpOpen = useUiStore((s) => s.setShortcutsHelpOpen);
-    const promptDialog = useUiStore((s) => s.promptDialog);
+    const confirmDialog = useUiStore((s) => s.confirmDialog);
 
     // Keep the browser tab meaningful.
     useEffect(() => {
@@ -48,7 +49,7 @@ const AppShell = ({
                 setCommandPaletteOpen(true);
                 return;
             }
-            const typing = e.target.matches?.('input, textarea, select') || e.target.isContentEditable;
+            const typing = isTypingTarget(e);
             if (e.key === '?' && !typing) {
                 e.preventDefault();
                 setShortcutsHelpOpen(true);
@@ -59,13 +60,15 @@ const AppShell = ({
     }, [setCommandPaletteOpen, setShortcutsHelpOpen]);
 
     const signOut = async () => {
-        const confirmed = await promptDialog({
+        // confirmDialog, not promptDialog: this asks a yes/no question, and
+        // promptDialog ignored the `confirmOnly` flag that was passed to suppress
+        // its text input, so signing out offered a stray box to type in.
+        const confirmed = await confirmDialog({
             title: 'Sign out',
             message: `Signed in as ${reviewerName}. Sign out of this browser?`,
             confirmLabel: 'Sign out',
-            confirmOnly: true,
         });
-        if (confirmed === null || confirmed === undefined) return;
+        if (!confirmed) return;
         await authApi.logout();
         window.location.reload();
     };

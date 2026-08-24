@@ -1,6 +1,6 @@
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -142,10 +142,10 @@ async def export_qa_report(
         sev = a["severity"]
         by_severity[sev] = by_severity.get(sev, 0) + 1
 
-    generated_at = datetime.utcnow().isoformat() + "Z"
+    generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     if format == "json":
-        export_data = {
+        return _json_response({
             "identity_assurance": "self_asserted",
             "document": {
                 "name": doc["name"],
@@ -164,54 +164,54 @@ async def export_qa_report(
                 "completion_percentage": completion_percentage,
                 "generated_at": generated_at,
                 "note": "approved counts only human-opened leaves; approved_inherited is progress-only",
-            }
-        }
-        
-        # Clean doc name for filename
-        clean_name = "".join(c for c in doc["name"] if c.isalnum() or c in (" ", "_", "-")).rstrip()
-        filename = f"{clean_name}_QA_Report.json".replace(" ", "_")
-        
-        return JSONResponse(
-            content=export_data,
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            }
-        )
+            },
+        }, doc["name"])
 
-    else: # format == "csv"
-        # Create CSV in memory
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        # Header
+    return _csv_response(all_annotations, doc["name"])
+
+
+def _attachment(doc_name: str, extension: str) -> dict:
+    """The Content-Disposition header for a QA report.
+
+    The two serializers had a copy of this each, three lines apart.
+    """
+    clean = "".join(
+        c for c in doc_name if c.isalnum() or c in (" ", "_", "-")
+    ).rstrip()
+    filename = f"{clean}_QA_Report.{extension}".replace(" ", "_")
+    return {"Content-Disposition": f"attachment; filename={filename}"}
+
+
+def _json_response(export_data: dict, doc_name: str) -> JSONResponse:
+    return JSONResponse(content=export_data, headers=_attachment(doc_name, "json"))
+
+
+_CSV_COLUMNS = (
+    "Section Code", "Section Heading", "Chapter", "Pages", "Review Status",
+    "Highlighted Text", "Issue Description", "Severity", "Reviewer", "Created At",
+)
+
+
+def _csv_response(annotations, doc_name: str) -> StreamingResponse:
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(_CSV_COLUMNS)
+    for a in annotations:
         writer.writerow([
-            "Section Code", "Section Heading", "Chapter", "Pages", "Review Status",
-            "Highlighted Text", "Issue Description", "Severity", "Reviewer", "Created At"
+            a["section_code"],
+            a["section_heading"],
+            a["chapter"],
+            a["pages"],
+            a["review_status"],
+            a["highlighted_text"],
+            a["issue_description"] or "",
+            a["severity"],
+            a["reviewer_name"] or "",
+            a["created_at"],
         ])
-        
-        for a in all_annotations:
-            writer.writerow([
-                a["section_code"],
-                a["section_heading"],
-                a["chapter"],
-                a["pages"],
-                a["review_status"],
-                a["highlighted_text"],
-                a["issue_description"] or "",
-                a["severity"],
-                a["reviewer_name"] or "",
-                a["created_at"]
-            ])
-            
-        output.seek(0)
-        
-        clean_name = "".join(c for c in doc["name"] if c.isalnum() or c in (" ", "_", "-")).rstrip()
-        filename = f"{clean_name}_QA_Report.csv".replace(" ", "_")
-        
-        return StreamingResponse(
-            iter([output.getvalue()]),
-            media_type="text/csv",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            }
-        )
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers=_attachment(doc_name, "csv"),
+    )

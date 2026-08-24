@@ -25,15 +25,15 @@ if _ROOT not in sys.path:
 
 import pdfplumber  # noqa: E402
 
-from acts_ingest.builder import (  # noqa: E402
+from legal_ingest.builder import (  # noqa: E402
     LineRef,
     _candidate_code,
     _dotless_candidate_code,
 )
-from acts_ingest.calibrate import calibrate  # noqa: E402
-from acts_ingest.pagemodel import build_page_model  # noqa: E402
-from acts_ingest.pipeline import _page_starts_schedules, _toc_lines  # noqa: E402
-from acts_ingest.toc import parse_toc  # noqa: E402
+from legal_ingest.calibrate import calibrate  # noqa: E402
+from legal_ingest.pagemodel import build_page_model  # noqa: E402
+from legal_ingest.pipeline import _page_starts_schedules, _toc_lines  # noqa: E402
+from legal_ingest.toc import parse_toc  # noqa: E402
 
 
 def main() -> int:

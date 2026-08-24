@@ -9,8 +9,8 @@ Library — no manual `push_corpus` needed.
 ## This directory is NOT committed to git
 
 At ~500MB+ (source PDFs + output JSONs), it's a local build artifact only.
-The `make seed-archive` command populates it from `data/corpora/`, and
-`make deploy-prod` runs that automatically before building the image.
+The `make seed-archive` command populates it from `data/corpora/`; the API image
+then bakes it in (`apps/api/Dockerfile`: `COPY data/seed/ /seed/corpus/`).
 
 ## Structure
 
@@ -32,10 +32,7 @@ data/seed/
 # Populate seed from local corpora (one-time or after pipeline re-run)
 make seed-archive
 
-# Deploy to CodeRun with persistent volume + baked seed
-make deploy-prod
-
-# Alternative: push local corpus to an already-deployed remote
+# Push the local corpus to an already-deployed remote
 make push-remote BASE_URL=https://your-portal.code.run
 ```
 
@@ -65,6 +62,6 @@ make sync
 make push-remote BASE_URL=https://p01--crx-web--m4hljdfnbvqq.code.run
 ```
 
-`tools/deploy_coderun.sh` filters `CORPUS_*`, `DATABASE_URL`, and `UPLOAD_DIR` out of
-`--env-file` so local host paths cannot override the image defaults
-(`/data/corpus/ordinance`, `/data/corpus/acts`, `/seed/corpus/...`, `/app/data/...`).
+The image sets its own `CORPUS_*`, `SEED_CORPUS_*`, and `UPLOAD_DIR`
+(`/data/corpus/...`, `/seed/corpus/...`, `/app/data/...`), so local host paths in a
+`.env` never reach a deployed container.

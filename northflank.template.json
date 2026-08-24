@@ -1,6 +1,6 @@
 {
   "apiVersion": "v1.2",
-  "name": "fbr-qa-staging",
+  "name": "qa-pdf-portal",
   "description": "Redeploy the FBR Corpus QA portal (api, worker, web) into the existing free-plan project qa-pdf-portal (branch args.branch), against a managed PostgreSQL addon, with the crx-api persistent volume at /app/data holding the content-addressed blobs.",
   "arguments": {
     "branch": "main",
@@ -110,6 +110,10 @@
               "UPLOAD_DIR": "/app/data/uploads",
               "CORPUS_ORDINANCE": "/data/corpus/ordinance",
               "CORPUS_ACTS": "/data/corpus/acts",
+              "CORPUS_RULES": "/data/corpus/rules",
+              "SEED_CORPUS_ORDINANCE": "/seed/corpus/ordinance",
+              "SEED_CORPUS_ACTS": "/seed/corpus/acts",
+              "SEED_CORPUS_RULES": "/seed/corpus/rules",
               "PYTHONPATH": "/app",
               "PYTHONUNBUFFERED": "1",
               "CSP_ENFORCE": "1"
@@ -171,6 +175,10 @@
               "UPLOAD_DIR": "/app/data/uploads",
               "CORPUS_ORDINANCE": "/data/corpus/ordinance",
               "CORPUS_ACTS": "/data/corpus/acts",
+              "CORPUS_RULES": "/data/corpus/rules",
+              "SEED_CORPUS_ORDINANCE": "/seed/corpus/ordinance",
+              "SEED_CORPUS_ACTS": "/seed/corpus/acts",
+              "SEED_CORPUS_RULES": "/seed/corpus/rules",
               "PYTHONPATH": "/app",
               "PYTHONUNBUFFERED": "1",
               "CSP_ENFORCE": "1"

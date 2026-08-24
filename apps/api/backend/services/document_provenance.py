@@ -117,7 +117,7 @@ def derive_from_metadata(
         try:
             import pdfplumber  # type: ignore
 
-            from acts_ingest.pagemodel import _page_is_scan
+            from legal_ingest.pagemodel import _page_is_scan
         except Exception:
             # If the dependency is missing or the PDF can't be parsed, keep the
             # safe default: native-digital.

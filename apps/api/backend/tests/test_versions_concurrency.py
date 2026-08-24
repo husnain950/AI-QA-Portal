@@ -43,7 +43,6 @@ def _variant(text: str) -> bytes:
     return sample_document(second_text=text).encode()
 
 
-@pytest.mark.asyncio
 async def test_two_concurrent_version_creations_do_not_collide(runtime_sandbox):
     async with database_connection() as db:
         document_id = await _document(db)
@@ -75,7 +74,6 @@ async def test_two_concurrent_version_creations_do_not_collide(runtime_sandbox):
     assert [row["is_active"] for row in rows].count(True) == 1, "exactly one active version"
 
 
-@pytest.mark.asyncio
 async def test_identical_bytes_are_not_a_new_version(runtime_sandbox):
     async with database_connection() as db:
         document_id = await _document(db)
@@ -86,7 +84,6 @@ async def test_identical_bytes_are_not_a_new_version(runtime_sandbox):
         assert row["version_no"] == 1
 
 
-@pytest.mark.asyncio
 async def test_creating_a_version_against_a_stale_expectation_is_refused(runtime_sandbox):
     async with database_connection() as db:
         document_id = await _document(db)
@@ -107,7 +104,6 @@ async def test_creating_a_version_against_a_stale_expectation_is_refused(runtime
         await db.rollback()
 
 
-@pytest.mark.asyncio
 async def test_replace_json_requires_an_if_match_and_rejects_a_stale_one(runtime_sandbox, client):
     async with database_connection() as db:
         document_id = await _document(db)
@@ -143,7 +139,6 @@ async def test_replace_json_requires_an_if_match_and_rejects_a_stale_one(runtime
     assert replay.status_code == 409
 
 
-@pytest.mark.asyncio
 async def test_activating_over_someone_elses_change_is_refused(runtime_sandbox, client):
     async with database_connection() as db:
         document_id = await _document(db)
@@ -185,7 +180,6 @@ async def test_activating_over_someone_elses_change_is_refused(runtime_sandbox, 
             )
 
 
-@pytest.mark.asyncio
 async def test_the_active_version_is_advertised_for_the_next_write(runtime_sandbox, client):
     """A client cannot send If-Match unless the read told it what to send."""
     async with database_connection() as db:

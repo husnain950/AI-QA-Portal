@@ -6,7 +6,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 // their own machine; the same fallback from a remote Vite host times out login.
 const STATIC_BASE = import.meta.env.VITE_STATIC_URL || '';
 
-export { getReviewerName, getRole, hasRole } from './reviewer';
+export { getReviewerName, hasRole } from './reviewer';
 
 // Set by App so a 401 anywhere lands the reviewer on the sign-in screen instead of
 // leaving a page half-rendered with an error toast.
@@ -109,10 +109,9 @@ export const api = {
             () => request(path, { ...rest, method: 'GET' }),
             { retry, signal: options.signal },
         );
-        if (TRANSIENT.has(res.status)) {
-            await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
-            return (await request(path, { ...rest, method: 'GET' })).json();
-        }
+        // No status check here: `request` throws on any non-ok response, so a value
+        // that reaches this line is always 2xx. The transient retry lives in
+        // `onceOrRetry` above, driven by `ApiError.retryable`.
         return res.json();
     },
 

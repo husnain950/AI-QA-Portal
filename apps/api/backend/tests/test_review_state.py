@@ -25,7 +25,6 @@ async def _document(db, *, sections=(SECTION_ID,)):
     )
 
 
-@pytest.mark.asyncio
 async def test_a_clean_section_is_pending_and_approves_on_a_verdict(runtime_sandbox):
     async with database_connection() as db:
         await _document(db)
@@ -45,7 +44,6 @@ async def test_a_clean_section_is_pending_and_approves_on_a_verdict(runtime_sand
         assert approved["document_status"] == "approved"
 
 
-@pytest.mark.asyncio
 async def test_an_unknown_verdict_is_refused(runtime_sandbox):
     async with database_connection() as db:
         await _document(db)
@@ -53,7 +51,6 @@ async def test_an_unknown_verdict_is_refused(runtime_sandbox):
             await review_state.set_verdict(db, SECTION_ID, "looks-fine-to-me")
 
 
-@pytest.mark.asyncio
 async def test_needs_work_blocks_without_any_other_signal(runtime_sandbox):
     async with database_connection() as db:
         await _document(db)
@@ -62,7 +59,6 @@ async def test_needs_work_blocks_without_any_other_signal(runtime_sandbox):
         assert state["review_status"] == "has_issues", "legacy column stays in step"
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "reason",
     ["blocking_quality_flag", "open_annotation", "annotation_recheck", "flagged_footnote",
@@ -116,7 +112,6 @@ async def test_each_blocker_holds_an_approved_verdict(runtime_sandbox, reason):
         assert state["document_status"] == "blocked"
 
 
-@pytest.mark.asyncio
 async def test_clearing_the_last_blocker_restores_the_verdict_not_pending(runtime_sandbox):
     """Resolving the last annotation used to reset the section to pending outright."""
     async with database_connection() as db:
@@ -133,7 +128,6 @@ async def test_clearing_the_last_blocker_restores_the_verdict_not_pending(runtim
         assert state["effective_status"] == "approved"
 
 
-@pytest.mark.asyncio
 async def test_a_document_with_a_blocked_section_is_never_reported_complete(runtime_sandbox):
     """The exact bug: status was derived from "nothing pending", so all-flagged read done."""
     async with database_connection() as db:
@@ -149,14 +143,12 @@ async def test_a_document_with_a_blocked_section_is_never_reported_complete(runt
         assert (await review_state.refresh_document(db, DOCUMENT_ID)) == "approved"
 
 
-@pytest.mark.asyncio
 async def test_a_missing_section_is_a_key_error_not_a_silent_pass(runtime_sandbox):
     async with database_connection() as db:
         with pytest.raises(KeyError):
             await review_state.refresh_section(db, "no-such-section")
 
 
-@pytest.mark.asyncio
 async def test_a_content_change_revokes_approval_and_signoff(runtime_sandbox):
     async with database_connection() as db:
         await _document(db, sections=(SECTION_ID, OTHER_SECTION_ID))

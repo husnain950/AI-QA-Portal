@@ -1,8 +1,9 @@
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from backend.database import DatabaseConnection, get_db
+from backend.deps import ensure_exists
 from backend.models import SearchResultResponse
 
 router = APIRouter(prefix="/documents", tags=["search"])
@@ -45,9 +46,7 @@ async def search_document(
     db: DatabaseConnection = Depends(get_db)
 ):
     # Verify document exists
-    async with db.execute("SELECT 1 FROM documents WHERE id = ?", (document_id,)) as cursor:
-        if not await cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Document not found")
+    await ensure_exists(db, "documents", document_id, "Document not found")
 
     cleaned_q = clean_fts_query(q)
     rows = []

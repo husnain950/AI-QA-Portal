@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from backend.database import DatabaseConnection, get_db
+from backend.database import DatabaseConnection, get_db, json_column
 from backend.deps import require_reviewer
 from backend.services import events, findings_store, jobs, review_state
 from backend.services.editions import family_key_from_name
@@ -16,15 +15,7 @@ router = APIRouter(prefix="/findings", tags=["findings"])
 
 
 def _detail(row: Dict[str, Any]) -> Dict[str, Any]:
-    raw = row.get("detail_json")
-    if not raw:
-        return {}
-    if isinstance(raw, dict):
-        return raw
-    try:
-        return json.loads(raw)
-    except (TypeError, json.JSONDecodeError):
-        return {}
+    return json_column(row.get("detail_json"), {}) or {}
 
 
 @router.get("")

@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from pypdf import PdfReader
 
-from backend.database import DatabaseConnection, get_db
+from backend.database import DatabaseConnection, get_db, json_column
 from backend.deps import require_reviewer
 from backend.routes.documents import _document_response_by_id
 from backend.services import blob_store, versions
@@ -187,7 +187,7 @@ async def commit_upload(
     storage.copy(staged["json_key"], json_name, content_type="application/json")
     json_stat = storage.stat(staged["json_key"])
     json_bytes = storage.read_range(staged["json_key"], 0, json_stat.size - 1)
-    summary = staged["summary"] if isinstance(staged["summary"], dict) else json.loads(staged["summary"])
+    summary = json_column(staged["summary"])
     document_id = str(uuid.uuid4())
     await db.execute(
         """

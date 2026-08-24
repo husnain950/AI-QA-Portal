@@ -6,7 +6,6 @@ The audit found the opposite: a one-member group could nominate its own first me
 the "approved" source, so unreviewed legal text acquired approval on its own.
 """
 
-import pytest
 
 from backend.database import database_connection
 from backend.services import review_state, variants
@@ -64,7 +63,6 @@ async def _approved_group(db, count=4):
     return key
 
 
-@pytest.mark.asyncio
 async def test_approve_variant_requires_min_editions(runtime_sandbox):
     async with database_connection() as db:
         await _setup_variant_group(db, count=1)
@@ -74,7 +72,6 @@ async def test_approve_variant_requires_min_editions(runtime_sandbox):
         assert "error" in result and "editions" in result["error"]
 
 
-@pytest.mark.asyncio
 async def test_approve_variant_refuses_without_a_human_approved_source(runtime_sandbox):
     """The regression the audit named: nobody approved anything, so nothing inherits."""
     async with database_connection() as db:
@@ -93,7 +90,6 @@ async def test_approve_variant_refuses_without_a_human_approved_source(runtime_s
             assert (await cursor.fetchone())[0] == 0
 
 
-@pytest.mark.asyncio
 async def test_approve_variant_refuses_when_a_member_is_blocked(runtime_sandbox):
     async with database_connection() as db:
         key = await _approved_group(db)
@@ -107,7 +103,6 @@ async def test_approve_variant_refuses_when_a_member_is_blocked(runtime_sandbox)
         assert result["section_id"] == "sec-inh-2"
 
 
-@pytest.mark.asyncio
 async def test_approve_variant_refuses_when_the_text_is_not_identical(runtime_sandbox):
     async with database_connection() as db:
         key = await _approved_group(db)
@@ -119,7 +114,6 @@ async def test_approve_variant_refuses_when_the_text_is_not_identical(runtime_sa
         assert "identical" in result["error"]
 
 
-@pytest.mark.asyncio
 async def test_approve_variant_propagates_from_the_human_source(runtime_sandbox):
     async with database_connection() as db:
         key = await _approved_group(db)
@@ -152,7 +146,6 @@ async def test_approve_variant_propagates_from_the_human_source(runtime_sandbox)
         assert len(evidence["active_versions"]) == 4, "each edition's version is recorded"
 
 
-@pytest.mark.asyncio
 async def test_source_delete_revokes_inherited_approval(runtime_sandbox):
     async with database_connection() as db:
         key = await _approved_group(db)
