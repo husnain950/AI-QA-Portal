@@ -121,7 +121,8 @@ or a pre-commit hook.
 
 ## Two layers
 
-**Global invariants** (`tests/invariants.py`) hold for the whole document, so a
+**Global invariants** (`invariants/<lane>.py`, shared bodies in `invariants/_common.py`)
+hold for the whole document, so a
 regression anywhere is caught, not just in the one section originally reported:
 
 | invariant | guards against |
@@ -149,6 +150,37 @@ regression anywhere is caught, not just in the one section originally reported:
 a section / schedule / footnote and runs one `check`. `status: active` must pass;
 `status: known_gap` is tracked but doesn't fail the build (documents something we
 don't fully match yet, e.g. the ~8% of citations with no resolved footnote text).
+
+## Per-document invariant exemptions
+
+Invariants are otherwise unconditional, which is right: an invariant encodes a *class*
+of bug and softening one weakens every document. But a few documents fail a correct
+invariant for a reason that is in the source PDF and not in the parser -- and leaving
+the whole lane red means the other 50-odd invariants gate nothing.
+
+`exemptions/<lane>.json` names those, one entry per (document, invariant) pair:
+
+```json
+{"exemptions": [
+  {"applies_to": "Customs Rules, 2001",
+   "invariant": "section_codes_ordered",
+   "reason": "compilation: the TOC indexes 44 separately-notified rule sets ..."}
+]}
+```
+
+- `applies_to` is a substring of `metadata.filename` — the same scoping rule cases use.
+- The invariant **still runs**, and its hit count is still printed under
+  `EXEMPT INVARIANTS`. An exemption documents a failure; it does not hide its size.
+- If an exempt invariant starts **passing**, the report says the entry is stale so it
+  gets deleted rather than quietly protecting nothing forever.
+- A lane with nothing to exempt has no file. `acts` and `ordinance` have none.
+
+The bar for adding one is that the invariant is **right** and the document is genuinely
+outside what the pipeline can read today, traced to the source PDF first — never that a
+check is inconvenient. `tools/tests/test_suite_exemptions.py` enforces the mechanical
+part: every `invariant` must name a real entry in that lane's `ALL_INVARIANTS`, every
+entry must carry a `reason`, and every `applies_to` must match exactly one document in
+the staged corpus (so an over-broad substring can't silently widen its own scope).
 
 ## Importing a QA report
 

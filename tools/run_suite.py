@@ -73,13 +73,14 @@ def main(argv=None) -> int:
 
     invariants = runner.invariants_for(lane)
     cases_path = runner.cases_path_for(lane)
+    exemptions_path = runner.exemptions_path_for(lane)
 
     all_ok, all_results = True, {}
     for json_path in targets:
         if len(targets) > 1:
             print(f"\n########## {os.path.basename(json_path)} ##########")
         doc = loader.load(json_path)
-        results = runner.run(doc, invariants, cases_path)
+        results = runner.run(doc, invariants, cases_path, exemptions_path)
         report, ok = runner.summarize(results)
         print(report)
         all_ok = all_ok and ok

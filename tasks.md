@@ -356,21 +356,63 @@ absence of a space glyph, and this one is equal size (8.04pt), dtop 0.00, with a
 space — indistinguishable from a genuine `21 st` typo in the source. Merging it would
 mean merging real typos too. The invariant does not know the parser made that choice.
 
-### The decision
+### The decision: (b) — taken by the user
 
-Making this suite green needs one of:
+Three options were on the table: **(a)** an `instrument` level in the document tree plus a
+body-side contents-block suppressor — a real ingest feature touching the tree, six
+walkers, the JSON schema and the portal's leaf labelling; **(b)** a per-document invariant
+exemption mechanism; **(c)** leave it red.
 
-- **(a)** an `instrument` level in the document tree + a body-side contents-block
-  suppressor — a real ingest feature touching the tree, six walkers, the JSON schema
-  and the portal's leaf labelling;
-- **(b)** a per-document invariant exemption mechanism (the suite has `known_gap` for
-  *cases* but invariant failures are unconditionally hard), recording these four with
-  their reasons so the suite gates everything else;
-- **(c)** leave it red and keep the baseline documented, as it was before this work.
+**(b) was chosen and is implemented in Phase 6b below.**
 
-I have not chosen for you: (a) is a feature, (b) changes the suite's contract, and (c)
-is the status quo. **Raised with the user.** The failure set is byte-identical to the
-pre-refactor baseline either way, verified after every phase.
+### Arithmetic correction to the table above
+
+The hit counts in the table are right and the prose total was not: 37 + 1 + 5 + 2 = **45**
+hits, not 42, and the compilation cause is **38 of 45**. Confirmed against a live run of
+all 11 editions. The per-invariant counts (`section_codes_ordered` 32 + 5,
+`no_jammed_words` 1 + 3 + 1, `no_split_ordinals` 1 + 1, `no_orphan_marker_li` 1) are
+unchanged from the Phase 0 baseline and were never wrong.
+
+## Phase 6b — Exempt the diagnosed failures, and gate the lane · **done**
+
+Implements option (b). The suite already had this contract for *cases* — `applies_to` as a
+substring of `metadata.filename`, and a non-`active` status routed to a reporting bucket
+that does not fail the build. Invariant failures were the only thing unconditionally hard.
+So this extends the existing convention rather than inventing a second one.
+
+- [x] `tools/suite/exemptions/rules.json` — the 8 (document, invariant) pairs, each
+      carrying the Phase 6 diagnosis as its `reason`. `acts` and `ordinance` get no file;
+      a missing file means no exemptions.
+- [x] `tools/suite/runner.py` — `exemptions_path_for(lane)`, `_exempt_reasons()`, and a
+      `results["exempt_invariants"]` bucket mirroring the existing `known_gaps` one.
+      `summarize()` prints an `EXEMPT INVARIANTS` block; `ok` ignores that bucket.
+- [x] `tools/run_suite.py` — passes the exemptions path (2 lines)
+- [x] `tools/tests/test_suite_exemptions.py` — **6 tests**
+- [x] `AGENTS.md` + `tools/suite/README.md` document the mechanism and its bar for entry
+
+**Result: 6 files, +324 / −6. Pipeline gate: ordinance 12 ✅ acts 80 ✅ rules 11 ✅ —
+all three lanes green, `Pipeline gate passed`, exit 0.**
+pytest **447** (441 + 6 new) · web **134 ✅** · ruff clean
+
+Three properties the mechanism has deliberately, because an exemption list is exactly the
+kind of thing that rots into a place where checks go to die:
+
+- **The invariant still runs and its hits are still printed.** `RESULT` carries
+  `exempt 3 (34 hits)` and the block lists each count. The exemption documents a failure;
+  it does not shrink it. The 45 hits are still 45 hits on screen.
+- **A stale exemption announces itself.** If an exempt invariant starts *passing*, the
+  report says `no longer failing -- delete the entry`, so a fixed bug retires its own
+  exemption instead of leaving a permanent hole.
+- **The scoping is tested, not trusted.** `applies_to` is a substring match, so an
+  over-broad value would silently widen its own scope. One test asserts every shipped
+  `applies_to` matches **exactly one** document in the staged corpus, every `invariant`
+  names a real entry in that lane's `ALL_INVARIANTS`, and every entry carries a `reason`.
+  A typo'd name would otherwise exempt nothing while looking like it did.
+
+What this does **not** do: fix the documents. Option (a) is still the real fix for the 38
+compilation hits and is still unbuilt; the 7 others are still not deterministically
+fixable. The gain is that the rules lane now gates its other ~50 invariants across 11
+editions instead of being uniformly red.
 
 ## Phase 7 — Backend consolidation · **done (2 monoliths deferred)**
 - [x] `services/clock.py` — 7 `_now()` definitions in 3 formats → one source, **all three

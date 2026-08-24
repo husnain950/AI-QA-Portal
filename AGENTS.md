@@ -75,8 +75,15 @@ Run the API and web dev servers directly (do NOT rely on `make up`, which uses D
   suite is separate: `cd apps/web && npm run test` (vitest, 134 tests).
 - The pipeline gate has two tiers: package self-checks (`_demo()`) always run, and each
   lane's regression suite (`tools/run_suite.py <lane>`) runs only when its corpus is
-  staged. Missing corpus is a SKIP; a present one that fails is a hard failure. The
-  **rules** suite is currently red against a staged corpus — see `tasks.md`.
+  staged. Missing corpus is a SKIP; a present one that fails is a hard failure. All three
+  lanes are green against a staged corpus (ordinance 12, acts 80, rules 11 editions).
+- A handful of rules editions fail an invariant for a reason traced to the source PDF and
+  not fixable in the parser (a compilation that embeds 44 separately-notified instruments;
+  a PDF emitting one 75-char token with no space glyphs). Those are listed per document in
+  `tools/suite/exemptions/rules.json` with their diagnosis: the invariant still runs and
+  its hits are still printed, it just does not gate that one document, so the rest of the
+  lane gates normally. Adding an entry needs the failure traced to its source first — see
+  `tools/suite/README.md`.
 
 ### CI/CD
 - GitHub Actions runs `.github/workflows/ci.yml` on every PR and push to `main`, then
