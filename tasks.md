@@ -8,18 +8,24 @@ second source of truth alongside `README.md`.
 
 | | baseline `8112585` | now | delta |
 |---|---|---|---|
-| code LOC (`py,jsx,js,mjs,css`) | 84,702 | **69,278** | **−15,424 (−18%)** |
+| code LOC (`py,jsx,js,mjs,css`) | 84,702 | **67,103** | **−17,599 (−21%)** |
 | `packages/` | 31,002 | 19,322 | −11,680 |
-| `tools/` | 14,168 | 10,916 | −3,252 |
+| `tools/` | 14,168 | 8,741 | −5,427 |
 | `apps/web` | 17,833 | 17,535 | −298 |
 | `apps/api` | 21,699 | 21,505 | −194 |
-| files | — | — | 70 deleted, 11 added, 26 renamed |
-| pytest | 439 | **441** | +5 new, −3 with deleted code |
+| files | — | — | 70 deleted, 13 added, 26 renamed |
+| pytest | 439 | **452** | +16 new, −3 with deleted code |
 | web tests | 134 | **134** | — |
 | ruff (repo) | 27 | **17** | −10 |
-| pipeline gate | ord 12 ✅ acts 80 ✅ rules ❌ | **identical** | failure set byte-identical |
+| pipeline gate | ord 12 ✅ acts 80 ✅ rules ❌ | **ord 12 ✅ acts 80 ✅ rules 11 ✅** | all three lanes green |
 
-Nine commits, one per phase. Every phase verified against the baseline before committing.
+Twelve commits, one per phase. Every phase verified against the baseline before committing.
+
+The rules lane is green because the 8 document×invariant failures diagnosed in Phase 6 are
+recorded as per-document exemptions with their reasons (Phase 6b) — the invariants still run
+and still print their 45 hits, they just no longer stop the other ~50 checks from gating 11
+editions. The documents themselves are unchanged; option (a), the real fix for the 38
+compilation hits, is still unbuilt.
 
 ### Defects found and fixed (none were in scope; all were live)
 
@@ -165,7 +171,7 @@ against `main`.
 deliberately untouched — its docstring records that the CLI, the API request body and the
 worker payload all speak it, so it is a public contract, not a hardcode to remove.
 
-## Phase 3 — One lane-parameterised suite · **done (invariants split deferred)**
+## Phase 3 — One lane-parameterised suite · **done** (invariants split landed in Phase 6c)
 - [x] `tools/suite/{checks,loader,runner,__init__}.py` — one copy each (was 3× md5-identical)
 - [x] `tools/suite/cases/{acts,rules,ordinance}.json`
 - [x] `tools/suite/invariants/{acts,rules,ordinance}.py` (moved; **not yet split** — see below)
@@ -293,7 +299,7 @@ notification PDF sitting in the corpus directory (it indexes past the end lookin
 TOC). `packages/fbr_ingest` has **zero files changed** since the baseline commit, so
 this predates the refactor entirely. Filed under Deferred.
 
-## Phase 6 — Fix the red rules suite · **diagnosed, needs your call**
+## Phase 6 — Fix the red rules suite · **diagnosed; resolved by Phase 6b**
 
 Investigated all four failure classes down to the source PDFs. **None is a refactor
 regression, and none is a small parser bug.** Two need an ingest feature, one is not
@@ -433,7 +439,8 @@ Phase 3 numbers were close but the *dependency* claim turned out to be wrong.
       an override is never registered twice. Unknown name raises instead of skipping.
 - [x] `tools/tests/test_suite_invariants.py` — **5 tests**
 
-**Result: 5,562 → 3,109 lines, −2,453. Code LOC 69,278 → 66,825.**
+**Result: 5,562 → 3,109 lines, −2,453. Code LOC 69,278 → 67,103 (−2,175 net of the
+Phase 6b additions).**
 pytest **452** (447 + 5 new) · gate ordinance 12 ✅ acts 80 ✅ rules 11 ✅ ·
 ruff `apps/api`+`tools` clean, repo-wide **17** (unchanged)
 
@@ -623,12 +630,42 @@ made `tools/` read the registry from `apps/api`).
   corpus is defined by `output/*.json`, not by the PDFs present. A `len(pdf.pages)`
   guard would fix it.
 
-- **The `data/seed/` bake-into-image path now has no deploy consumer.** `apps/api/Dockerfile`
-  implements it and `docker-compose.yml` sets `SEED_CORPUS_ORDINANCE`/`_ACTS`, but
-  `northflank.template.json` sets no `SEED_CORPUS_*` at all — and Northflank is the only live
-  deploy target now that CodeRun is gone. So the mechanism works and nothing uses it. Kept rather
-  than removed (see Phase 1 corrections); worth a decision: wire it into the Northflank template,
-  or drop `seed-archive` + the Dockerfile `COPY` + the compose env together. Raised with the user.
+- ~~**The `data/seed/` bake-into-image path now has no deploy consumer.**~~ **Resolved — the
+  note's premise was wrong.** It is true that `northflank.template.json` set no
+  `SEED_CORPUS_*`, but that never disabled anything: `apps/api/Dockerfile:39-41` sets all
+  three as image `ENV`, Northflank builds from that Dockerfile, and its `runtimeEnvironment`
+  is *additive* to image ENV rather than a replacement. So the mechanism has been working in
+  production all along, which is why nothing was ever observed to be broken.
+
+  The trio is now named explicitly on `crx-api` and `crx-worker` anyway, for the same reason
+  the template already duplicates the `CORPUS_*` trio the Dockerfile also sets: the deploy
+  config should state its own environment rather than inherit it invisibly from an image ENV
+  a future Dockerfile edit could drop. That is belt-and-braces, **not a fix** — nothing
+  changes at runtime. `seed-archive` and the Dockerfile `COPY` stay.
 - **`tools/acts/{add_test_case,ocr_review,why_unbuilt,audit_all,audit_completeness}.py` and
   `convert_all.py` are acts-only.** The rules and ordinance lanes have no equivalents. Not creating
   siblings in this refactor; noted so the asymmetry is a decision rather than an oversight.
+
+### Still open after Phases 6b/6c — scoped out deliberately
+
+These were on the table for this change and were **not** taken, by decision rather than
+oversight. Nothing below is a regression and nothing below blocks the gate.
+
+- **The full react-query migration.** `documentStore` remains a Zustand cache in front of
+  the query cache, with 7 production consumers and 7 test files that would have to change
+  together. Phase 8 fixed the defects that were actually behind it (the triple-caching in
+  `updateSectionStatus`, the cross-store footnote patching, the refetch fan-outs) and the
+  store already delegates its fetching to `queryClient.fetchQuery`, so what remains is an
+  architectural preference with a 14-file blast radius and no user-visible outcome. Same
+  reasoning covers splitting `TriagePage` (800), `DashboardPage` (686), `ReviewPage` (582)
+  and `Sidebar` (510) — that work belongs with the migration that will land in them.
+
+- **`apply_parsed_document` (427 lines) and `parse_json_document` (253).** Still the two
+  largest functions in the backend, still on the ingest write path. Worth noting that the
+  coverage for them is better than the Phase 7 note implies — `test_json_parser`,
+  `test_migrations_and_store`, `test_parse_quality` and `test_versions_and_blobs` all
+  exercise both — so a split would have a real gate whenever it is picked up.
+
+- **`fbr_ingest`'s `IndexError` on a non-edition PDF** (first item above). A one-line
+  `len(pdf.pages)` clamp in `_toc_lines`; left alone only because it was outside the agreed
+  scope for this change, not because it is hard.

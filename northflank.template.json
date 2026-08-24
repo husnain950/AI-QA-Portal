@@ -111,6 +111,9 @@
               "CORPUS_ORDINANCE": "/data/corpus/ordinance",
               "CORPUS_ACTS": "/data/corpus/acts",
               "CORPUS_RULES": "/data/corpus/rules",
+              "SEED_CORPUS_ORDINANCE": "/seed/corpus/ordinance",
+              "SEED_CORPUS_ACTS": "/seed/corpus/acts",
+              "SEED_CORPUS_RULES": "/seed/corpus/rules",
               "PYTHONPATH": "/app",
               "PYTHONUNBUFFERED": "1",
               "CSP_ENFORCE": "1"
@@ -173,6 +176,9 @@
               "CORPUS_ORDINANCE": "/data/corpus/ordinance",
               "CORPUS_ACTS": "/data/corpus/acts",
               "CORPUS_RULES": "/data/corpus/rules",
+              "SEED_CORPUS_ORDINANCE": "/seed/corpus/ordinance",
+              "SEED_CORPUS_ACTS": "/seed/corpus/acts",
+              "SEED_CORPUS_RULES": "/seed/corpus/rules",
               "PYTHONPATH": "/app",
               "PYTHONUNBUFFERED": "1",
               "CSP_ENFORCE": "1"
