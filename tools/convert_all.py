@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""Batch-convert the Acts corpus to JSON.
+"""Batch-convert one corpus to JSON.
 
-    python tools/acts/convert_all.py --family customs
-    python tools/acts/convert_all.py --phase 1 --batch 6
-    python tools/acts/convert_all.py --phase 2 --skip-existing
-    python tools/acts/convert_all.py --list
+    python tools/convert_all.py acts  --family customs
+    python tools/convert_all.py acts  --phase 1 --batch 6
+    python tools/convert_all.py rules --skip-existing --skip-scanned
+    python tools/convert_all.py rules --list
+
+The lane is an argument, for the same reason it is one in ``tools/convert.py`` and
+``tools/run_suite.py``: this file was acts-only, so the rules lane had no way to
+convert a corpus except one ``make convert-rules PDF=`` at a time, with none of the
+audit trail below.  ``--family``/``--phase`` are the one acts-only part and say so.
 
 Runs each PDF in a SEPARATE PROCESS, in batches.  Two reasons: a 950-page
 edition holds a lot of pdfplumber state, and a single edition that raises must
@@ -42,23 +47,37 @@ import time
 # from tools/corpus_paths.py, which reads the one lane registry the API also reads --
 # this file used to derive them itself, and was the fourth copy of that arithmetic.
 _HERE = pathlib.Path(__file__).resolve().parent
-_ROOT = _HERE.parent.parent
-if str(_ROOT / "tools") not in sys.path:
-    sys.path.insert(0, str(_ROOT / "tools"))
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
 
 # Relies on the sys.path bootstrap above; also puts packages/ on the path.
-from corpus_paths import get  # noqa: E402
+from corpus_paths import LABELS, get  # noqa: E402
 
-_CORPUS_ACTS = get("acts")
-CORPUS = _CORPUS_ACTS.path()
-#: Sources live under Acts/ where that exists, else at the corpus root.
-ACTS = _CORPUS_ACTS.source_path()
-OUT = _CORPUS_ACTS.output_path()
-#: run artifacts and quarantine.  Both are SUBDIRECTORIES of output/ so that the
-#: ``output/*.json`` glob defining the corpus (run_suite.py, audit_all.py) does
-#: not see them.
-RUN_DIR = OUT / "_run"
-REFUSED = OUT / "_refused"
+#: Which corpus this run converts, and where its files are.  Module-level because
+#: eight functions below read them; ``_bind`` is called once, first thing in
+#: ``main``, before anything touches the disk.  Bound to acts at import so the
+#: paths are never None for an importer.
+LANE = "acts"
+CORPUS = SOURCES = OUT = RUN_DIR = REFUSED = None
+
+
+def _bind(lane: str) -> None:
+    """Resolve every path this run reads and writes, from the one lane registry."""
+    global LANE, CORPUS, SOURCES, OUT, RUN_DIR, REFUSED
+    corpus = get(lane)
+    LANE = lane
+    CORPUS = corpus.path()
+    #: Sources live under Acts/ or Rules/ where that exists, else at the corpus root.
+    SOURCES = corpus.source_path()
+    OUT = corpus.output_path()
+    #: run artifacts and quarantine.  Both are SUBDIRECTORIES of output/ so that the
+    #: ``output/*.json`` glob defining the corpus (run_suite.py, audit_all.py) does
+    #: not see them.
+    RUN_DIR = OUT / "_run"
+    REFUSED = OUT / "_refused"
+
+
+_bind(LANE)
 
 # Phase 1 = the consolidated acts, which share the Ordinance's shape (TOC +
 # Chapter -> Section + Schedules + footnotes).  Everything else is Phase 2.
@@ -85,7 +104,7 @@ def is_pdf(p: pathlib.Path) -> bool:
 
 def discover(family: str | None, phase: int | None) -> list[pathlib.Path]:
     out = []
-    for p in sorted(ACTS.rglob("*")):
+    for p in sorted(SOURCES.rglob("*")):
         if not p.is_file() or p.name == ".DS_Store" or not is_pdf(p):
             continue
         fam = p.parent.name
@@ -197,7 +216,7 @@ def convert(pdf: pathlib.Path, timeout: float | None = None,
     log = (RUN_DIR / f"{dest.stem}.log") if keep_log else None
     if log is not None:
         RUN_DIR.mkdir(parents=True, exist_ok=True)
-    argv = [sys.executable, str(_ROOT / "tools" / "convert.py"), "acts",
+    argv = [sys.executable, str(_HERE / "convert.py"), LANE,
             str(pdf), "-o", str(dest)]
     if admit_below_floor:
         argv.append("--admit-below-floor")
@@ -284,6 +303,32 @@ def is_scanned(pdf: pathlib.Path, sample: int = 8) -> bool:
         return False
 
 
+def scan_page_count(pdf: pathlib.Path) -> int:
+    """How many of this PDF's pages are image-backed -- EVERY page, not a sample.
+
+    ``is_scanned`` above samples 8 pages because it only picks a scheduling lane
+    and must be fast.  ``--skip-scanned`` is a different question: it decides
+    whether the file is converted at all, and there the sample is measurably
+    wrong.  On the Rules corpus 2026-08-24 it called 12 of 37 files text-layer
+    and ALL TWELVE failed, on an image-backed page it had not sampled -- Federal
+    Excise Rules 2005 p55, THE SALES TAX RULES 2006 p80, Sales Tax Rules 2006
+    p113, Income Tax Rules 2002 p482 after 158 seconds.  Those pages need OCR, so
+    the file cannot convert without the OCR extras, and all the sample bought was
+    167 seconds of work that ends in a RuntimeError.
+
+    ``ocr.scanned_pages`` shares ``pagemodel._page_is_scan`` with the conversion
+    path, so a file this returns 0 for is a file that will never enter the OCR
+    branch.  Costs one geometry pass, no recognition.
+    """
+    try:
+        from legal_ingest.ocr import scanned_pages
+        return len(scanned_pages(str(pdf))[1])
+    except Exception:
+        # Unreadable here means unreadable in the child too; let the conversion
+        # report the real error rather than silently classifying it as a skip.
+        return 0
+
+
 def _write_status(state: dict) -> None:
     """Publish live counters for anything that wants to know if a run is alive.
 
@@ -300,13 +345,25 @@ def _write_status(state: dict) -> None:
         pass
 
 
-def _write_report(results: list[dict], total: int, seconds: float) -> None:
+def _write_report(results: list[dict], total: int, seconds: float,
+                  skipped: list[tuple[pathlib.Path, int]] | None = None) -> None:
     RUN_DIR.mkdir(parents=True, exist_ok=True)
     ok = [r for r in results if r["rc"] == 0]
     bad = [r for r in results if r["rc"] != 0]
     lines = [f"# Conversion run — {_dt.datetime.now():%Y-%m-%d %H:%M}", "",
              f"{len(ok)}/{total} converted in {seconds:.0f}s "
              f"({seconds / 60:.0f} min).", ""]
+    # A skip is a result. Printed only to stdout, the one record of why a
+    # document is absent from the corpus dies with the terminal.
+    if skipped:
+        lines += [f"## Skipped — {len(skipped)} scanned file(s), --skip-scanned", "",
+                  "These need `pip install -r "
+                  "packages/legal_ingest/requirements-ocr.txt`",
+                  "and tesseract on PATH before they can be attempted.", "",
+                  "| file | pages needing OCR |", "|---|---|"]
+        for pdf, n in sorted(skipped, key=lambda x: x[0].name):
+            lines.append(f"| {pdf.name} | {n} |")
+        lines.append("")
     if bad:
         lines += ["## Failed", "",
                   "| file | secs | reason | quarantined |", "|---|---|---|---|"]
@@ -323,8 +380,11 @@ def _write_report(results: list[dict], total: int, seconds: float) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--family", choices=sorted(CONSOLIDATED) + ["all"])
-    ap.add_argument("--phase", type=int, choices=(1, 2))
+    ap.add_argument("lane", choices=LABELS, help="which corpus to convert")
+    ap.add_argument("--family", choices=sorted(CONSOLIDATED) + ["all"],
+                    help="acts lane only")
+    ap.add_argument("--phase", type=int, choices=(1, 2),
+                    help="acts lane only")
     ap.add_argument("--batch", type=int, default=6,
                     help="text-layer PDFs converted concurrently (default 6)")
     ap.add_argument("--ocr-batch", type=int, default=1,
@@ -337,6 +397,15 @@ def main() -> int:
                          "help. Raise this only after re-measuring on a box with "
                          "free RAM; do not tune it on intuition.")
     ap.add_argument("--list", action="store_true", help="list targets and exit")
+    ap.add_argument("--skip-scanned", action="store_true",
+                    help="convert only the text-layer files, leaving the scans "
+                         "unconverted and NAMED. A scan needs the OCR extras "
+                         "(packages/legal_ingest/requirements-ocr.txt) plus "
+                         "tesseract on PATH; without those, build_page_model "
+                         "aborts the document on its first image-backed page "
+                         "rather than ship a JSON with the statute missing. This "
+                         "flag turns that into one reported skip list instead of "
+                         "N identical failures.")
     ap.add_argument("--skip-existing", action="store_true",
                     help="skip a PDF whose output JSON already exists. Lets an "
                          "interrupted multi-hour run resume instead of starting "
@@ -358,6 +427,19 @@ def main() -> int:
                          "slowest legitimate file is Finance Act 2025 at 289 "
                          "OCR'd pages, so keep well above that. 0 disables.")
     args = ap.parse_args()
+    _bind(args.lane)
+
+    # CONSOLIDATED names three Acts, so these two filters mean nothing off that
+    # lane. Refusing beats silently matching nothing, which reads as "the corpus
+    # is empty" rather than "the filter does not apply here".
+    if args.lane != "acts" and (args.family or args.phase):
+        print(f"error: --family/--phase are acts-only; the {args.lane} lane has "
+              f"no consolidated/phase split", file=sys.stderr)
+        return 2
+    if not SOURCES.is_dir():
+        print(f"error: no source directory for the {args.lane} lane: {SOURCES}",
+              file=sys.stderr)
+        return 2
 
     fam = None if args.family in (None, "all") else args.family
     files = discover(fam, args.phase)
@@ -366,7 +448,7 @@ def main() -> int:
         return 2
     if args.list:
         for p in files:
-            print(f"  {p.relative_to(ACTS)}  ->  {out_path(p).name}")
+            print(f"  {p.relative_to(SOURCES)}  ->  {out_path(p).name}")
         print(f"{len(files)} file(s)")
         return 0
     if args.skip_existing:
@@ -399,10 +481,29 @@ def main() -> int:
     # measurably do NOT (see --ocr-batch). Running them at one width is why the
     # 2026-08-04 Phase-2 run took 3h08m.
     print(f"classifying {len(files)} file(s) by OCR cost ...")
-    scanned = [p for p in files if is_scanned(p)]
-    plain = [p for p in files if p not in scanned]
+    skipped: list[tuple[pathlib.Path, int]] = []
+    if args.skip_scanned:
+        # Exact, not sampled -- see scan_page_count. A file with even ONE
+        # image-backed page cannot convert without the OCR extras, so the census
+        # IS the skip list.
+        census = {p: scan_page_count(p) for p in files}
+        plain = [p for p in files if not census[p]]
+        skipped = [(p, census[p]) for p in files if census[p]]
+        scanned = []
+    else:
+        scanned = [p for p in files if is_scanned(p)]
+        plain = [p for p in files if p not in scanned]
     print(f"  {len(plain)} text-layer (batch {args.batch})   "
           f"{len(scanned)} scanned (batch {args.ocr_batch})")
+    if skipped:
+        print(f"  --skip-scanned: leaving {len(skipped)} scanned file(s) "
+              f"unconverted (pages needing OCR in brackets):")
+        for pdf, n in skipped:
+            print(f"      [{n:4d}] {pdf.relative_to(SOURCES)}")
+        # A skip is not a failure and must not be counted as a target, or the run
+        # reports "converted 12/37" and reads as 25 losses.
+        total = len(plain)
+        state["total"] = total
     state["phase"] = "converting"
     _write_status(state)
 
@@ -438,7 +539,7 @@ def main() -> int:
     seconds = time.time() - t0
     state.update(finished=True, running=[], seconds=round(seconds))
     _write_status(state)
-    _write_report(results, total, seconds)
+    _write_report(results, total, seconds, skipped)
 
     failed = [r for r in results if r["rc"] != 0]
     print(f"\nconverted {total - len(failed)}/{total} in {seconds:.0f}s "
@@ -447,7 +548,7 @@ def main() -> int:
     if failed:
         print(f"\n{len(failed)} FAILED:")
         for r in sorted(failed, key=lambda r: r["pdf"].name):
-            print(f"  {r['pdf'].relative_to(ACTS)}\n      {r['reason']}")
+            print(f"  {r['pdf'].relative_to(SOURCES)}\n      {r['reason']}")
     return 1 if failed else 0
 
 
