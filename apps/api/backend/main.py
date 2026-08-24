@@ -9,8 +9,10 @@ from fastapi.responses import JSONResponse
 
 from backend.database import (
     DATABASE_UNREACHABLE_MESSAGE,
+    LOCK_TIMEOUT_MESSAGE,
     UNREACHABLE_DB_ERRORS,
     database_connection,
+    is_lock_timeout,
 )
 from backend.middleware.security import SecurityMiddleware
 from backend.routes import (
@@ -90,8 +92,24 @@ app.include_router(v2_uploads.router, prefix="/api/v2")
 app.include_router(uploads.router)
 
 
-def _database_unreachable_response(_request, _exc):
-    """Login (and any other route) must not hang past the browser's 15s abort."""
+def _database_error_response(_request, exc):
+    """Map DB failures the browser would otherwise wait 15s (or 504) for.
+
+    A lock wait on FOR UPDATE is reachable Postgres that cannot proceed; returning
+    503 with a distinct code lets the client retry instead of hanging until the
+    proxy gives up. Unreachable Postgres stays the existing login-safe 503.
+    """
+    if is_lock_timeout(exc):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "code": "lock_timeout",
+                "detail": {
+                    "code": "lock_timeout",
+                    "message": LOCK_TIMEOUT_MESSAGE,
+                },
+            },
+        )
     return JSONResponse(
         status_code=503,
         content={
@@ -105,7 +123,7 @@ def _database_unreachable_response(_request, _exc):
 
 
 for _exc_type in UNREACHABLE_DB_ERRORS:
-    app.add_exception_handler(_exc_type, _database_unreachable_response)
+    app.add_exception_handler(_exc_type, _database_error_response)
 
 
 @app.get("/health/live")

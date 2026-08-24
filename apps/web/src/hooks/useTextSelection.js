@@ -31,6 +31,33 @@ export const getSelectionCharacterOffsetsWithin = (element) => {
     return { start, end };
 };
 
+/**
+ * Build the annotation payload from container textContent.
+ *
+ * Offsets from Range.toString() index this string, and the API validates against
+ * the same coordinate system (HTML with tags stripped). Selection.toString().trim()
+ * is a different string — it drops surrounding whitespace without moving start/end —
+ * so the quote always comes from the slice, and trim shrinks the offsets inward.
+ */
+export const highlightFromOffsets = (element, start, end) => {
+    const full = element?.textContent || '';
+    let from = Math.max(0, start);
+    let to = Math.min(full.length, end);
+    if (to <= from) return null;
+    const raw = full.slice(from, to);
+    const lead = raw.length - raw.trimStart().length;
+    const trail = raw.length - raw.trimEnd().length;
+    from += lead;
+    to -= trail;
+    if (to <= from) return null;
+    return {
+        text: full.slice(from, to),
+        start: from,
+        end: to,
+        ...contextAround(element, from, to),
+    };
+};
+
 export const useTextSelection = (containerRef, onSelectionComplete) => {
     const [selectedText, setSelectedText] = useState('');
     const [selectionCoords, setSelectionCoords] = useState(null);
@@ -43,43 +70,42 @@ export const useTextSelection = (containerRef, onSelectionComplete) => {
 
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.isCollapsed) {
-                // Clear selection
                 setSelectedText('');
                 setSelectionCoords(null);
                 return;
             }
 
             const range = selection.getRangeAt(0);
-            
-            // Check if selection is within the container
+
             if (!container.contains(range.commonAncestorContainer)) {
                 return;
             }
 
-            const text = selection.toString().trim();
-            if (!text) return;
-
-            // Calculate offsets
             const { start, end } = getSelectionCharacterOffsetsWithin(container);
-            
-            // Get position of selection to place the popover
+            const highlight = highlightFromOffsets(container, start, end);
+            if (!highlight) return;
+
             const rect = range.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
-            
-            // Calculate coords relative to container
+
             const coords = {
                 top: rect.bottom - containerRect.top + container.scrollTop + 8,
-                left: rect.left - containerRect.left + container.scrollLeft + (rect.width / 2) - 160 // Center popover
+                left: rect.left - containerRect.left + container.scrollLeft + (rect.width / 2) - 160
             };
 
-            const { contextBefore, contextAfter } = contextAround(container, start, end);
-
-            setSelectedText(text);
-            setOffsets({ start, end });
+            setSelectedText(highlight.text);
+            setOffsets({ start: highlight.start, end: highlight.end });
             setSelectionCoords(coords);
 
             if (onSelectionComplete) {
-                onSelectionComplete({ text, start, end, coords, contextBefore, contextAfter });
+                onSelectionComplete({
+                    text: highlight.text,
+                    start: highlight.start,
+                    end: highlight.end,
+                    coords,
+                    contextBefore: highlight.contextBefore,
+                    contextAfter: highlight.contextAfter,
+                });
             }
         };
 
