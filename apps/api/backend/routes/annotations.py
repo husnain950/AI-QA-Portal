@@ -6,10 +6,10 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 
-from backend.database import DatabaseConnection, get_db
+from backend.database import DatabaseConnection, get_db, is_lock_timeout
 from backend.deps import ensure_exists, require_reviewer
 from backend.models import AnnotationCreate, AnnotationResponse, AnnotationUpdate
-from backend.services import events, review_state
+from backend.services import anchoring, events, review_state
 from backend.services.disposition import normalize_disposition
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ async def create_annotation(
     actor: str = Depends(require_reviewer),
 ):
     async with db.execute(
-        "SELECT document_id, plain_text FROM sections WHERE id = ? FOR UPDATE",
+        "SELECT document_id, html_content, plain_text FROM sections WHERE id = ? FOR UPDATE",
         (section_id,),
     ) as cursor:
         row = await cursor.fetchone()
@@ -81,7 +81,11 @@ async def create_annotation(
         raise HTTPException(status_code=404, detail="Section not found")
 
     doc_id = row["document_id"]
-    anchor_text = row["plain_text"] or ""
+    html = row["html_content"] or ""
+    # Offsets are measured against the rendered pane's textContent (HTML with tags
+    # stripped), not plain_text. Cite superscripts and heading markup make the two
+    # strings diverge; re-anchoring already uses container_text for the same reason.
+    anchor_text = anchoring.container_text(html) if html else (row["plain_text"] or "")
     if body.footnote_id:
         async with db.execute(
             "SELECT section_id, text FROM footnotes WHERE id = ?",
@@ -143,9 +147,11 @@ async def create_annotation(
         await db.commit()
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         await db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to create annotation")
+        if is_lock_timeout(exc):
+            raise
+        raise HTTPException(status_code=500, detail="Failed to create annotation") from exc
 
     return AnnotationResponse(
         id=annotation_id,

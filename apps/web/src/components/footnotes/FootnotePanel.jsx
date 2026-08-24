@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Check, AlertCircle } from 'lucide-react';
 import { useReviewStore } from '../../stores/reviewStore';
 import { sanitizeLegalHtml } from '../../utils/sanitizeHtml';
+import { getSelectionCharacterOffsetsWithin, highlightFromOffsets } from '../../hooks/useTextSelection';
 
 const FootnoteText = ({ footnote, annotations, onSelect }) => {
     const textRef = React.useRef(null);
@@ -14,15 +15,9 @@ const FootnoteText = ({ footnote, annotations, onSelect }) => {
         const container = textRef.current;
         if (!container || !container.contains(range.commonAncestorContainer)) return;
 
-        const text = selection.toString().trim();
-        if (!text) return;
-
-        // Calculate offsets
-        const preCaretRange = range.cloneRange();
-        preCaretRange.selectNodeContents(container);
-        preCaretRange.setEnd(range.startContainer, range.startOffset);
-        const start = preCaretRange.toString().length;
-        const end = start + range.toString().length;
+        const { start, end } = getSelectionCharacterOffsetsWithin(container);
+        const highlight = highlightFromOffsets(container, start, end);
+        if (!highlight) return;
 
         // Position popover relative to selection
         const rect = range.getBoundingClientRect();
@@ -36,7 +31,7 @@ const FootnoteText = ({ footnote, annotations, onSelect }) => {
         };
 
         if (onSelect) {
-            onSelect(footnote.id, text, start, end, coords);
+            onSelect(footnote.id, highlight.text, highlight.start, highlight.end, coords);
         }
     };
 

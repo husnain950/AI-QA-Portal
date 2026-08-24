@@ -42,6 +42,25 @@ UNREACHABLE_DB_ERRORS = (
     PsycopgInterfaceError,
 )
 DATABASE_UNREACHABLE_MESSAGE = "the database is not reachable"
+LOCK_TIMEOUT_SQLSTATE = "55P03"
+LOCK_TIMEOUT_MESSAGE = "another review change is in progress; retry shortly"
+REQUEST_LOCK_TIMEOUT = "3s"
+
+
+def is_lock_timeout(exc: BaseException) -> bool:
+    """True when Postgres aborted the statement because lock_timeout fired."""
+    seen: set[int] = set()
+    current: object | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if getattr(current, "sqlstate", None) == LOCK_TIMEOUT_SQLSTATE:
+            return True
+        orig = getattr(current, "orig", None)
+        if orig is not None and id(orig) not in seen:
+            current = orig
+            continue
+        current = getattr(current, "__cause__", None) or getattr(current, "__context__", None)
+    return False
 
 
 _RAISE = object()
@@ -243,6 +262,9 @@ class DatabaseConnection:
 
 async def get_db() -> AsyncIterator[DatabaseConnection]:
     async with get_engine().connect() as connection:
+        # Fail FOR UPDATE waits before the reverse proxy returns 504. SET LOCAL
+        # lasts only for this transaction, so pooled connections stay clean.
+        await connection.execute(text(f"SET LOCAL lock_timeout = '{REQUEST_LOCK_TIMEOUT}'"))
         yield DatabaseConnection(connection)
 
 
