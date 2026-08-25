@@ -62,4 +62,11 @@ describe('library sort vs grouped view', () => {
         expect(groups).toHaveLength(1);
         expect(groups[0].editions.map((d) => d.id)).toEqual(['1', '2']);
     });
+
+    it('name Z→A reverses family titles but keeps year order inside a family', () => {
+        const filtered = filterDocuments(docs, { facets: {}, sort: 'name_desc' });
+        const groups = groupDocumentsByFamily(filtered, 'name_desc');
+        expect(groups.map((g) => g.title)).toEqual(['Sales tax act, 1990', 'Customs act, 1969']);
+        expect(groups[1].editions.map((d) => d.id)).toEqual(['1', '2']);
+    });
 });
