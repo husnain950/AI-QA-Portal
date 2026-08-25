@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -30,11 +30,16 @@ vi.mock('../components/review/ReviewToolbar', () => ({
     default: () => <div data-testid="review-toolbar" />,
 }));
 
+vi.mock('../utils/clipboard', () => ({
+    writeToClipboard: vi.fn(async () => {}),
+}));
+
 import ReviewPage from '../pages/ReviewPage';
 import Sidebar from '../components/layout/Sidebar';
 import { useDocumentStore } from '../stores/documentStore';
 import { useReviewStore } from '../stores/reviewStore';
 import { useUiStore } from '../stores/uiStore';
+import { writeToClipboard } from '../utils/clipboard';
 
 describe('issues chrome wording', () => {
     beforeEach(() => {
@@ -219,6 +224,10 @@ describe('leaf-index chrome', () => {
                 id: 'sec-2',
                 section_code: '2',
                 section_heading: 'Definitions',
+                chapter_code: 'I',
+                chapter_heading: 'PRELIMINARY',
+                hierarchy_kind: 'chapter',
+                source_key: '/chapters/0/sections/1',
                 review_status: 'pending',
                 start_page: 2,
                 end_page: 2,
@@ -259,6 +268,30 @@ describe('leaf-index chrome', () => {
         expect(facts).toHaveTextContent(/Leaf\s*2\s*of\s*2/);
         expect(facts).toHaveTextContent(/Section 2: Definitions/);
         expect(facts).not.toHaveTextContent(/Section\s*2\s*of\s*2/);
+        expect(screen.getByRole('button', { name: 'Copy leaf JSON path' })).toBeInTheDocument();
+    });
+
+    it('copy path writes document, hierarchy, leaf index, and JSON pointer', async () => {
+        writeToClipboard.mockClear();
+        render(
+            <MemoryRouter initialEntries={['/review/doc-1/sec-2']}>
+                <Routes>
+                    <Route path="/review/:documentId/:sectionId" element={<ReviewPage />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Copy leaf JSON path' }));
+        expect(writeToClipboard).toHaveBeenCalledTimes(1);
+        expect(writeToClipboard).toHaveBeenCalledWith(
+            [
+                'Sample Act',
+                'Chapter I · PRELIMINARY',
+                'Section 2 · Definitions',
+                'Leaf 2 of 2',
+                '/chapters/0/sections/1',
+            ].join('\n'),
+        );
     });
 
     it('shows em dash when active leaf is not in the TOC list', async () => {

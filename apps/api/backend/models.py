@@ -176,6 +176,7 @@ class SectionMetadataResponse(BaseModel):
     hierarchy_kind: Optional[str] = None  # "chapter" | "schedule"
     section_code: str
     section_heading: str
+    source_key: Optional[str] = None  # JSON-pointer path, e.g. /chapters/4/sections/2
     start_page: Optional[int] = None
     end_page: Optional[int] = None
     review_status: str

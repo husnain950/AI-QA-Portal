@@ -3,7 +3,9 @@ import {
     cleanHeading,
     formatHierarchyLabel,
     formatLeafIdentity,
+    formatLeafJsonPath,
     formatSectionLabel,
+    leafHierarchyLines,
     resolveHierarchyKind,
 } from '../utils/tocLabels';
 
@@ -80,5 +82,89 @@ describe('container codes are not prefixed with "Section "', () => {
     it('still labels a real section number', () => {
         expect(formatSectionLabel('113', 'Minimum tax')).toBe('Section 113: Minimum tax');
         expect(formatSectionLabel('7A', '')).toBe('Section 7A');
+    });
+});
+
+describe('leaf JSON path locator', () => {
+    const customsLeaf = {
+        chapter_code: 'V',
+        chapter_heading: 'LEVY OF, EXEMPTION FROM, AND REPAYMENT OF, CUSTOMS-DUTIES',
+        hierarchy_kind: 'chapter',
+        section_code: '25C',
+        section_heading: 'Power to takeover the imported goods',
+        source_key: '/chapters/4/sections/2',
+    };
+
+    it('formats chapter and section lines like breadcrumb chrome', () => {
+        expect(leafHierarchyLines(customsLeaf)).toEqual([
+            'Chapter V · LEVY OF, EXEMPTION FROM, AND REPAYMENT OF, CUSTOMS-DUTIES',
+            'Section 25C · Power to takeover the imported goods',
+        ]);
+    });
+
+    it('includes part and division when present', () => {
+        expect(leafHierarchyLines({
+            chapter_code: 'I',
+            chapter_heading: 'PRELIMINARY',
+            part_code: 'II',
+            part_heading: 'Definitions',
+            division_code: 'A',
+            division_heading: 'General',
+            section_code: '2',
+            section_heading: 'Interpretation',
+        })).toEqual([
+            'Chapter I · PRELIMINARY',
+            'Part II · Definitions',
+            'Division A · General',
+            'Section 2 · Interpretation',
+        ]);
+    });
+
+    it('labels schedule containers as Schedule', () => {
+        expect(leafHierarchyLines({
+            chapter_code: 'I',
+            chapter_heading: 'RATES',
+            hierarchy_kind: 'schedule',
+            section_code: '1',
+            section_heading: 'Rate of tax',
+        })).toEqual([
+            'Schedule I · RATES',
+            'Section 1 · Rate of tax',
+        ]);
+    });
+
+    it('builds a paste-ready locator with document, leaf index, and JSON pointer', () => {
+        expect(formatLeafJsonPath({
+            documentName: 'Customs Act, 1969 as amended up to 30th June, 2025',
+            section: customsLeaf,
+            leafIndex: 60,
+            leafCount: 331,
+        })).toBe(
+            [
+                'Customs Act, 1969 as amended up to 30th June, 2025',
+                'Chapter V · LEVY OF, EXEMPTION FROM, AND REPAYMENT OF, CUSTOMS-DUTIES',
+                'Section 25C · Power to takeover the imported goods',
+                'Leaf 60 of 331',
+                '/chapters/4/sections/2',
+            ].join('\n'),
+        );
+    });
+
+    it('omits source_key when missing and uses an em dash for unknown leaf index', () => {
+        expect(formatLeafJsonPath({
+            documentName: 'Sample Act',
+            section: {
+                section_code: '99',
+                section_heading: 'Orphan',
+            },
+            leafIndex: null,
+            leafCount: 2,
+        })).toBe(
+            [
+                'Sample Act',
+                'Section 99 · Orphan',
+                'Leaf — of 2',
+            ].join('\n'),
+        );
     });
 });
