@@ -198,12 +198,20 @@ class SectionStatusUpdate(BaseModel):
 
 class FixProposalCreate(BaseModel):
     instructions: str
-    # Must be one of the configured OPENPATHS_MODELS; omitted means the default.
+    # Must be one of the models from GET /ai-fixes/models; omitted means default.
     model_name: Optional[str] = None
 
 
+class FixModelInfo(BaseModel):
+    id: str
+    label: str
+    vision: bool = False
+    input_price_per_1m: Optional[float] = None
+    output_price_per_1m: Optional[float] = None
+
+
 class FixModelsResponse(BaseModel):
-    models: List[str]
+    models: List[FixModelInfo]
     default: str
 
 

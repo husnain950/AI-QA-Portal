@@ -355,7 +355,8 @@ async def create_proposal(
     model: str | None = None,
 ) -> Dict[str, Any]:
     """Ask the model for a fix and store the outcome as a ``fix_proposals`` row."""
-    model = llm_client.resolve_model(model)
+    model = await llm_client.resolve_model_async(model)
+    vision = llm_client.model_supports_vision(model)
     document, section = await _document_and_section(db, document_id, section_id)
     source_key = section["source_key"]
     _data, leaf = await _active_leaf(db, document_id, source_key)
@@ -376,10 +377,15 @@ async def create_proposal(
     expected_pages = list(range(first_page, last_page + 1))
     rendered_pages = [number for number, _image in page_images]
     evidence_complete = rendered_pages == expected_pages
+    # Text-only models still get pages rendered for the reviewer UI; images are
+    # omitted from the gateway payload when the model lacks vision.
+    images_for_model = page_images if vision else []
     evidence = {
         "prompt_version": PROMPT_VERSION,
         "validator_version": VALIDATOR_VERSION,
         "model": model,
+        "vision": vision,
+        "images_sent": bool(images_for_model),
         "source_pdf_sha256": await pdf_digest(db, document),
         "expected_pages": expected_pages,
         "rendered_pages": [
@@ -411,7 +417,7 @@ async def create_proposal(
 
     try:
         reply = await llm_client.chat(
-            build_messages(leaf, page_images, instructions, annotations),
+            build_messages(leaf, images_for_model, instructions, annotations),
             model=model,
         )
         proposal = parse_model_reply(reply)

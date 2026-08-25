@@ -21,18 +21,23 @@ from backend.services import ai_fix, events, llm_client
 router = APIRouter(tags=["ai-fixes"])
 
 _NOT_CONFIGURED = (
-    "AI fixes are not configured. Set OPENPATHS_API_KEY, "
-    "OPENPATHS_BASE_URL and OPENPATHS_MODELS on the API."
+    "AI fixes are not configured. Set OPENPATHS_API_KEY and "
+    "OPENPATHS_BASE_URL on the API (OPENPATHS_MODELS is optional)."
 )
 
 
 @router.get("/ai-fixes/models", response_model=FixModelsResponse)
 async def list_models():
-    """The configured model allow-list for the review UI's dropdown."""
+    """Live OpenPaths catalog (top chat models) plus any LLM_EXTRA_PROVIDERS."""
     if not llm_client.configured():
         raise HTTPException(status_code=503, detail=_NOT_CONFIGURED)
-    models = llm_client.available_models()
-    return FixModelsResponse(models=models, default=models[0])
+    try:
+        models = await llm_client.list_model_infos()
+    except llm_client.LLMNotConfigured as error:
+        raise HTTPException(status_code=503, detail=str(error))
+    except llm_client.LLMError as error:
+        raise HTTPException(status_code=502, detail=str(error))
+    return FixModelsResponse(models=models, default=models[0]["id"])
 
 
 def _loads(value):

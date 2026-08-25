@@ -18,6 +18,7 @@ import { api } from '../../utils/api';
 import {
     changeSummary,
     classifyDiffLine,
+    formatModelPricing,
     htmlChangeHints,
     pagesSentToModel,
     seedInstructions,
@@ -25,6 +26,91 @@ import {
 } from '../../utils/aiFix';
 
 const PREVIEW_ZOOM = 0.62;
+
+/** Accessible model picker with pricing + vision/text lines (native <select> is single-line). */
+const ModelPicker = ({ models, value, defaultModel, onChange }) => {
+    const [open, setOpen] = useState(false);
+    const rootRef = useRef(null);
+    const selected = models.find((row) => row.id === value) || models[0];
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const onDoc = (event) => {
+            if (!rootRef.current?.contains(event.target)) setOpen(false);
+        };
+        const onKey = (event) => {
+            if (event.key === 'Escape') setOpen(false);
+        };
+        document.addEventListener('mousedown', onDoc);
+        window.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onDoc);
+            window.removeEventListener('keydown', onKey);
+        };
+    }, [open]);
+
+    if (!models.length) return null;
+
+    return (
+        <label className="ai-fix-model-picker" ref={rootRef}>
+            <span>Model</span>
+            <div className={`ai-fix-model-menu${open ? ' is-open' : ''}`}>
+                <button
+                    type="button"
+                    className="ai-fix-model-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded={open}
+                    title="Which gateway model to ask for the fix"
+                    onClick={() => setOpen((prev) => !prev)}
+                >
+                    <span className="ai-fix-model-trigger-main">
+                        <span className="ai-fix-model-name">
+                            {selected?.label || selected?.id}
+                            {selected?.id === defaultModel ? ' (default)' : ''}
+                        </span>
+                        <span className="ai-fix-model-meta">
+                            {formatModelPricing(selected) || 'Pricing unavailable'}
+                            {' · '}
+                            {selected?.vision ? 'Vision' : 'Text'}
+                        </span>
+                    </span>
+                    <span className="ai-fix-model-caret" aria-hidden>▾</span>
+                </button>
+                {open && (
+                    <ul className="ai-fix-model-list" role="listbox">
+                        {models.map((row) => {
+                            const pricing = formatModelPricing(row);
+                            const isActive = row.id === (value || selected?.id);
+                            return (
+                                <li key={row.id} role="option" aria-selected={isActive}>
+                                    <button
+                                        type="button"
+                                        className={`ai-fix-model-option${isActive ? ' is-active' : ''}`}
+                                        onClick={() => {
+                                            onChange(row.id);
+                                            setOpen(false);
+                                        }}
+                                    >
+                                        <span className="ai-fix-model-name">
+                                            {row.label || row.id}
+                                            {row.id === defaultModel ? ' (default)' : ''}
+                                        </span>
+                                        {pricing && (
+                                            <span className="ai-fix-model-pricing">{pricing}</span>
+                                        )}
+                                        <span className={`ai-fix-model-capability${row.vision ? ' is-vision' : ''}`}>
+                                            {row.vision ? 'Vision' : 'Text'}
+                                        </span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+            </div>
+        </label>
+    );
+};
 
 /** Compact canvas for one PDF page the model was shown. Always renders (no lazy skip). */
 const AiFixPdfPage = ({ pdfDoc, pageNumber }) => {
@@ -292,12 +378,30 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                 {phase === 'compose' && (
                     <div className="ai-fix-compose">
                         <p className="ai-fix-hint">
-                            The model receives this section's JSON, images of PDF page
-                            {section.end_page !== section.start_page
-                                ? `s ${section.start_page}–${section.end_page}`
-                                : ` ${section.start_page}`}
-                            , and your instructions. It proposes a corrected section —
-                            nothing is applied until you approve it.
+                            {(() => {
+                                const selectedModel = models.find((row) => row.id === model)
+                                    || models[0];
+                                const usesVision = selectedModel ? selectedModel.vision : true;
+                                if (usesVision) {
+                                    return (
+                                        <>
+                                            The model receives this section&apos;s JSON, images of PDF page
+                                            {section.end_page !== section.start_page
+                                                ? `s ${section.start_page}–${section.end_page}`
+                                                : ` ${section.start_page}`}
+                                            , and your instructions. It proposes a corrected section —
+                                            nothing is applied until you approve it.
+                                        </>
+                                    );
+                                }
+                                return (
+                                    <>
+                                        This text-only model receives the section JSON and your
+                                        instructions (no PDF images). It proposes a corrected section —
+                                        nothing is applied until you approve it.
+                                    </>
+                                );
+                            })()}
                         </p>
                         <AiFixWorkspace
                             pdfUrl={pdfUrl}
@@ -311,23 +415,12 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                             rows={4}
                         />
                         <div className="ai-fix-actions">
-                            {models.length > 0 && (
-                                <label className="ai-fix-model-picker">
-                                    <span>Model</span>
-                                    <select
-                                        value={model}
-                                        onChange={(event) => setModel(event.target.value)}
-                                        title="Which gateway model to ask for the fix"
-                                    >
-                                        {models.map((name) => (
-                                            <option key={name} value={name}>
-                                                {name}
-                                                {name === defaultModel ? ' (default)' : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
-                            )}
+                            <ModelPicker
+                                models={models}
+                                value={model}
+                                defaultModel={defaultModel}
+                                onChange={setModel}
+                            />
                             <button type="button" className="btn btn-secondary" onClick={onClose}>
                                 Cancel
                             </button>

@@ -37,6 +37,7 @@ def gateway(monkeypatch):
     monkeypatch.setenv("OPENPATHS_MODELS", "test-model, second-model")
     monkeypatch.delenv("OPENPATHS_MODEL", raising=False)
     monkeypatch.delenv("LLM_EXTRA_PROVIDERS", raising=False)
+    llm_client.clear_catalog_cache()
 
     state = {"reply": model_reply(), "calls": [], "models": []}
 
@@ -47,7 +48,11 @@ def gateway(monkeypatch):
             raise state["reply"]
         return state["reply"]
 
+    async def fake_catalog(*, force=False):
+        return {}
+
     monkeypatch.setattr(llm_client, "chat", fake_chat)
+    monkeypatch.setattr(llm_client, "fetch_openpaths_catalog", fake_catalog)
     return state
 
 
@@ -492,8 +497,116 @@ async def test_models_route_returns_the_dropdown_list(runtime_sandbox, gateway):
     from backend.routes.ai_fixes import list_models
 
     response = await list_models()
-    assert response.models == ["test-model", "second-model"]
+    assert [row.id for row in response.models] == ["test-model", "second-model"]
     assert response.default == "test-model"
+
+
+async def test_models_route_selects_top_catalog_models(runtime_sandbox, monkeypatch):
+    from backend.routes.ai_fixes import list_models
+
+    monkeypatch.setenv("OPENPATHS_API_KEY", "op-test")
+    monkeypatch.setenv("OPENPATHS_BASE_URL", "https://gateway.test/v1")
+    monkeypatch.delenv("OPENPATHS_MODELS", raising=False)
+    monkeypatch.delenv("OPENPATHS_MODEL", raising=False)
+    monkeypatch.delenv("LLM_EXTRA_PROVIDERS", raising=False)
+    llm_client.clear_catalog_cache()
+
+    catalog = {
+        "seedance-2.0-text-to-video": {
+            "id": "seedance-2.0-text-to-video",
+            "pricing": {"per_second": 0.3},
+            "capabilities": {"vision": False},
+        },
+        "claude-sonnet-4-5-20250929": {
+            "id": "claude-sonnet-4-5-20250929",
+            "pricing": {"input_per_1m_tokens": 3, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "gpt-5.4": {
+            "id": "gpt-5.4",
+            "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "or/gpt-5.4": {
+            "id": "or/gpt-5.4",
+            "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "kimi-k2.5": {
+            "id": "kimi-k2.5",
+            "pricing": {"input_per_1m_tokens": 0.95, "output_per_1m_tokens": 4},
+            "capabilities": {"vision": False, "tools": True},
+        },
+        "gemini-2.5-pro": {
+            "id": "gemini-2.5-pro",
+            "pricing": {"input_per_1m_tokens": 1.25, "output_per_1m_tokens": 10},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "whisper-large-v3": {
+            "id": "whisper-large-v3",
+            "pricing": {"per_minute": 0.001},
+            "capabilities": {"vision": False},
+        },
+    }
+
+    async def fake_catalog(*, force=False):
+        return catalog
+
+    monkeypatch.setattr(llm_client, "fetch_openpaths_catalog", fake_catalog)
+
+    response = await list_models()
+    ids = [row.id for row in response.models]
+    assert len(ids) <= 10
+    assert "kimi-k2.5" in ids
+    assert "claude-sonnet-4-5-20250929" in ids
+    assert "gpt-5.4" in ids
+    assert "or/gpt-5.4" not in ids  # mirror dropped when canonical exists
+    assert "seedance-2.0-text-to-video" not in ids
+    assert "whisper-large-v3" not in ids
+    kimi = next(row for row in response.models if row.id == "kimi-k2.5")
+    assert kimi.vision is False
+    assert kimi.input_price_per_1m == 0.95
+    assert kimi.output_price_per_1m == 4
+    assert kimi.label
+    sonnet = next(row for row in response.models if "claude-sonnet" in row.id)
+    assert sonnet.vision is True
+
+
+def test_select_top_models_always_keeps_kimi():
+    catalog = {
+        f"claude-sonnet-{i}": {
+            "id": f"claude-sonnet-{i}",
+            "pricing": {"input_per_1m_tokens": 3, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        }
+        for i in range(12)
+    }
+    catalog["kimi-k2.5"] = {
+        "id": "kimi-k2.5",
+        "pricing": {"input_per_1m_tokens": 0.95, "output_per_1m_tokens": 4},
+        "capabilities": {"vision": False},
+    }
+    # Many sonnet variants collapse to one family; kimi must still appear.
+    selected = llm_client._select_top_models(catalog, limit=10)
+    ids = [row["id"] for row in selected]
+    assert "kimi-k2.5" in ids
+
+
+def test_humanize_model_id():
+    assert llm_client._humanize_id("claude-sonnet-4-5-20250929") == "Claude Sonnet 4.5"
+    assert llm_client._humanize_id("kimi-k2.5") == "Kimi K2.5"
+    assert llm_client._humanize_id("gpt-5.4") == "GPT 5.4"
+
+
+def test_model_supports_vision_from_catalog_cache():
+    llm_client.clear_catalog_cache()
+    llm_client._catalog_cache["by_id"] = {
+        "vision-model": {"id": "vision-model", "capabilities": {"vision": True}},
+        "text-model": {"id": "text-model", "capabilities": {"vision": False}},
+    }
+    assert llm_client.model_supports_vision("vision-model") is True
+    assert llm_client.model_supports_vision("text-model") is False
+    llm_client.clear_catalog_cache()
 
 
 async def test_request_route_returns_503_when_unconfigured(
