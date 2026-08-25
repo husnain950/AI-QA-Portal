@@ -317,7 +317,46 @@ def _size_zone_top(ordered, cal) -> float | None:
         return None
     if not any(_is_amendment_note(ln.text()) for ln in ordered[best_k:]):
         return None
+    best_k = _pull_quoted_notes_into_zone(ordered, small, best_k, cal)
+    if best_k >= n:
+        return None
+    if not any(_is_amendment_note(ln.text()) for ln in ordered[best_k:]):
+        return None
     return ordered[best_k].top
+
+
+def _pull_quoted_notes_into_zone(ordered, small, best_k, cal) -> int:
+    """Keep a footnote marker's body-sized quotation in the footnote zone.
+
+    ``_size_zone_top`` scores body-size lines as body.  A Customs collector
+    block quotes repealed text at 12pt after "as under:", so a long ``41[25A.``
+    quote outvotes the small note lines and the changepoint lands AFTER the
+    quote.  Marker 42 then sits in the zone with no following lines (empty
+    text) while its history leaked into the body under 41.
+
+    Walk body-side (``ordered[:best_k]``) for a real amendment-note marker
+    whose following lines until ``best_k`` are all body-sized and look like
+    that quotation.  Pull the split back to the earliest such marker.
+    """
+    n = len(ordered)
+    pulled = best_k
+    for i in range(best_k):
+        ln = ordered[i]
+        if not _is_footnote_marker_line(ln, cal) or not _is_amendment_note(ln.text()):
+            continue
+        following = range(i + 1, best_k)
+        if not following:
+            continue
+        if any(small[j] for j in following):
+            continue
+        cue = _OPEN_QUOTE_CUE_RE.search(ln.text())
+        nxt = ordered[i + 1] if i + 1 < n else None
+        quoted = nxt is not None and _QUOTED_HEAD_RE.match(nxt.text())
+        if not (cue or quoted):
+            continue
+        pulled = i
+        break
+    return pulled
 
 
 def _footnote_rule_tops(page, cal) -> list[float]:
@@ -427,6 +466,15 @@ import re as _re
 _AMEND_VERB_RE = _re.compile(
     r"\b(?:substituted|inserted|omitted|added|deleted|re-?numbered|re-?lettered|"
     r"re-?cast|read as follows|shall be read)\b", _re.IGNORECASE)
+
+#: Footnote text that opens a quotation of the replaced statute.  The quote is
+#: often set at BODY size, which is what pulls ``_size_zone_top`` past the
+#: marker (Customs 25B: 40a "as under:" then a long ``41[25A. …]`` block, then
+#: marker 42 extracted empty).
+_OPEN_QUOTE_CUE_RE = _re.compile(
+    r'(?:as follows|as under|namely|the following)\s*:?-?\s*["“]?\s*$',
+    _re.IGNORECASE)
+_QUOTED_HEAD_RE = _re.compile(r'^\s*\d+[a-z]?\[\s*[A-Z0-9]')
 
 # a BARE structural heading -- "PART II", "[Division IIA", "2[Division IIA]" --
 # with NOTHING after the numeral.  A footnote that merely QUOTES such a heading
@@ -1414,6 +1462,68 @@ def _demo() -> None:
     w = wd(157.22, 173.18, 232.65, 244.65, 12.0)
     _mark_space_before([w], _P([sp(154.82, 157.82, 232.65, 244.65)]))
     assert w["_space_before"], "overrunning space glyph rejected -> jammed line"
+
+    from .calibrate import Calibration
+    from .footnotes import parse_footnotes
+
+    cal = Calibration(
+        page_w=504, page_h=648,
+        header_max_top=55.0, footer_min_top=598.0, running_header="",
+        body_size=12.0, footnote_size=9.0,
+        body_min_size=9.6, footnote_text_max=9.5,
+        marker_max_size=9.4, footnote_marker_max_size=9.0,
+        footnote_marker_x_max=140.0,
+        zone_mode="size",
+        rule_x0_lo=70.0, rule_x0_hi=80.0, rule_w_lo=20.0, rule_w_hi=40.0,
+        rule_coverage=0.0,
+        body_left=72.0, heading_dash="—", marker_max_value=9999,
+        toc_pages=10, page_offset=38, page_offset_support=1.0,
+        page_offset_samples=10, pages_sampled=10,
+    )
+
+    def _body(top, text):
+        words, x = [], 72.0
+        for tok in text.split():
+            words.append(Word(text=tok, x0=x, x1=x + len(tok) * 5, top=top,
+                              size=12.0, fontname="Arial"))
+            x += len(tok) * 5 + 3
+        return Line(top=top, words=words)
+
+    def _note(top, marker, rest, size=9.0):
+        words = [Word(text=marker, x0=130.0, x1=142.0, top=top, size=7.0,
+                      fontname="Arial")]
+        x = 148.0
+        for tok in rest.split():
+            words.append(Word(text=tok, x0=x, x1=x + len(tok) * 4, top=top,
+                              size=size, fontname="Arial"))
+            x += len(tok) * 4 + 3
+        return Line(top=top, words=words)
+
+    ordered = [
+        _body(80, "40a[25A. Power to determine the customs value.-"),
+        _body(100, "42[25B. [Omitted.]"),
+        _body(120, "43[25C. Power to takeover the imported goods.-"),
+        _note(400, "40a.", "Substituted by the Finance Act, 2007. Before substitution "
+              "the section 25A was as under:"),
+        _body(420, "41[25A. Powers to determine the customs value.- (1) Notwithstanding"),
+        _body(435, "the provisions contained in section 25, the Collector of Customs"),
+        _body(450, "on his own motion may determine the customs value of any goods."),
+        _body(465, "(2) The customs value determined under sub-section (1) shall apply."),
+        _body(480, "(3) In case of any conflict the Director General shall determine it.]"),
+        _note(500, "41.", "Inserted by the Finance Act, 2006."),
+        _note(515, "42.", "Inserted by Finance Act, 1988 and Omitted by Finance Act, 2004. "
+              "At the time of omission was as under:"),
+        _body(530, "25B. Determination of Value not covered by section 25.- (1) If the"),
+        _body(545, "value of the imported goods cannot be determined under section 25."),
+    ]
+    zone_top = _size_zone_top(ordered, cal)
+    assert zone_top == 400, zone_top
+    fn_lines = [ln for ln in ordered if ln.top >= zone_top]
+    fns = parse_footnotes(fn_lines, cal=cal)
+    by_m = {fn.marker: fn.text for fn in fns}
+    assert "42" in by_m, by_m.keys()
+    assert "25B" in by_m["42"] and "Inserted" in by_m["42"], by_m["42"]
+    assert by_m["42"].strip(), "footnote 42 must not be empty"
 
     print("pagemodel self-check passed")
 
