@@ -261,6 +261,59 @@ async def test_proposal_uses_the_requested_dropdown_model(runtime_sandbox, gatew
         await db.close()
 
 
+async def test_proposal_attaches_images_only_for_vision_models(
+    runtime_sandbox, gateway, monkeypatch
+):
+    """Vision models get PDF page images; text-only models get JSON + instructions."""
+    llm_client.clear_catalog_cache()
+    llm_client._catalog_cache["by_id"] = {
+        "test-model": {
+            "id": "test-model",
+            "capabilities": {"vision": True},
+            "pricing": {"input_per_1m_tokens": 1, "output_per_1m_tokens": 2},
+        },
+        "second-model": {
+            "id": "second-model",
+            "capabilities": {"vision": False},
+            "pricing": {"input_per_1m_tokens": 1, "output_per_1m_tokens": 2},
+        },
+    }
+    monkeypatch.setattr(
+        ai_fix,
+        "render_pdf_pages",
+        lambda *args, **kwargs: [(3, b"fake-png-bytes")],
+    )
+
+    db, document_id, section_id = await synced_document(runtime_sandbox)
+    try:
+        vision_row = await ai_fix.create_proposal(
+            db, document_id, section_id, "fix vision", actor="tester",
+            model="test-model",
+        )
+        vision_content = gateway["calls"][0][1]["content"]
+        assert any(part.get("type") == "image_url" for part in vision_content)
+        vision_evidence = vision_row["evidence_json"]
+        if isinstance(vision_evidence, str):
+            vision_evidence = json.loads(vision_evidence)
+        assert vision_evidence.get("vision") is True
+        assert vision_evidence.get("images_sent") is True
+
+        text_row = await ai_fix.create_proposal(
+            db, document_id, section_id, "fix text-only", actor="tester",
+            model="second-model",
+        )
+        text_content = gateway["calls"][1][1]["content"]
+        assert not any(part.get("type") == "image_url" for part in text_content)
+        text_evidence = text_row["evidence_json"]
+        if isinstance(text_evidence, str):
+            text_evidence = json.loads(text_evidence)
+        assert text_evidence.get("vision") is False
+        assert text_evidence.get("images_sent") is False
+    finally:
+        await db.close()
+        llm_client.clear_catalog_cache()
+
+
 async def test_unsafe_reply_is_stored_as_failed(runtime_sandbox, gateway):
     gateway["reply"] = model_reply(html="<script>alert(1)</script>")
     db, document_id, section_id = await synced_document(runtime_sandbox)
