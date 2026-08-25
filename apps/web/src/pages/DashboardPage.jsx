@@ -42,6 +42,36 @@ function timeAgo(iso) {
     return `${Math.floor(hours / 24)}d ago`;
 }
 
+/**
+ * One facet row: an inline label followed by a scrollable pill track.
+ * Options are [value, label, count]; a count of 0 is dropped so dead filters
+ * ("Complete 0") never render, and an undefined count means "always show, no
+ * badge" -- that is the "All" option.
+ */
+function FacetGroup({ label, ariaLabel, value, onChange, options }) {
+    const live = options.filter(([, , count]) => count === undefined || count > 0);
+    if (live.length < 2) return null;
+    return (
+        <div className="facet-group" role="group" aria-label={ariaLabel || label}>
+            <span className="facet-label">{label}</span>
+            <div className="source-filters">
+                {live.map(([optionValue, optionLabel, count]) => (
+                    <button
+                        key={optionValue || 'all'}
+                        type="button"
+                        className={`source-filter ${value === optionValue ? 'active' : ''}`}
+                        onClick={() => onChange(optionValue)}
+                        aria-pressed={value === optionValue}
+                    >
+                        {optionLabel}
+                        {count !== undefined && <span className="facet-count">{count}</span>}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 /** Row-level actions shared by list and card layouts. */
 function DocumentActions({ doc, onDelete, onExport, onNewVersion }) {
     const newVersionTrigger = useRef(null);
@@ -205,25 +235,6 @@ const DashboardPage = () => {
         });
     };
 
-    const FacetGroup = ({ label, ariaLabel, value, onChange, options }) => (
-        <div className="facet-group" role="group" aria-label={ariaLabel || label}>
-            <span className="facet-label">{label}</span>
-            <div className="source-filters">
-                {options.map(([optionValue, optionLabel]) => (
-                    <button
-                        key={optionValue || 'all'}
-                        type="button"
-                        className={`source-filter ${value === optionValue ? 'active' : ''}`}
-                        onClick={() => onChange(optionValue)}
-                        aria-pressed={value === optionValue}
-                    >
-                        {optionLabel}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-
     const docCompletion = (doc) => {
         const reviewedCount = doc.stats?.reviewed || 0;
         const totalCount = doc.total_sections;
@@ -367,8 +378,33 @@ const DashboardPage = () => {
                 <header className="library-header">
                     <div className="library-header-text">
                         <h1>Library</h1>
-                        <p>
-                            {totalDocs.toLocaleString()} documents · {totalSections.toLocaleString()} sections
+                        <p className="library-stats">
+                            <span className="library-stat">
+                                <strong>{totalDocs.toLocaleString()}</strong> documents
+                            </span>
+                            <span className="library-stat">
+                                <strong>{totalSections.toLocaleString()}</strong> sections
+                            </span>
+                            <button
+                                type="button"
+                                className={`library-stat library-stat-btn is-warning ${facets.flagged ? 'active' : ''}`}
+                                onClick={() => setFacet('flagged', facets.flagged ? '' : 'flagged')}
+                                aria-pressed={Boolean(facets.flagged)}
+                                title="Show only documents with flagged sections"
+                            >
+                                <strong>{totalIssues.toLocaleString()}</strong> flagged
+                            </button>
+                            <button
+                                type="button"
+                                className={`library-stat library-stat-btn is-success ${facets.review === 'in_progress' ? 'active' : ''}`}
+                                onClick={() => setFacet('review', facets.review === 'in_progress' ? '' : 'in_progress')}
+                                aria-pressed={facets.review === 'in_progress'}
+                                title="Show documents still in progress"
+                            >
+                                <strong>{overallCompletion}%</strong> reviewed
+                            </button>
+                        </p>
+                        <p className="library-sync-line">
                             {syncMeta && (
                                 <span className="library-sync-meta" title={CORPUS_MOUNT_HINT}>
                                     <Database size={12} aria-hidden="true" />
@@ -418,144 +454,110 @@ const DashboardPage = () => {
                     </div>
                 </header>
 
-                <section className="stats-grid">
-                    <button
-                        type="button"
-                        className={`stat-card ${!facetsActive ? '' : 'stat-card-dim'}`}
-                        onClick={clearFilters}
-                        title="Show all documents"
-                    >
-                        <div className="stat-value">{totalDocs}</div>
-                        <div className="stat-label">Documents</div>
-                    </button>
-                    <div className="stat-card stat-card-static">
-                        <div className="stat-value">{totalSections.toLocaleString()}</div>
-                        <div className="stat-label">Total sections</div>
-                    </div>
-                    <button
-                        type="button"
-                        className={`stat-card ${facets.flagged ? 'stat-card-active' : ''}`}
-                        onClick={() => setFacet('flagged', facets.flagged ? '' : 'flagged')}
-                        title="Show only documents with flagged sections"
-                        aria-pressed={Boolean(facets.flagged)}
-                    >
-                        <div className="stat-value" style={{ color: totalIssues > 0 ? 'var(--color-warning)' : 'inherit' }}>
-                            {totalIssues}
-                        </div>
-                        <div className="stat-label">Flagged sections</div>
-                    </button>
-                    <button
-                        type="button"
-                        className={`stat-card ${facets.review === 'in_progress' ? 'stat-card-active' : ''}`}
-                        onClick={() => setFacet('review', facets.review === 'in_progress' ? '' : 'in_progress')}
-                        title="Show documents still in progress"
-                        aria-pressed={facets.review === 'in_progress'}
-                    >
-                        <div className="stat-value" style={{ color: 'var(--color-success)' }}>
-                            {overallCompletion}%
-                        </div>
-                        <div className="stat-label">Overall completion</div>
-                    </button>
-                </section>
-
-                <section className="library-controls-row">
-                    <label className="document-search" htmlFor="document-filter">
-                        <Search size={15} aria-hidden="true" />
-                        <span className="sr-only">Filter documents</span>
-                        <input
-                            id="document-filter"
-                            type="search"
-                            value={documentQuery}
-                            onChange={(event) => setDocumentQuery(event.target.value)}
-                            placeholder="Find an Act or edition…"
-                            autoComplete="off"
-                        />
-                    </label>
-                    <span className="library-result-count">
-                        {filteredDocuments.length.toLocaleString()} of {documents.length.toLocaleString()}
-                        {` · ${familyGroups.length} famil${familyGroups.length === 1 ? 'y' : 'ies'}`}
-                    </span>
-                    <SegmentedControl
-                        ariaLabel="Library layout"
-                        value={layout}
-                        onChange={setLayoutPersisted}
-                        options={[
-                            { value: 'list', label: 'List', icon: <Rows3 size={13} /> },
-                            { value: 'cards', label: 'Cards', icon: <LayoutGrid size={13} /> },
-                        ]}
-                    />
-                    <label className="library-sort" htmlFor="document-sort">
-                        <span className="sr-only">Sort documents</span>
+                <div className="library-toolbar">
+                    <div className="library-toolbar-row">
+                        <label className="document-search" htmlFor="document-filter">
+                            <Search size={15} aria-hidden="true" />
+                            <span className="sr-only">Filter documents</span>
+                            <input
+                                id="document-filter"
+                                type="search"
+                                value={documentQuery}
+                                onChange={(event) => setDocumentQuery(event.target.value)}
+                                placeholder="Find an Act or edition…"
+                                autoComplete="off"
+                            />
+                        </label>
                         <select
-                            id="document-sort"
-                            className="ui-select"
-                            value={sort}
-                            onChange={(event) => setSort(event.target.value)}
+                            className="ui-select library-lane-select"
+                            value={facets.corpusLane}
+                            onChange={(event) => setFacet('corpusLane', event.target.value)}
+                            aria-label="Filter by source"
                         >
-                            <option value="name">Sort: Name</option>
-                            <option value="newest">Sort: Newest</option>
-                            <option value="pages">Sort: Pages</option>
-                            <option value="health">Sort: Health</option>
-                            <option value="completion">Sort: Completion</option>
-                        </select>
-                    </label>
-                </section>
-
-                <section className="library-facets library-facets-sticky" aria-label="Document facets">
-                    <FacetGroup
-                        label="Source"
-                        value={facets.corpusLane}
-                        onChange={(value) => setFacet('corpusLane', value)}
-                        options={[
-                            ['', `All ${counts.total}`],
-                            ...LANE_ORDER
+                            <option value="">Source: All {counts.total}</option>
+                            {LANE_ORDER
                                 .filter((lane) => (counts.lanes[lane] || 0) > 0)
-                                .map((lane) => [lane, `${laneLabel(lane)} ${counts.lanes[lane]}`]),
-                        ]}
-                    />
-                    <FacetGroup
-                        label="Kind"
-                        value={facets.sourceKind}
-                        onChange={(value) => setFacet('sourceKind', value)}
-                        options={[
-                            ['', 'All'],
-                            ['native-digital', `Native ${counts.kinds['native-digital'] || 0}`],
-                            ['scanned-ocr', `Scanned ${counts.kinds['scanned-ocr'] || 0}`],
-                            ['mixed-ocr', `Mixed ${counts.kinds['mixed-ocr'] || 0}`],
-                        ]}
-                    />
-                    <FacetGroup
-                        label="Health"
-                        value={facets.health}
-                        onChange={(value) => setFacet('health', value)}
-                        options={[
-                            ['', 'All'],
-                            ['within_gate', `Within gate ${counts.health.within_gate || 0}`],
-                            ['outside_gate', `Outside gate ${counts.health.outside_gate || 0}`],
-                            ['unmeasured', `Unmeasured ${counts.health.unmeasured || 0}`],
-                        ]}
-                    />
-                    <FacetGroup
-                        label="Review"
-                        value={facets.review}
-                        onChange={(value) => setFacet('review', value)}
-                        options={[
-                            ['', 'All'],
-                            ['complete', `Complete ${counts.review.complete || 0}`],
-                            ['in_progress', `In progress ${counts.review.in_progress || 0}`],
-                            ['untouched', `Untouched ${counts.review.untouched || 0}`],
-                        ]}
-                    />
-                    {facetsActive && (
-                        <button
-                            type="button"
-                            className="btn btn-sm btn-secondary facet-clear"
-                            onClick={clearFilters}
-                        >
-                            Clear filters
-                        </button>
-                    )}
-                </section>
+                                .map((lane) => (
+                                    <option key={lane} value={lane}>
+                                        {laneLabel(lane)} {counts.lanes[lane]}
+                                    </option>
+                                ))}
+                        </select>
+                        <span className="library-result-count">
+                            {filteredDocuments.length.toLocaleString()} of {documents.length.toLocaleString()}
+                            {` · ${familyGroups.length} famil${familyGroups.length === 1 ? 'y' : 'ies'}`}
+                        </span>
+                        <SegmentedControl
+                            ariaLabel="Library layout"
+                            value={layout}
+                            onChange={setLayoutPersisted}
+                            options={[
+                                { value: 'list', label: 'List', icon: <Rows3 size={13} /> },
+                                { value: 'cards', label: 'Cards', icon: <LayoutGrid size={13} /> },
+                            ]}
+                        />
+                        <label className="library-sort" htmlFor="document-sort">
+                            <span className="sr-only">Sort documents</span>
+                            <select
+                                id="document-sort"
+                                className="ui-select"
+                                value={sort}
+                                onChange={(event) => setSort(event.target.value)}
+                            >
+                                <option value="name">Sort: Name</option>
+                                <option value="newest">Sort: Newest</option>
+                                <option value="pages">Sort: Pages</option>
+                                <option value="health">Sort: Health</option>
+                                <option value="completion">Sort: Completion</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div className="library-toolbar-row" aria-label="Document facets">
+                        <FacetGroup
+                            label="Kind"
+                            value={facets.sourceKind}
+                            onChange={(value) => setFacet('sourceKind', value)}
+                            options={[
+                                ['', 'All'],
+                                ['native-digital', 'Native', counts.kinds['native-digital'] || 0],
+                                ['scanned-ocr', 'Scanned', counts.kinds['scanned-ocr'] || 0],
+                                ['mixed-ocr', 'Mixed', counts.kinds['mixed-ocr'] || 0],
+                            ]}
+                        />
+                        <FacetGroup
+                            label="Health"
+                            value={facets.health}
+                            onChange={(value) => setFacet('health', value)}
+                            options={[
+                                ['', 'All'],
+                                ['within_gate', 'Within gate', counts.health.within_gate || 0],
+                                ['outside_gate', 'Outside gate', counts.health.outside_gate || 0],
+                                ['unmeasured', 'Unmeasured', counts.health.unmeasured || 0],
+                            ]}
+                        />
+                        <FacetGroup
+                            label="Review"
+                            value={facets.review}
+                            onChange={(value) => setFacet('review', value)}
+                            options={[
+                                ['', 'All'],
+                                ['complete', 'Complete', counts.review.complete || 0],
+                                ['in_progress', 'In progress', counts.review.in_progress || 0],
+                                ['untouched', 'Untouched', counts.review.untouched || 0],
+                            ]}
+                        />
+                        {facetsActive && (
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-secondary facet-clear"
+                                onClick={clearFilters}
+                            >
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
+                </div>
 
                 {loading.documents ? (
                     <div className="doc-rows" aria-label="Loading documents">
