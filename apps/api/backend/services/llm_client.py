@@ -442,6 +442,8 @@ def _sync_registry_fallback() -> Dict[str, Dict[str, Any]]:
 
 def configured() -> bool:
     try:
+        if (os.environ.get(_ENV_EXTRA) or "").strip():
+            _extra_providers()  # invalid JSON disables the feature
         api_key, base_url = _openpaths_credentials()
         if api_key and base_url:
             return True
