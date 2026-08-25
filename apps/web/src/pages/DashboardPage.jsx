@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     UploadCloud, FileText, Trash2, Download, Loader2, Search,
-    RefreshCw, Database, AlertTriangle, LayoutGrid, Rows3, Upload, ChevronDown,
+    RefreshCw, Database, AlertTriangle, LayoutGrid, Rows3, Upload, ChevronDown, X,
 } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
 import NewVersionButton from '../components/review/NewVersionButton';
@@ -15,10 +15,24 @@ import { useDocumentStore } from '../stores/documentStore';
 import DocumentHealth from '../components/dashboard/DocumentHealth';
 import DocumentTags from '../components/dashboard/DocumentTags';
 import { api, corpusApi } from '../utils/api';
-import { facetCounts, filterDocuments, groupDocumentsByFamily } from '../utils/documentFilters';
+import {
+    DEFAULT_SORT,
+    SORT_OPTIONS,
+    SORT_VALUES,
+    facetCounts,
+    filterDocuments,
+    groupDocumentsByFamily,
+    sortLabel,
+} from '../utils/documentFilters';
 import { LANE_ORDER, documentLane, laneLabel } from '../utils/corpusLanes';
 import { CORPUS_MOUNT_HINT, describeCorpusSync } from '../utils/corpusStatus';
 import { editionDateFromName } from '../utils/editions';
+import { isTypingTarget } from '../utils/keyboard';
+import {
+    libraryFilterChips,
+    parseLibrarySearchParams,
+    serializeLibrarySearchParams,
+} from '../utils/libraryState';
 import { useUiStore } from '../stores/uiStore';
 
 const EMPTY_FACETS = {
@@ -30,6 +44,17 @@ const EMPTY_FACETS = {
 };
 
 const VIEW_KEY = 'qa-portal-library-view';
+const SORT_KEY = 'qa-portal-library-sort';
+const SEARCH_DEBOUNCE_MS = 200;
+
+function readSortPref() {
+    try {
+        const value = window.localStorage?.getItem(SORT_KEY);
+        return SORT_VALUES.has(value) ? value : '';
+    } catch {
+        return '';
+    }
+}
 
 function timeAgo(iso) {
     if (!iso) return null;
@@ -46,11 +71,17 @@ function timeAgo(iso) {
  * One facet row: an inline label followed by a scrollable pill track.
  * Options are [value, label, count]; a count of 0 is dropped so dead filters
  * ("Complete 0") never render, and an undefined count means "always show, no
- * badge" -- that is the "All" option.
+ * badge" -- that is the "All" option. The whole group is omitted when there is
+ * nothing to choose (one live bucket and no current value).
  */
 function FacetGroup({ label, ariaLabel, value, onChange, options }) {
-    const live = options.filter(([, , count]) => count === undefined || count > 0);
-    if (live.length < 2) return null;
+    const live = options.filter(([optionValue, , count]) => {
+        if (count === undefined) return true;
+        if (optionValue === value && value) return true;
+        return count > 0;
+    });
+    const counted = live.filter(([, , count]) => count !== undefined && count > 0);
+    if (counted.length < 2 && !value) return null;
     return (
         <div className="facet-group" role="group" aria-label={ariaLabel || label}>
             <span className="facet-label">{label}</span>
@@ -106,13 +137,17 @@ function DocumentActions({ doc, onDelete, onExport, onNewVersion }) {
 
 const DashboardPage = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { documents, documentsError, fetchDocuments, deleteDocument, loading } = useDocumentStore();
     const pushToast = useUiStore((s) => s.pushToast);
     const confirmDialog = useUiStore((s) => s.confirmDialog);
 
-    const [documentQuery, setDocumentQuery] = useState('');
-    const [facets, setFacets] = useState(EMPTY_FACETS);
-    const [sort, setSort] = useState('name');
+    const parsed = useMemo(() => parseLibrarySearchParams(searchParams), [searchParams]);
+    const facets = parsed.facets;
+
+    const [queryInput, setQueryInput] = useState(() => parsed.query);
+    const [filterQuery, setFilterQuery] = useState(() => parsed.query);
+    const [sort, setSort] = useState(() => parsed.sort || readSortPref() || DEFAULT_SORT);
     const [layout, setLayout] = useState(() => {
         try {
             return window.localStorage?.getItem(VIEW_KEY) || 'list';
@@ -126,8 +161,65 @@ const DashboardPage = () => {
     const syncMeta = corpusStatus ? describeCorpusSync(corpusStatus) : null;
     const mountsUnavailable = Boolean(syncMeta && !syncMeta.canSync);
 
+    const commitParams = useCallback((next) => {
+        const serialized = serializeLibrarySearchParams(next);
+        if (serialized.toString() !== searchParams.toString()) {
+            setSearchParams(serialized, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
+
+    const facetsRef = useRef(facets);
+    facetsRef.current = facets;
+    const sortRef = useRef(sort);
+    sortRef.current = sort;
+    const commitRef = useRef(commitParams);
+    commitRef.current = commitParams;
+
+    useEffect(() => {
+        if (parsed.query === queryInput || parsed.query === filterQuery) return;
+        setQueryInput(parsed.query);
+        setFilterQuery(parsed.query);
+    }, [parsed.query, queryInput, filterQuery]);
+
+    useEffect(() => {
+        if (parsed.sort) setSort(parsed.sort);
+    }, [parsed.sort]);
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setFilterQuery(queryInput);
+            commitRef.current({
+                query: queryInput,
+                facets: facetsRef.current,
+                sort: sortRef.current,
+            });
+        }, SEARCH_DEBOUNCE_MS);
+        return () => window.clearTimeout(timer);
+    }, [queryInput]);
+
+    useEffect(() => {
+        const onKey = (event) => {
+            if (event.key !== '/') return;
+            if (isTypingTarget(event)) return;
+            event.preventDefault();
+            document.getElementById('document-filter')?.focus();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
+
     const setFacet = (key, value) => {
-        setFacets((prev) => ({ ...prev, [key]: value }));
+        commitParams({ query: filterQuery, facets: { ...facets, [key]: value }, sort });
+    };
+
+    const setSortPersisted = (value) => {
+        setSort(value);
+        try {
+            window.localStorage?.setItem(SORT_KEY, value);
+        } catch {
+            // localStorage unavailable
+        }
+        commitParams({ query: filterQuery, facets, sort: value });
     };
 
     const setLayoutPersisted = (value) => {
@@ -209,21 +301,32 @@ const DashboardPage = () => {
     const overallCompletion = totalSections > 0 ? Math.round((totalReviewed / totalSections) * 100) : 0;
     const counts = useMemo(() => facetCounts(documents), [documents]);
     const filteredDocuments = useMemo(
-        () => filterDocuments(documents, { query: documentQuery, facets, sort }),
-        [documents, documentQuery, facets, sort],
+        () => filterDocuments(documents, { query: filterQuery, facets, sort }),
+        [documents, filterQuery, facets, sort],
     );
     const familyGroups = useMemo(
         () => groupDocumentsByFamily(filteredDocuments, sort),
         [filteredDocuments, sort],
     );
-    const facetsActive = Boolean(
-        facets.corpusLane || facets.sourceKind || facets.health || facets.review
-        || facets.flagged || documentQuery.trim(),
+    const activeChips = useMemo(
+        () => libraryFilterChips({ query: filterQuery, facets }),
+        [filterQuery, facets],
     );
 
     const clearFilters = () => {
-        setFacets(EMPTY_FACETS);
-        setDocumentQuery('');
+        setQueryInput('');
+        setFilterQuery('');
+        commitParams({ query: '', facets: EMPTY_FACETS, sort });
+    };
+
+    const removeChip = (key) => {
+        if (key === 'q') {
+            setQueryInput('');
+            setFilterQuery('');
+            commitParams({ query: '', facets, sort });
+            return;
+        }
+        setFacet(key, '');
     };
 
     const toggleFamily = (familyKey) => {
@@ -277,6 +380,11 @@ const DashboardPage = () => {
                             <span className="doc-row-flagged" title={`${flaggedCount} flagged sections`}>
                                 <AlertTriangle size={11} aria-hidden="true" />
                                 {flaggedCount} flagged
+                            </span>
+                        )}
+                        {doc.uploaded_at && (
+                            <span title={new Date(doc.uploaded_at).toLocaleString()}>
+                                added {timeAgo(doc.uploaded_at)}
                             </span>
                         )}
                         <DocumentHealth health={doc.health} />
@@ -345,6 +453,11 @@ const DashboardPage = () => {
                             {flaggedCount} flagged
                         </span>
                     )}
+                    {doc.uploaded_at && (
+                        <span title={new Date(doc.uploaded_at).toLocaleString()}>
+                            added {timeAgo(doc.uploaded_at)}
+                        </span>
+                    )}
                 </div>
                 <DocumentHealth health={doc.health} />
                 <div className="document-card-footer">
@@ -379,9 +492,14 @@ const DashboardPage = () => {
                     <div className="library-header-text">
                         <h1>Library</h1>
                         <p className="library-stats">
-                            <span className="library-stat">
+                            <button
+                                type="button"
+                                className="library-stat library-stat-btn"
+                                onClick={clearFilters}
+                                title="Show all documents"
+                            >
                                 <strong>{totalDocs.toLocaleString()}</strong> documents
-                            </span>
+                            </button>
                             <span className="library-stat">
                                 <strong>{totalSections.toLocaleString()}</strong> sections
                             </span>
@@ -396,10 +514,10 @@ const DashboardPage = () => {
                             </button>
                             <button
                                 type="button"
-                                className={`library-stat library-stat-btn is-success ${facets.review === 'in_progress' ? 'active' : ''}`}
-                                onClick={() => setFacet('review', facets.review === 'in_progress' ? '' : 'in_progress')}
-                                aria-pressed={facets.review === 'in_progress'}
-                                title="Show documents still in progress"
+                                className={`library-stat library-stat-btn is-success ${facets.review === 'complete' ? 'active' : ''}`}
+                                onClick={() => setFacet('review', facets.review === 'complete' ? '' : 'complete')}
+                                aria-pressed={facets.review === 'complete'}
+                                title="Show fully reviewed documents"
                             >
                                 <strong>{overallCompletion}%</strong> reviewed
                             </button>
@@ -462,10 +580,11 @@ const DashboardPage = () => {
                             <input
                                 id="document-filter"
                                 type="search"
-                                value={documentQuery}
-                                onChange={(event) => setDocumentQuery(event.target.value)}
-                                placeholder="Find an Act or edition…"
+                                value={queryInput}
+                                onChange={(event) => setQueryInput(event.target.value)}
+                                placeholder="Find an Act, edition, or filename…"
                                 autoComplete="off"
+                                title="Press / to focus search"
                             />
                         </label>
                         <select
@@ -476,10 +595,10 @@ const DashboardPage = () => {
                         >
                             <option value="">Source: All {counts.total}</option>
                             {LANE_ORDER
-                                .filter((lane) => (counts.lanes[lane] || 0) > 0)
+                                .filter((lane) => (counts.lanes[lane] || 0) > 0 || lane === facets.corpusLane)
                                 .map((lane) => (
                                     <option key={lane} value={lane}>
-                                        {laneLabel(lane)} {counts.lanes[lane]}
+                                        {laneLabel(lane)} {counts.lanes[lane] || 0}
                                     </option>
                                 ))}
                         </select>
@@ -496,21 +615,27 @@ const DashboardPage = () => {
                                 { value: 'cards', label: 'Cards', icon: <LayoutGrid size={13} /> },
                             ]}
                         />
-                        <label className="library-sort" htmlFor="document-sort">
-                            <span className="sr-only">Sort documents</span>
-                            <select
-                                id="document-sort"
-                                className="ui-select"
-                                value={sort}
-                                onChange={(event) => setSort(event.target.value)}
-                            >
-                                <option value="name">Sort: Name</option>
-                                <option value="newest">Sort: Newest</option>
-                                <option value="pages">Sort: Pages</option>
-                                <option value="health">Sort: Health</option>
-                                <option value="completion">Sort: Completion</option>
-                            </select>
-                        </label>
+                        <DropdownMenu
+                            ariaLabel="Sort documents"
+                            align="end"
+                            buttonClassName="library-sort-trigger"
+                            buttonContent={(
+                                <>
+                                    <span>Sort: {sortLabel(sort)}</span>
+                                    <ChevronDown size={14} aria-hidden="true" />
+                                </>
+                            )}
+                            items={SORT_OPTIONS.map((option, index) => (
+                                option.type === 'separator'
+                                    ? { type: 'separator', key: `sep-${index}` }
+                                    : {
+                                        key: option.value,
+                                        label: option.label,
+                                        active: option.value === sort,
+                                        onSelect: () => setSortPersisted(option.value),
+                                    }
+                            ))}
+                        />
                     </div>
 
                     <div className="library-toolbar-row" aria-label="Document facets">
@@ -547,16 +672,30 @@ const DashboardPage = () => {
                                 ['untouched', 'Untouched', counts.review.untouched || 0],
                             ]}
                         />
-                        {facetsActive && (
+                    </div>
+                    {activeChips.length > 0 && (
+                        <div className="library-chips" aria-label="Active filters">
+                            {activeChips.map((chip) => (
+                                <button
+                                    key={chip.key}
+                                    type="button"
+                                    className="library-chip"
+                                    onClick={() => removeChip(chip.key)}
+                                    title={`Remove ${chip.label}`}
+                                >
+                                    {chip.label}
+                                    <X size={12} aria-hidden="true" />
+                                </button>
+                            ))}
                             <button
                                 type="button"
-                                className="btn btn-sm btn-secondary facet-clear"
+                                className="library-chip-clear"
                                 onClick={clearFilters}
                             >
-                                Clear filters
+                                Clear all
                             </button>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
 
                 {loading.documents ? (

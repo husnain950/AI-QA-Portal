@@ -15,7 +15,7 @@ const documents = [
         total_pages: 400,
         total_sections: 10,
         uploaded_at: '2025-01-01T00:00:00Z',
-        stats: { reviewed: 10 },
+        stats: { reviewed: 10, has_issues: 0 },
         health: { measured_at: '2025-01-01', gate_ok: true },
         provenance: { source_kind: 'native-digital', tags: ['native-digital'] },
     },
@@ -27,7 +27,7 @@ const documents = [
         total_pages: 200,
         total_sections: 20,
         uploaded_at: '2025-06-01T00:00:00Z',
-        stats: { reviewed: 5 },
+        stats: { reviewed: 5, has_issues: 4 },
         health: { measured_at: '2025-06-01', gate_ok: false },
         provenance: { source_kind: 'scanned-ocr', tags: ['scanned-ocr'] },
     },
@@ -39,7 +39,7 @@ const documents = [
         total_pages: 180,
         total_sections: 18,
         uploaded_at: '2007-06-01T00:00:00Z',
-        stats: { reviewed: 0 },
+        stats: { reviewed: 0, has_issues: 1 },
         health: null,
         provenance: { source_kind: 'native-digital', tags: ['native-digital'] },
     },
@@ -48,10 +48,11 @@ const documents = [
         name: 'Manual Ordinance',
         source_type: 'upload',
         corpus_lane: 'manual',
+        pdf_filename: 'uploads/secret-code.pdf',
         total_pages: 10,
         total_sections: 4,
         uploaded_at: '2024-01-01T00:00:00Z',
-        stats: { reviewed: 0 },
+        stats: { reviewed: 0, has_issues: 0 },
         health: null,
         provenance: { source_kind: 'native-digital', tags: ['native-digital'] },
     },
@@ -89,5 +90,32 @@ describe('dashboard document filtering', () => {
         expect(counts.lanes.customs).toBe(2);
         expect(counts.lanes.ordinance).toBe(1);
         expect(counts.kinds['scanned-ocr']).toBe(1);
+    });
+
+    it('matches filename and family title, not only the display name', () => {
+        expect(filterDocuments(documents, { query: 'secret-code' }).map((doc) => doc.id))
+            .toEqual(['manual']);
+        expect(filterDocuments(documents, { query: 'customs act, 1969' }).map((doc) => doc.id))
+            .toEqual(['customs-a', 'customs-b']);
+    });
+
+    it('sorts by name descending, flagged count, and section count', () => {
+        expect(filterDocuments(documents, { sort: 'name_desc' }).map((doc) => doc.id))
+            .toEqual(['customs-b', 'manual', 'ito', 'customs-a']);
+        expect(filterDocuments(documents, { sort: 'flagged' }).map((doc) => doc.id)[0])
+            .toBe('customs-a');
+        expect(filterDocuments(documents, { sort: 'sections' }).map((doc) => doc.id)[0])
+            .toBe('customs-a');
+        expect(filterDocuments(documents, { sort: 'sections_asc' }).map((doc) => doc.id)[0])
+            .toBe('manual');
+    });
+
+    it('sorts oldest added and edition year with unknown years last', () => {
+        expect(filterDocuments(documents, { sort: 'oldest' }).map((doc) => doc.id)[0])
+            .toBe('customs-b');
+        expect(filterDocuments(documents, { sort: 'year' }).map((doc) => doc.id).slice(0, 2))
+            .toEqual(['customs-a', 'ito']);
+        expect(filterDocuments(documents, { sort: 'year' }).map((doc) => doc.id).at(-1))
+            .toBe('manual');
     });
 });
