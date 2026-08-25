@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
     changeSummary,
     classifyDiffLine,
+    formatModelPricing,
     hasApprovedFix,
     htmlChangeHints,
+    normalizeModelList,
     pagesSentToModel,
     panelFootnotes,
     seedInstructions,
@@ -20,6 +22,50 @@ describe('pagesSentToModel', () => {
     it('swaps an inverted range and defaults missing pages', () => {
         expect(pagesSentToModel(4, 2)).toEqual([2, 3, 4]);
         expect(pagesSentToModel(null, null)).toEqual([1]);
+    });
+});
+
+describe('formatModelPricing', () => {
+    it('formats input and output prices', () => {
+        expect(formatModelPricing({
+            input_price_per_1m: 3,
+            output_price_per_1m: 15,
+        })).toBe('$3 / 1M input · $15 / 1M output');
+    });
+
+    it('returns null when pricing is missing', () => {
+        expect(formatModelPricing({})).toBeNull();
+    });
+});
+
+describe('normalizeModelList', () => {
+    it('accepts rich model objects from the API', () => {
+        expect(normalizeModelList({
+            models: [{
+                id: 'gpt-5.4',
+                label: 'GPT 5.4',
+                vision: true,
+                input_price_per_1m: 2.5,
+                output_price_per_1m: 15,
+            }],
+            default: 'gpt-5.4',
+        })).toEqual([{
+            id: 'gpt-5.4',
+            label: 'GPT 5.4',
+            vision: true,
+            input_price_per_1m: 2.5,
+            output_price_per_1m: 15,
+        }]);
+    });
+
+    it('tolerates legacy string ids', () => {
+        expect(normalizeModelList({ models: ['kimi'], default: 'kimi' })).toEqual([{
+            id: 'kimi',
+            label: 'kimi',
+            vision: false,
+            input_price_per_1m: null,
+            output_price_per_1m: null,
+        }]);
     });
 });
 

@@ -5,6 +5,56 @@
 /** Must match backend.services.ai_fix.MAX_PAGES_SENT — pages attached to the model. */
 export const MAX_PAGES_SENT = 4;
 
+/** Format a per-1M token price for the model dropdown. */
+export function formatPricePer1m(value) {
+    if (value == null || Number.isNaN(Number(value))) return null;
+    const amount = Number(value);
+    if (amount === 0) return '$0';
+    if (amount < 1) {
+        const text = amount
+            .toFixed(4)
+            .replace(/0+$/, '')
+            .replace(/\.$/, '');
+        return `$${text}`;
+    }
+    if (Number.isInteger(amount)) return `$${amount}`;
+    return `$${amount.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}`;
+}
+
+/** One-line pricing summary: "$X / 1M input · $Y / 1M output". */
+export function formatModelPricing(model) {
+    const input = formatPricePer1m(model?.input_price_per_1m);
+    const output = formatPricePer1m(model?.output_price_per_1m);
+    if (!input && !output) return null;
+    if (input && output) return `${input} / 1M input · ${output} / 1M output`;
+    if (input) return `${input} / 1M input`;
+    return `${output} / 1M output`;
+}
+
+/** Normalize GET /ai-fixes/models payloads (legacy string[] or rich objects). */
+export function normalizeModelList(payload) {
+    const rows = Array.isArray(payload) ? payload : payload?.models;
+    if (!Array.isArray(rows)) return [];
+    return rows.map((row) => {
+        if (typeof row === 'string') {
+            return {
+                id: row,
+                label: row,
+                vision: false,
+                input_price_per_1m: null,
+                output_price_per_1m: null,
+            };
+        }
+        return {
+            id: row.id,
+            label: row.label || row.id,
+            vision: Boolean(row.vision),
+            input_price_per_1m: row.input_price_per_1m ?? null,
+            output_price_per_1m: row.output_price_per_1m ?? null,
+        };
+    }).filter((row) => row.id);
+}
+
 /** 1-based PDF pages the model is shown for this leaf (capped like the backend). */
 export function pagesSentToModel(startPage, endPage, maxPages = MAX_PAGES_SENT) {
     let first = Number.parseInt(startPage, 10);
