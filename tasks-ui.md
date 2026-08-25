@@ -78,6 +78,5 @@ Do not fake these in the UI.
 
 ## Progress
 
-All **In** items shipped in this pass. Unit tests: `documentFilters`, `sort-proof`,
-`libraryState` (148 web tests green). Browser check is the remaining confirmation
-that chips, `/`, URL back-navigation, and hidden empty Health actually feel right.
+All **In** items shipped in this pass. Unit + page tests: `documentFilters`,
+`sort-proof`, `libraryState`, `libraryPage` (153 web tests green, oxlint clean).
