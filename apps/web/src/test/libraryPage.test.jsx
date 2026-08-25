@@ -143,8 +143,8 @@ describe('Library toolbar', () => {
         await waitFor(() => {
             expect(screen.getByText(/1 of 3/)).toBeInTheDocument();
             expect(screen.getByRole('button', { name: '“secret-code”' })).toBeInTheDocument();
+            expect(screen.queryByText('Customs Act, 1969 as amended up to 30.06.2025')).not.toBeInTheDocument();
         }, { timeout: 1500 });
-        expect(screen.queryByText('Customs Act, 1969 as amended up to 30.06.2025')).not.toBeInTheDocument();
     });
 
     it('treats % reviewed as a complete-documents filter', async () => {

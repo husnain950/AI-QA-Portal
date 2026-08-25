@@ -168,6 +168,13 @@ const DashboardPage = () => {
         }
     }, [searchParams, setSearchParams]);
 
+    const facetsRef = useRef(facets);
+    facetsRef.current = facets;
+    const sortRef = useRef(sort);
+    sortRef.current = sort;
+    const commitRef = useRef(commitParams);
+    commitRef.current = commitParams;
+
     useEffect(() => {
         if (parsed.query === queryInput || parsed.query === filterQuery) return;
         setQueryInput(parsed.query);
@@ -179,13 +186,16 @@ const DashboardPage = () => {
     }, [parsed.sort]);
 
     useEffect(() => {
-        const timer = window.setTimeout(() => setFilterQuery(queryInput), SEARCH_DEBOUNCE_MS);
+        const timer = window.setTimeout(() => {
+            setFilterQuery(queryInput);
+            commitRef.current({
+                query: queryInput,
+                facets: facetsRef.current,
+                sort: sortRef.current,
+            });
+        }, SEARCH_DEBOUNCE_MS);
         return () => window.clearTimeout(timer);
     }, [queryInput]);
-
-    useEffect(() => {
-        commitParams({ query: filterQuery, facets, sort });
-    }, [commitParams, filterQuery, facets, sort]);
 
     useEffect(() => {
         const onKey = (event) => {
