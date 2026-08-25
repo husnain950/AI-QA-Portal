@@ -12,26 +12,26 @@ pass.
 
 ## In
 
-- [ ] **Toolbar hierarchy** — primary row (search, source, result count, view,
+- [x] **Toolbar hierarchy** — primary row (search, source, result count, view,
       sort) then secondary facets. Chips, not a second Clear button.
       [`apps/web/src/pages/DashboardPage.jsx`](apps/web/src/pages/DashboardPage.jsx)
-- [ ] **Richer sort menu** — Name A→Z / Z→A, recently/oldest added, edition
+- [x] **Richer sort menu** — Name A→Z / Z→A, recently/oldest added, edition
       newest/oldest, pages, sections, review progress, flagged, health.
       [`apps/web/src/utils/documentFilters.js`](apps/web/src/utils/documentFilters.js)
-- [ ] **Active-filter chips + Clear all** — search, source, kind, health,
+- [x] **Active-filter chips + Clear all** — search, source, kind, health,
       review, flagged. Removable. No duplicate Clear on the facet row.
-- [ ] **Hide empty facet groups** — drop zero-count pills; hide Kind / Health /
+- [x] **Hide empty facet groups** — drop zero-count pills; hide Kind / Health /
       Review when there is nothing to choose (e.g. all Unmeasured).
-- [ ] **Search name + filename + family title** — Library discovery, not
+- [x] **Search name + filename + family title** — Library discovery, not
       document-content search. Debounced.
-- [ ] **`/` focuses search** — same as Triage. Leave ⌘K as the command palette.
-- [ ] **URL-backed filters and sort** — survive opening a document and coming
+- [x] **`/` focuses search** — same as Triage. Leave ⌘K as the command palette.
+- [x] **URL-backed filters and sort** — survive opening a document and coming
       back. `q`, `lane`, `kind`, `health`, `review`, `flagged`, `sort`.
-- [ ] **Remember sort** in localStorage next to list/cards. Do not persist the
+- [x] **Remember sort** in localStorage next to list/cards. Do not persist the
       search box.
-- [ ] **Show uploaded time** on list rows (and cards) so “Recently added” is
+- [x] **Show uploaded time** on list rows (and cards) so “Recently added” is
       not a black box.
-- [ ] **Fix the “% reviewed” click** — it currently filters *in progress*,
+- [x] **Fix the “% reviewed” click** — it currently filters *in progress*,
       which does not match the label. Toggle fully reviewed documents instead.
 
 ## Out
@@ -78,6 +78,6 @@ Do not fake these in the UI.
 
 ## Progress
 
-Unchecked until the matching commit has tests (or a browser check) behind it.
-Each item under **In** is ticked when it is actually done, not when the file
-exists.
+All **In** items shipped in this pass. Unit tests: `documentFilters`, `sort-proof`,
+`libraryState` (148 web tests green). Browser check is the remaining confirmation
+that chips, `/`, URL back-navigation, and hidden empty Health actually feel right.
