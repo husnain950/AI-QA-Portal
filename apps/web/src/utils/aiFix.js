@@ -10,8 +10,13 @@ export function formatPricePer1m(value) {
     if (value == null || Number.isNaN(Number(value))) return null;
     const amount = Number(value);
     if (amount === 0) return '$0';
-    if (amount < 0.01) return `$${amount.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}`;
-    if (amount < 1) return `$${amount.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}`;
+    if (amount < 1) {
+        const text = amount
+            .toFixed(4)
+            .replace(/0+$/, '')
+            .replace(/\.$/, '');
+        return `$${text}`;
+    }
     if (Number.isInteger(amount)) return `$${amount}`;
     return `$${amount.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}`;
 }
