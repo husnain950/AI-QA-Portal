@@ -257,6 +257,11 @@
     box-shadow: none;
 }
 
+.ui-dropdown-item.is-active {
+    color: var(--color-accent);
+    font-weight: 600;
+}
+
 .ui-dropdown-item:disabled {
     opacity: 0.45;
     cursor: not-allowed;

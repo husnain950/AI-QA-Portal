@@ -75,8 +75,9 @@ export default function DropdownMenu({
                                 key={item.key || item.label}
                                 type="button"
                                 role="menuitem"
-                                className={`ui-dropdown-item ${item.danger ? 'is-danger' : ''}`}
+                                className={`ui-dropdown-item ${item.danger ? 'is-danger' : ''} ${item.active ? 'is-active' : ''}`}
                                 disabled={item.disabled}
+                                aria-current={item.active ? 'true' : undefined}
                                 title={item.title || undefined}
                                 onClick={(e) => {
                                     e.stopPropagation();
