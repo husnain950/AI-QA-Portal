@@ -8,6 +8,8 @@ export const useReviewStore = create((set, get) => ({
     viewMode: 'section', // 'section' | 'page'
     currentPage: 1,
     activeFootnoteId: null,
+    citeJumpNonce: 0,
+    footnoteJumpNonce: 0,
 
     fetchAnnotations: async (sectionId) => {
         try {
@@ -157,5 +159,15 @@ export const useReviewStore = create((set, get) => ({
     },
 
     setViewMode: (mode) => set({ viewMode: mode }),
-    setCurrentPage: (page) => set({ currentPage: page })
+    setCurrentPage: (page) => set({ currentPage: page }),
+    /** Cite → footnote card: bump nonce so FootnotePanel re-scrolls for the same id. */
+    setActiveFootnoteId: (id) => set((state) => ({
+        activeFootnoteId: id,
+        footnoteJumpNonce: state.footnoteJumpNonce + 1,
+    })),
+    /** Footnote card → cite: bump nonce so HtmlPanel re-scrolls even for the same id. */
+    jumpToCite: (id) => set((state) => ({
+        activeFootnoteId: id,
+        citeJumpNonce: state.citeJumpNonce + 1,
+    })),
 }));
