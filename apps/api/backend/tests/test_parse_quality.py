@@ -70,6 +70,54 @@ def test_heading_body_bleed_on_long_multi_sentence_heading():
     assert any(flag["code"] == "heading_body_bleed" for flag in flags)
 
 
+def test_heading_body_bleed_on_page_furniture_below_the_length_floor():
+    """A SHORT heading that has swallowed page furniture must still flag.
+
+    Length alone cannot find this class.  Measured over 15,960 corpus headings:
+    the longest CLEAN heading is 172 chars while corrupt ones start at 21, so the
+    ranges overlap completely and no threshold separates them -- the 2025 Customs
+    s.14A heading ("... etc PROHIBITION AND RESTRICTION OF IMPORTATION AND
+    EXPORTATION") sat at 118, two under HEADING_BLEED_MIN_LEN, and a leaf that had
+    lost both its subsections passed clean.  What the corrupt ones share is
+    content that cannot belong to a heading: a running header, a roman folio, the
+    NEXT section's row, or a chapter caption's ALL-CAPS run.
+    """
+    for heading in (
+        "Omitted THE CUSTOMS ACT, 1969",                  # a running header
+        "Omitted (viii) THE CUSTOMS ACT,1969",            # a folio, then the header
+        "Omitted. 221. Savings",                          # the next section's row
+        "Ministry of Defence 28. Ministry of Defence Production 29",
+        "Provision of accommodation at customs ports, etc PROHIBITION AND "
+        "RESTRICTION OF IMPORTATION AND EXPORTATION",     # a chapter caption
+    ):
+        flags = assess_section_quality(
+            html_content="<p>Short body.</p>",
+            plain_text="Short body.",
+            section_heading=heading,
+        )
+        assert any(f["code"] == "heading_body_bleed" for f in flags), heading
+
+
+def test_no_heading_bleed_on_legitimate_headings():
+    """The real headings this must never flag -- including the corpus's longest
+    clean one, which an ALL-CAPS or lowered-threshold rule would have caught."""
+    for heading in (
+        "Provision of accommodation at customs ports, etc",
+        "Unauthorized access to or improper use of the Customs Computerized System",
+        "Power to deliver certain goods with-out payment of duty and to repay "
+        "duty on certain goods",
+        "Digital certification from NIFT",
+        "Alternative Dispute Resolution",
+        "Omitted",
+    ):
+        flags = assess_section_quality(
+            html_content="<p>Short body.</p>",
+            plain_text="Short body.",
+            section_heading=heading,
+        )
+        assert not any(f["code"] == "heading_body_bleed" for f in flags), heading
+
+
 def test_parser_attaches_quality_flags_and_has_issues_status():
     html, plain = _conclusion_style_body()
     payload = {

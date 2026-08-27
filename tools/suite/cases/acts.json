@@ -104,6 +104,162 @@
       },
       "arg": "31st day of December, 2006",
       "description": "The space after a superscript ordinal is drawn at the superscript's raised baseline; it must still be seen, or the 1.98pt gap glues the words into '31stday'."
+    },
+    {
+      "id": "rca_2007_sec14a_body_present",
+      "source": "reports/anomalies.md R02",
+      "status": "active",
+      "applies_to": "Amended upto 30th June 2007",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "14A"
+      },
+      "arg": "Any agency or person",
+      "description": "s.14A's body must reach s.14A. The body prints '5[(14-A. Provision of accommodation at Customs-ports, etc.-'; the '[(' pair defeated _DOTFORM_RE (cannot step over '(') and _BRACKETPAREN_RE (needs a ')' that never comes), so the leaf shipped as a 53-char heading-only stub."
+    },
+    {
+      "id": "rca_2007_sec14_no_14a_text",
+      "source": "reports/anomalies.md R02",
+      "status": "active",
+      "applies_to": "Amended upto 30th June 2007",
+      "check": "plain_not_contains",
+      "target": {
+        "kind": "section",
+        "code": "14"
+      },
+      "arg": "Provision of accommodation at Customs-ports",
+      "description": "The companion half: s.14A's unbound text used to sit inside s.14 (977 chars vs a correct 508). A reader of s.14 was shown an obligation that is not in s.14."
+    },
+    {
+      "id": "rca_2007_sec21a_body_present",
+      "source": "reports/anomalies.md R02",
+      "status": "active",
+      "applies_to": "Amended upto 30th June 2007",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "21A"
+      },
+      "arg": "Subject to such",
+      "description": "Same '[(' pair: '24[(21A. Power to defer collection of customs-duty.-'."
+    },
+    {
+      "id": "rcb_2007_sec155i_body_present",
+      "source": "reports/anomalies.md R03",
+      "status": "active",
+      "applies_to": "Amended upto 30th June 2007",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "155I"
+      },
+      "arg": "Every person commits an offence",
+      "description": "The body prints '155-I.' where the TOC lists '155I'; unfolded, code_positions was keyed on '155-I' and the lookup missed, leaving a 79-char stub."
+    },
+    {
+      "id": "rcb_2007_sec194a_body_present",
+      "source": "reports/anomalies.md R03",
+      "status": "active",
+      "applies_to": "Amended upto 30th June 2007",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "194A"
+      },
+      "arg": "aggrieved by any",
+      "description": "'9[194-A. Appeals to the Appellate Tribunal.-' -- 3,670 chars that used to swell s.194 to 10,212 against a correct 1,114."
+    },
+    {
+      "id": "rcb_2007_sec194_no_194a_text",
+      "source": "reports/anomalies.md R03",
+      "status": "active",
+      "applies_to": "Amended upto 30th June 2007",
+      "check": "plain_not_contains",
+      "target": {
+        "kind": "section",
+        "code": "194"
+      },
+      "arg": "Appeals to the Appellate Tribunal",
+      "description": "The companion half for the hyphen family."
+    },
+    {
+      "id": "rcb_fe2017_sec38_adr_present",
+      "source": "reports/anomalies.md R03",
+      "status": "active",
+      "applies_to": "As amended upto 01.07.2017",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "38"
+      },
+      "arg": "Notwithstanding any other",
+      "description": "Federal Excise prints s.38 as '3[38- Alternative dispute resolution.--' -- a trailing hyphen with no suffix letter, read as code '38-'. The largest single misattribution found: 3,528 chars of the ADR provision inside s.37 in five editions."
+    },
+    {
+      "id": "rcb_fe2017_sec37_no_adr_text",
+      "source": "reports/anomalies.md R03",
+      "status": "active",
+      "applies_to": "As amended upto 01.07.2017",
+      "check": "plain_not_contains",
+      "target": {
+        "kind": "section",
+        "code": "37"
+      },
+      "arg": "Alternative dispute resolution",
+      "description": "The companion half: s.37 must drop back from 5,925 chars to its correct 2,396."
+    },
+    {
+      "id": "rcc_2007_sec18a_body_present",
+      "source": "reports/anomalies.md R04",
+      "status": "active",
+      "applies_to": "Amended upto 30th June 2007",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "18A"
+      },
+      "arg": "Special customs duty",
+      "description": "'3[18.A Special customs duty on imported goods.-' was read as code '18' -- _DOTFORM_RE's mandatory dot was satisfied by the SEPARATOR dot with the letter backtracked away, so 18A's body line was offered to section 18. _DOTSUFFIX_RE is tried first for this reason."
+    },
+    {
+      "id": "rcc_2007_sec18_no_18a_text",
+      "source": "reports/anomalies.md R04",
+      "status": "active",
+      "applies_to": "Amended upto 30th June 2007",
+      "check": "plain_not_contains",
+      "target": {
+        "kind": "section",
+        "code": "18"
+      },
+      "arg": "Special customs duty on imported goods",
+      "description": "The companion half: s.18 must drop from 3,201 chars to 2,338."
+    },
+    {
+      "id": "rcd_2007_sec204_body_present",
+      "source": "reports/anomalies.md R05",
+      "status": "active",
+      "applies_to": "Amended upto 30th June 2007",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "204"
+      },
+      "arg": "duplicate of any certificate",
+      "description": "Source defect: PDF p227 opens s.204 as 'Issue of certificate and duplicate of customs document.- ...' with NO code printed (the only '204' on the page is the 9.5pt folio). Bound by the TOC-heading fallback, since no grammar change can match an absent code."
+    },
+    {
+      "id": "rcd_2007_sec203a_no_204_text",
+      "source": "reports/anomalies.md R05",
+      "status": "active",
+      "applies_to": "Amended upto 30th June 2007",
+      "check": "plain_not_contains",
+      "target": {
+        "kind": "section",
+        "code": "203A"
+      },
+      "arg": "Issue of certificate and duplicate",
+      "description": "The companion half: s.203A must drop from 697 chars to 220."
     }
   ]
 }

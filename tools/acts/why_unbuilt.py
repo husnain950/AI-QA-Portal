@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Explain, per TOC entry, why ``build_sections`` did or did not place it.
 
-    python scripts/why_unbuilt.py "Acts/Customs Act, 1969/....pdf" [--first 40]
+    python tools/acts/why_unbuilt.py "Acts/Customs Act, 1969/....pdf" [--first 40]
 
 Prints the code, its expected PDF page (printed + offset), the pages where the
 body actually opens with that code, which resolution branch fired, and the
@@ -19,9 +19,14 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+# tools/acts/ -> tools/ -> the repo root.  Two levels of dirname reached `tools/`
+# only, and `packages/` was never added at all, so every invocation of this script
+# died on `ModuleNotFoundError: No module named 'legal_ingest'` -- the one
+# diagnostic written for the stub-section cascade could not be run.
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+for _p in (_ROOT, os.path.join(_ROOT, "packages")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 import pdfplumber  # noqa: E402
 

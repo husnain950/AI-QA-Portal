@@ -50,6 +50,7 @@ from .builder import (
 from .footnotes import BRACKETS_ONLY_RE
 from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX  # noqa: F401
 from .grammar import code_sort_key as _grammar_code_sort_key
+from .grammar import norm_code as _grammar_norm_code
 from .toc import Node, SectionEntry, _chapter_numeral, _clean_heading, _join_heading
 
 
@@ -143,7 +144,15 @@ def _heading_from_words(before_words, code: str) -> str:
     txt = " ".join(w.text for w in before_words if not w.is_marker)
     txt = txt.replace("[", " ").replace("]", " ")
     txt = re.sub(r"\s+", " ", txt).strip()
-    txt = re.sub(r"^\(?" + re.escape(code) + r"\)?\s*\.?\s*", "", txt)
+    # The code arrives FOLDED (``_candidate_code`` canonicalises it), but the
+    # words here carry the PRINTED spelling -- "193-A", "25 AA", "18.A".  An
+    # exact ``re.escape(code)`` therefore stops stripping the moment the two
+    # differ, and the heading comes out as "193-A Procedure in appeal" with the
+    # code embedded in it.  Tolerating the separators ``norm_code`` folds away
+    # makes the stripper work on either spelling; anchored at ``^`` and bounded
+    # to len(code)-1 separator runs, so it can never reach past the code token.
+    txt = re.sub(r"^\(?" + r"[\s.\-]*".join(map(re.escape, code))
+                 + r"\)?\s*\.?\s*", "", txt)
     txt = re.sub(r"\.?\s*[—–―─-]+\s*$", "", txt).strip()
     return _clean_heading(txt)
 
@@ -548,7 +557,12 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
             # the PRINTED code, or it leaves "4." at the head of the title and
             # the P25 clause-title gate then rejects the clause it just rescued.
             printed_code = m.group(1)
-            code = _alt_code(printed_code, words, last_key)
+            # folded for the same reason `_candidate_code` folds: a TOC-less
+            # edition must emit `14A`, not `14-A`, or the same section carries
+            # two different codes across editions.  `printed_code` stays raw --
+            # `_multiline_heading` and the colon-dash fallback below strip it off
+            # the heading text and need the spelling the page actually shows.
+            code = _grammar_norm_code(_alt_code(printed_code, words, last_key))
             key = code_sort_key(code)
             # Gazette Finance Acts set their OWN clause titles in regular
             # ArialMT (FA2022 ``1. Short title...``, ``2. Amendments of Customs``);

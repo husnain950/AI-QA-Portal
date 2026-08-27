@@ -286,6 +286,43 @@ def _report(label, src, out):
     return n_missing, punct_missing
 
 
+def _resolve_json(json_path, pdf_path, lane):
+    """The output JSON this audit is about.
+
+    An explicit positional argument always wins.  Otherwise it is derived from
+    the PDF's own basename, because the documented invocation
+    ``audit_completeness.py --pdf INPUT.pdf`` used to fall through to
+    ``sorted(glob(output/*.json))[0]`` -- the ALPHABETICALLY FIRST document in
+    the lane.  It therefore compared one document's source text against another
+    document's output and printed the result as if it meant something: measured
+    on Customs 2007 it reported "body 13.430% conserved, 49164 missing" for a
+    document that is actually at 100.000%.  A wrong conservation number is worse
+    than none, so an unresolvable pair is now an error rather than a guess.
+    """
+    if json_path:
+        return json_path
+    outdir = output_dir(lane)
+    if pdf_path:
+        stem = os.path.splitext(os.path.basename(pdf_path))[0].strip()
+        cand = os.path.join(outdir, stem + ".json")
+        if os.path.exists(cand):
+            return cand
+        # the corpus PDFs carry stray leading spaces and comma placement that the
+        # output filename does not always reproduce verbatim; match on a squashed key
+        def key(s):
+            return re.sub(r"[^a-z0-9]", "", s.lower())
+        want = key(stem)
+        hits = [p for p in sorted(glob.glob(os.path.join(outdir, "*.json")))
+                if key(os.path.splitext(os.path.basename(p))[0]) == want]
+        if len(hits) == 1:
+            return hits[0]
+        raise SystemExit(
+            f"error: cannot resolve the output JSON for {os.path.basename(pdf_path)!r} "
+            f"in {outdir} ({len(hits)} candidates). Pass it explicitly as the first "
+            f"positional argument.")
+    raise SystemExit("error: pass the output JSON path, or --pdf so it can be derived.")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Completeness audit of a converted JSON.")
     ap.add_argument("json_path", nargs="?")
@@ -296,7 +333,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     import json
-    jpath = args.json_path or (sorted(glob.glob(os.path.join(output_dir("acts"), "*.json"))) or [None])[0]
+    jpath = _resolve_json(args.json_path, args.pdf, "acts")
     doc = json.load(open(jpath, encoding="utf-8"))
 
     if args.pdf:

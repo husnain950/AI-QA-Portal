@@ -1060,6 +1060,229 @@ def inv_no_orphan_sections(doc):
     return []
 
 
+# ---------------------------------------------------------------------------
+# section body attribution
+#
+# A section listed in the TOC is bound to its body text by
+# ``builder.build_sections``, which indexes body lines by the code they open
+# with.  When that binding misses, the section is emitted as a heading-only
+# stub and its statutory text stays with the PREVIOUS section -- the words are
+# still in the document, so the conservation audit reports 100.000% and every
+# other invariant passes.  Customs 2007 shipped 15 sections that way (s.14A's
+# text inside s.14), and Federal Excise 2005 shipped s.38's alternative-dispute-
+# resolution provision -- 3,500-4,500 characters -- inside s.37 across five
+# editions.  These two invariants are the only checks that can see it.
+#
+# ``tools/`` stays stdlib-only (see the module docstring), so the code grammar
+# is re-stated here rather than imported from ``packages/legal_ingest``.  Both
+# helpers mirror ``grammar.norm_code`` and ``grammar.code_sort_key`` exactly;
+# if those change, these must follow.
+
+def _fold_code(code) -> str:
+    """``14.A`` / ``14 A`` / ``221-A`` / ``38-`` -> ``14A`` / ``221A`` / ``38``.
+
+    Mirrors ``grammar.norm_code``: the body and the TOC print the same section
+    both ways across editions, so the separated and the fused spellings are ONE
+    code.
+    """
+    return re.sub(r"[\s.\-]", "", str(code or "")).upper()
+
+
+_CODE_PARTS = re.compile(r"^(\d{1,4})([A-Z]{0,4})$")
+
+
+def _code_key(code):
+    """Statutory order for a folded code: ``4 < 4A < 4AB < 4B < 5``, or None.
+
+    Mirrors ``grammar.code_sort_key``.  None means "not a code", which the
+    callers treat as "cannot compare" rather than as a position.
+    """
+    m = _CODE_PARTS.match(_fold_code(code))
+    return (int(m.group(1)), m.group(2)) if m else None
+
+
+#: A section whose body is legitimately empty.  A repealed section prints its
+#: omission bracket and nothing else, so a heading-only leaf is CORRECT there --
+#: it is the one case these two invariants must not report.  ``***`` is how
+#: Federal Excise prints an omitted section (s.19A, ``2[19A. ***]``).
+#:
+#: The prefix must tolerate the code's own DOT and letter suffix, because the
+#: body prints the whole decorated start before the verb: Customs s.20 is
+#: ``15[20. 112[Omitted]`` and Sales Tax s.45 is ``1 45. Omitted.``.  Without the
+#: dot in the class, 16 correctly-empty repealed sections across the acts lane
+#: were reported as having lost their text -- the leaf's HEADING is the TOC's
+#: pre-repeal title ("Board's power to grant exemption from duty in exceptional
+#: circumstances"), which is what makes them look like live sections.
+#: ``_CODE_DECOR`` is the printed decoration a code can carry before the verb:
+#: whitespace, amendment brackets, marker digits, asterisks, and the code's own
+#: dot or hyphen separator.  A single suffix LETTER is allowed once, for the
+#: ``195-A`` / ``83. A`` spellings.
+_CODE_DECOR = r"[\s\[\]\d*.\-]*(?:[A-Z][\s\[\]\d*.\-]*)?"
+_LEGITIMATELY_EMPTY = re.compile(
+    rf"^{_CODE_DECOR}(?:omitted|repealed|\*\*\*)", re.IGNORECASE)
+
+
+def _is_omission(leaf) -> bool:
+    return bool(_LEGITIMATELY_EMPTY.match(leaf.get("heading") or "")
+                or _LEGITIMATELY_EMPTY.match(leaf.get("plain_text") or ""))
+
+
+def _body_beyond_heading(leaf) -> str:
+    """What a leaf's ``plain_text`` carries beyond its own code and heading.
+
+    The stub form is exactly ``"<code>. <heading>"`` (the TOC fallback at
+    ``builder._build_one``), so removing that prefix leaves nothing.  Compared
+    on collapsed whitespace because the heading may have been re-wrapped.
+    """
+    body = re.sub(r"\s+", " ", (leaf.get("plain_text") or "")).strip()
+    head = re.sub(r"\s+", " ",
+                  f"{leaf.get('code')}. {leaf.get('heading') or ''}").strip()
+    if body.startswith(head):
+        return body[len(head):].strip(" .,;:-—–")
+    # heading re-wrapped or re-cased: fall back to a length comparison, which is
+    # what the census used
+    return "" if len(body) <= len(head) + 3 else body
+
+
+def inv_section_carries_its_body(doc):
+    """A section leaf must carry operative text beyond its own heading.
+
+    The schedule side has had ``schedules_have_content`` since the beginning;
+    the section side never had an equivalent, which is why the binding failures
+    above went unreported through 45 invariants and a 100%-conserving audit.
+
+    Exempt: a repealed/omitted section, where an empty body is the correct
+    output (``_is_omission``).  Nothing else is exempt -- a section the source
+    genuinely prints without a code (Customs 2007 s.204, whose heading line
+    carries no ``204.`` at all) is a source defect that still loses text to its
+    neighbour, so it must be reported and carried as a ledger exemption rather
+    than silently tolerated here.
+    """
+    bad = []
+    for leaf in iter_section_leaves(doc):
+        if _is_omission(leaf):
+            continue
+        if _body_beyond_heading(leaf):
+            continue
+        bad.append(f"section {leaf.get('code')}: heading-only leaf, no body "
+                   f"text beyond {(leaf.get('heading') or '')[:60]!r} -- its "
+                   f"text is probably inside the preceding section")
+    return bad
+
+
+#: A body line opening with a section code, read PERMISSIVELY -- this is a
+#: detector, so it must see the shapes the parser's own patterns miss (the
+#: ``5[(14-A.`` insertion pair, the ``&`` marker separator, the ``18.A`` dot
+#: suffix, the bare ``38-``).  False positives are filtered by the checks in
+#: ``inv_no_foreign_section_start_in_body``, not by this pattern.
+_ANY_SECTION_START = re.compile(
+    r"^\s*(?:[\d*]{1,4}[a-z]?(?:\s*[,&]\s*[\d*]{1,4}[a-z]?)*"
+    r"(?:\s+|(?=[\[\(])))?[\[\(]{0,3}\s*(\d{1,4}\s*[-.]?\s*[A-Z]{0,4})\s*[.\s]")
+
+
+def _demo_section_attribution() -> None:
+    """Self-check for the two attribution invariants' helpers.
+
+    The suite has no ``_demo`` convention of its own (``tools/tests`` covers it),
+    but these two predicates decide whether a leaf is reported as having lost its
+    text, so the shapes they must separate are pinned here and exercised by
+    ``tools/tests/test_suite_invariants.py``.
+    """
+    stub = {"code": "14A", "heading": "Provision of accommodation at customs ports, etc",
+            "plain_text": "14A. Provision of accommodation at customs ports, etc"}
+    assert not _body_beyond_heading(stub)
+    # the same leaf once bound: plain_text opens with the BODY heading form
+    # ("5[(14-A. ...") which is not the cleaned heading, so the prefix test fails
+    # and the length fallback must still see a real body
+    bound = dict(stub, plain_text=(
+        "5[(14-A. Provision of accommodation at Customs-ports, etc.- Any agency "
+        "or person\nmanaging or owning a customs-port shall provide accommodation."))
+    assert _body_beyond_heading(bound)
+    # a genuinely SHORT body is a body
+    assert _body_beyond_heading({"code": "196J", "heading": "Definitions",
+                                 "plain_text": "196J. Definitions.- In this Chapter;"})
+    # A heading-only leaf whose body is correctly empty.  The BODY carries the
+    # verb; the leaf's HEADING is the TOC's PRE-REPEAL title, which is exactly
+    # what makes a repealed section look like a live one that lost its text.
+    for body in ("2[19A. ***]",                # Federal Excise omission form
+                 "15[20. 112[Omitted]",        # Customs: marker, code, dot, marker
+                 "33[195-A. Omitted].",        # hyphenated suffix
+                 "4[83. A Omitted]",           # dot-and-space suffix
+                 "1 45. Omitted.",             # bare marker, no bracket
+                 "295 [11. ***]",
+                 "18[179-A. OMITTED"):
+        assert _is_omission({"heading": "Board's power to grant exemption",
+                             "plain_text": body}), body
+    assert _is_omission({"heading": "*** ]omitted", "plain_text": "x"})
+    # ...and a LIVE section is never mistaken for a repealed one
+    for body in ("196J. Definitions.- In this Chapter;",
+                 "14A. Provision of accommodation at customs ports, etc",
+                 "40C. Monitoring of Tracking by Electronic or other means",
+                 "202B. Reward to Customs Officers and Officials"):
+        assert not _is_omission({"heading": "Definitions", "plain_text": body}), body
+    # folding must agree with grammar.norm_code, and must not merge real sections
+    assert _fold_code("155-I") == _fold_code("155 I") == _fold_code("155.I") == "155I"
+    assert _fold_code("38-") == "38"
+    assert _fold_code("221") != _fold_code("221-A")
+    assert _code_key("4A") < _code_key("4AB") < _code_key("4B") < _code_key("5")
+
+
+def inv_no_foreign_section_start_in_body(doc):
+    """No leaf may contain the START of another section in its body.
+
+    The companion to ``section_carries_its_body``: that one names the starved
+    section, this one names the leaf that ate it, and the pair is what makes a
+    misattribution diagnosable rather than merely visible.  Reported only where
+    all of the following hold, so an ordinary cross-reference cannot trip it:
+
+      * the line is not the leaf's own first line (that is its own heading);
+      * the code folds to a DIFFERENT code that really exists as a leaf in this
+        document -- a reference to a section of another Act cannot match;
+      * that code sorts AFTER this leaf's own code, because a section's body can
+        only ever swallow the sections that follow it;
+      * the victim leaf carries no body of its own, which is the signature of
+        the binding failure (a cross-reference leaves the target intact);
+      * the line is not table-cell content and does not sit after a quotation
+        cue -- the same two exclusions ``no_structural_heading_in_body`` uses,
+        for the same reasons (a narrow rate column wraps, and a repealed section
+        quoted under "read as follows:" is history, not a boundary).
+    """
+    bad = []
+    leaves = list(iter_section_leaves(doc))
+    by_code = {}
+    for leaf in leaves:
+        by_code.setdefault(_fold_code(leaf.get("code")), leaf)
+    for leaf in leaves:
+        own = _code_key(leaf.get("code"))
+        if own is None:
+            continue
+        cells = _table_cell_lines(leaf.get("html") or "")
+        in_quote = False
+        for ln in (leaf.get("plain_text") or "").split("\n")[1:]:
+            t = ln.strip()
+            if not t or t in cells:
+                continue
+            if not in_quote and _QUOTE_CUE.search(ln):
+                in_quote = True
+            if in_quote:
+                continue
+            m = _ANY_SECTION_START.match(t)
+            if not m:
+                continue
+            other = _fold_code(m.group(1))
+            key = _code_key(other)
+            if key is None or key <= own or other not in by_code:
+                continue
+            victim = by_code[other]
+            if _body_beyond_heading(victim):
+                continue          # the target kept its own text: a reference
+            bad.append(f"section {leaf.get('code')}: body contains the start of "
+                       f"section {victim.get('code')}, which is itself "
+                       f"heading-only: {t[:78]!r}")
+            break
+    return bad
+
+
 # a body subsection/clause marker must never be bold.  A section heading is
 # Arial-BoldMT and its terminator dash can glue to a fused first marker
 # ("commencement.—(1)"), which used to inherit the bold and render
@@ -1799,6 +2022,8 @@ _ORDER = [
     "no_toc_row_in_heading",
     "structure_counts",
     "no_orphan_sections",
+    "section_carries_its_body",
+    "no_foreign_section_start_in_body",
     "section_codes_ordered",
     "toc_first_chapter_parse",
     "toc_schedule_regexes",

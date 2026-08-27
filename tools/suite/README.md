@@ -24,14 +24,22 @@ For a legally binding text, the worst failure is *silent loss* — a missing `[`
 guards conservation**. Run it after every regeneration:
 
 ```bash
-python tools/<lane>/audit_completeness.py            # compares source (page cache) vs output
-python tools/<lane>/audit_completeness.py --pdf X.pdf  # or scan the PDF directly
+python tools/<lane>/audit_completeness.py OUT.json --pdf X.pdf   # the pair, explicitly
+python tools/<lane>/audit_completeness.py --pdf X.pdf            # JSON derived from the PDF name
 ```
 
 It reconstructs the text the pipeline *saw* (zoned body + footnote words for every
 page) and compares it, as multisets, to what landed in the output (section/leaf
 text + table cells + footnote text + preamble). It prints every word and every
 key punctuation mark present in the source but missing from the output.
+
+> **What conservation cannot prove.** It compares MULTISETS of tokens, so text
+> attributed to the *wrong section* still counts as conserved. Customs 2007 reported
+> `body 100.000%, 0 words missing` while 15 of its sections were heading-only stubs
+> whose statutory text sat in the preceding section (ledger A18). Placement is guarded
+> by `section_carries_its_body` and `no_foreign_section_start_in_body`, not here.
+> The footnote side unions body+footnotes, so a footnote sitting in the body also
+> still counts as conserved (ledger O08).
 
 Current conservation: **body ≈ 99.97%, footnotes ≈ 99.96%**. The small residual is
 audit tokenization noise (a word split across two table cells, hyphenation across
@@ -145,6 +153,8 @@ regression anywhere is caught, not just in the one section originally reported:
 | `preamble_present` | the pre-section-1 preamble going missing |
 | `no_toc_row_in_heading` | a TOC row ("Division I 533") swallowed into a structural heading |
 | `structure_counts` | 13 chapters, ≥440 sections, ≥14 schedules |
+| `section_carries_its_body` | a section leaf that is nothing but its own heading — its text bound to the wrong leaf (repealed/omitted sections exempt, where an empty body is correct) |
+| `no_foreign_section_start_in_body` | a leaf whose body contains the START of another, starved section; names the thief and the victim together |
 
 **Data-driven cases** (`cases/<lane>.json`) pin specific issues. Each case targets
 a section / schedule / footnote and runs one `check`. `status: active` must pass;

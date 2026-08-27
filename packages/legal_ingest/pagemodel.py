@@ -322,6 +322,11 @@ def _size_zone_top(ordered, cal) -> float | None:
         return None
     if not any(_is_amendment_note(ln.text()) for ln in ordered[best_k:]):
         return None
+    # The apparatus's own caption belongs to the apparatus, not to the section
+    # above it.  Only ever the line IMMEDIATELY above the zone, and only when it
+    # is that caption by name -- see ``_FOOTNOTE_CAPTION_RE``.
+    while best_k > 0 and _FOOTNOTE_CAPTION_RE.match(ordered[best_k - 1].text()):
+        best_k -= 1
     return ordered[best_k].top
 
 
@@ -463,6 +468,26 @@ def _footnote_zone_top(page, lines, cal):
 import re as _re
 
 # edit verbs that mark a footnote NOTE (see _is_amendment_note)
+#: The printed CAPTION of a footnote apparatus, as its own line above the notes.
+#: The Customs Act labels every footnote block "LEGAL REFERENCE" -- and, in some
+#: editions, "LEGAL REFERENCES" or the source typo "LEGAL REFERENCS".  It is set
+#: at BODY size (12.0pt bold TimesNewRomanPS-BoldMT, measured on p29 of the 2007
+#: edition at top=430.3, directly above a 9.0pt note block), so the changepoint
+#: fit in ``_size_zone_top`` scores it as body and the split lands BELOW it.  The
+#: caption then became the trailing paragraph of whatever section preceded it --
+#: 333 leaves across the shipped corpus end with it, rendered as
+#: ``<p><strong>LEGAL REFERENCE</strong></p>`` inside statutory text.
+#:
+#: Matched by NAME, deliberately.  A generic "short bold ALL-CAPS line above the
+#: zone" rule would also capture a CHAPTER caption -- the same measurement finds
+#: "MISCELLANEOUS", "DRAWBACK", "ARRIVAL AND DEPARTURE OF CONVEYANCE" and a dozen
+#: more ending leaf bodies the same way -- and pulling one of those into the
+#: footnote zone would delete a structural caption from the output. That leak is a
+#: different defect with a different fix (ledger O03); this pattern cannot reach it.
+_FOOTNOTE_CAPTION_RE = _re.compile(r"^\s*LEGAL\s+REFERENC(?:E|ES|S)\s*$",
+                                   _re.IGNORECASE)
+
+
 _AMEND_VERB_RE = _re.compile(
     r"\b(?:substituted|inserted|omitted|added|deleted|re-?numbered|re-?lettered|"
     r"re-?cast|read as follows|shall be read)\b", _re.IGNORECASE)
@@ -1524,6 +1549,19 @@ def _demo() -> None:
     assert "42" in by_m, by_m.keys()
     assert "25B" in by_m["42"] and "Inserted" in by_m["42"], by_m["42"]
     assert by_m["42"].strip(), "footnote 42 must not be empty"
+
+    # The footnote apparatus's own caption is apparatus, not statute.  It is set
+    # at BODY size directly above the notes, so the changepoint fit scored it as
+    # body and it became the trailing paragraph of the section above -- 333 leaves
+    # across the corpus, in three printed spellings.  Matched by name, so a
+    # CHAPTER caption in the same position can never be pulled into the zone.
+    for caption in ("LEGAL REFERENCE", "LEGAL REFERENCES", "LEGAL REFERENCS",
+                    "  Legal Reference  "):
+        assert _FOOTNOTE_CAPTION_RE.match(caption), caption
+    for not_a_caption in ("MISCELLANEOUS", "DRAWBACK", "REGISTRATION", "RETURNS",
+                          "ARRIVAL AND DEPARTURE OF CONVEYANCE",
+                          "LEGAL REFERENCE to section 4"):
+        assert not _FOOTNOTE_CAPTION_RE.match(not_a_caption), not_a_caption
 
     print("pagemodel self-check passed")
 

@@ -166,6 +166,27 @@ def _reason(text: str, rc: int = 1) -> str:
     return ""
 
 
+#: A failure that is about this MACHINE, not about the document.  The OCR path
+#: imports its engines lazily (``packages/legal_ingest/requirements-ocr.txt``,
+#: plus tesseract on PATH), so on a host without them every scanned document
+#: fails with "No module named 'numpy'" -- and quarantining then DELETES a good
+#: JSON from the corpus for a reason that has nothing to do with the JSON.
+#: Measured 2026-08-27: a regeneration run on an OCR-less host took
+#: ``output/`` from 80 documents to 66, including the Benami Transactions Act
+#: and eleven gazette Finance Acts, all of which had converted correctly
+#: elsewhere.  A refusal must not be able to lose data it did not produce.
+_ENV_FAILURE_RE = re.compile(
+    r"No module named|ModuleNotFoundError|ImportError"
+    r"|tesseract.{0,40}(?:not found|No such file)"
+    r"|command not found|Errno 2\b.{0,40}tesseract",
+    re.IGNORECASE)
+
+
+def _is_env_failure(reason: str) -> bool:
+    """Whether ``reason`` says the host is missing a dependency."""
+    return bool(_ENV_FAILURE_RE.search(reason or ""))
+
+
 def _quarantine(dest: pathlib.Path, reason: str) -> str:
     """Move a refused document's PREVIOUS output out of the corpus.
 
@@ -179,9 +200,16 @@ def _quarantine(dest: pathlib.Path, reason: str) -> str:
 
     Moved, not deleted: it is the only record of what was previously shipped, and
     it is what a future clean source PDF gets diffed against.
+
+    NOT moved when the failure is this host missing a dependency rather than the
+    document being defective -- see ``_ENV_FAILURE_RE``.
     """
     if not dest.exists():
         return ""
+    if _is_env_failure(reason):
+        # the document is fine; this host cannot read it.  Leave the previous
+        # output in place and say so -- see _ENV_FAILURE_RE.
+        return "kept (environment failure, not a document defect)"
     REFUSED.mkdir(parents=True, exist_ok=True)
     stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     away = REFUSED / f"{dest.name}.{stamp}"
