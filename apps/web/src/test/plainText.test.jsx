@@ -10,6 +10,10 @@ vi.mock('../stores/reviewStore', () => ({
         annotations: [],
         createAnnotation: vi.fn(),
         fetchAnnotations: vi.fn(),
+        setActiveFootnoteId: vi.fn(),
+        activeFootnoteId: null,
+        citeJumpNonce: 0,
+        footnoteJumpNonce: 0,
     }),
 }));
 vi.mock('../components/annotations/AnnotationPopover', () => ({

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Check, AlertCircle } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowUp, ChevronDown, ChevronUp, Check, AlertCircle } from 'lucide-react';
 import { useReviewStore } from '../../stores/reviewStore';
 import { sanitizeLegalHtml } from '../../utils/sanitizeHtml';
 import { getSelectionCharacterOffsetsWithin, highlightFromOffsets } from '../../hooks/useTextSelection';
+
+const JUMP_HIGHLIGHT_MS = 1600;
 
 const FootnoteText = ({ footnote, annotations, onSelect }) => {
     const textRef = React.useRef(null);
@@ -95,7 +97,34 @@ const FootnoteText = ({ footnote, annotations, onSelect }) => {
 
 const FootnotePanel = ({ footnotes, annotations, onFootnoteSelect }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const { updateFootnoteStatus, setCurrentPage } = useReviewStore();
+    const [flashId, setFlashId] = useState(null);
+    const cardRefs = useRef(new Map());
+    const {
+        updateFootnoteStatus,
+        setCurrentPage,
+        activeFootnoteId,
+        jumpToCite,
+        footnoteJumpNonce,
+    } = useReviewStore();
+
+    // Cite → footnote: expand when a jump is requested
+    useEffect(() => {
+        if (!activeFootnoteId || !footnoteJumpNonce) return;
+        setIsCollapsed(false);
+    }, [activeFootnoteId, footnoteJumpNonce]);
+
+    // Scroll/flash only on cite → footnote (footnoteJumpNonce), not on up-arrow jumps
+    useEffect(() => {
+        if (!activeFootnoteId || !footnoteJumpNonce || isCollapsed) return;
+
+        const card = cardRefs.current.get(String(activeFootnoteId));
+        if (!card) return;
+
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        setFlashId(activeFootnoteId);
+        const timer = setTimeout(() => setFlashId(null), JUMP_HIGHLIGHT_MS);
+        return () => clearTimeout(timer);
+    }, [activeFootnoteId, isCollapsed, footnoteJumpNonce]);
 
     if (!footnotes || footnotes.length === 0) return null;
 
@@ -103,6 +132,14 @@ const FootnotePanel = ({ footnotes, annotations, onFootnoteSelect }) => {
         e.preventDefault();
         if (page) {
             setCurrentPage(page);
+        }
+    };
+
+    const handleJumpToCite = (fn, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (fn?.id != null) {
+            jumpToCite(fn.id);
         }
     };
 
@@ -133,10 +170,27 @@ const FootnotePanel = ({ footnotes, annotations, onFootnoteSelect }) => {
                     {footnotes.map((fn) => (
                         <div
                             key={fn.id}
-                            className={`footnote-card ${fn.review_status === 'approved' ? 'approved' : fn.review_status === 'has_issues' ? 'flagged' : ''}`}
+                            ref={(el) => {
+                                if (el) cardRefs.current.set(String(fn.id), el);
+                                else cardRefs.current.delete(String(fn.id));
+                            }}
+                            id={`footnote-card-${fn.id}`}
+                            data-footnote-id={fn.id}
+                            className={`footnote-card ${fn.review_status === 'approved' ? 'approved' : fn.review_status === 'has_issues' ? 'flagged' : ''} ${flashId === fn.id ? 'footnote-card-active' : ''}`}
                         >
                             <div className="footnote-meta">
-                                <span className="footnote-marker">Marker: {fn.marker}</span>
+                                <div className="footnote-marker-row">
+                                    <span className="footnote-marker">Marker: {fn.marker}</span>
+                                    <button
+                                        type="button"
+                                        className="footnote-cite-jump"
+                                        onClick={(e) => handleJumpToCite(fn, e)}
+                                        title="Jump back to citation in text"
+                                        aria-label={`Jump back to citation for marker ${fn.marker}`}
+                                    >
+                                        <ArrowUp size={14} aria-hidden="true" />
+                                    </button>
+                                </div>
                                 {fn.page && (
                                     <button
                                         className="footnote-page-jump"

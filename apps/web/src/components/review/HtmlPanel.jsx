@@ -8,8 +8,8 @@ import { useUiStore } from '../../stores/uiStore';
 import SegmentedControl from '../ui/SegmentedControl';
 import CopyButton from '../ui/CopyButton';
 import EmptyState from '../ui/EmptyState';
-import { Code, Eye, AlignLeft, AlertTriangle, Braces, FileQuestion, X } from 'lucide-react';
-import { footnoteTextForCite, MISSING_NOTE } from '../../utils/footnoteCite';
+import { Code, Eye, AlignLeft, AlertTriangle, Braces, FileQuestion } from 'lucide-react';
+import { findFootnoteForCite } from '../../utils/footnoteCite';
 
 const MODE_TITLES = {
     rendered: 'Parsed HTML Content',
@@ -25,18 +25,26 @@ const MODE_HINTS = {
     json: 'Raw JSON data for this section',
 };
 
+const JUMP_HIGHLIGHT_MS = 1600;
+
 const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags }) => {
     const qualityReasons = formatQualityFlagList(
         qualityFlags ?? section?.quality_flags,
     );
     const containerRef = useRef(null);
     const pushToast = useUiStore((s) => s.pushToast);
-    const { annotations, createAnnotation, fetchAnnotations } = useReviewStore();
+    const {
+        annotations,
+        createAnnotation,
+        fetchAnnotations,
+        setActiveFootnoteId,
+        activeFootnoteId,
+        citeJumpNonce,
+    } = useReviewStore();
     const [popoverCoords, setPopoverCoords] = useState(null);
     const [selectionData, setSelectionData] = useState(null);
     const [paneMode, setPaneMode] = useState('rendered');
-    const [hoverFootnote, setHoverFootnote] = useState(null);
-    const [clickFootnote, setClickFootnote] = useState(null);
+    const lastCiteJumpNonce = useRef(0);
 
     // Fetch annotations whenever section changes
     useEffect(() => {
@@ -52,7 +60,7 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
         setPopoverCoords(data.coords);
     });
 
-    // Inject highlighting marks into rendered DOM & Bind Tooltip Listeners
+    // Inject highlighting marks into rendered DOM & bind cite → footnote jumps
     useEffect(() => {
         const container = containerRef.current;
         if (!container || !htmlContent) return;
@@ -60,7 +68,6 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
         // Reset DOM to clean state
         container.innerHTML = htmlContent;
 
-        // Attach Instant Hover & Click Popups to Cite nodes
         const cites = container.querySelectorAll('.cite');
         cites.forEach((cite) => {
             const titleText = cite.getAttribute('title');
@@ -69,53 +76,24 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                 cite.removeAttribute('title'); // Disable default slow native browser tooltip
             }
 
-            const popupCoords = (rect, containerRect, halfPopupWidth) => {
-                const centerOfMarker = rect.left - containerRect.left + (rect.width / 2);
-                let boundedLeft = centerOfMarker;
-                if (boundedLeft < halfPopupWidth) {
-                    boundedLeft = halfPopupWidth;
-                } else if (boundedLeft > containerRect.width - halfPopupWidth) {
-                    boundedLeft = Math.max(halfPopupWidth, containerRect.width - halfPopupWidth);
-                }
-                return boundedLeft;
-            };
-
-            const handleMouseEnter = () => {
-                const text = footnoteTextForCite(cite, footnotes);
-                const rect = cite.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                setHoverFootnote({
-                    text,
-                    marker: cite.textContent,
-                    coords: {
-                        top: rect.top - containerRect.top - 8,
-                        left: popupCoords(rect, containerRect, 150),
-                    },
-                });
-            };
-
-            const handleMouseLeave = () => {
-                setHoverFootnote(null);
-            };
+            const marker = (cite.textContent || '').trim();
+            if (marker) {
+                cite.setAttribute('data-fn-marker', marker);
+            }
+            const matched = findFootnoteForCite(cite, footnotes);
+            if (matched?.id != null) {
+                cite.setAttribute('data-fn-id', String(matched.id));
+            }
 
             const handleClick = (e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                const text = footnoteTextForCite(cite, footnotes);
-                const rect = cite.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                setClickFootnote({
-                    text,
-                    marker: cite.textContent,
-                    coords: {
-                        top: rect.bottom - containerRect.top + 8,
-                        left: popupCoords(rect, containerRect, 170),
-                    },
-                });
+                const hit = findFootnoteForCite(cite, footnotes);
+                if (hit?.id != null) {
+                    setActiveFootnoteId(hit.id);
+                }
             };
 
-            cite.addEventListener('mouseenter', handleMouseEnter);
-            cite.addEventListener('mouseleave', handleMouseLeave);
             cite.addEventListener('click', handleClick);
         });
 
@@ -150,36 +128,32 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                 }
             }
         });
-    }, [htmlContent, annotations, footnotes]);
+    }, [htmlContent, annotations, footnotes, setActiveFootnoteId]);
 
-    // Close click footnote popup on ESC key or clicking outside
+    // Footnote card → cite: scroll and flash the matching marker
     useEffect(() => {
-        if (!clickFootnote) return;
+        if (!citeJumpNonce || citeJumpNonce === lastCiteJumpNonce.current) return;
+        lastCiteJumpNonce.current = citeJumpNonce;
+        if (!activeFootnoteId) return;
 
-        const handleKeyDown = (e) => {
-            if (e.key === 'Escape') {
-                setClickFootnote(null);
-            }
-        };
+        const container = containerRef.current;
+        if (!container) return;
 
-        const handleDocumentClick = (e) => {
-            const popupElement = document.getElementById('footnote-click-popup');
-            if (popupElement && !popupElement.contains(e.target)) {
-                setClickFootnote(null);
-            }
-        };
+        const cite = Array.from(container.querySelectorAll('.cite')).find(
+            (el) => el.getAttribute('data-fn-id') === String(activeFootnoteId),
+        );
+        if (!cite) return;
 
-        document.addEventListener('keydown', handleKeyDown);
-        const timeoutId = setTimeout(() => {
-            document.addEventListener('click', handleDocumentClick);
-        }, 0);
-
+        cite.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cite.classList.add('cite-jump-target');
+        const timer = setTimeout(() => {
+            cite.classList.remove('cite-jump-target');
+        }, JUMP_HIGHLIGHT_MS);
         return () => {
-            document.removeEventListener('keydown', handleKeyDown);
-            clearTimeout(timeoutId);
-            document.removeEventListener('click', handleDocumentClick);
+            clearTimeout(timer);
+            cite.classList.remove('cite-jump-target');
         };
-    }, [clickFootnote]);
+    }, [citeJumpNonce, activeFootnoteId]);
 
     const handleSaveAnnotation = async (data) => {
         if (!sectionId || !selectionData) return;
@@ -205,7 +179,6 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
         clearSelection();
         setPopoverCoords(null);
         setSelectionData(null);
-        setClickFootnote(null);
     };
 
     const handleFootnoteSelect = (footnoteId, text, start, end, coords) => {
@@ -325,48 +298,6 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                         onSave={handleSaveAnnotation}
                         onCancel={handleCancelAnnotation}
                     />
-                )}
-
-                {hoverFootnote && paneMode === 'rendered' && (
-                    <div
-                        className="fn-popover fn-popover-hover"
-                        style={{ top: hoverFootnote.coords.top, left: hoverFootnote.coords.left }}
-                    >
-                        <div className="fn-popover-card">
-                            <div className="fn-popover-marker">Footnote {hoverFootnote.marker}</div>
-                            <div className="fn-popover-text">
-                                {hoverFootnote.text
-                                    ? hoverFootnote.text.split('\n')[0].trim().slice(0, 200) +
-                                      (hoverFootnote.text.split('\n')[0].trim().length > 200 || hoverFootnote.text.includes('\n') ? '…' : '')
-                                    : MISSING_NOTE
-                                }
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {clickFootnote && paneMode === 'rendered' && (
-                    <div
-                        id="footnote-click-popup"
-                        className="fn-popover fn-popover-click"
-                        style={{ top: clickFootnote.coords.top, left: clickFootnote.coords.left }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="fn-popover-card">
-                            <div className="fn-popover-head">
-                                <span className="fn-popover-marker">Footnote {clickFootnote.marker}</span>
-                                <button
-                                    type="button"
-                                    className="fn-popover-close"
-                                    aria-label="Close footnote"
-                                    onClick={() => setClickFootnote(null)}
-                                >
-                                    <X size={14} />
-                                </button>
-                            </div>
-                            <div className="fn-popover-text">{clickFootnote.text || MISSING_NOTE}</div>
-                        </div>
-                    </div>
                 )}
 
                 {paneMode === 'rendered' && (
