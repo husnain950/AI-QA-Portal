@@ -115,14 +115,14 @@ def _limit_for(method: str, path: str) -> Limit:
         return AI
     if "/corpus/sync" in path or "/jobs/corpus_sync" in path:
         return SYNC
-    if (
-        method == "DELETE"
-        or "/uploads" in path
-        or "/versions" in path
-        or (method == "POST" and path == "/api/v2/documents")
-    ):
+    if method == "DELETE" or (method == "POST" and path == "/api/v2/documents"):
         return HEAVY
-    if method != "GET" or path.endswith("/search") or "/search?" in path:
+    # Blob reads (GET/HEAD /uploads/<key>) are static fetches: pdf.js range-streams
+    # one document as dozens of 64 KB requests, so the write-tier HEAVY bucket
+    # (10/hour) 429s every viewer mid-document. Only upload *writes* belong there.
+    if method not in ("GET", "HEAD") and ("/uploads" in path or "/versions" in path):
+        return HEAVY
+    if method not in ("GET", "HEAD") or path.endswith("/search") or "/search?" in path:
         return REVIEW
     return READ
 

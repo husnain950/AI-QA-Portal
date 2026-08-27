@@ -17,7 +17,8 @@ from backend.database import (
     dispose_engine,
     engine_settings,
 )
-from backend.services import auth
+from backend.middleware.security import HEAVY, READ, _limit_for
+from backend.services import auth, blob_store
 from backend.tests.conftest import (
     ADMIN_EMAIL,
     TEST_PASSWORD,
@@ -377,3 +378,33 @@ async def test_the_actor_recorded_is_the_session_not_a_header(runtime_sandbox, s
             "SELECT actor FROM review_events ORDER BY id DESC LIMIT 1"
         ) as cursor:
             assert (await cursor.fetchone())["actor"] == "reviewer@crx.test"
+
+
+# ------------------------------------------------------------------ rate limiting
+
+
+def test_blob_reads_are_reads_not_heavy_writes():
+    """pdf.js streams one PDF as dozens of ranged GETs. When blob reads sat in the
+    write-tier HEAVY bucket (10/hour), the eleventh range request of the hour 429'd
+    and every viewer's PDF failed mid-document. Only upload writes belong there."""
+    key = f"pdf/{'a' * 64}.pdf"
+    assert _limit_for("GET", f"/uploads/{key}") is READ
+    assert _limit_for("HEAD", f"/uploads/{key}") is READ
+    assert _limit_for("POST", "/api/v2/uploads/preflight") is HEAVY
+    assert _limit_for("POST", f"/api/documents/{DOCUMENT_ID}/versions") is HEAVY
+    assert _limit_for("DELETE", f"/api/documents/{DOCUMENT_ID}") is HEAVY
+
+
+async def test_a_pdf_streams_more_ranges_than_the_old_heavy_bucket_allowed(
+    runtime_sandbox, sign_in, monkeypatch
+):
+    monkeypatch.setenv("RATE_LIMITS", "on")
+    name = blob_store.store_bytes(b"%PDF-1.4 stream-me" + b"0" * 2048, "pdf")
+    reader = await sign_in("reader")
+    # A TEST-NET-2 source IP keeps this test's limiter windows away from any other.
+    headers = {"X-Forwarded-For": "198.51.100.23"}
+    for attempt in range(30):
+        response = await reader.get(f"/uploads/{name}", headers=headers)
+        assert response.status_code == 200, (
+            f"range request {attempt + 1} answered {response.status_code}"
+        )
