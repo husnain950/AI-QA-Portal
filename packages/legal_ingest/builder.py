@@ -87,6 +87,25 @@ def _cite_entry(footnote_map, page, marker):
     return v, None
 
 
+def _cite_has_text(title) -> bool:
+    """True when a lookup found note BODY, not merely a blank extracted note."""
+    return bool((title or "").strip())
+
+
+def _marker_or_cite_sup(ref: str, marker: str, title: str) -> str:
+    """``<sup class="cite">`` only when the note has text; else ``class="marker"``.
+
+    An empty title with ``class="cite"`` is what the review popover prints as a
+    card that says only ``Footnote {ref}`` (Customs 25B / 37.42).  A marker that
+    resolved to no body is not a citation.
+    """
+    if not _cite_has_text(title):
+        return (f'<sup class="marker" data-ref="{_html.escape(ref, quote=True)}">'
+                f'{_html.escape(marker)}</sup>')
+    return (f'<sup class="cite" '
+            f'title="{_html.escape(title, quote=True)}">{ref}</sup>')
+
+
 def _ocr_marker_fn(words):
     """Marker predicate for a line, tightened for OCR'd words.
 
@@ -150,7 +169,6 @@ def _render_words(words, page: int, footnote_map: dict,
     heading rendering passes a predicate that also accepts large-type heading
     markers so a title citation is never rendered as a bare digit.
     """
-    printed = page - page_offset
     plain_parts: list[str] = []
     html_parts: list[str] = []   # (sep, fragment, bold)
     prev_x1 = None
@@ -179,29 +197,14 @@ def _render_words(words, page: int, footnote_map: dict,
             ref = f"{(note_pg if note_pg is not None else page) - page_offset}.{marker}"
             if cited is not None:
                 cited.append((page, marker))
-            if note_pg is None and not title:
-                # The marker resolves to NO note.  Rendering it as a citation
-                # asserts something the document does not contain -- "see note 1
-                # on page 33" where page 33 prints no note 1 -- which in legally
-                # binding output is worse than saying less.  Five editions print
-                # amendment markers and no notes at all (Finance Act 2014, 2021,
-                # 2018-19, Pakistan Single Window 2021, Tax Laws (Amdt) 2020: zero
-                # footnotes in the whole document), and every "citation" they
-                # carried was of this kind.
-                #
-                # The marker is still real printed text, so it keeps its
-                # superscript and its character -- only the claim of a citation is
-                # dropped, and `inv_citation_refs_resolve` reads the two classes
-                # apart to keep measuring the binding.
-                # ``data-ref`` keeps the reference this marker WOULD have made, so
-                # ``inv_citation_refs_resolve`` can still tell a binding break (the
-                # note exists in the document, attached elsewhere) from a source
-                # defect (the PDF prints the marker and never prints the note).
-                frag = (f'<sup class="marker" data-ref="{ref}">'
-                        f'{_html.escape(marker)}</sup>')
-            else:
-                frag = (f'<sup class="cite" '
-                        f'title="{_html.escape(title, quote=True)}">{ref}</sup>')
+            # Missing OR blank title: not a citation.  A note extracted as
+            # marker-only (Customs zone-split left 42's body in the quote under
+            # 41) used to emit ``<sup class="cite" title="">37.42</sup>`` because
+            # this branch required ``note_pg is None`` as well as empty text.
+            # The marker is still real printed text; ``data-ref`` keeps the
+            # reference it WOULD have made so ``inv_citation_refs_resolve`` can
+            # tell a binding break from a source defect (ledger O04).
+            frag = _marker_or_cite_sup(ref, marker, title)
             bold = False
             # RC-5: a superscript marker must never fuse into the preceding word or
             # number ("2005"+"4" -> "2005 4[", not "20054["), but must stay glued to
@@ -686,7 +689,7 @@ def _expand_table_cites(html_text: str, footnote_map, off_fn) -> str:
     def sub(m):
         pg, marker = int(m.group(1)), m.group(2)
         title, note_pg = _cite_entry(footnote_map, pg, marker)
-        if title is None:
+        if not _cite_has_text(title):
             return marker
         # ref names the note's page -- same rule as _render_words -- and it is
         # converted with the offset of THAT page, not of the citing one.  Mixing
@@ -2052,6 +2055,8 @@ def _heading_marker_prefix(head_refs, after_ids, footnote_map, off_fn,
     by the canonical <h4>.  Words whose id is in ``after_ids`` already render
     in the body and are skipped.  When ``cited`` is a list, each rendered
     ``(page, marker)`` is appended so the anchored footnote binds to this leaf.
+    A heading marker that does not resolve to note text is ``class="marker"``,
+    not an empty-title cite.
     """
     bits: list[str] = []
     for ref in head_refs:
@@ -2070,8 +2075,7 @@ def _heading_marker_prefix(head_refs, after_ids, footnote_map, off_fn,
             cite = f"{src - off_fn(src)}.{marker}"
             if cited is not None:
                 cited.append((ref.page, marker))
-            frag = (f'<sup class="cite" '
-                    f'title="{_html.escape(title, quote=True)}">{cite}</sup>')
+            frag = _marker_or_cite_sup(cite, marker, title)
             nxt = words[j + 1] if j + 1 < len(words) else None
             if (nxt is not None and id(nxt) not in after_ids
                     and nxt.text.lstrip().startswith("[")):
@@ -2676,7 +2680,7 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
         # <sup> prefixes inside the <h4>, mirroring the PDF where the marker
         # precedes the heading ("1[236Y. ...").
         prefix = _heading_marker_prefix(head_region, after_ids, footnote_map,
-                                        lambda p: page_offset)
+                                        lambda p: page_offset, cited)
         if prefix:
             heading_html = (f'<h4 class="section-heading">{prefix}'
                             f'{_html.escape(heading_display)}{head_tail}</h4>')
@@ -2860,6 +2864,37 @@ def _demo() -> None:
     assert "and income held outside Pakistan;" in html
     assert "Pakistan WHEREAS" not in html, html
     assert "appearing; It is hereby" not in html, html
+
+    from .pagemodel import Line, Word
+
+    def _mw(text, size=6.5, x0=72.0, top=100.0):
+        return Word(text=text, x0=x0, x1=x0 + 10, top=top, size=size, fontname="Arial")
+
+    head_line = Line(top=100.0, words=[
+        _mw("42"),
+        Word(text="[25B.", x0=84, x1=120, top=100, size=12.0, fontname="Arial"),
+        Word(text="[Omitted.]]", x0=122, x1=180, top=100, size=12.0, fontname="Arial"),
+    ])
+    head_refs = [LineRef(page=75, line=head_line)]
+    empty = _heading_marker_prefix(head_refs, set(), {}, lambda _p: 38)
+    assert 'class="marker"' in empty, empty
+    assert 'class="cite"' not in empty, empty
+    assert 'title=""' not in empty, empty
+    resolved = _heading_marker_prefix(
+        head_refs, set(),
+        {75: {"42": ("Inserted by Finance Act, 1988 and Omitted by Finance Act, 2004.", 75)}},
+        lambda _p: 38)
+    assert 'class="cite"' in resolved, resolved
+    assert "Inserted by Finance Act, 1988" in resolved, resolved
+    assert ">37.42</sup>" in resolved, resolved
+    blank_note = _heading_marker_prefix(
+        head_refs, set(), {75: {"42": ("", 75)}}, lambda _p: 38)
+    assert 'class="marker"' in blank_note, blank_note
+    assert 'class="cite"' not in blank_note, blank_note
+    _, html_words = _render_words([_mw("42")], 75, {75: {"42": ("", 75)}}, 38)
+    assert 'class="marker"' in html_words, html_words
+    assert 'class="cite"' not in html_words, html_words
+
     print("builder self-check passed")
 
 

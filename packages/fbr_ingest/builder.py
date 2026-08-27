@@ -103,7 +103,12 @@ def _render_words(words, page: int, footnote_map: dict,
             ref = f"{printed}.{marker}"
             if cited is not None:
                 cited.append((page, marker))
-            frag = f'<sup class="cite" title="{_html.escape(title, quote=True)}">{ref}</sup>'
+            if not (title or "").strip():
+                frag = (f'<sup class="marker" data-ref="{_html.escape(ref, quote=True)}">'
+                        f'{_html.escape(marker)}</sup>')
+            else:
+                frag = (f'<sup class="cite" '
+                        f'title="{_html.escape(title, quote=True)}">{ref}</sup>')
             bold = False
             # RC-5: a superscript marker must never fuse into the preceding word or
             # number ("2005"+"4" -> "2005 4[", not "20054["), but must stay glued to
@@ -543,7 +548,7 @@ def _expand_table_cites(html_text: str, footnote_map, off_fn) -> str:
     def sub(m):
         pg, marker = int(m.group(1)), m.group(2)
         title = footnote_map.get(pg, {}).get(marker)
-        if title is None:
+        if not (title or "").strip():
             return marker
         ref = f"{pg - off_fn(pg)}.{marker}"
         return (f'<sup class="cite" '
@@ -1553,11 +1558,17 @@ def _heading_marker_prefix(head_refs, after_ids, footnote_map, off_fn,
                 continue
             marker = w.text.strip()
             title = footnote_map.get(ref.page, {}).get(marker, "")
+            if isinstance(title, tuple):
+                title = title[0]
             cite = f"{ref.page - off_fn(ref.page)}.{marker}"
             if cited is not None:
                 cited.append((ref.page, marker))
-            frag = (f'<sup class="cite" '
-                    f'title="{_html.escape(title, quote=True)}">{cite}</sup>')
+            if not (title or "").strip():
+                frag = (f'<sup class="marker" data-ref="{_html.escape(cite, quote=True)}">'
+                        f'{_html.escape(marker)}</sup>')
+            else:
+                frag = (f'<sup class="cite" '
+                        f'title="{_html.escape(title, quote=True)}">{cite}</sup>')
             nxt = words[j + 1] if j + 1 < len(words) else None
             if (nxt is not None and id(nxt) not in after_ids
                     and nxt.text.lstrip().startswith("[")):
@@ -1967,7 +1978,7 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
         # <sup> prefixes inside the <h4>, mirroring the PDF where the marker
         # precedes the heading ("1[236Y. ...").
         prefix = _heading_marker_prefix(head_region, after_ids, footnote_map,
-                                        lambda p: page_offset)
+                                        lambda p: page_offset, cited)
         if prefix:
             heading_html = (f'<h4 class="section-heading">{prefix}'
                             f'{_html.escape(heading_display)}{head_tail}</h4>')

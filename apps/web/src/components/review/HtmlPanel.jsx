@@ -9,6 +9,7 @@ import SegmentedControl from '../ui/SegmentedControl';
 import CopyButton from '../ui/CopyButton';
 import EmptyState from '../ui/EmptyState';
 import { Code, Eye, AlignLeft, AlertTriangle, Braces, FileQuestion, X } from 'lucide-react';
+import { footnoteTextForCite, MISSING_NOTE } from '../../utils/footnoteCite';
 
 const MODE_TITLES = {
     rendered: 'Parsed HTML Content',
@@ -80,7 +81,7 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
             };
 
             const handleMouseEnter = () => {
-                const text = cite.getAttribute('data-footnote-text') || '';
+                const text = footnoteTextForCite(cite, footnotes);
                 const rect = cite.getBoundingClientRect();
                 const containerRect = container.getBoundingClientRect();
                 setHoverFootnote({
@@ -100,7 +101,7 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
             const handleClick = (e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                const text = cite.getAttribute('data-footnote-text') || '';
+                const text = footnoteTextForCite(cite, footnotes);
                 const rect = cite.getBoundingClientRect();
                 const containerRect = container.getBoundingClientRect();
                 setClickFootnote({
@@ -149,7 +150,7 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                 }
             }
         });
-    }, [htmlContent, annotations]);
+    }, [htmlContent, annotations, footnotes]);
 
     // Close click footnote popup on ESC key or clicking outside
     useEffect(() => {
@@ -337,7 +338,7 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                                 {hoverFootnote.text
                                     ? hoverFootnote.text.split('\n')[0].trim().slice(0, 200) +
                                       (hoverFootnote.text.split('\n')[0].trim().length > 200 || hoverFootnote.text.includes('\n') ? '…' : '')
-                                    : ''
+                                    : MISSING_NOTE
                                 }
                             </div>
                         </div>
@@ -363,7 +364,7 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
                                     <X size={14} />
                                 </button>
                             </div>
-                            <div className="fn-popover-text">{clickFootnote.text}</div>
+                            <div className="fn-popover-text">{clickFootnote.text || MISSING_NOTE}</div>
                         </div>
                     </div>
                 )}
