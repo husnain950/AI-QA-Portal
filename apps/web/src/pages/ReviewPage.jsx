@@ -27,6 +27,7 @@ import VersionPanel from '../components/review/VersionPanel';
 import { formatLeafIdentity, formatLeafJsonPath } from '../utils/tocLabels';
 import CopyButton from '../components/ui/CopyButton';
 import { TAG_NEEDS_REVIEW, TAG_PROVISIONAL } from '../utils/documentTags';
+import { recordDocumentView } from '../utils/recents';
 import { documentLane, laneLabel } from '../utils/corpusLanes';
 import { editionDateFromName } from '../utils/editions';
 import { timelinePath } from '../utils/timeline';
@@ -207,6 +208,7 @@ const ReviewPage = () => {
         };
 
         if (documentId) {
+            recordDocumentView(documentId);
             loadDocAndSections();
         }
     }, [documentId, fetchDocument, fetchSections, loadEditions, fetchAiProposals]);

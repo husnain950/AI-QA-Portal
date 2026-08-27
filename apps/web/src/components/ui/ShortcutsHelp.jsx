@@ -11,6 +11,16 @@ const SHORTCUT_GROUPS = [
         ],
     },
     {
+        name: 'Library',
+        items: [
+            { keys: ['/'], label: 'Focus document search' },
+            { keys: ['J', 'K'], label: 'Move down / up the list' },
+            { keys: ['Enter'], label: 'Open document for review' },
+            { keys: ['X'], label: 'Select / deselect document' },
+            { keys: ['Esc'], label: 'Clear selection' },
+        ],
+    },
+    {
         name: 'Triage queue',
         items: [
             { keys: ['J', 'K'], label: 'Move down / up the queue' },
