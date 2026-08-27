@@ -111,3 +111,103 @@ export function formatSectionLabel(code, heading, _startPage) {
 export function formatLeafIdentity(code, heading) {
     return formatSectionLabel(code, heading) || 'Untitled leaf';
 }
+
+const HIERARCHY_TYPE_ABBRS = {
+    Chapter: 'Chapter|Ch',
+    Schedule: 'Schedule|Sch',
+    Part: 'Part|Pt',
+    Division: 'Division|Div',
+    Section: 'Section|Sec',
+};
+
+function formatHierarchyCode(type, code) {
+    if (!code) return '';
+    const cleanCode = String(code).trim();
+    if (type === 'Section') {
+        const lower = cleanCode.toLowerCase();
+        if (lower.startsWith('section') || lower.startsWith('sec')) {
+            return cleanCode;
+        }
+        return `Section ${cleanCode}`;
+    }
+    if (cleanCode.toLowerCase().startsWith(type.toLowerCase())) {
+        return cleanCode;
+    }
+    return `${type} ${cleanCode}`;
+}
+
+function displayHierarchyCode(type, formattedCode) {
+    const regexStr = `^(?:${HIERARCHY_TYPE_ABBRS[type] || type})\\s*`;
+    return String(formattedCode)
+        .replace(new RegExp(regexStr, 'i'), '')
+        .replace(/^[-_:\s]+/, '')
+        .trim();
+}
+
+function pushHierarchyItem(items, type, code, heading) {
+    if (!code || !String(code).trim()) return;
+    const formatted = formatHierarchyCode(type, code);
+    items.push({
+        type,
+        code: formatted,
+        displayCode: displayHierarchyCode(type, formatted),
+        heading: cleanHeading(heading),
+    });
+}
+
+/** Breadcrumb crumbs for a leaf: chapter/schedule, part, division, section. */
+export function leafHierarchyItems(section) {
+    if (!section) return [];
+    const items = [];
+    const {
+        chapter_code,
+        chapter_heading,
+        part_code,
+        part_heading,
+        division_code,
+        division_heading,
+        section_code,
+        section_heading,
+        hierarchy_kind,
+    } = section;
+
+    if (chapter_code && String(chapter_code).trim()) {
+        const type = hierarchyTypeLabel(hierarchy_kind, chapter_code, chapter_heading);
+        pushHierarchyItem(items, type, chapter_code, chapter_heading);
+    }
+    pushHierarchyItem(items, 'Part', part_code, part_heading);
+    pushHierarchyItem(items, 'Division', division_code, division_heading);
+    pushHierarchyItem(items, 'Section', section_code, section_heading);
+    return items;
+}
+
+/** One line per hierarchy level, matching breadcrumb chrome: `Chapter V · HEADING`. */
+export function leafHierarchyLines(section) {
+    return leafHierarchyItems(section).map((item) => {
+        if (item.heading) return `${item.type} ${item.displayCode} · ${item.heading}`;
+        return `${item.type} ${item.displayCode}`;
+    });
+}
+
+/**
+ * Paste-ready locator for an agent: document name, hierarchy, leaf index, JSON pointer.
+ * `leafIndex` is 1-based; pass null when the active leaf is not in the TOC list.
+ */
+export function formatLeafJsonPath({
+    documentName,
+    section,
+    leafIndex = null,
+    leafCount = null,
+} = {}) {
+    const lines = [];
+    const name = String(documentName || '').trim();
+    if (name) lines.push(name);
+    lines.push(...leafHierarchyLines(section || {}));
+    if (leafCount != null) {
+        const shown = leafIndex == null ? '—' : leafIndex;
+        lines.push(`Leaf ${shown} of ${leafCount}`);
+    }
+    const sourceKey = String(section?.source_key || '').trim();
+    if (sourceKey) lines.push(sourceKey);
+    return lines.join('\n');
+}

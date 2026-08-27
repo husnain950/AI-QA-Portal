@@ -35,6 +35,17 @@ def _hierarchy_kind_from_row(row) -> str | None:
     return text or None
 
 
+def _source_key_from_row(row) -> str | None:
+    try:
+        value = row["source_key"]
+    except (KeyError, IndexError):
+        return None
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 def _section_metadata_kwargs(r) -> dict:
     return dict(
         id=r["id"],
@@ -48,6 +59,7 @@ def _section_metadata_kwargs(r) -> dict:
         hierarchy_kind=_hierarchy_kind_from_row(r),
         section_code=r["section_code"],
         section_heading=r["section_heading"],
+        source_key=_source_key_from_row(r),
         start_page=r["start_page"],
         end_page=r["end_page"],
         review_status=r["review_status"],
@@ -62,7 +74,7 @@ def _section_metadata_kwargs(r) -> dict:
 _SECTION_META_COLS = """
     s.id, s.document_id, s.chapter_code, s.chapter_heading, s.part_code, s.part_heading,
     s.division_code, s.division_heading, s.hierarchy_kind, s.section_code, s.section_heading,
-    s.start_page, s.end_page, s.review_status, s.reviewer_verdict,
+    s.source_key, s.start_page, s.end_page, s.review_status, s.reviewer_verdict,
     s.effective_status, s.sort_order, s.quality_flags
 """
 

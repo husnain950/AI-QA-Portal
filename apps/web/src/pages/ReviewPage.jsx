@@ -24,7 +24,8 @@ import { useUiStore } from '../stores/uiStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { api, versionsApi } from '../utils/api';
 import VersionPanel from '../components/review/VersionPanel';
-import { formatLeafIdentity } from '../utils/tocLabels';
+import { formatLeafIdentity, formatLeafJsonPath } from '../utils/tocLabels';
+import CopyButton from '../components/ui/CopyButton';
 import { TAG_NEEDS_REVIEW, TAG_PROVISIONAL } from '../utils/documentTags';
 import { documentLane, laneLabel } from '../utils/corpusLanes';
 import { editionDateFromName } from '../utils/editions';
@@ -529,12 +530,31 @@ const ReviewPage = () => {
                 <div className="review-infobar">
                     <Breadcrumbs section={activeSection} />
                     <div className="section-facts-bar" aria-label="Section facts">
-                        <span>
+                        <span className="leaf-index-fact">
                             Leaf{' '}
                             <strong>
                                 {currentSectionIndex >= 0 ? currentSectionIndex + 1 : '—'}
                             </strong>{' '}
                             of <strong>{sections.length}</strong>
+                            <CopyButton
+                                className="btn btn-ghost btn-sm leaf-path-copy"
+                                size={12}
+                                getText={() => formatLeafJsonPath({
+                                    documentName: activeDocument?.name,
+                                    section: activeSection,
+                                    leafIndex: currentSectionIndex >= 0
+                                        ? currentSectionIndex + 1
+                                        : null,
+                                    leafCount: sections.length,
+                                })}
+                                label="Copy path"
+                                copiedLabel="Copied"
+                                title="Copy leaf JSON path"
+                                onError={() => pushToast({
+                                    type: 'error',
+                                    message: 'Copy to clipboard failed',
+                                })}
+                            />
                         </span>
                         <span>
                             {formatLeafIdentity(
