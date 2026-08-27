@@ -1,7 +1,7 @@
 {
   "apiVersion": "v1.2",
   "name": "qa-pdf-portal",
-  "description": "Redeploy the FBR Corpus QA portal (api, worker, web) into the existing free-plan project qa-pdf-portal (branch args.branch), against a managed PostgreSQL addon, with the crx-api persistent volume at /app/data holding the content-addressed blobs.",
+  "description": "Redeploy the FBR Corpus QA portal (api, worker, web) into the existing free-plan project named after this workflow (branch args.branch), against a managed PostgreSQL addon. The crx-api-data volume at /app/data holds the content-addressed blobs and is shared with crx-web, whose nginx serves /uploads/ straight from it.",
   "arguments": {
     "branch": "main",
     "plan": "nf-compute-10",
@@ -60,6 +60,10 @@
               },
               {
                 "id": "crx-worker",
+                "type": "service"
+              },
+              {
+                "id": "crx-web",
                 "type": "service"
               }
             ]

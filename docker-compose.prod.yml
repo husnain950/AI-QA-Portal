@@ -10,7 +10,13 @@ services:
         VITE_STATIC_URL: ""
     ports:
       - "${WEB_PORT:-8080}:80"
-    volumes: []
+    # The API's blob volume, read-only: nginx serves /uploads/ straight from it
+    # (see nginx.conf) instead of proxying every PDF range request through uvicorn.
+    # Mounted at its own path — never under /app — so the dev bind mounts stay
+    # harmless no matter how a Compose version merges the two files' volume lists.
+    volumes:
+      - blob-cache:/blobs:ro
     environment:
       API_HOST: api
       API_PORT: "8000"
+      BLOB_ROOT: /blobs
