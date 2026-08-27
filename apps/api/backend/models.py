@@ -44,6 +44,8 @@ class DocumentResponse(DocumentBase):
     stats: Optional[DocumentStats] = None
     version_count: int = 1
     active_version_no: int = 1
+    # created_at of the newest JSON version — the document's "last updated" signal.
+    last_version_at: Optional[str] = None
     # The pipeline's own measurements for the active parse, when they were ingested.
     health: Optional["VersionMetrics"] = None
     provenance: Optional[DocumentProvenance] = None
