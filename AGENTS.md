@@ -29,6 +29,20 @@ Run the API and web dev servers directly (do NOT rely on `make up`, which uses D
 - `make up` / `docker-compose` also work but require Docker-in-Docker setup; the local uvicorn+vite
   path above is the simpler dev loop in the cloud VM.
 
+### How PDFs/blobs are served (dev vs prod)
+- **Dev:** the Vite dev server proxies `/uploads/<key>` to the FastAPI `uploads` route
+  (`apps/api/backend/routes/uploads.py`), which streams from the blob store. Tests use the
+  same route.
+- **Prod (Northflank / `docker-compose.prod.yml`):** `crx-web`'s nginx serves `/uploads/`
+  **statically from the shared blob volume** (`apps/web/nginx.conf`, `BLOB_ROOT`), with native
+  ranges/ETag and `immutable` caching — the API is not in the PDF request path at all. The
+  nginx location is regex-guarded to content-addressed key shapes, so the volume's
+  `.staging/`/`.cache/`/`.preflight/` dirs and legacy flat names answer 404 without touching
+  disk. Blob reads are in the READ rate-limit tier; upload *writes* stay HEAVY.
+- Keep both paths working: a change that only tests dev (Vite proxy) can silently break prod
+  (static mount), and vice versa. `python -m backend.audit_pdf_serving --check-url <base>`
+  validates every document's `/uploads` URL end-to-end against a live deployment.
+
 ### Seeding data (the portal is empty without it)
 - Real corpora under `data/corpora/` are gitignored and NOT present in a fresh clone, so
   `make sync` has nothing to load and the dashboard starts empty. This is expected.
