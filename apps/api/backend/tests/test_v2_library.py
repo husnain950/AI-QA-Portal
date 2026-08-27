@@ -6,10 +6,11 @@ no sign that a thousand were missing. These endpoints exist so a page can say
 different filter and quietly return the wrong slice.
 """
 
+import json
 
 from backend.database import database_connection
 from backend.routes.v2.pagination import encode_cursor
-from backend.tests.conftest import add_finding, seed_document
+from backend.tests.conftest import add_annotation, add_finding, seed_document
 
 
 async def get(client, path, **params):
@@ -85,6 +86,249 @@ async def test_documents_page_filters_and_sorts(runtime_sandbox, client):
 
         searched = await get(client, "/documents", q="2003")
         assert [item["id"] for item in searched["items"]] == ["doc-2"]
+
+
+async def _lane_mix(db):
+    """Three documents spanning stored-lane, heuristic-lane, and manual lanes."""
+    await seed_document(db, "doc-0", name="Customs Act, 1969", section_ids=("s0",), with_active_version=True)
+    await seed_document(db, "doc-1", name="Income Tax Rules 2002", section_ids=("s1",), with_active_version=True)
+    await seed_document(db, "doc-2", name="My Upload", section_ids=("s2",), with_active_version=True)
+    await db.execute(
+        "UPDATE documents SET corpus_lane = 'customs', source_type = 'acts_corpus', "
+        "provenance = ? WHERE id = 'doc-0'",
+        (json.dumps({"source_kind": "native-digital", "tags": ["native-digital"]}),),
+    )
+    await db.execute(
+        "UPDATE documents SET source_type = 'acts_corpus' WHERE id = 'doc-1'"
+    )
+    await db.execute(
+        "UPDATE documents SET provenance = ? WHERE id = 'doc-2'",
+        (json.dumps({"source_kind": "scanned-ocr", "tags": ["scanned-ocr", "ocr-needs-review"]}),),
+    )
+    await db.commit()
+
+
+async def test_documents_page_filters_by_lane_including_heuristic_and_manual(runtime_sandbox, client):
+    async with database_connection() as db:
+        await _lane_mix(db)
+
+        stored = await get(client, "/documents", lane="customs")
+        assert [item["id"] for item in stored["items"]] == ["doc-0"]
+
+        heuristic = await get(client, "/documents", lane="income_tax_rules")
+        assert [item["id"] for item in heuristic["items"]] == ["doc-1"], \
+            "acts_corpus rows without a stored lane fall back to the title heuristic"
+
+        manual = await get(client, "/documents", lane="manual")
+        assert [item["id"] for item in manual["items"]] == ["doc-2"], \
+            "uploads browse under the manual lane"
+
+        multi = await get(client, "/documents", lane="customs,manual")
+        assert {item["id"] for item in multi["items"]} == {"doc-0", "doc-2"}
+        assert multi["total"] == 2
+
+
+async def test_documents_page_filters_by_source_kind_with_unknown_bucket(runtime_sandbox, client):
+    async with database_connection() as db:
+        await _lane_mix(db)
+
+        scanned = await get(client, "/documents", kind="scanned-ocr")
+        assert [item["id"] for item in scanned["items"]] == ["doc-2"]
+
+        unknown = await get(client, "/documents", kind="unknown")
+        assert [item["id"] for item in unknown["items"]] == ["doc-1"], \
+            "doc-1 carries no provenance blob at all"
+
+        multi = await get(client, "/documents", kind="native-digital,unknown")
+        assert {item["id"] for item in multi["items"]} == {"doc-0", "doc-1"}
+
+
+async def test_documents_page_filters_by_flags(runtime_sandbox, client):
+    async with database_connection() as db:
+        await _lane_mix(db)
+        await db.execute("UPDATE sections SET review_status = 'has_issues' WHERE id = 's2'")
+        await add_annotation(db, "s2")
+        await db.commit()
+
+        flagged = await get(client, "/documents", flagged="1")
+        assert [item["id"] for item in flagged["items"]] == ["doc-2"]
+
+        annotated = await get(client, "/documents", annotations="1")
+        assert [item["id"] for item in annotated["items"]] == ["doc-2"]
+
+        resolved = await get(client, "/documents", annotations="1", q="Customs")
+        assert resolved["total"] == 0
+
+
+async def test_documents_page_filters_by_provenance_tags(runtime_sandbox, client):
+    async with database_connection() as db:
+        await _lane_mix(db)
+
+        needs_review = await get(client, "/documents", tag="ocr-needs-review")
+        assert [item["id"] for item in needs_review["items"]] == ["doc-2"]
+
+        either = await get(client, "/documents", tag="ocr-needs-review,native-digital")
+        assert {item["id"] for item in either["items"]} == {"doc-0", "doc-2"}
+
+        response = await client.get("/api/v2/documents", params={"tag": "Not A Slug"})
+        assert response.status_code == 422
+
+
+async def test_documents_page_filters_by_health_and_review(runtime_sandbox, client):
+    async with database_connection() as db:
+        await _lane_mix(db)
+        await db.execute(
+            "INSERT INTO version_metrics (version_id, gate_ok, measured_at) "
+            "VALUES ('ver-doc-0', TRUE, '2026-01-02')"
+        )
+        await db.execute(
+            "INSERT INTO version_metrics (version_id, gate_ok, measured_at) "
+            "VALUES ('ver-doc-1', FALSE, '2026-01-02')"
+        )
+        await db.execute("UPDATE sections SET review_status = 'approved' WHERE id = 's0'")
+        await db.commit()
+        # doc-0: within gate + complete; doc-1: outside gate + untouched; doc-2: unmeasured.
+
+        within = await get(client, "/documents", health="within_gate")
+        assert [item["id"] for item in within["items"]] == ["doc-0"]
+
+        outside_or_unmeasured = await get(client, "/documents", health="outside_gate,unmeasured")
+        assert {item["id"] for item in outside_or_unmeasured["items"]} == {"doc-1", "doc-2"}
+
+        complete = await get(client, "/documents", review="complete")
+        assert [item["id"] for item in complete["items"]] == ["doc-0"]
+
+        untouched = await get(client, "/documents", review="untouched")
+        assert {item["id"] for item in untouched["items"]} == {"doc-1", "doc-2"}
+
+
+async def test_documents_page_filters_by_year_added_pages_and_ids(runtime_sandbox, client):
+    async with database_connection() as db:
+        await _lane_mix(db)
+        await db.execute(
+            "UPDATE documents SET edition_date = '1969', total_pages = 5, "
+            "uploaded_at = '2026-06-15T10:00:00Z' WHERE id = 'doc-0'"
+        )
+        await db.execute("UPDATE documents SET total_pages = 500 WHERE id = 'doc-2'")
+        await db.commit()
+        # doc-1 keeps uploaded_at 2026-01-01, total_pages 1, year from name (2002).
+
+        by_year = await get(client, "/documents", year=1969)
+        assert [item["id"] for item in by_year["items"]] == ["doc-0"]
+
+        multi_year = await get(client, "/documents", year="1969,2002")
+        assert {item["id"] for item in multi_year["items"]} == {"doc-0", "doc-1"}
+
+        year_range = await get(client, "/documents", year_from=2000, year_to=2010)
+        assert [item["id"] for item in year_range["items"]] == ["doc-1"], \
+            "the name-derived year is the fallback when edition_date is missing"
+
+        added = await get(client, "/documents", added_after="2026-06-01")
+        assert [item["id"] for item in added["items"]] == ["doc-0"]
+
+        before = await get(client, "/documents", added_before="2026-01-01")
+        assert {item["id"] for item in before["items"]} == {"doc-1", "doc-2"}
+
+        pages = await get(client, "/documents", pages_min=10)
+        assert [item["id"] for item in pages["items"]] == ["doc-2"]
+
+        by_ids = await get(client, "/documents", ids="doc-2,doc-0", sort="name")
+        assert [item["id"] for item in by_ids["items"]] == ["doc-0", "doc-2"]
+
+
+async def test_documents_page_sorts_by_size_year_update_and_completion(runtime_sandbox, client):
+    async with database_connection() as db:
+        await _lane_mix(db)
+        await db.execute("UPDATE documents SET total_pages = 500 WHERE id = 'doc-2'")
+        await db.execute(
+            "UPDATE document_versions SET created_at = '2026-05-01' WHERE document_id = 'doc-1'"
+        )
+        await db.execute("UPDATE sections SET review_status = 'approved' WHERE id = 's1'")
+        await db.commit()
+        # years: doc-0 1969 (edition_date), doc-1 2002 (name), doc-2 none.
+
+        by_pages = await get(client, "/documents", sort="pages")
+        assert [item["id"] for item in by_pages["items"]] == ["doc-2", "doc-0", "doc-1"]
+
+        by_year = await get(client, "/documents", sort="year")
+        assert [item["id"] for item in by_year["items"]][:2] == ["doc-1", "doc-0"]
+        assert by_year["items"][-1]["id"] == "doc-2", "unknown years sort last"
+
+        by_updated = await get(client, "/documents", sort="updated")
+        assert by_updated["items"][0]["id"] == "doc-1"
+        assert by_updated["items"][0]["last_version_at"] == "2026-05-01"
+
+        by_completion = await get(client, "/documents", sort="completion")
+        assert by_completion["items"][0]["id"] == "doc-1", "the one reviewed document leads"
+
+        z_to_a = await get(client, "/documents", sort="name_desc")
+        assert z_to_a["items"][0]["id"] == "doc-2", "My Upload sorts after the statutes"
+
+
+async def test_documents_page_relevance_prefers_prefix_then_position(runtime_sandbox, client):
+    async with database_connection() as db:
+        await seed_document(db, "doc-a", name="Sales Tax Act, 1990", section_ids=("sa",), with_active_version=True)
+        await seed_document(db, "doc-b", name="The Sales Tax (Appeals) Rules", section_ids=("sb",), with_active_version=True)
+        await seed_document(db, "doc-c", name="Unrelated Act", section_ids=("sc",), with_active_version=True)
+        await db.commit()
+
+        ranked = await get(client, "/documents", q="sales", sort="relevance")
+        assert [item["id"] for item in ranked["items"]] == ["doc-a", "doc-b"], \
+            "prefix match first, then earliest position; non-matches excluded by the filter"
+
+
+async def test_documents_facets_respect_other_filters_but_not_their_own(runtime_sandbox, client):
+    async with database_connection() as db:
+        await _lane_mix(db)
+        await db.execute(
+            "INSERT INTO version_metrics (version_id, gate_ok, measured_at) "
+            "VALUES ('ver-doc-0', TRUE, '2026-01-02')"
+        )
+        await db.commit()
+
+        facets = await get(client, "/documents/facets", lane="customs")
+        assert facets["lanes"] == {"customs": 1, "income_tax_rules": 1, "manual": 1}, \
+            "lane counts ignore the lane filter itself, so multi-select stays useful"
+        assert facets["kinds"] == {"native-digital": 1}, \
+            "kind counts do respect the active lane filter"
+        assert facets["totals"]["documents"] == 1
+        assert facets["library_total"] == 3
+        assert facets["health"] == {"within_gate": 1}
+        assert facets["years"] == [{"year": 1969, "count": 1}]
+
+        everything = await get(client, "/documents/facets")
+        assert everything["totals"] == {"documents": 3, "flagged": 0, "annotated": 0, "complete": 0}
+        assert everything["library"] == {"documents": 3, "flagged": 0, "complete": 0}
+        tag_counts = {row["tag"]: row["count"] for row in everything["tags"]}
+        assert tag_counts["ocr-needs-review"] == 1
+
+
+async def test_documents_page_rejects_unknown_facet_values(runtime_sandbox, client):
+    async with database_connection() as db:
+        await _lane_mix(db)
+
+        for bad in (
+            {"lane": "bogus"},
+            {"kind": "pdf"},
+            {"health": "sick"},
+            {"review": "done"},
+            {"sort": "bogus"},
+            {"added_after": "last-week"},
+        ):
+            response = await client.get("/api/v2/documents", params=bad)
+            assert response.status_code == 422, bad
+
+
+async def test_new_filters_invalidate_a_cursor(runtime_sandbox, client):
+    async with database_connection() as db:
+        await _corpus(db, documents=4, sections_each=1)
+        page = await get(client, "/documents", limit=2, lane="manual")
+
+        response = await client.get(
+            "/api/v2/documents",
+            params={"cursor": page["next_cursor"], "limit": 2, "lane": "other_acts"},
+        )
+        assert response.status_code == 400, "a cursor is bound to the full filter set"
 
 
 async def test_sections_page_paginates_within_one_document(runtime_sandbox, client):

@@ -1,249 +1,234 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    UploadCloud, FileText, Trash2, Download, Loader2, Search,
-    RefreshCw, Database, AlertTriangle, LayoutGrid, Rows3, Upload, ChevronDown, X,
+    AlertTriangle, ChevronDown, Clock, Database, FileText, Loader2, RefreshCw,
+    Search, Star, UploadCloud,
 } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
-import NewVersionButton from '../components/review/NewVersionButton';
-import DropdownMenu from '../components/ui/DropdownMenu';
-import ProgressBar from '../components/ui/ProgressBar';
 import EmptyState from '../components/ui/EmptyState';
+import ProgressBar from '../components/ui/ProgressBar';
 import Skeleton from '../components/ui/Skeleton';
-import SegmentedControl from '../components/ui/SegmentedControl';
+import LibraryToolbar from '../components/library/LibraryToolbar';
+import FilterPanel from '../components/library/FilterPanel';
+import SelectionBar from '../components/library/SelectionBar';
+import { DocumentCard, DocumentCompactRow, DocumentRow } from '../components/library/DocumentItem';
 import { useDocumentStore } from '../stores/documentStore';
-import DocumentHealth from '../components/dashboard/DocumentHealth';
-import DocumentTags from '../components/dashboard/DocumentTags';
+import { useLibraryStore } from '../stores/libraryStore';
+import { useUiStore } from '../stores/uiStore';
+import { useFavorites } from '../utils/favorites';
+import { useRecents } from '../utils/recents';
 import { api, corpusApi } from '../utils/api';
+import { queryClient } from '../queryClient';
 import {
     DEFAULT_SORT,
-    SORT_OPTIONS,
     SORT_VALUES,
-    facetCounts,
-    filterDocuments,
-    groupDocumentsByFamily,
-    sortLabel,
-} from '../utils/documentFilters';
-import { LANE_ORDER, documentLane, laneLabel } from '../utils/corpusLanes';
-import { CORPUS_MOUNT_HINT, describeCorpusSync } from '../utils/corpusStatus';
-import { editionDateFromName } from '../utils/editions';
-import { isTypingTarget } from '../utils/keyboard';
+    buildApiParams,
+    countActiveFilters,
+} from '../utils/libraryQuery';
 import {
+    EMPTY_FACETS,
+    clearChip,
+    hasActiveFilters,
     libraryFilterChips,
     parseLibrarySearchParams,
     serializeLibrarySearchParams,
 } from '../utils/libraryState';
-import { useUiStore } from '../stores/uiStore';
-
-const EMPTY_FACETS = {
-    corpusLane: '',
-    sourceKind: '',
-    health: '',
-    review: '',
-    flagged: '',
-};
+import { groupDocumentsByFamily } from '../utils/documentFilters';
+import { exportDocumentsCsv } from '../utils/csvExport';
+import { CORPUS_MOUNT_HINT, describeCorpusSync } from '../utils/corpusStatus';
+import { isTypingTarget } from '../utils/keyboard';
+import { timeAgo } from '../utils/time';
 
 const VIEW_KEY = 'qa-portal-library-view';
 const SORT_KEY = 'qa-portal-library-sort';
-const SEARCH_DEBOUNCE_MS = 200;
+const SEARCH_DEBOUNCE_MS = 250;
+const LAYOUTS = new Set(['list', 'cards', 'compact']);
 
-function readSortPref() {
+function readPref(key, valid, fallback) {
     try {
-        const value = window.localStorage?.getItem(SORT_KEY);
-        return SORT_VALUES.has(value) ? value : '';
+        const value = window.localStorage?.getItem(key);
+        return valid.has(value) ? value : fallback;
     } catch {
-        return '';
+        return fallback;
     }
 }
 
-function timeAgo(iso) {
-    if (!iso) return null;
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+function readSortPref() {
+    return readPref(SORT_KEY, SORT_VALUES, '');
 }
 
-/**
- * One facet row: an inline label followed by a scrollable pill track.
- * Options are [value, label, count]; a count of 0 is dropped so dead filters
- * ("Complete 0") never render, and an undefined count means "always show, no
- * badge" -- that is the "All" option. The whole group is omitted when there is
- * nothing to choose (one live bucket and no current value).
- */
-function FacetGroup({ label, ariaLabel, value, onChange, options }) {
-    const live = options.filter(([optionValue, , count]) => {
-        if (count === undefined) return true;
-        if (optionValue === value && value) return true;
-        return count > 0;
-    });
-    const counted = live.filter(([, , count]) => count !== undefined && count > 0);
-    if (counted.length < 2 && !value) return null;
-    return (
-        <div className="facet-group" role="group" aria-label={ariaLabel || label}>
-            <span className="facet-label">{label}</span>
-            <div className="source-filters">
-                {live.map(([optionValue, optionLabel, count]) => (
-                    <button
-                        key={optionValue || 'all'}
-                        type="button"
-                        className={`source-filter ${value === optionValue ? 'active' : ''}`}
-                        onClick={() => onChange(optionValue)}
-                        aria-pressed={value === optionValue}
-                    >
-                        {optionLabel}
-                        {count !== undefined && <span className="facet-count">{count}</span>}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-/** Row-level actions shared by list and card layouts. */
-function DocumentActions({ doc, onDelete, onExport, onNewVersion }) {
-    const newVersionTrigger = useRef(null);
-    return (
-        <div className="doc-actions" onClick={(e) => e.stopPropagation()}>
-            <NewVersionButton
-                documentId={doc.id}
-                documentName={doc.name}
-                hideButton
-                triggerRef={newVersionTrigger}
-                onSuccess={onNewVersion}
-            />
-            <DropdownMenu
-                ariaLabel={`Actions for ${doc.name}`}
-                items={[
-                    { key: 'json', label: 'Export report (JSON)', icon: Download, onSelect: () => onExport(doc.id, 'json') },
-                    { key: 'csv', label: 'Export report (CSV)', icon: Download, onSelect: () => onExport(doc.id, 'csv') },
-                    {
-                        key: 'version',
-                        label: 'Upload new JSON version…',
-                        icon: Upload,
-                        title: 'Add a new JSON version (the PDF stays as it is)',
-                        onSelect: () => newVersionTrigger.current?.(),
-                    },
-                    { type: 'separator' },
-                    { key: 'delete', label: 'Delete document…', icon: Trash2, danger: true, onSelect: () => onDelete(doc.id, doc.name) },
-                ]}
-            />
-        </div>
-    );
+function writePref(key, value) {
+    try {
+        window.localStorage?.setItem(key, value);
+    } catch {
+        // localStorage unavailable
+    }
 }
 
 const DashboardPage = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { documents, documentsError, fetchDocuments, deleteDocument, loading } = useDocumentStore();
-    const pushToast = useUiStore((s) => s.pushToast);
-    const confirmDialog = useUiStore((s) => s.confirmDialog);
+    const deleteDocument = useDocumentStore((state) => state.deleteDocument);
+    const pushToast = useUiStore((state) => state.pushToast);
+    const confirmDialog = useUiStore((state) => state.confirmDialog);
 
     const parsed = useMemo(() => parseLibrarySearchParams(searchParams), [searchParams]);
-    const facets = parsed.facets;
+    const sort = parsed.sort || readSortPref() || DEFAULT_SORT;
+    const { view, group, facets } = parsed;
+    const state = useMemo(
+        () => ({ query: parsed.query, sort, view, group, facets }),
+        [parsed.query, sort, view, group, facets],
+    );
 
-    const [queryInput, setQueryInput] = useState(() => parsed.query);
-    const [filterQuery, setFilterQuery] = useState(() => parsed.query);
-    const [sort, setSort] = useState(() => parsed.sort || readSortPref() || DEFAULT_SORT);
-    const [layout, setLayout] = useState(() => {
-        try {
-            return window.localStorage?.getItem(VIEW_KEY) || 'list';
-        } catch {
-            return 'list';
-        }
-    });
+    const [queryInput, setQueryInput] = useState(parsed.query);
+    const [layout, setLayout] = useState(() => readPref(VIEW_KEY, LAYOUTS, 'list'));
     const [corpusStatus, setCorpusStatus] = useState(null);
     const [syncing, setSyncing] = useState(false);
+    const [panelOpen, setPanelOpen] = useState(false);
     const [collapsedFamilies, setCollapsedFamilies] = useState(() => new Set());
+    const [selection, setSelection] = useState(() => new Set());
+    const [activeIndex, setActiveIndex] = useState(-1);
+
+    const favoriteIds = useFavorites((state) => state.ids);
+    const toggleFavorite = useFavorites((state) => state.toggle);
+    const addFavorites = useFavorites((state) => state.addMany);
+    const recentIds = useRecents((state) => state.ids);
+
+    const items = useLibraryStore((state) => state.items);
+    const total = useLibraryStore((state) => state.total);
+    const nextCursor = useLibraryStore((state) => state.nextCursor);
+    const facetPayload = useLibraryStore((state) => state.facets);
+    const library = useLibraryStore((state) => state.library);
+    const status = useLibraryStore((state) => state.status);
+    const storeError = useLibraryStore((state) => state.error);
+    const loadingMore = useLibraryStore((state) => state.loadingMore);
+    const storeKey = useLibraryStore((state) => state.key);
+    const load = useLibraryStore((state) => state.load);
+    const loadMore = useLibraryStore((state) => state.loadMore);
+    const reload = useLibraryStore((state) => state.reload);
+
     const syncMeta = corpusStatus ? describeCorpusSync(corpusStatus) : null;
     const mountsUnavailable = Boolean(syncMeta && !syncMeta.canSync);
+    const searching = Boolean(parsed.query.trim());
 
-    const commitParams = useCallback((next) => {
+    // --- URL state -----------------------------------------------------------
+
+    const commit = useCallback((next) => {
         const serialized = serializeLibrarySearchParams(next);
         if (serialized.toString() !== searchParams.toString()) {
             setSearchParams(serialized, { replace: true });
         }
     }, [searchParams, setSearchParams]);
 
-    const facetsRef = useRef(facets);
-    facetsRef.current = facets;
-    const sortRef = useRef(sort);
-    sortRef.current = sort;
-    const commitRef = useRef(commitParams);
-    commitRef.current = commitParams;
+    const commitRef = useRef(commit);
+    commitRef.current = commit;
+    const stateRef = useRef(state);
+    stateRef.current = state;
 
-    useEffect(() => {
-        if (parsed.query === queryInput || parsed.query === filterQuery) return;
-        setQueryInput(parsed.query);
-        setFilterQuery(parsed.query);
-    }, [parsed.query, queryInput, filterQuery]);
-
-    useEffect(() => {
-        if (parsed.sort) setSort(parsed.sort);
-    }, [parsed.sort]);
-
+    // Debounced search commits to the URL; the URL drives the query.
     useEffect(() => {
         const timer = window.setTimeout(() => {
-            setFilterQuery(queryInput);
-            commitRef.current({
-                query: queryInput,
-                facets: facetsRef.current,
-                sort: sortRef.current,
-            });
+            if (queryInput !== stateRef.current.query) {
+                commitRef.current({ ...stateRef.current, query: queryInput });
+            }
         }, SEARCH_DEBOUNCE_MS);
         return () => window.clearTimeout(timer);
     }, [queryInput]);
 
+    // External navigation (back/forward, saved view, chip removal) syncs the box.
     useEffect(() => {
-        const onKey = (event) => {
-            if (event.key !== '/') return;
-            if (isTypingTarget(event)) return;
-            event.preventDefault();
-            document.getElementById('document-filter')?.focus();
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
+        setQueryInput((current) => (current === parsed.query ? current : parsed.query));
+    }, [parsed.query]);
+
+    const commitFacets = useCallback((nextFacets) => {
+        commitRef.current({ ...stateRef.current, facets: nextFacets });
     }, []);
 
-    const setFacet = (key, value) => {
-        commitParams({ query: filterQuery, facets: { ...facets, [key]: value }, sort });
+    const setSort = (value) => {
+        writePref(SORT_KEY, value);
+        commit({ ...state, sort: value });
     };
 
-    const setSortPersisted = (value) => {
-        setSort(value);
-        try {
-            window.localStorage?.setItem(SORT_KEY, value);
-        } catch {
-            // localStorage unavailable
-        }
-        commitParams({ query: filterQuery, facets, sort: value });
-    };
-
+    const setView = (value) => commit({ ...state, view: value });
+    const setGroup = (value) => commit({ ...state, group: value });
     const setLayoutPersisted = (value) => {
         setLayout(value);
-        try {
-            window.localStorage?.setItem(VIEW_KEY, value);
-        } catch {
-            // localStorage unavailable
-        }
+        writePref(VIEW_KEY, value);
     };
+
+    const clearFilters = () => {
+        setQueryInput('');
+        commit({ query: '', sort, view: 'all', group, facets: { ...EMPTY_FACETS } });
+    };
+
+    const removeChip = (key) => {
+        const next = clearChip(state, key);
+        if (next.query !== state.query) setQueryInput(next.query);
+        commit(next);
+    };
+
+    const applySavedView = (search) => {
+        setSearchParams(new URLSearchParams(search), { replace: false });
+    };
+
+    // --- Server-driven list --------------------------------------------------
+
+    const idsKey = view === 'favorites'
+        ? favoriteIds.join(',')
+        : view === 'recent' ? recentIds.join(',') : '';
+    const stateKey = `${serializeLibrarySearchParams(state)}::${idsKey}`;
+    const apiParams = useMemo(
+        () => buildApiParams(state, { favoriteIds, recentIds }),
+        [state, favoriteIds, recentIds],
+    );
+
+    useEffect(() => {
+        if (storeKey !== stateKey) load(stateKey, apiParams);
+    }, [stateKey, storeKey, load, apiParams]);
+
+    // A favorite toggled off inside the Favorites view should disappear.
+    const displayItems = useMemo(() => {
+        if (view === 'favorites') {
+            const favorites = new Set(favoriteIds);
+            return items.filter((doc) => favorites.has(doc.id));
+        }
+        if (view === 'recent') {
+            const order = new Map(recentIds.map((id, index) => [id, index]));
+            return [...items].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+        }
+        return items;
+    }, [items, view, favoriteIds, recentIds]);
+
+    const familyGroups = useMemo(
+        () => (group ? groupDocumentsByFamily(displayItems, sort) : null),
+        [group, displayItems, sort],
+    );
+
+    // Infinite scroll: sentinel observed with a generous lead, plus a manual button.
+    const sentinelRef = useRef(null);
+    useEffect(() => {
+        const el = sentinelRef.current;
+        if (!el || !nextCursor || typeof IntersectionObserver === 'undefined') return undefined;
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) loadMore();
+        }, { rootMargin: '800px' });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [nextCursor, loadMore]);
+
+    // --- Corpus sync ---------------------------------------------------------
 
     const refreshCorpusStatus = useCallback(async () => {
         try {
-            const status = await corpusApi.status();
-            setCorpusStatus(status);
+            setCorpusStatus(await corpusApi.status());
         } catch {
             setCorpusStatus(null);
         }
     }, []);
 
     useEffect(() => {
-        fetchDocuments();
         refreshCorpusStatus();
-    }, [fetchDocuments, refreshCorpusStatus]);
+    }, [refreshCorpusStatus]);
 
     const handleCorpusSync = async () => {
         try {
@@ -256,7 +241,7 @@ const DashboardPage = () => {
                 message: `Corpus sync finished — Ordinance imported ${ord.imported ?? 0} / skipped ${ord.skipped ?? 0}; `
                     + `Acts imported ${acts.imported ?? 0} / skipped ${acts.skipped ?? 0}.`,
             });
-            await fetchDocuments();
+            await reload();
             await refreshCorpusStatus();
         } catch (err) {
             pushToast({ type: 'error', message: 'Corpus sync failed: ' + (err.message || 'Unknown error') });
@@ -264,6 +249,12 @@ const DashboardPage = () => {
             setSyncing(false);
         }
     };
+
+    // --- Document actions ----------------------------------------------------
+
+    const handleOpen = useCallback((docId) => {
+        navigate(`/review/${docId}`);
+    }, [navigate]);
 
     const handleDelete = async (docId, name) => {
         const ok = await confirmDialog({
@@ -275,6 +266,7 @@ const DashboardPage = () => {
         try {
             await deleteDocument(docId);
             pushToast({ type: 'success', message: `Deleted "${name}"` });
+            reload();
         } catch (err) {
             pushToast({ type: 'error', message: 'Failed to delete document: ' + err.message });
         }
@@ -286,49 +278,97 @@ const DashboardPage = () => {
 
     const handleNewVersion = useCallback(async () => {
         pushToast({ type: 'success', message: 'New JSON version is active. Open the document to see what changed.' });
-        fetchDocuments();
-    }, [pushToast, fetchDocuments]);
+        reload();
+    }, [pushToast, reload]);
 
-    const handleReviewClick = (docId) => {
-        navigate(`/review/${docId}`);
-    };
+    // --- Bulk selection ------------------------------------------------------
 
-    // Aggregated metrics
-    const totalDocs = documents.length;
-    const totalSections = documents.reduce((sum, doc) => sum + doc.total_sections, 0);
-    const totalIssues = documents.reduce((sum, doc) => sum + (doc.stats?.has_issues || 0), 0);
-    const totalReviewed = documents.reduce((sum, doc) => sum + (doc.stats?.reviewed || 0), 0);
-    const overallCompletion = totalSections > 0 ? Math.round((totalReviewed / totalSections) * 100) : 0;
-    const counts = useMemo(() => facetCounts(documents), [documents]);
-    const filteredDocuments = useMemo(
-        () => filterDocuments(documents, { query: filterQuery, facets, sort }),
-        [documents, filterQuery, facets, sort],
-    );
-    const familyGroups = useMemo(
-        () => groupDocumentsByFamily(filteredDocuments, sort),
-        [filteredDocuments, sort],
-    );
-    const activeChips = useMemo(
-        () => libraryFilterChips({ query: filterQuery, facets }),
-        [filterQuery, facets],
+    const toggleSelect = useCallback((docId) => {
+        setSelection((prev) => {
+            const next = new Set(prev);
+            if (next.has(docId)) next.delete(docId);
+            else next.add(docId);
+            return next;
+        });
+    }, []);
+
+    const selectedDocs = useMemo(
+        () => displayItems.filter((doc) => selection.has(doc.id)),
+        [displayItems, selection],
     );
 
-    const clearFilters = () => {
-        setQueryInput('');
-        setFilterQuery('');
-        commitParams({ query: '', facets: EMPTY_FACETS, sort });
+    const bulkDelete = async () => {
+        const docs = selectedDocs;
+        if (!docs.length) return;
+        const ok = await confirmDialog({
+            title: `Delete ${docs.length} document${docs.length === 1 ? '' : 's'}?`,
+            message: 'This removes annotations, footnotes validation, and source files for every selected document.',
+            confirmLabel: `Delete ${docs.length}`,
+        });
+        if (!ok) return;
+        const results = await Promise.allSettled(docs.map((doc) => api.delete(`/documents/${doc.id}`)));
+        const failed = results.filter((result) => result.status === 'rejected').length;
+        await queryClient.invalidateQueries({ queryKey: ['documents'] });
+        setSelection(new Set());
+        reload();
+        pushToast(
+            failed
+                ? { type: 'error', message: `Deleted ${docs.length - failed} of ${docs.length}; ${failed} failed` }
+                : { type: 'success', message: `Deleted ${docs.length} document${docs.length === 1 ? '' : 's'}` },
+        );
     };
 
-    const removeChip = (key) => {
-        if (key === 'q') {
-            setQueryInput('');
-            setFilterQuery('');
-            commitParams({ query: '', facets, sort });
-            return;
-        }
-        setFacet(key, '');
-    };
+    // --- Keyboard navigation ---------------------------------------------------
 
+    useEffect(() => {
+        const onKey = (event) => {
+            if (event.key === '/') {
+                if (isTypingTarget(event)) return;
+                event.preventDefault();
+                document.getElementById('document-filter')?.focus();
+                return;
+            }
+            if (isTypingTarget(event)) return;
+            if (event.key === 'Escape') {
+                if (selection.size) setSelection(new Set());
+                setActiveIndex(-1);
+                return;
+            }
+            if (!displayItems.length) return;
+            if (event.key === 'j' || event.key === 'k') {
+                event.preventDefault();
+                const delta = event.key === 'j' ? 1 : -1;
+                setActiveIndex((current) => Math.min(
+                    displayItems.length - 1,
+                    Math.max(0, (current < 0 ? (delta > 0 ? -1 : displayItems.length) : current) + delta),
+                ));
+            } else if (event.key === 'Enter' && activeIndex >= 0) {
+                event.preventDefault();
+                handleOpen(displayItems[activeIndex].id);
+            } else if (event.key === 'x' && activeIndex >= 0) {
+                event.preventDefault();
+                toggleSelect(displayItems[activeIndex].id);
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [displayItems, activeIndex, selection.size, handleOpen, toggleSelect]);
+
+    useEffect(() => {
+        if (activeIndex < 0 || !displayItems[activeIndex]) return;
+        const id = displayItems[activeIndex].id;
+        const escaped = window.CSS?.escape ? window.CSS.escape(id) : id;
+        document.querySelector(`[data-doc-id="${escaped}"]`)
+            ?.scrollIntoView?.({ block: 'nearest' });
+    }, [activeIndex, displayItems]);
+
+    // --- Derived view data -----------------------------------------------------
+
+    const chips = useMemo(() => libraryFilterChips(state), [state]);
+    const filterCount = useMemo(() => countActiveFilters(facets), [facets]);
+    const filtersActive = hasActiveFilters(state);
+    const libraryTotal = library?.documents ?? facetPayload?.library_total ?? total;
+    const loading = status === 'loading';
     const toggleFamily = (familyKey) => {
         setCollapsedFamilies((prev) => {
             const next = new Set(prev);
@@ -338,152 +378,201 @@ const DashboardPage = () => {
         });
     };
 
-    const docCompletion = (doc) => {
-        const reviewedCount = doc.stats?.reviewed || 0;
-        const totalCount = doc.total_sections;
-        return totalCount > 0 ? Math.round((reviewedCount / totalCount) * 100) : 0;
-    };
+    const ItemComponent = layout === 'cards'
+        ? DocumentCard
+        : layout === 'compact' ? DocumentCompactRow : DocumentRow;
 
-    const renderDocumentRow = (doc) => {
-        const compPercent = docCompletion(doc);
-        const edition = editionDateFromName(doc.name);
-        const lane = documentLane(doc);
-        const flaggedCount = doc.stats?.has_issues || 0;
-
-        return (
-            <div
-                key={doc.id}
-                className="doc-row"
-                onClick={() => handleReviewClick(doc.id)}
-                role="link"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleReviewClick(doc.id);
-                }}
-            >
-                <div className="doc-row-main">
-                    <div className="doc-row-title">
-                        <span className={`source-badge lane-${lane}`}>{laneLabel(lane)}</span>
-                        {!edition.unknown && (
-                            <span className="edition-year-badge" title="Edition year">{edition.label}</span>
-                        )}
-                        <h3 className="doc-row-name" title={doc.name}>{doc.name}</h3>
-                        <DocumentTags provenance={doc.provenance} compact />
-                    </div>
-                    <div className="doc-row-meta">
-                        <span>{doc.total_sections.toLocaleString()} sections</span>
-                        <span>{doc.total_pages} pages</span>
-                        <span title="JSON versions of this parse (the PDF is fixed)">
-                            {doc.version_count ?? 1} version{(doc.version_count ?? 1) === 1 ? '' : 's'}
-                        </span>
-                        {flaggedCount > 0 && (
-                            <span className="doc-row-flagged" title={`${flaggedCount} flagged sections`}>
-                                <AlertTriangle size={11} aria-hidden="true" />
-                                {flaggedCount} flagged
-                            </span>
-                        )}
-                        {doc.uploaded_at && (
-                            <span title={new Date(doc.uploaded_at).toLocaleString()}>
-                                added {timeAgo(doc.uploaded_at)}
-                            </span>
-                        )}
-                        <DocumentHealth health={doc.health} />
-                    </div>
-                </div>
-                <div className="doc-row-progress" title={`${doc.stats?.reviewed || 0} of ${doc.total_sections} sections reviewed`}>
-                    <ProgressBar pct={compPercent} />
-                    <span className="doc-row-percent">{compPercent}%</span>
-                </div>
-                <div className="doc-row-actions" onClick={(e) => e.stopPropagation()}>
-                    <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => handleReviewClick(doc.id)}
-                    >
-                        {compPercent === 0 ? 'Start review' : 'Continue'}
-                    </button>
-                    <DocumentActions
-                        doc={doc}
-                        onDelete={handleDelete}
-                        onExport={handleExport}
-                        onNewVersion={handleNewVersion}
-                    />
-                </div>
-            </div>
-        );
-    };
-
-    const renderDocumentCard = (doc) => {
-        const compPercent = docCompletion(doc);
-        const edition = editionDateFromName(doc.name);
-        const lane = documentLane(doc);
-        const flaggedCount = doc.stats?.has_issues || 0;
-
-        return (
-            <div
-                key={doc.id}
-                className="document-card"
-                onClick={() => handleReviewClick(doc.id)}
-                role="link"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleReviewClick(doc.id);
-                }}
-            >
-                <div className="document-card-head">
-                    <span className={`source-badge lane-${lane}`}>{laneLabel(lane)}</span>
-                    {!edition.unknown && (
-                        <span className="edition-year-badge" title="Edition year">{edition.label}</span>
-                    )}
-                    <DocumentTags provenance={doc.provenance} compact />
-                    <DocumentActions
-                        doc={doc}
-                        onDelete={handleDelete}
-                        onExport={handleExport}
-                        onNewVersion={handleNewVersion}
-                    />
-                </div>
-                <h3 className="document-name" title={doc.name}>{doc.name}</h3>
-                <div className="document-card-stats">
-                    <span>{doc.total_sections.toLocaleString()} sections</span>
-                    <span>{doc.total_pages} pages</span>
-                    <span>{doc.version_count ?? 1} version{(doc.version_count ?? 1) === 1 ? '' : 's'}</span>
-                    {flaggedCount > 0 && (
-                        <span className="doc-row-flagged">
-                            <AlertTriangle size={11} aria-hidden="true" />
-                            {flaggedCount} flagged
-                        </span>
-                    )}
-                    {doc.uploaded_at && (
-                        <span title={new Date(doc.uploaded_at).toLocaleString()}>
-                            added {timeAgo(doc.uploaded_at)}
-                        </span>
-                    )}
-                </div>
-                <DocumentHealth health={doc.health} />
-                <div className="document-card-footer">
-                    <div className="doc-row-progress" title={`${doc.stats?.reviewed || 0} of ${doc.total_sections} sections reviewed`}>
-                        <ProgressBar pct={compPercent} />
-                        <span className="doc-row-percent">{compPercent}%</span>
-                    </div>
-                    <button
-                        className="btn btn-sm btn-primary"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleReviewClick(doc.id);
-                        }}
-                    >
-                        {compPercent === 0 ? 'Start review' : 'Continue'}
-                    </button>
-                </div>
-            </div>
-        );
-    };
-
-    const renderDocuments = (docs) => (
-        layout === 'list'
-            ? <div className="doc-rows">{docs.map((doc) => renderDocumentRow(doc))}</div>
-            : <div className="document-grid">{docs.map((doc) => renderDocumentCard(doc))}</div>
+    const renderItem = (doc) => (
+        <ItemComponent
+            key={doc.id}
+            doc={doc}
+            selected={selection.has(doc.id)}
+            onToggleSelect={toggleSelect}
+            isFavorite={favoriteIds.includes(doc.id)}
+            onToggleFavorite={toggleFavorite}
+            onOpen={() => handleOpen(doc.id)}
+            onDelete={handleDelete}
+            onExport={handleExport}
+            onNewVersion={handleNewVersion}
+            keyboardActive={displayItems[activeIndex]?.id === doc.id}
+        />
     );
+
+    const renderList = (docs) => {
+        if (layout === 'cards') {
+            return <div className="document-grid">{docs.map(renderItem)}</div>;
+        }
+        if (layout === 'compact') {
+            return <div className="doc-compact-list">{docs.map(renderItem)}</div>;
+        }
+        return <div className="doc-rows">{docs.map(renderItem)}</div>;
+    };
+
+    const renderSkeletons = (count) => (
+        <div className={layout === 'cards' ? 'document-grid' : 'doc-rows'} aria-label="Loading documents">
+            {[...Array(count)].map((_, index) => (
+                <div key={index} className="doc-row doc-row-skeleton">
+                    <div className="doc-row-main">
+                        <Skeleton width={`${50 - (index % 3) * 8}%`} height={15} />
+                        <Skeleton width={`${34 - (index % 2) * 6}%`} height={11} />
+                    </div>
+                    <Skeleton width={120} height={10} />
+                    <Skeleton width={90} height={26} />
+                </div>
+            ))}
+        </div>
+    );
+
+    const renderBody = () => {
+        if (loading) return renderSkeletons(6);
+        if (status === 'error') {
+            return (
+                <EmptyState
+                    icon={<AlertTriangle size={44} />}
+                    title="Couldn't load the library"
+                    message={`The API didn't respond (${storeError}). This is a load failure, not an empty library — the documents are still there.`}
+                >
+                    <button className="btn btn-primary" onClick={reload}>
+                        <RefreshCw size={15} />
+                        <span>Retry</span>
+                    </button>
+                </EmptyState>
+            );
+        }
+        if (!libraryTotal && !filtersActive) {
+            return (
+                <EmptyState
+                    icon={<FileText size={44} />}
+                    title="Corpus is empty"
+                    message={mountsUnavailable
+                        ? 'This host has no Ordinance/Acts pipeline mounts. From a machine that already has the corpus, run make push-remote BASE_URL=<this portal>, or upload a PDF + JSON pair below.'
+                        : 'Seed from the configured Ordinance + Acts pipeline output, then review side-by-side. Closed loop: convert → sync → review → export QA → import findings.'}
+                >
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleCorpusSync}
+                        disabled={syncing || mountsUnavailable}
+                        title={mountsUnavailable
+                            ? 'Pipeline mounts are not on this host — use make push-remote or Upload'
+                            : undefined}
+                    >
+                        {syncing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                        <span>Sync corpus now</span>
+                    </button>
+                    <button className="btn btn-secondary" onClick={() => navigate('/upload')}>
+                        <UploadCloud size={15} />
+                        <span>Upload PDF + JSON</span>
+                    </button>
+                </EmptyState>
+            );
+        }
+        if (view === 'favorites' && !favoriteIds.length) {
+            return (
+                <EmptyState
+                    icon={<Star size={40} />}
+                    title="No favorites yet"
+                    message="Star any document to pin it here. Favorites are stored on this browser."
+                >
+                    <button className="btn btn-secondary" onClick={() => setView('all')}>
+                        Browse all documents
+                    </button>
+                </EmptyState>
+            );
+        }
+        if (view === 'recent' && !recentIds.length) {
+            return (
+                <EmptyState
+                    icon={<Clock size={40} />}
+                    title="Nothing opened yet"
+                    message="Documents you open for review land here, newest first."
+                >
+                    <button className="btn btn-secondary" onClick={() => setView('all')}>
+                        Browse all documents
+                    </button>
+                </EmptyState>
+            );
+        }
+        if (total === 0) {
+            return (
+                <EmptyState
+                    icon={<Search size={36} />}
+                    title={searching ? `No documents match “${parsed.query}”` : 'No documents match these filters'}
+                    message={searching
+                        ? 'Search covers document titles and source filenames. Try a shorter term, or clear a filter.'
+                        : 'The active filters exclude everything. Loosen one, or clear them all.'}
+                >
+                    {searching && (
+                        <button
+                            type="button"
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => {
+                                setQueryInput('');
+                                commit({ ...state, query: '' });
+                            }}
+                        >
+                            Clear search
+                        </button>
+                    )}
+                    <button type="button" className="btn btn-sm btn-secondary" onClick={clearFilters}>
+                        Clear all filters
+                    </button>
+                </EmptyState>
+            );
+        }
+        if (!familyGroups) {
+            return renderList(displayItems);
+        }
+        return (
+            <div className="family-groups">
+                {familyGroups.map((familyGroup) => {
+                    const collapsed = collapsedFamilies.has(familyGroup.familyKey);
+                    const groupReviewed = familyGroup.editions.reduce((sum, doc) => sum + (doc.stats?.reviewed || 0), 0);
+                    const groupSections = familyGroup.editions.reduce((sum, doc) => sum + (doc.total_sections || 0), 0);
+                    const groupPct = groupSections ? Math.round((groupReviewed / groupSections) * 100) : 0;
+                    return (
+                        <section key={familyGroup.familyKey} className="family-group">
+                            <header className="family-group-header">
+                                <button
+                                    type="button"
+                                    className="family-group-toggle"
+                                    onClick={() => toggleFamily(familyGroup.familyKey)}
+                                    aria-expanded={!collapsed}
+                                >
+                                    <ChevronDown
+                                        size={15}
+                                        className={`family-group-chevron ${collapsed ? 'collapsed' : ''}`}
+                                        aria-hidden="true"
+                                    />
+                                    <h3>{familyGroup.title}</h3>
+                                </button>
+                                <p>
+                                    {familyGroup.editions.length} edition{familyGroup.editions.length === 1 ? '' : 's'}
+                                    {familyGroup.latestYear ? ` · latest ${familyGroup.latestYear}` : ''}
+                                    {nextCursor ? ' · loaded so far' : ''}
+                                </p>
+                                <div className="family-group-side">
+                                    {familyGroup.outsideGate && (
+                                        <span className="chip chip-danger">
+                                            <AlertTriangle size={12} aria-hidden="true" />
+                                            Outside gate
+                                        </span>
+                                    )}
+                                    <span
+                                        className="family-group-progress"
+                                        title={`${groupReviewed.toLocaleString()} of ${groupSections.toLocaleString()} sections reviewed`}
+                                    >
+                                        <ProgressBar pct={groupPct} />
+                                        {groupPct}%
+                                    </span>
+                                </div>
+                            </header>
+                            {!collapsed && renderList(familyGroup.editions)}
+                        </section>
+                    );
+                })}
+            </div>
+        );
+    };
 
     return (
         <AppShell title="Library" scrollable>
@@ -498,28 +587,30 @@ const DashboardPage = () => {
                                 onClick={clearFilters}
                                 title="Show all documents"
                             >
-                                <strong>{totalDocs.toLocaleString()}</strong> documents
+                                <strong>{(library?.documents ?? 0).toLocaleString()}</strong> documents
                             </button>
-                            <span className="library-stat">
-                                <strong>{totalSections.toLocaleString()}</strong> sections
-                            </span>
                             <button
                                 type="button"
                                 className={`library-stat library-stat-btn is-warning ${facets.flagged ? 'active' : ''}`}
-                                onClick={() => setFacet('flagged', facets.flagged ? '' : 'flagged')}
-                                aria-pressed={Boolean(facets.flagged)}
+                                onClick={() => commitFacets({ ...facets, flagged: !facets.flagged })}
+                                aria-pressed={facets.flagged}
                                 title="Show only documents with flagged sections"
                             >
-                                <strong>{totalIssues.toLocaleString()}</strong> flagged
+                                <strong>{(library?.flagged ?? 0).toLocaleString()}</strong> flagged
                             </button>
                             <button
                                 type="button"
-                                className={`library-stat library-stat-btn is-success ${facets.review === 'complete' ? 'active' : ''}`}
-                                onClick={() => setFacet('review', facets.review === 'complete' ? '' : 'complete')}
-                                aria-pressed={facets.review === 'complete'}
+                                className={`library-stat library-stat-btn is-success ${facets.review.includes('complete') ? 'active' : ''}`}
+                                onClick={() => commitFacets({
+                                    ...facets,
+                                    review: facets.review.includes('complete')
+                                        ? facets.review.filter((value) => value !== 'complete')
+                                        : [...facets.review, 'complete'],
+                                })}
+                                aria-pressed={facets.review.includes('complete')}
                                 title="Show fully reviewed documents"
                             >
-                                <strong>{overallCompletion}%</strong> reviewed
+                                <strong>{(library?.complete ?? 0).toLocaleString()}</strong> complete
                             </button>
                         </p>
                         <p className="library-sync-line">
@@ -572,239 +663,79 @@ const DashboardPage = () => {
                     </div>
                 </header>
 
-                <div className="library-toolbar">
-                    <div className="library-toolbar-row">
-                        <label className="document-search" htmlFor="document-filter">
-                            <Search size={15} aria-hidden="true" />
-                            <span className="sr-only">Filter documents</span>
-                            <input
-                                id="document-filter"
-                                type="search"
-                                value={queryInput}
-                                onChange={(event) => setQueryInput(event.target.value)}
-                                placeholder="Find an Act, edition, or filename…"
-                                autoComplete="off"
-                                title="Press / to focus search"
-                            />
-                        </label>
-                        <select
-                            className="ui-select library-lane-select"
-                            value={facets.corpusLane}
-                            onChange={(event) => setFacet('corpusLane', event.target.value)}
-                            aria-label="Filter by source"
-                        >
-                            <option value="">Source: All {counts.total}</option>
-                            {LANE_ORDER
-                                .filter((lane) => (counts.lanes[lane] || 0) > 0 || lane === facets.corpusLane)
-                                .map((lane) => (
-                                    <option key={lane} value={lane}>
-                                        {laneLabel(lane)} {counts.lanes[lane] || 0}
-                                    </option>
-                                ))}
-                        </select>
-                        <span className="library-result-count">
-                            {filteredDocuments.length.toLocaleString()} of {documents.length.toLocaleString()}
-                            {` · ${familyGroups.length} famil${familyGroups.length === 1 ? 'y' : 'ies'}`}
-                        </span>
-                        <SegmentedControl
-                            ariaLabel="Library layout"
-                            value={layout}
-                            onChange={setLayoutPersisted}
-                            options={[
-                                { value: 'list', label: 'List', icon: <Rows3 size={13} /> },
-                                { value: 'cards', label: 'Cards', icon: <LayoutGrid size={13} /> },
-                            ]}
-                        />
-                        <DropdownMenu
-                            ariaLabel="Sort documents"
-                            align="end"
-                            buttonClassName="library-sort-trigger"
-                            buttonContent={(
-                                <>
-                                    <span>Sort: {sortLabel(sort)}</span>
-                                    <ChevronDown size={14} aria-hidden="true" />
-                                </>
-                            )}
-                            items={SORT_OPTIONS.map((option, index) => (
-                                option.type === 'separator'
-                                    ? { type: 'separator', key: `sep-${index}` }
-                                    : {
-                                        key: option.value,
-                                        label: option.label,
-                                        active: option.value === sort,
-                                        onSelect: () => setSortPersisted(option.value),
-                                    }
-                            ))}
-                        />
-                    </div>
+                <LibraryToolbar
+                    queryInput={queryInput}
+                    onQueryInput={setQueryInput}
+                    searching={searching}
+                    sort={sort}
+                    onSort={setSort}
+                    view={view}
+                    onView={setView}
+                    viewCounts={{ favorites: favoriteIds.length, recent: recentIds.length }}
+                    layout={layout}
+                    onLayout={setLayoutPersisted}
+                    group={group}
+                    onToggleGroup={() => setGroup(!group)}
+                    filterCount={filterCount}
+                    onOpenFilters={() => setPanelOpen(true)}
+                    chips={chips}
+                    onRemoveChip={removeChip}
+                    onClearAll={clearFilters}
+                    total={total}
+                    libraryTotal={libraryTotal}
+                    loading={loading}
+                    currentSearch={searchParams.toString()}
+                    onApplySavedView={applySavedView}
+                />
 
-                    <div className="library-toolbar-row" aria-label="Document facets">
-                        <FacetGroup
-                            label="Kind"
-                            value={facets.sourceKind}
-                            onChange={(value) => setFacet('sourceKind', value)}
-                            options={[
-                                ['', 'All'],
-                                ['native-digital', 'Native', counts.kinds['native-digital'] || 0],
-                                ['scanned-ocr', 'Scanned', counts.kinds['scanned-ocr'] || 0],
-                                ['mixed-ocr', 'Mixed', counts.kinds['mixed-ocr'] || 0],
-                            ]}
-                        />
-                        <FacetGroup
-                            label="Health"
-                            value={facets.health}
-                            onChange={(value) => setFacet('health', value)}
-                            options={[
-                                ['', 'All'],
-                                ['within_gate', 'Within gate', counts.health.within_gate || 0],
-                                ['outside_gate', 'Outside gate', counts.health.outside_gate || 0],
-                                ['unmeasured', 'Unmeasured', counts.health.unmeasured || 0],
-                            ]}
-                        />
-                        <FacetGroup
-                            label="Review"
-                            value={facets.review}
-                            onChange={(value) => setFacet('review', value)}
-                            options={[
-                                ['', 'All'],
-                                ['complete', 'Complete', counts.review.complete || 0],
-                                ['in_progress', 'In progress', counts.review.in_progress || 0],
-                                ['untouched', 'Untouched', counts.review.untouched || 0],
-                            ]}
-                        />
-                    </div>
-                    {activeChips.length > 0 && (
-                        <div className="library-chips" aria-label="Active filters">
-                            {activeChips.map((chip) => (
-                                <button
-                                    key={chip.key}
-                                    type="button"
-                                    className="library-chip"
-                                    onClick={() => removeChip(chip.key)}
-                                    title={`Remove ${chip.label}`}
-                                >
-                                    {chip.label}
-                                    <X size={12} aria-hidden="true" />
-                                </button>
-                            ))}
+                {renderBody()}
+
+                {status === 'ready' && displayItems.length > 0 && (
+                    <div className="library-footer">
+                        <span className="library-footer-count">
+                            Showing {displayItems.length.toLocaleString()} of {total.toLocaleString()}
+                            {familyGroups ? ` · ${familyGroups.length} famil${familyGroups.length === 1 ? 'y' : 'ies'}` : ''}
+                        </span>
+                        {nextCursor && (
                             <button
                                 type="button"
-                                className="library-chip-clear"
-                                onClick={clearFilters}
+                                className="btn btn-sm btn-secondary"
+                                onClick={loadMore}
+                                disabled={loadingMore}
                             >
-                                Clear all
+                                {loadingMore ? <Loader2 size={14} className="animate-spin" /> : null}
+                                <span>Load more</span>
                             </button>
-                        </div>
-                    )}
-                </div>
-
-                {loading.documents ? (
-                    <div className="doc-rows" aria-label="Loading documents">
-                        {[...Array(5)].map((_, i) => (
-                            <div key={i} className="doc-row doc-row-skeleton">
-                                <div className="doc-row-main">
-                                    <Skeleton width={`${50 - (i % 3) * 8}%`} height={15} />
-                                    <Skeleton width={`${34 - (i % 2) * 6}%`} height={11} />
-                                </div>
-                                <Skeleton width={120} height={10} />
-                                <Skeleton width={90} height={26} />
-                            </div>
-                        ))}
-                    </div>
-                ) : documentsError ? (
-                    <EmptyState
-                        icon={<AlertTriangle size={44} />}
-                        title="Couldn't load the corpus"
-                        message={`The API didn't respond (${documentsError}). This is a load failure, not an empty corpus — the documents are still there.`}
-                    >
-                        <button className="btn btn-primary" onClick={fetchDocuments}>
-                            <RefreshCw size={15} />
-                            <span>Retry</span>
-                        </button>
-                    </EmptyState>
-                ) : documents.length === 0 ? (
-                    <EmptyState
-                        icon={<FileText size={44} />}
-                        title="Corpus is empty"
-                        message={mountsUnavailable
-                            ? 'This host has no Ordinance/Acts pipeline mounts. From a machine that already has the corpus, run make push-remote BASE_URL=<this portal>, or upload a PDF + JSON pair below.'
-                            : 'Seed from the configured Ordinance + Acts pipeline output, then review side-by-side. Closed loop: convert → sync → review → export QA → import findings.'}
-                    >
-                        <button
-                            className="btn btn-primary"
-                            onClick={handleCorpusSync}
-                            disabled={syncing || mountsUnavailable}
-                            title={mountsUnavailable
-                                ? 'Pipeline mounts are not on this host — use make push-remote or Upload'
-                                : undefined}
-                        >
-                            {syncing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-                            <span>Sync corpus now</span>
-                        </button>
-                        <button className="btn btn-secondary" onClick={() => navigate('/upload')}>
-                            <UploadCloud size={15} />
-                            <span>Upload PDF + JSON</span>
-                        </button>
-                    </EmptyState>
-                ) : filteredDocuments.length === 0 ? (
-                    <EmptyState
-                        icon={<Search size={36} />}
-                        title="No matching documents"
-                        message="Try another title or clear a facet filter."
-                    >
-                        <button type="button" className="btn btn-sm btn-secondary" onClick={clearFilters}>
-                            Clear filters
-                        </button>
-                    </EmptyState>
-                ) : (
-                    <div className="family-groups">
-                        {familyGroups.map((group) => {
-                            const collapsed = collapsedFamilies.has(group.familyKey);
-                            const groupReviewed = group.editions.reduce((sum, d) => sum + (d.stats?.reviewed || 0), 0);
-                            const groupSections = group.editions.reduce((sum, d) => sum + (d.total_sections || 0), 0);
-                            const groupPct = groupSections ? Math.round((groupReviewed / groupSections) * 100) : 0;
-                            return (
-                                <section key={group.familyKey} className="family-group">
-                                    <header className="family-group-header">
-                                        <button
-                                            type="button"
-                                            className="family-group-toggle"
-                                            onClick={() => toggleFamily(group.familyKey)}
-                                            aria-expanded={!collapsed}
-                                        >
-                                            <ChevronDown
-                                                size={15}
-                                                className={`family-group-chevron ${collapsed ? 'collapsed' : ''}`}
-                                                aria-hidden="true"
-                                            />
-                                            <h3>{group.title}</h3>
-                                        </button>
-                                        <p>
-                                            {group.editions.length} edition{group.editions.length === 1 ? '' : 's'}
-                                            {group.latestYear ? ` · latest ${group.latestYear}` : ''}
-                                        </p>
-                                        <div className="family-group-side">
-                                            {group.outsideGate && (
-                                                <span className="chip chip-danger">
-                                                    <AlertTriangle size={12} aria-hidden="true" />
-                                                    Outside gate
-                                                </span>
-                                            )}
-                                            <span
-                                                className="family-group-progress"
-                                                title={`${groupReviewed.toLocaleString()} of ${groupSections.toLocaleString()} sections reviewed`}
-                                            >
-                                                <ProgressBar pct={groupPct} />
-                                                {groupPct}%
-                                            </span>
-                                        </div>
-                                    </header>
-                                    {!collapsed && renderDocuments(group.editions)}
-                                </section>
-                            );
-                        })}
+                        )}
+                        <div ref={sentinelRef} className="library-sentinel" aria-hidden="true" />
                     </div>
                 )}
+                {loadingMore && renderSkeletons(2)}
+
+                <FilterPanel
+                    open={panelOpen}
+                    onClose={() => setPanelOpen(false)}
+                    facets={facets}
+                    facetCounts={facetPayload}
+                    onChangeFacets={commitFacets}
+                    onClearAll={() => {
+                        clearFilters();
+                    }}
+                    filteredTotal={facetPayload?.totals?.documents ?? total}
+                />
+
+                <SelectionBar
+                    count={selection.size}
+                    loadedCount={displayItems.length}
+                    onSelectAllLoaded={() => setSelection(new Set(displayItems.map((doc) => doc.id)))}
+                    onFavorite={() => {
+                        addFavorites([...selection]);
+                        pushToast({ type: 'success', message: `Added ${selection.size} to favorites` });
+                    }}
+                    onExportCsv={() => exportDocumentsCsv(selectedDocs)}
+                    onDelete={bulkDelete}
+                    onClear={() => setSelection(new Set())}
+                />
             </div>
         </AppShell>
     );

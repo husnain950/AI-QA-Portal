@@ -175,6 +175,7 @@ async def _document_response(
         ),
         version_count=r["version_count"] or 1,
         active_version_no=r["active_version_no"] or 1,
+        last_version_at=r["last_version_at"] if "last_version_at" in r.keys() else None,
         health=_metrics_response(r if r["measured_at"] else None),
         provenance=provenance,
         corpus_lane=corpus_lane,
@@ -184,6 +185,8 @@ async def _document_response(
 _DOC_VERSION_SELECT = """
     (SELECT COUNT(*) FROM document_versions dv WHERE dv.document_id = d.id)
         AS version_count,
+    (SELECT MAX(dv2.created_at) FROM document_versions dv2 WHERE dv2.document_id = d.id)
+        AS last_version_at,
     v.version_no AS active_version_no,
     m.invariants_passed, m.invariants_total, m.cases_passed, m.cases_total,
     m.body_conserved, m.body_missing, m.footnote_conserved, m.footnote_missing,

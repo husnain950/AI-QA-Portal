@@ -3,7 +3,8 @@ import { MoreHorizontal } from 'lucide-react';
 
 /**
  * Overflow action menu. items: [{ key, label, icon, onSelect, danger, disabled, title }]
- * or { type: 'separator' }. Closes on outside click, Escape and selection.
+ * or { type: 'separator' } or { type: 'header', label }. Closes on outside click,
+ * Escape and selection.
  */
 export default function DropdownMenu({
     items,
@@ -68,6 +69,13 @@ export default function DropdownMenu({
                     {items.map((item, i) => {
                         if (item.type === 'separator') {
                             return <div key={`sep-${i}`} className="ui-dropdown-separator" role="separator" />;
+                        }
+                        if (item.type === 'header') {
+                            return (
+                                <div key={`head-${i}`} className="ui-dropdown-header" role="presentation">
+                                    {item.label}
+                                </div>
+                            );
                         }
                         const Icon = item.icon;
                         return (

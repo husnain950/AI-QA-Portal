@@ -4,65 +4,286 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.database import DatabaseConnection, get_db, json_column
-from backend.routes.documents import _document_response_by_id
+from backend.routes.documents import _document_response
 from backend.routes.search import _safe_snippet
 from backend.routes.v2.pagination import decode_cursor, encode_cursor
+from backend.services import library_query as lq
 from backend.services.clock import iso_now
+from backend.services.corpus_lanes import LANE_ORDER
 
 router = APIRouter(tags=["v2-library"])
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _fingerprint(*parts) -> str:
     return hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()[:16]
 
 
+def _csv(raw: Optional[str]) -> tuple:
+    return tuple(part.strip() for part in (raw or "").split(",") if part.strip())
+
+
+def _flag(raw: Optional[str]) -> bool:
+    return (raw or "").strip().lower() in ("1", "true", "yes", "flagged")
+
+
+def _validated(values: tuple, allowed: tuple, name: str) -> tuple:
+    unknown = [value for value in values if value not in allowed]
+    if unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=f"unknown {name}: {', '.join(unknown)} (allowed: {', '.join(allowed)})",
+        )
+    return values
+
+
+def _date_param(raw: Optional[str], name: str) -> str:
+    value = (raw or "").strip()
+    if value and not _DATE_RE.match(value):
+        raise HTTPException(status_code=422, detail=f"{name} must be YYYY-MM-DD")
+    return value
+
+
+def _years(raw: Optional[str]) -> tuple:
+    values = _csv(raw)
+    if not values:
+        return ()
+    if not all(re.fullmatch(r"\d{4}", value) for value in values):
+        raise HTTPException(status_code=422, detail="year must be a comma list of 4-digit years")
+    return tuple(int(value) for value in values)
+
+
+def _library_filters(
+    q: Optional[str],
+    status: Optional[str],
+    lane: Optional[str],
+    corpus_lane: Optional[str],
+    kind: Optional[str],
+    health: Optional[str],
+    review: Optional[str],
+    flagged: Optional[str],
+    annotations: Optional[str],
+    year: Optional[str],
+    year_from: Optional[int],
+    year_to: Optional[int],
+    added_after: Optional[str],
+    added_before: Optional[str],
+    pages_min: Optional[int],
+    pages_max: Optional[int],
+    tag: Optional[str],
+    ids: Optional[str],
+) -> lq.LibraryFilters:
+    """Normalize + validate the Library query string into the shared filter shape."""
+    lanes = _csv(lane) or _csv(corpus_lane)
+    status_value = (status or "").strip()
+    if status_value:
+        _validated((status_value,), lq.DOC_STATUSES, "status")
+    tags = _csv(tag)
+    if not all(re.fullmatch(r"[a-z0-9][a-z0-9-]{0,49}", value) for value in tags):
+        raise HTTPException(status_code=422, detail="tag values must be lowercase slugs")
+    return lq.LibraryFilters(
+        q=(q or "").strip(),
+        lanes=_validated(lanes, LANE_ORDER, "lane"),
+        kinds=_validated(_csv(kind), lq.SOURCE_KINDS + ("unknown",), "kind"),
+        health=_validated(_csv(health), lq.HEALTH_FACETS, "health"),
+        review=_validated(_csv(review), lq.REVIEW_FACETS, "review"),
+        flagged=_flag(flagged),
+        annotations=_flag(annotations),
+        status=status_value,
+        years=_years(year),
+        year_from=year_from,
+        year_to=year_to,
+        added_after=_date_param(added_after, "added_after"),
+        added_before=_date_param(added_before, "added_before"),
+        pages_min=pages_min,
+        pages_max=pages_max,
+        tags=tags,
+        ids=_csv(ids)[: lq.MAX_IDS],
+    )
+
+
+def _sort_param(sort: str) -> str:
+    if sort not in lq.SORT_VALUES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"unknown sort: {sort} (allowed: {', '.join(lq.SORT_VALUES)})",
+        )
+    return sort
+
+
 @router.get("/documents")
 async def documents_page(
     cursor: Optional[str] = None,
     limit: int = Query(50, ge=1, le=200),
-    q: Optional[str] = None,
+    q: Optional[str] = Query(None, max_length=200),
     status: Optional[str] = None,
+    lane: Optional[str] = Query(None, max_length=400),
     corpus_lane: Optional[str] = None,
-    sort: str = Query("name", pattern="^(name|newest|risk)$"),
+    kind: Optional[str] = Query(None, max_length=200),
+    health: Optional[str] = Query(None, max_length=200),
+    review: Optional[str] = Query(None, max_length=200),
+    flagged: Optional[str] = None,
+    annotations: Optional[str] = None,
+    year: Optional[str] = Query(None, max_length=200),
+    year_from: Optional[int] = Query(None, ge=1800, le=2200),
+    year_to: Optional[int] = Query(None, ge=1800, le=2200),
+    added_after: Optional[str] = None,
+    added_before: Optional[str] = None,
+    pages_min: Optional[int] = Query(None, ge=0),
+    pages_max: Optional[int] = Query(None, ge=0),
+    tag: Optional[str] = Query(None, max_length=400),
+    ids: Optional[str] = Query(None, max_length=20000),
+    sort: str = Query("name", max_length=20),
     db: DatabaseConnection = Depends(get_db),
 ):
-    fp = _fingerprint(q, status, corpus_lane, sort)
+    """One page of the Library: filtered, sorted, and counted server-side so the
+    UI never has to hold the whole corpus to browse it."""
+    filters = _library_filters(
+        q, status, lane, corpus_lane, kind, health, review, flagged, annotations,
+        year, year_from, year_to, added_after, added_before, pages_min, pages_max, tag, ids,
+    )
+    sort = _sort_param(sort)
+    fp = _fingerprint(filters.fingerprint_parts(), sort)
     offset = decode_cursor(cursor, fp)
-    clauses: list[str] = []
-    params: list = []
-    if q:
-        clauses.append("d.name ILIKE ?")
-        params.append(f"%{q.strip()}%")
-    if status:
-        clauses.append("d.status = ?")
-        params.append(status)
-    if corpus_lane:
-        clauses.append("d.corpus_lane = ?")
-        params.append(corpus_lane)
-    where = " WHERE " + " AND ".join(clauses) if clauses else ""
-    order = {
-        "name": "lower(d.name), d.id",
-        "newest": "d.uploaded_at DESC, d.id",
-        "risk": "CASE d.status WHEN 'blocked' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, lower(d.name), d.id",
-    }[sort]
-    async with db.execute(f"SELECT COUNT(*) FROM documents d{where}", params) as cur:
+    where, params = lq.build_where(filters)
+    order, order_params = lq.order_sql(sort, filters.q)
+
+    async with db.execute(
+        f"SELECT COUNT(*) {lq.FROM_DOCUMENTS}{where}", params
+    ) as cur:
         total = int((await cur.fetchone())[0])
     async with db.execute(
-        f"SELECT d.id FROM documents d{where} ORDER BY {order} LIMIT ? OFFSET ?",
-        (*params, limit, offset),
+        f"{lq.PAGE_SELECT} {lq.FROM_DOCUMENTS}{where} "
+        f"ORDER BY {order} LIMIT ? OFFSET ?",
+        (*params, *order_params, limit, offset),
     ) as cur:
-        ids = [row["id"] for row in await cur.fetchall()]
-    items = [(await _document_response_by_id(db, document_id)).model_dump() for document_id in ids]
-    next_offset = offset + len(ids)
+        rows = await cur.fetchall()
+    items = [(await _document_response(db, row)).model_dump() for row in rows]
+    next_offset = offset + len(rows)
     return {
         "items": items,
         "total": total,
         "next_cursor": encode_cursor(next_offset, fp) if next_offset < total else None,
+        "refreshed_at": iso_now(),
+    }
+
+
+@router.get("/documents/facets")
+async def documents_facets(
+    q: Optional[str] = Query(None, max_length=200),
+    status: Optional[str] = None,
+    lane: Optional[str] = Query(None, max_length=400),
+    corpus_lane: Optional[str] = None,
+    kind: Optional[str] = Query(None, max_length=200),
+    health: Optional[str] = Query(None, max_length=200),
+    review: Optional[str] = Query(None, max_length=200),
+    flagged: Optional[str] = None,
+    annotations: Optional[str] = None,
+    year: Optional[str] = Query(None, max_length=200),
+    year_from: Optional[int] = Query(None, ge=1800, le=2200),
+    year_to: Optional[int] = Query(None, ge=1800, le=2200),
+    added_after: Optional[str] = None,
+    added_before: Optional[str] = None,
+    pages_min: Optional[int] = Query(None, ge=0),
+    pages_max: Optional[int] = Query(None, ge=0),
+    tag: Optional[str] = Query(None, max_length=400),
+    ids: Optional[str] = Query(None, max_length=20000),
+    db: DatabaseConnection = Depends(get_db),
+):
+    """Live counts for the filter panel. Each dimension's counts respect every
+    other active filter but not its own, so multi-select never collapses the
+    list you are picking from."""
+    filters = _library_filters(
+        q, status, lane, corpus_lane, kind, health, review, flagged, annotations,
+        year, year_from, year_to, added_after, added_before, pages_min, pages_max, tag, ids,
+    )
+
+    async def count_by(expression: str, exclude: str) -> dict:
+        where, params = lq.build_where(filters, exclude=exclude)
+        async with db.execute(
+            f"SELECT {expression} AS k, COUNT(*) AS n {lq.FROM_DOCUMENTS}{where} "
+            "GROUP BY k",
+            params,
+        ) as cur:
+            return {row["k"]: int(row["n"]) for row in await cur.fetchall()}
+
+    lanes = await count_by(lq.LANE_SQL, "lane")
+    kinds_raw = await count_by(lq.KIND_SQL, "kind")
+    kinds = {("unknown" if key is None else key): n for key, n in kinds_raw.items()}
+    health = await count_by(lq.HEALTH_SQL, "health")
+    review = await count_by(lq.REVIEW_SQL, "review")
+
+    where, params = lq.build_where(filters, exclude="year")
+    # Row-level NULL screening belongs in WHERE; HAVING cannot see the y alias.
+    years_where = where + (" AND " if where else " WHERE ") + f"({lq.YEAR_SQL}) IS NOT NULL"
+    async with db.execute(
+        f"SELECT {lq.YEAR_SQL} AS y, COUNT(*) AS n {lq.FROM_DOCUMENTS}{years_where} "
+        "GROUP BY y ORDER BY y DESC",
+        params,
+    ) as cur:
+        years = [{"year": int(row["y"]), "count": int(row["n"])} for row in await cur.fetchall()]
+
+    where, params = lq.build_where(filters, exclude="tags")
+    async with db.execute(
+        f"""
+        SELECT tag, COUNT(*) AS n
+        {lq.FROM_DOCUMENTS}
+        JOIN LATERAL jsonb_array_elements_text({lq.TAGS_SQL}) AS tag ON TRUE
+        {where + " AND " if where else " WHERE "}d.provenance IS JSON
+        GROUP BY tag ORDER BY n DESC, tag LIMIT 50
+        """,
+        params,
+    ) as cur:
+        tags = [{"tag": row["tag"], "count": int(row["n"])} for row in await cur.fetchall()]
+
+    where, params = lq.build_where(filters)
+    async with db.execute(
+        f"""
+        SELECT COUNT(*) AS documents,
+               COUNT(*) FILTER (WHERE stats.has_issues > 0) AS flagged,
+               COUNT(*) FILTER (WHERE stats.open_annotations > 0) AS annotated,
+               COUNT(*) FILTER (WHERE {lq.REVIEW_SQL} = 'complete') AS complete
+        {lq.FROM_DOCUMENTS}{where}
+        """,
+        params,
+    ) as cur:
+        totals_row = await cur.fetchone()
+    async with db.execute(
+        f"""
+        SELECT COUNT(*) AS documents,
+               COUNT(*) FILTER (WHERE stats.has_issues > 0) AS flagged,
+               COUNT(*) FILTER (WHERE {lq.REVIEW_SQL} = 'complete') AS complete
+        {lq.FROM_DOCUMENTS}
+        """
+    ) as cur:
+        library_row = await cur.fetchone()
+
+    return {
+        "lanes": lanes,
+        "kinds": kinds,
+        "health": health,
+        "review": review,
+        "years": years,
+        "tags": tags,
+        "totals": {
+            "documents": int(totals_row["documents"]),
+            "flagged": int(totals_row["flagged"]),
+            "annotated": int(totals_row["annotated"]),
+            "complete": int(totals_row["complete"]),
+        },
+        "library": {
+            "documents": int(library_row["documents"]),
+            "flagged": int(library_row["flagged"]),
+            "complete": int(library_row["complete"]),
+        },
+        "library_total": int(library_row["documents"]),
         "refreshed_at": iso_now(),
     }
 
