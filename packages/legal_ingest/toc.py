@@ -363,6 +363,43 @@ def _completes_heading_year(heading: str, extra: str) -> bool:
             and _YEAR_TAIL_RE.fullmatch(extra) is not None)
 
 
+def _page_furniture(lines) -> set:
+    """Normalised text of every line that is the contents pages' own FURNITURE.
+
+    A running title repeats on every TOC page; a heading does not.  The 2007
+    Customs contents centre "THE  CUSTOMS   ACT,1969" on all 22 of theirs, and at
+    26 spaces of indent it satisfies ``CONT_RE``, so the copy that lands after the
+    last section row of a page was glued to that row -- s.82A's heading came out
+    "Omitted THE CUSTOMS ACT,1969".
+
+    ``TOC_HEADER_LINE_RE`` does not cover this: it knows the COLUMN LABELS
+    ("Section", "Page", "No."), not the document's own title, and the title text
+    differs per document (each Act, Ordinance and rule set prints its own), so
+    there is nothing to hard-code.  Repetition is the property they share.
+
+    Deliberately narrow: only lines that repeat at least three times AND classify
+    as no kind of contents row.  A real heading that happens to repeat -- and
+    "Omitted." repeats dozens of times -- is matched by ``SECTION_RE`` long before
+    any continuation branch consults this set.
+    """
+    counts = {}
+    for ln in lines:
+        t = re.sub(r"\s+", " ", ln).strip()
+        if not t:
+            continue
+        counts[t] = counts.get(t, 0) + 1
+    out = set()
+    for t, n in counts.items():
+        if n < 3:
+            continue
+        if (SECTION_RE.match(t) or SECTION_NOPAGE_RE.match(t)
+                or CHAPTER_RE.match(t) or PART_RE.match(t) or DIVISION_RE.match(t)
+                or SCHEDULE_TOC_RE.match(t)):
+            continue
+        out.add(t)
+    return out
+
+
 def parse_toc(lines: list[str], profile: Profile = ACTS):
     """Parse TOC text lines into (chapters, schedules, ordered_sections)."""
     chapters: list[Node] = []
@@ -375,6 +412,7 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
     cur_schedule: Optional[Node] = None
     in_schedules = False
 
+    furniture = _page_furniture(lines)
     pending_heading_for: Optional[Node] = None
     last_section: Optional[SectionEntry] = None
     pending_page: Optional[SectionEntry] = None
@@ -535,6 +573,29 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
                 last_section = pending_page
                 pending_page = None
                 continue
+            # A title that wraps onto THREE lines puts the folio on the last one,
+            # so the middle line has no page to complete the row with.  It still
+            # belongs to the row that is waiting -- falling through to the
+            # ``last_section`` branch below glued it to the row BEFORE instead:
+            #
+            #     81A. Omitted.                               66
+            #     82.  Procedure in case of goods not cleared or warehoused or
+            #     transshipped or exported or removed from the port within
+            #     twenty days after unloading or filing of declaration. 66
+            #
+            # s.82's middle line became part of s.81A's heading ("Omitted
+            # transshipped or exported or removed from the port within"), and
+            # s.82's own title was truncated.  The waiting row is the nearer and
+            # the only correct owner.
+            mid = CONT_RE.match(line)
+            if mid and not SECTION_RE.match(line):
+                extra = _clean_heading(mid.group("text"))
+                if (extra and extra not in furniture
+                        and not re.fullmatch(r"\(?[ivxlcdm]+\)?", extra,
+                                             re.IGNORECASE)):
+                    pending_page.heading = _join_heading(pending_page.heading,
+                                                         extra)
+                continue
 
         # ---- a code-led section row with no page number on its line -------
         nm = SECTION_NOPAGE_RE.match(line) if not in_schedules else None
@@ -622,7 +683,13 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
             # A bare ROMAN numeral is the TOC page's own folio (these editions
             # number their front matter i..xxii), not heading text -- it leaked
             # into headings as "Power to declare warehousing stations ii".
-            if extra and re.fullmatch(r"[ivxlcdm]+", extra, re.IGNORECASE):
+            # PARENTHESISED too: the 2007 Customs contents print theirs as
+            # "(viii)", which this guard did not match, so s.82A's heading came
+            # out "Omitted (viii) THE CUSTOMS ACT,1969" -- the folio and then the
+            # running header of the next contents page.
+            if extra and re.fullmatch(r"\(?[ivxlcdm]+\)?", extra, re.IGNORECASE):
+                continue
+            if extra in furniture:      # the contents' own running title
                 continue
             if extra and (not extra.isdigit()
                           or _completes_heading_year(last_section.heading, extra)):
@@ -831,6 +898,39 @@ def _demo() -> None:
     # unchanged from before the two pipelines merged.
     _c, _s, acts_secs = parse_toc(subch, ACTS)
     assert [s.code for s in acts_secs] == ["1", "2"], [s.code for s in acts_secs]
+
+    # A three-line wrapped row, and the contents' own page furniture.  Both cost
+    # the 2007 Customs edition a heading: s.82's middle line was glued to s.81A
+    # ("Omitted transshipped or exported or removed from the port within") and the
+    # centred running title to s.82A ("Omitted THE CUSTOMS ACT,1969"), together
+    # with the parenthesised folio the roman guard did not match.
+    wrapped = [
+        "CHAPTER  IX",
+        "CLEARANCE OF GOODS",
+        "             81.  Provisional determination of liability  65",
+        "             81A. Omitted.                               66",
+        "             82.  Procedure in case of goods not cleared or warehoused or",
+        "                  transshipped or exported or removed from the port within",
+        "                  twenty days after unloading or filing of declaration. 66",
+        "             82A. Omitted.                                67",
+        "                                    (viii)",
+        "                          THE  CUSTOMS   ACT,1969",
+        "                          THE  CUSTOMS   ACT,1969",
+        "                          THE  CUSTOMS   ACT,1969",
+        "             83.  Clearance for home-consumption.         69",
+    ]
+    _c, _s, wsecs = parse_toc(wrapped, ACTS)
+    got = {e.code: e.heading for e in wsecs}
+    assert got.get("81A") == "Omitted", got.get("81A")
+    assert got.get("82A") == "Omitted", got.get("82A")
+    assert got.get("82", "").startswith("Procedure in case of goods not cleared"), got.get("82")
+    # the wrapped title keeps ALL THREE of its lines, and its folio
+    assert "transshipped" in got.get("82", "") and "twenty days" in got.get("82", ""), got.get("82")
+    assert next(e.printed_page for e in wsecs if e.code == "82") == 66
+    # no heading anywhere may carry the furniture or the folio
+    for e in wsecs:
+        assert "CUSTOMS ACT" not in (e.heading or ""), (e.code, e.heading)
+        assert "(viii)" not in (e.heading or ""), (e.code, e.heading)
 
     print("toc self-check passed")
 

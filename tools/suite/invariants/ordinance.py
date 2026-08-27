@@ -471,6 +471,8 @@ _ORDER = [
     "no_toc_row_in_heading",
     "structure_counts",
     "no_orphan_sections",
+    "section_carries_its_body",
+    "no_foreign_section_start_in_body",
     "section_codes_ordered",
     "toc_first_chapter_parse",
     "toc_schedule_regexes",

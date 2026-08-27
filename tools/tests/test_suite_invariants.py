@@ -19,9 +19,17 @@ sys.path.insert(0, os.path.join(
 from suite import runner  # noqa: E402
 from suite.invariants import _common  # noqa: E402
 
-#: The Acts and the Rules run the same 53 checks; the Ordinance pipeline has no OCR
-#: stage and no provisional/text-density concepts, so it runs 43.
-EXPECTED_COUNTS = {"acts": 53, "rules": 53, "ordinance": 43}
+#: The Acts and the Rules run the same 55 checks; the Ordinance pipeline has no OCR
+#: stage and no provisional/text-density concepts, so it runs 45.
+EXPECTED_COUNTS = {"acts": 55, "rules": 55, "ordinance": 45}
+
+
+def test_section_attribution_helpers():
+    """The predicates behind ``section_carries_its_body`` /
+    ``no_foreign_section_start_in_body``.  They decide whether a leaf is reported
+    as having lost its statutory text to a neighbour, so the shapes they must
+    tell apart are pinned rather than left to the corpus."""
+    _common._demo_section_attribution()
 
 
 def test_each_lane_binds_its_full_invariant_set():

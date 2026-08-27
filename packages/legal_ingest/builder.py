@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from statistics import median as _median
 
 from .footnotes import BRACKETS_ONLY_RE, all_markers_anonymous, ref_sort_key
-from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX, is_code_like
+from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX, is_code_like, norm_code
 
 # em dash / en dash that separates a heading from its text
 DASHES = "—–-"
@@ -1317,7 +1317,30 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
 # A heading may carry a RUN of markers ("6,71,76,81[194.") -- see
 # grammar.MARKER_PREFIX.  Code grammar is shared too, so 3AAA / 221-A parse.
 _HEAD = r"^\s*" + MARKER_PREFIX
-_DOTFORM_RE = re.compile(_HEAD + rf"\[?\s*({CODE})\s*\.")
+#: The decoration between the marker run and the code.  An inserted section is
+#: sometimes wrapped in BOTH the amendment bracket and an opening paren that is
+#: never closed -- the Customs Act prints s.14A as ``5[(14-A. Provision of
+#: accommodation at Customs-ports, etc.-`` and s.21A as ``24[(21A. Power to defer
+#: collection of customs-duty.-``.  ``\[?\s*`` cannot step over the ``(`` and
+#: ``_BRACKETPAREN_RE`` below needs a closing ``)`` that never comes, so neither
+#: section bound and both texts stayed with ss.14/21 in every edition.
+#:
+#: The paren is admitted ONLY inside the bracket, which is the rule
+#: ``_BRACKETPAREN_RE`` already states and this pattern had drifted from.  A BARE
+#: ``(`` reads Finance Act 2014's PCT tariff heading ``(90.22).`` as section 90.
+#: The mandatory ``\.`` below is what keeps this off an inserted SUBSECTION
+#: (``2 [ (5) The Federal Government may ...``, the false accept the comment on
+#: ``_BRACKETPAREN_RE`` records as costing thirty sections) -- a subsection
+#: marker carries no dot after its code.
+#: A SUBSTITUTED section is printed inside its amendment bracket AND inside the
+#: quotation marks of the substituting instrument: Sales Tax 15.01.2022 prints
+#: s.47A as ``602[“47A. Alternative dispute resolution.—``.  Like the paren, the
+#: quote is admitted only INSIDE the bracket -- a quote at the head of a line is
+#: otherwise the opening of quoted repealed text, which must never start a
+#: section.  ``_BRACKETED_DOTLESS_RE`` already allowed a quote AFTER the code for
+#: the same reason; this is the other side of it.
+_OPEN = r"(?:\[\s*[“”\"'‘]?\s*\(?\s*|\[?\s*)"
+_DOTFORM_RE = re.compile(_HEAD + rf"{_OPEN}({CODE})\s*\.")
 # A parenthesised code is only a SECTION when it carries a letter suffix.
 # ``CODE`` alone matched an inserted SUBSECTION -- "2 [ (5) The Federal
 # Government may, by notification..." on page 40 of the 2007 edition read as
@@ -1339,6 +1362,43 @@ _PAREN_SECTION_RE = re.compile(_HEAD + rf"\(({CODE})\)\s+(?=[A-Z\"“\[])")
 # cannot match, so this cannot manufacture section starts out of body text.
 _BRACKETED_DOTLESS_RE = re.compile(
     _HEAD + rf"\[\s*({CODE})\s*[“\"'‘]?\s*[A-Z]")
+# The suffix separator may be a DOT or a bare SPACE, not just the hyphen ``CODE``
+# allows.  Measured in the shipped corpus:
+#
+#     3[18.A Special customs duty on imported goods.-      (Customs, 18A)
+#     4[83. A Omitted]                                      (Customs, 83A)
+#     2[25 AA. Transactions between associates. - -         (Sales Tax, 25AA)
+#     2[37 D. Cognizance of offences by Special Judges.-    (Sales Tax, 37D)
+#
+# ``CODE`` must NOT be widened to ``[-.]?`` to cover this: its separator is
+# optional and its letter run may be EMPTY, so ``\d{1,4}[-.]?[A-Z]{0,4}`` matches
+# "194." with zero letters and ``_BRACKETED_DOTLESS_RE``'s ``[A-Z]`` then eats the
+# title's first letter -- "6[194. Appellate Tribunal.-" becomes code "194.".
+# Here both the separator and 1-4 letters are MANDATORY, which is what makes the
+# dot safe where widening CODE is not.
+#
+# Tried BEFORE ``_DOTFORM_RE``, because match ORDER is the actual defect: that
+# pattern's mandatory ``\.`` is satisfied by the SEPARATOR dot with the letters
+# backtracked away, so it returned "18" and offered 18A's body line to section
+# 18 -- 3,201 chars on s.18 against a 43-char 18A stub in the 2007 edition.
+#
+# The BRACKET is required, and it is the whole guard: a dot- or space-separated
+# suffix only ever prints on an INSERTED section, which always carries its
+# amendment bracket, while the same shape unbracketed is a tariff or schedule row
+# ("9.PDA Closure Devices", "12. ICIC Foundation").
+#
+# A SPACE separator needs one discriminator more than a dot or hyphen does,
+# because a schedule rate row has the same shape ("72[44 Steel billets M. Tons").
+# Two suffix letters are enough on their own ("25 AA"); a LONE capital must carry
+# its own dot ("37 D." is section 37D, "44 Steel" is not section 44S).
+#
+# ponytail: bracket-gated, so an UNBRACKETED dot-separated code is still missed.
+# Measured over the corpus's 186,357 distinct body lines, all 146 unbracketed
+# instances of the shape are tariff/schedule rows -- widen only if that changes.
+_DOTSUFFIX_RE = re.compile(
+    _HEAD + r"\[\s*\(?\s*(\d{1,4}(?:\s*[-.]\s*[A-Z]{1,4}"
+    r"|\s+[A-Z]{2,4}|\s+[A-Z](?=\s*\.)))"
+    r"(?=\s*\.\s+[A-Z]|\s+[A-Z])")
 
 
 def _candidate_code(line) -> str | None:
@@ -1348,13 +1408,35 @@ def _candidate_code(line) -> str | None:
     Rules runs to 1110), which also admits a YEAR, and these documents print their own
     year on the title line -- "SALES TAX SPECIAL PROCEDURE (WITHHOLDING) RULES, 2007"
     produced a leaf coded 2007 sitting ahead of rule 1.
+
+    The code is FOLDED to its canonical spelling (``grammar.norm_code``) before
+    it is returned.  The body and the TOC print the same section differently and
+    ``build_sections`` keys ``code_positions`` on this value while looking it up
+    by the TOC's ``entry.code``, so the two sides must agree or the section never
+    binds at all.  Measured in the shipped corpus: the body prints ``155-I.``,
+    ``221-A.``, ``194-A.``, ``18.A``, ``83. A`` and ``38-`` for what the TOC
+    lists as ``155I``, ``221A``, ``194A``, ``18A``, ``83A`` and ``38``.  Every
+    one of those was a heading-only stub whose text stayed with the preceding
+    section -- Federal Excise s.38's alternative-dispute-resolution provision
+    sat inside s.37, 3,500-4,500 characters of it, in five editions.  The TOC
+    side has always folded (``toc.norm_code``); this side never did.
+
+    Folding here rather than at the ``code_positions`` key so that every caller
+    agrees on one spelling -- ``tools/acts/why_unbuilt.py`` reported "code never
+    opens a body line" for codes the builder did find, and ``discover.py`` minted
+    ``155-I`` as a leaf code where every other edition says ``155I``.
     """
-    code = _candidate_code_raw(line)
-    return code if code is None or is_code_like(code) else None
+    code = norm_code(_candidate_code_raw(line))
+    return code if code and is_code_like(code) else None
 
 
 def _candidate_code_raw(line) -> str | None:
     head = line.text()[:40]
+    # FIRST -- before _DOTFORM_RE, whose mandatory dot would otherwise be
+    # satisfied by this code's own separator.  See _DOTSUFFIX_RE.
+    m = _DOTSUFFIX_RE.match(head)
+    if m:
+        return m.group(1)
     m = _DOTFORM_RE.match(head)
     if m:
         return m.group(1)
@@ -1434,8 +1516,10 @@ def _bold_title(words, code_i: int, doc_has_bold: bool = True) -> bool:
 
 
 def _dotless_candidate_code(line) -> str | None:
-    code = _dotless_candidate_code_raw(line)
-    return code if code is None or is_code_like(code) else None
+    """Same as :func:`_candidate_code` for the dot-less shapes, and folded the
+    same way and for the same reason -- see that docstring."""
+    code = norm_code(_dotless_candidate_code_raw(line))
+    return code if code and is_code_like(code) else None
 
 
 def _dotless_candidate_code_raw(line) -> str | None:
@@ -1507,6 +1591,35 @@ def _container_heading_pieces(containers) -> set:
                 if len(piece) > 2:
                     out.add(piece)
     return out
+
+
+def _title_stems(text: str) -> list:
+    """A heading as comparable 5-character token stems.
+
+    Truncated because the TOC and the body disagree on inflection and
+    punctuation for the same title -- the 2007 Customs TOC says "duplicates of
+    customs' document" where the body prints "duplicate of customs document".
+    Everything after a heading terminator is dropped: the body runs its title
+    straight into the provision text on the same line.
+    """
+    head = re.split(r"[.,]\s*[-—–―─]|\.\s", text, maxsplit=1)[0]
+    out = []
+    for tok in re.findall(r"[A-Za-z]+", head):
+        out.append(tok.lower()[:5])
+    return out
+
+
+def _title_prefix_matches(want: list, got: list) -> bool:
+    """Whether ``got`` opens with ``want``'s title, allowing one stem to differ.
+
+    Compares the first six stems (or the whole title if shorter) and needs at
+    least four of them, with at most one mismatch, so a heading that merely
+    shares an opening word cannot qualify.
+    """
+    n = min(len(want), len(got), 6)
+    if n < 4:
+        return False
+    return sum(1 for a, b in zip(want[:n], got[:n]) if a != b) <= 1
 
 
 def build_sections(body_refs: list[LineRef], ordered_sections,
@@ -1656,6 +1769,84 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
             matched_pos[id(entry)] = p
             claimed.add(p)
             added.append((p, entry))
+        if added:
+            starts.extend(added)
+            starts.sort(key=lambda t: t[0])
+
+    # Third pass -- the section whose code the PRINTER omitted.  Some editions
+    # simply do not set the number: page 227 of the 2007 Customs edition opens
+    # s.204 as "Issue of certificate and duplicate of customs document.- A
+    # certificate or a", with the title's first word at x0=94.1 (exactly
+    # body_left) and the only "204" on the page being the 9.5pt folio in the
+    # bottom margin.  No grammar change can reach that -- there is no code to
+    # match -- so the entry stayed a placeholder and its text folded into s.203A.
+    #
+    # The TOC still knows the title, so match on THAT, under every constraint the
+    # code-anchored passes use plus two more: the entry must have no code-anchored
+    # candidate ANYWHERE (so this can never outbid a real code match), and the
+    # body line must not itself open with any section code (so it cannot steal a
+    # line the earlier passes deliberately rejected).  Titles are compared on
+    # 5-character token stems because the TOC and the body disagree on inflection
+    # and punctuation ("duplicates of customs' document" vs "duplicate of customs
+    # document").
+    if len(matched_pos) < len(ordered):
+        claimed = set(matched_pos.values())
+        added = []
+        # ``body_refs`` is in page order, so the +/-2 page window this pass allows
+        # is a contiguous index range.  Resolving it by bisect keeps the scan to
+        # the ~5 candidate pages: walking the whole (lo, hi) gap and filtering by
+        # page inside the loop is O(unmatched entries x body_refs), which is fine
+        # on a document where the first two passes place nearly everything and
+        # quadratic on one where they do not.  Measured output-identical.
+        import bisect as _bisect
+        _pages = [r.page for r in body_refs]
+
+        def _page_window(centre: int, tol: int = 2) -> tuple:
+            return (_bisect.bisect_left(_pages, centre - tol),
+                    _bisect.bisect_right(_pages, centre + tol))
+
+        for k, entry in enumerate(ordered):
+            if id(entry) in matched_pos or code_positions.get(entry.code):
+                continue
+            want = _title_stems(getattr(entry, "heading", "") or "")
+            if len(want) < 3:
+                continue
+            lo = -1
+            for e2 in reversed(ordered[:k]):
+                if id(e2) in matched_pos:
+                    lo = matched_pos[id(e2)]
+                    break
+            hi = len(body_refs)
+            for e2 in ordered[k + 1:]:
+                if id(e2) in matched_pos:
+                    hi = matched_pos[id(e2)]
+                    break
+            expected = expected_page(entry)
+            wlo, whi = _page_window(expected)
+            best = None
+            for pos in range(max(lo + 1, wlo, 0), min(hi, whi, len(body_refs))):
+                if pos in claimed:
+                    continue
+                ref = body_refs[pos]
+                if getattr(ref.line, "is_table", False):
+                    continue
+                text = ref.line.text()
+                if not _HEADING_DASH_RE.search(text):
+                    continue
+                if _candidate_code(ref.line) or _dotless_candidate_code(ref.line):
+                    continue
+                words = sorted(ref.line.words, key=lambda w: w.x0)
+                if not _bold_title(words, 0, True):
+                    continue
+                if not _title_prefix_matches(want, _title_stems(text)):
+                    continue
+                d = (abs(ref.page - expected), pos)
+                if best is None or d < best[0]:
+                    best = (d, pos)
+            if best is not None:
+                matched_pos[id(entry)] = best[1]
+                claimed.add(best[1])
+                added.append((best[1], entry))
         if added:
             starts.extend(added)
             starts.sort(key=lambda t: t[0])
@@ -2422,7 +2613,11 @@ def normalize_document_text(result):
 # ("6,71,76,81[194. ", "[15. ", "2 [ 158.", "1[230E ").  Dot-less because
 # inserted sections print none (s.230E), and the marker run is already bounded
 # by MARKER_PREFIX so it cannot eat the code's first digit (grammar A08).
-_HEAD_CODE_PREFIX_RE = re.compile(_HEAD + rf"\[?\s*{CODE}\s*[.\]]?\s*")
+# ``_OPEN`` for the same reason ``_DOTFORM_RE`` uses it: without it the
+# insertion pair in "5[(14-A. Provision of ..." is not stripped, so
+# ``_body_heading_title`` returns "" and a section recovered by RC-A keeps
+# its TOC heading instead of being upgraded to the body one.
+_HEAD_CODE_PREFIX_RE = re.compile(_HEAD + rf"{_OPEN}{CODE}\s*[.\]]?\s*")
 
 
 def _body_heading_title(h4_inner: str, code: str) -> str:
@@ -2894,6 +3089,65 @@ def _demo() -> None:
     _, html_words = _render_words([_mw("42")], 75, {75: {"42": ("", 75)}}, 38)
     assert 'class="marker"' in html_words, html_words
     assert 'class="cite"' not in html_words, html_words
+
+    # ---- section-start recognition (RC-A / RC-B / RC-C) --------------------
+    # These pin the SHAPES the shipped corpus prints and, just as importantly,
+    # the ORDER the patterns are tried in: _DOTSUFFIX_RE must stay ahead of
+    # _DOTFORM_RE, or the separator dot satisfies the latter and a body line is
+    # offered to the PARENT section (18A's text to s.18, 25AA's to s.25).
+    # Exercised through the real wrappers, so a reordering is caught here.
+    def _codeline(text):
+        return Line(top=0.0, words=[Word(text=text, x0=72.0, x1=400.0, top=0.0,
+                                         size=12.0, fontname="Arial-BoldMT")])
+
+    for text, want in [
+        # RC-A: the "[(" insertion pair, and "&" between stacked markers
+        ("5[(14-A. Provision of accommodation at Customs-ports, etc.- Any", "14A"),
+        ("5&7[(14A. Provision of security and accommodation", "14A"),
+        ("24[(21A. Power to defer collection of customs-duty.- 25[(1)]", "21A"),
+        # a dangling marker separator, and a SUBSTITUTED section quoted inside
+        # its amendment bracket
+        ("6,71,76,[194. Appellate Tribunal.- (1) There shall be established", "194"),
+        ("602[\u201c47A. Alternative dispute resolution.- (1) Notwithstanding", "47A"),
+        # RC-B: the printed spelling folds to the one the TOC lists
+        ("46[221-A. Validation.- (1) All notifications and orders", "221A"),
+        ("3[38- Alternative dispute resolution.- (1) Notwithstanding", "38"),
+        ("155-I. Unauthorized access to or improper use of the Customs", "155I"),
+        # RC-C: dot- and space-separated suffixes
+        ("3[18.A Special customs duty on imported goods.- The Federal", "18A"),
+        ("4[83. A Omitted]", "83A"),
+        ("2[25 AA. Transactions between associates. - -", "25AA"),
+        ("2[37 D. Cognizance of offences by Special Judges.- (1)", "37D"),
+        ("86[156 A. Proceedings against authority and persons.- (1)", "156A"),
+        # shapes that must be unchanged by all of the above
+        ("6,71,76,81[194. Appellate Tribunal.- (1) There shall be", "194"),
+        ("1[15. Prohibitions.- The Federal Government may", "15"),
+        ("10. Power to approve landing places", "10"),
+        ("2 [ 158.Time of filing of goods declaration.- (1) The", "158"),
+    ]:
+        line = _codeline(text)
+        got = _candidate_code(line) or _dotless_candidate_code(line)
+        assert got == want, (text[:46], got, want)
+
+    # The guards.  A bare "(" outside the amendment bracket reads Finance Act
+    # 2014's PCT tariff heading as a section; an inserted SUBSECTION has no dot
+    # after its code and must never open a section (the false accept the
+    # _BRACKETPAREN_RE comment records as costing thirty sections); a schedule
+    # rate row whose title opens on a lone capital is not a suffixed code.
+    for text in ("(90.22).",
+                 "2 [ (5) The Federal Government may, by notification",
+                 "16&39[(1) Subject to sub-section (2), in cases",
+                 "9.PDA Closure Devices",
+                 "12. ICIC Foundation",
+                 # a quote at the head of a LINE opens quoted repealed text; only
+                 # a quote INSIDE the amendment bracket introduces a section
+                 "\u201cProvided that the Board may, by notification",
+                 "\u201c(c) \u201cbill of entry\u201d means a bill of entry"):
+        got = _candidate_code(_codeline(text))
+        assert got is None or got.isdigit(), (text[:46], got)
+    for text in ("72[44 Steel billets M. Tons", "75[53 Cane Molasses M. Tons"):
+        got = _candidate_code(_codeline(text))
+        assert got is None or got.isdigit(), (text[:46], got)
 
     print("builder self-check passed")
 

@@ -154,8 +154,24 @@ _MARKER_PARTS_RE = re.compile(r"^(\d{1,4})([a-z]?)$")
 #: the pattern is greedy into the code itself -- "10. Power to approve landing
 #: places" parses as marker "1" plus code "0", which silently renumbered a third
 #: of the Act's sections and dropped 3,675 body words.
-MARKER_PREFIX = (r"(?:[\d*]{1,4}[a-z]?(?:\s*,\s*[\d*]{1,4}[a-z]?)*"
-                 r"(?:\s+|(?=\[)))?")
+#: The separator between stacked markers is a COMMA in most editions and an
+#: AMPERSAND in some: the 30.06.2025 Customs edition prints s.14A's heading as
+#: ``5&7[(14A. Provision of security and accommodation at Customs-ports``.  With
+#: comma only, the run matched the empty string, the line matched no heading form,
+#: and the section survived as a heading-only stub -- the same loss A07 records
+#: for the comma form.  ``&`` can neither open nor close a run, so admitting it
+#: adds no greedy path: the protection against ``10.`` parsing as marker ``1``
+#: plus code ``0`` is the closing ``(?:\s+|(?=\[))``, which is untouched.
+#: The run may also end on a DANGLING separator, because the printer drops a
+#: marker and leaves its comma behind: the 30.06.2022 Customs edition prints
+#: s.194 as ``6,71,76,[194. Appellate Tribunal.-`` -- four markers' worth of
+#: punctuation for three markers.  Unconsumed, the trailing comma stops the run
+#: from closing and the section became a heading-only stub in five editions.
+#: The optional trailing separator cannot weaken the closing guard: on
+#: ``10. Power to approve landing places`` there is no separator to consume, so
+#: the run still has to close on whitespace or ``[`` and still matches empty.
+MARKER_PREFIX = (r"(?:[\d*]{1,4}[a-z]?(?:\s*[,&]\s*[\d*]{1,4}[a-z]?)*"
+                 r"(?:\s*[,&])?(?:\s+|(?=\[)))?")
 
 
 def marker_token(text: str) -> str | None:
@@ -488,6 +504,34 @@ def _demo() -> None:
     ]:
         m = dot.match(line)
         assert m and m.group(1) == want, (line, m and m.group(1), want)
+    # the "[(" insertion pair and the "&" marker separator, on the shape the
+    # builder actually uses (_HEAD + _OPEN + CODE + dot)
+    ins = re.compile(rf"^\s*{MARKER_PREFIX}(?:\[\s*\(\s*|\[?\s*)({CODE})\s*\.")
+    for line, want in [
+        ("5[(14-A. Provision of accommodation", "14-A"),
+        ("5&7[(14A. Provision of security", "14A"),
+        ("24[(21A. Power to defer collection", "21A"),
+        # a DANGLING separator: three markers, four commas' worth of punctuation
+        ("6,71,76,[194. Appellate Tribunal.-", "194"),
+        ("10. Power to approve landing places", "10"),
+        ("6,71,76,81[194. Appellate Tribunal.-", "194"),
+    ]:
+        m = ins.match(line)
+        assert m and m.group(1) == want, (line, m and m.group(1), want)
+    # the paren is admitted ONLY inside the bracket: a bare "(" reads a PCT
+    # tariff heading as a section, and an inserted SUBSECTION as one
+    for line in ("(90.22).",
+                 "2 [ (5) The Federal Government may, by notification",
+                 "16&39[(1) Subject to sub-section (2), in cases"):
+        assert not ins.match(line), line
+
+    # norm_code is what makes the body and the TOC agree on ONE code
+    assert norm_code("155-I") == norm_code("155 I") == norm_code("155.I") == "155I"
+    assert norm_code("38-") == "38"          # Federal Excise prints s.38 as "38-"
+    assert norm_code("25 AA") == "25AA" and norm_code("18.A") == "18A"
+    # ...and never merges two genuinely different sections
+    assert norm_code("221") == "221" != norm_code("221-A")
+
     print("grammar self-check passed")
 
 

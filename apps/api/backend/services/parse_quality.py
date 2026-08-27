@@ -44,6 +44,41 @@ _SENTENCE_SPLIT_RE = re.compile(r"[.!?](?:\s|$)")
 WALL_OF_TEXT_MIN_LEN = 800
 HEADING_BLEED_MIN_LEN = 120
 
+#: Page furniture, or a SECOND section's start, inside a heading.
+#:
+#: Length alone cannot find this, and the corpus says so plainly.  Measured over
+#: 7,390 acts headings: the longest CLEAN heading is 172 chars (s.82,
+#: "Procedure in case of goods not cleared or warehoused or transshipped or
+#: exported or removed from the port within twenty days ..."), while corrupt ones
+#: start at 21 ("Omitted. 221. Savings").  The two ranges overlap completely, so
+#: no threshold separates them -- lowering HEADING_BLEED_MIN_LEN would flag
+#: hundreds of real headings and still miss the short corrupt ones.  What the
+#: corrupt ones share is CONTENT that cannot belong to a heading:
+#:
+#:   "Omitted THE CUSTOMS ACT, 1969"                 a running header
+#:   "Omitted (viii) THE CUSTOMS ACT,1969"           a folio, then the header
+#:   "Omitted. 221. Savings"                         the NEXT section's row
+#:   "Provision of accommodation ... PROHIBITION AND RESTRICTION OF ..."
+#:                                                   a chapter caption (118 chars,
+#:                                                   two under the old threshold)
+#:
+#: A run of four or more ALL-CAPS words is the chapter-caption/running-header
+#: signal: real titles are set in title case, and the four-word floor keeps this
+#: off legitimate capitalised fragments ("NIFT", "PART II", "FBR").
+#: NO re.IGNORECASE -- it is the CASE that carries the signal.  Applied blindly it
+#: makes the ALL-CAPS caption run match ordinary prose, and the longest legitimate
+#: heading in the corpus ("Procedure in case of goods not cleared or warehoused or
+#: transshipped ...") was flagged. Each alternative states the case it means.
+_HEADING_FURNITURE_RE = re.compile(
+    r"\b(?:THE\s+)?(?:CUSTOMS|SALES\s+TAX|FEDERAL\s+EXCISE|INCOME\s+TAX)"
+    r"\s+(?:ACT|ORDINANCE|RULES)\b"                     # a running header, in caps
+    r"|\([\s]*[ivxlcdmIVXLCDM]{1,7}[\s]*\)"             # a roman folio, either case
+    r"|(?<!\A)\b\d{1,4}[A-Z]{0,3}\.\s+[A-Z]"            # a second section's row
+    # a caption run: four or more consecutive ALL-CAPS words, one of them long.
+    # Short function words must count as part of the run or it breaks at them --
+    # "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION" splits at "OF".
+    r"|(?:\b[A-Z][A-Z'-]+\b[\s,]+){3,}\b[A-Z][A-Z'-]{3,}\b")
+
 
 def _strip_html(html: str) -> str:
     return re.sub(r"\s+", " ", _STRIP_TAGS_RE.sub(" ", html or "")).strip()
@@ -144,13 +179,15 @@ def assess_section_quality(
     if heading and (
         len(heading) > HEADING_BLEED_MIN_LEN
         or len(_SENTENCE_SPLIT_RE.findall(heading)) >= 2
+        or _HEADING_FURNITURE_RE.search(heading)
     ):
         flags.append(
             {
                 "code": "heading_body_bleed",
                 "reason": (
                     "Section heading looks like body text "
-                    f"({len(heading)} chars / multiple sentences)"
+                    f"({len(heading)} chars / multiple sentences / "
+                    "page furniture)"
                 ),
             }
         )
