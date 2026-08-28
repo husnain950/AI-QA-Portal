@@ -11,16 +11,26 @@ export const useAiFixStore = create((set, get) => ({
     proposals: [],
     models: [],
     defaultModel: null,
+    modelsError: null,
 
     fetchModels: async ({ force = false } = {}) => {
         if (!force && get().models.length) return get().models;
         try {
             const data = await aiFixApi.models();
             const models = normalizeModelList(data);
-            set({ models, defaultModel: data.default || models[0]?.id || null });
+            set({
+                models,
+                defaultModel: data.default || models[0]?.id || null,
+                modelsError: null,
+            });
             return models;
         } catch (e) {
             console.error('Failed to fetch AI fix models', e);
+            set({
+                models: [],
+                defaultModel: null,
+                modelsError: e.message || 'Failed to load models',
+            });
             return [];
         }
     },
