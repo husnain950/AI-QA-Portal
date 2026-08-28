@@ -42,14 +42,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r apps/api/requirements-dev.txt
 
-      # The ingest pipelines under packages/ still carry a ruff backlog, so the
-      # repo-wide run stays advisory. The API and tools are clean and gate merges.
-      - name: Lint (advisory)
-        continue-on-error: true
+      - name: Lint
         run: ruff check --output-format=github
-
-      - name: Lint API and tools (blocking)
-        run: ruff check --output-format=github apps/api tools
 
       - name: Pytest
         run: pytest apps/api/backend/tests tools/tests -q

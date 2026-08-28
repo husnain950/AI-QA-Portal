@@ -1095,8 +1095,10 @@ def _stacked_fraction(a, b) -> bool:
     lb, pb = b
     if la is None or lb is None or pa != pb:
         return False
-    ax0 = min(w.x0 for w in la.words); ax1 = max(w.x1 for w in la.words)
-    bx0 = min(w.x0 for w in lb.words); bx1 = max(w.x1 for w in lb.words)
+    ax0 = min(w.x0 for w in la.words)
+    ax1 = max(w.x1 for w in la.words)
+    bx0 = min(w.x0 for w in lb.words)
+    bx1 = max(w.x1 for w in lb.words)
     return 0 < (lb.top - la.top) < 20 and bx0 >= ax0 - 6 and bx1 <= ax1 + 6
 
 
@@ -1129,11 +1131,11 @@ def _layout_blocks(rows, geoms):
     Only plain "text" rows are touched; kinds, order and plain stay intact
     (a folded block keeps its lines newline-joined in the plain slot).
     """
-    lines = [l for (l, _) in geoms if l is not None and getattr(l, "words", None)]
+    lines = [ln for (ln, _) in geoms if ln is not None and getattr(ln, "words", None)]
     if not lines:
         return rows
-    left = min(min(w.x0 for w in l.words) for l in lines)
-    right = max(max(w.x1 for w in l.words) for l in lines)
+    left = min(min(w.x0 for w in ln.words) for ln in lines)
+    right = max(max(w.x1 for w in ln.words) for ln in lines)
 
     def is_formula(idx: int, after_formula: bool) -> bool:
         kind, plain, _ = rows[idx]
@@ -2935,7 +2937,32 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
     seen: dict = {}
     for (pg, marker) in cited:
         local = by_marker.get(pg, {}).get(marker, [])
+        # The citing_page+1 lookup (A20) must agree with what the leaf DISPLAYS.
+        # ``_render_words`` resolves a marker through ``footnote_map`` -- the
+        # run-merged view, one note per marker (``_citation_scope`` builds it
+        # with ``merged.setdefault``, so the run's FIRST note wins) -- while this
+        # branch reads the raw page index, which keeps them all.  Where the next
+        # page prints a marker the run has already bound elsewhere the two
+        # disagree and the leaf holds a note it never cited: Federal Excise
+        # 11-03-2019 s.43A cites marker ``5`` on page 45, page 45 prints no note
+        # ``5``, and this branch took page 46's -- ``46.5``, s.45A's note, which
+        # s.45A also renders.  Matching the note TEXT to the displayed title
+        # keeps A20 (there both views name the same note) and drops the rest.
+        # The test is whether the resolved note is AMONG the next page's
+        # candidates, not which of them it is: page 97 of Customs 30-06-2014
+        # prints marker ``4`` twice and s.83A cites it once, so both notes are
+        # s.83A's -- keeping only the one equal to the title orphaned the other
+        # and ``adopt_orphan_footnotes`` gave it to s.83, which does not cite it.
+        # NOT applied to the collector branch below: that one reads
+        # ``cited_footnotes``, the run-scoped view the render path is built from,
+        # and a Customs collector page legitimately carries several notes under
+        # one marker -- filtering it detached 18 notes across 15 Customs editions
+        # and ``adopt_orphan_footnotes`` then put them on the wrong leaf.
         nxt = by_marker.get(pg + 1, {}).get(marker, []) if not local else []
+        if nxt:
+            title, _ = _cite_entry(footnote_map, pg, marker)
+            if not any(fn.text == title for fn in nxt):
+                nxt = []
         # Customs collector: same-page lookup in the CITATION view (notes the
         # run already scoped to THIS citing page).  Never look up citing_page+1
         # in that view -- cited_footnotes[pg+1] holds the NEXT body page's

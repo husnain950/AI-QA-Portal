@@ -22,6 +22,7 @@ while the pure size-8 footnote lines fall into the footnote zone.
 
 from __future__ import annotations
 
+import re as _re
 from dataclasses import dataclass, field
 
 from .grammar import folio_value, is_marker_text, is_year_like
@@ -207,7 +208,7 @@ def _group_into_lines(words: list[Word]) -> list[Line]:
                 break
         if not placed:
             lines.append(Line(top=w.top, words=[w]))
-    lines.sort(key=lambda l: l.top)
+    lines.sort(key=lambda ln: ln.top)
     return lines
 
 
@@ -224,11 +225,24 @@ def _line_max_size(ln) -> float:
 def _is_footnote_marker_line(ln, cal) -> bool:
     """A footnote marker at the footnote block's left margin.
 
-    Both gates are calibrated rather than absolute.  The Ordinance's literals
-    (``x0 <= 82``, ``size <= 7.8``, ``t.isdigit()``, 1-2 digits) each fail
-    somewhere in this corpus: Customs sets its footnote block at x0 129.6 and
-    9.0pt, prints markers with a trailing dot and a lowercase suffix (``27a.``),
-    and Sales Tax numbers them into the 800s -- three digits.
+    The margin gates are calibrated rather than absolute.  The Ordinance's
+    literals (``x0 <= 82``, ``size <= 7.8``, ``t.isdigit()``, 1-2 digits) each
+    fail somewhere in this corpus: Customs sets its footnote block at x0 129.6
+    and 9.0pt, prints markers with a trailing dot and a lowercase suffix
+    (``27a.``), and Sales Tax numbers them into the 800s -- three digits.
+
+    The WHOLE line must be footnote-sized, not just the marker.  Testing only
+    the first word admitted a BODY line that opens with a superscript amendment
+    marker -- Sales Tax s.40C prints ``567[omitted..] may post Officer of...``,
+    where ``567`` is small and at the left margin while the prose after it is
+    12.0pt body text.  ``_footnote_note_marker_tops`` then found an edit verb
+    ("omitted") on the same line and anchored the footnote zone at 277.7 instead
+    of the real separator rule at 589.87, handing 21 body lines -- all of s.40C
+    -- to ``parse_footnotes``.  14 ``section_carries_its_body`` failures across
+    13 Sales Tax and Federal Excise editions had this one shape.  The size test
+    the next line already gets in ``_footnote_note_marker_tops`` simply was never
+    applied to the marker line itself; a genuine marker line is footnote-sized
+    throughout, in both layouts that function accepts.
     """
     ws = sorted(ln.words, key=lambda w: w.x0)
     if not ws:
@@ -236,6 +250,7 @@ def _is_footnote_marker_line(ln, cal) -> bool:
     first = ws[0]
     return (first.x0 <= cal.footnote_marker_x_max
             and first.size <= cal.footnote_marker_max_size
+            and _line_max_size(ln) <= cal.footnote_text_max
             and is_marker_text(first.text))
 
 
@@ -464,8 +479,6 @@ def _footnote_zone_top(page, lines, cal):
         return narrow
     return None
 
-
-import re as _re
 
 # edit verbs that mark a footnote NOTE (see _is_amendment_note)
 #: The printed CAPTION of a footnote apparatus, as its own line above the notes.
