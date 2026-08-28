@@ -36,6 +36,13 @@ describe('formatModelPricing', () => {
     it('returns null when pricing is missing', () => {
         expect(formatModelPricing({})).toBeNull();
     });
+
+    it('formats the dropdown pricing line', () => {
+        expect(formatModelPricing({
+            input_price_per_1m: 0.2,
+            output_price_per_1m: 1.25,
+        })).toBe('$0.2 / 1M input · $1.25 / 1M output');
+    });
 });
 
 describe('normalizeModelList', () => {

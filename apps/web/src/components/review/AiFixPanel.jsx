@@ -95,9 +95,9 @@ const ModelPicker = ({ models, value, defaultModel, onChange }) => {
                                             {row.label || row.id}
                                             {row.id === defaultModel ? ' (default)' : ''}
                                         </span>
-                                        {pricing && (
-                                            <span className="ai-fix-model-pricing">{pricing}</span>
-                                        )}
+                                        <span className="ai-fix-model-pricing">
+                                            {pricing || 'Pricing unavailable'}
+                                        </span>
                                         <span className={`ai-fix-model-capability${row.vision ? ' is-vision' : ''}`}>
                                             {row.vision ? 'Vision' : 'Text'}
                                         </span>
@@ -228,6 +228,7 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
     const { requestFix, approve, reject, fetchModels, fetchProposals } = useAiFixStore();
     const models = useAiFixStore((s) => s.models);
     const defaultModel = useAiFixStore((s) => s.defaultModel);
+    const modelsError = useAiFixStore((s) => s.modelsError);
     const storedProposals = useAiFixStore((s) => s.proposals);
     const pdfUrl = activeDocument?.pdf_filename
         ? api.getFileUrl(activeDocument.pdf_filename)
@@ -259,7 +260,7 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
             return pending;
         };
         applyPending(storedProposals);
-        fetchModels();
+        fetchModels({ force: true });
         if (documentId) {
             fetchProposals(documentId).then((list) => applyPending(list));
         }
@@ -369,9 +370,9 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                     </button>
                 </header>
 
-                {error && (
+                {(error || modelsError) && (
                     <p className="ai-fix-error">
-                        <AlertTriangle size={14} /> {error}
+                        <AlertTriangle size={14} /> {error || modelsError}
                     </p>
                 )}
 

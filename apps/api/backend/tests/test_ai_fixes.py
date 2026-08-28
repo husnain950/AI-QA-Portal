@@ -196,6 +196,29 @@ def test_extra_providers_join_the_dropdown(gateway, monkeypatch):
     assert payload == {"model": "second-model"}
 
 
+async def test_list_model_infos_extras_only_without_openpaths(monkeypatch):
+    for name in ("OPENPATHS_API_KEY", "OPENPATHS_BASE_URL", "OPENPATHS_MODELS", "OPENPATHS_MODEL"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(
+        "LLM_EXTRA_PROVIDERS",
+        json.dumps(
+            {
+                "kimi": {
+                    "base_url": "https://host/v1",
+                    "env_key": "wk-x",
+                    "vision": False,
+                    "input_price_per_1m": 0.95,
+                    "output_price_per_1m": 4,
+                }
+            }
+        ),
+    )
+    infos = await llm_client.list_model_infos()
+    assert [row["id"] for row in infos] == ["kimi"]
+    assert infos[0]["input_price_per_1m"] == 0.95
+    assert infos[0]["vision"] is False
+
+
 def test_extra_providers_alone_are_enough(monkeypatch):
     for name in ("OPENPATHS_API_KEY", "OPENPATHS_BASE_URL", "OPENPATHS_MODELS", "OPENPATHS_MODEL"):
         monkeypatch.delenv(name, raising=False)
@@ -580,6 +603,11 @@ async def test_models_route_selects_top_catalog_models(runtime_sandbox, monkeypa
             "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 15},
             "capabilities": {"vision": True, "tools": True},
         },
+        "gpt-5.4-nano": {
+            "id": "gpt-5.4-nano",
+            "pricing": {"input_per_1m_tokens": 0.20, "output_per_1m_tokens": 1.25},
+            "capabilities": {"vision": True, "tools": True},
+        },
         "or/gpt-5.4": {
             "id": "or/gpt-5.4",
             "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 15},
@@ -587,6 +615,7 @@ async def test_models_route_selects_top_catalog_models(runtime_sandbox, monkeypa
         },
         "kimi-k2.5": {
             "id": "kimi-k2.5",
+            "aliases": ["kimi"],
             "pricing": {"input_per_1m_tokens": 0.95, "output_per_1m_tokens": 4},
             "capabilities": {"vision": False, "tools": True},
         },
@@ -599,6 +628,11 @@ async def test_models_route_selects_top_catalog_models(runtime_sandbox, monkeypa
             "id": "whisper-large-v3",
             "pricing": {"per_minute": 0.001},
             "capabilities": {"vision": False},
+        },
+        "input-only-chat": {
+            "id": "input-only-chat",
+            "pricing": {"input_per_1m_tokens": 1.0},
+            "capabilities": {"vision": True, "tools": True},
         },
     }
 
@@ -613,6 +647,8 @@ async def test_models_route_selects_top_catalog_models(runtime_sandbox, monkeypa
     assert "kimi-k2.5" in ids
     assert "claude-sonnet-4-5-20250929" in ids
     assert "gpt-5.4" in ids
+    assert "gemini-2.5-pro" in ids
+    assert "gpt-5.4-nano" not in ids  # flagship wins the GPT-5 family slot
     assert "or/gpt-5.4" not in ids  # mirror dropped when canonical exists
     assert "seedance-2.0-text-to-video" not in ids
     assert "whisper-large-v3" not in ids
@@ -623,26 +659,196 @@ async def test_models_route_selects_top_catalog_models(runtime_sandbox, monkeypa
     assert kimi.label
     sonnet = next(row for row in response.models if "claude-sonnet" in row.id)
     assert sonnet.vision is True
+    gpt = next(row for row in response.models if row.id == "gpt-5.4")
+    assert gpt.vision is True
+    assert gpt.input_price_per_1m == 2.5
+    assert gpt.output_price_per_1m == 15
+
+
+async def test_models_route_prefixes_env_then_fills_catalog(runtime_sandbox, monkeypatch):
+    from backend.routes.ai_fixes import list_models
+
+    monkeypatch.setenv("OPENPATHS_API_KEY", "op-test")
+    monkeypatch.setenv("OPENPATHS_BASE_URL", "https://gateway.test/v1")
+    monkeypatch.setenv("OPENPATHS_MODELS", "gpt-5.4-nano")
+    monkeypatch.delenv("OPENPATHS_MODEL", raising=False)
+    monkeypatch.delenv("LLM_EXTRA_PROVIDERS", raising=False)
+    llm_client.clear_catalog_cache()
+
+    catalog = {
+        "gpt-5.4-nano": {
+            "id": "gpt-5.4-nano",
+            "pricing": {"input_per_1m_tokens": 0.20, "output_per_1m_tokens": 1.25},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "claude-sonnet-4-5-20250929": {
+            "id": "claude-sonnet-4-5-20250929",
+            "pricing": {"input_per_1m_tokens": 3, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "gpt-5.4": {
+            "id": "gpt-5.4",
+            "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "kimi-k2.5": {
+            "id": "kimi-k2.5",
+            "aliases": ["kimi"],
+            "pricing": {"input_per_1m_tokens": 0.95, "output_per_1m_tokens": 4},
+            "capabilities": {"vision": False, "tools": True},
+        },
+        "gemini-2.5-pro": {
+            "id": "gemini-2.5-pro",
+            "pricing": {"input_per_1m_tokens": 1.25, "output_per_1m_tokens": 10},
+            "capabilities": {"vision": True, "tools": True},
+        },
+    }
+
+    async def fake_catalog(*, force=False):
+        return catalog
+
+    monkeypatch.setattr(llm_client, "fetch_openpaths_catalog", fake_catalog)
+
+    response = await list_models()
+    ids = [row.id for row in response.models]
+    assert ids[0] == "gpt-5.4-nano"
+    nano = response.models[0]
+    assert nano.vision is True
+    assert nano.input_price_per_1m == 0.20
+    assert "claude-sonnet-4-5-20250929" in ids
+    assert "gpt-5.4" in ids
+    assert "kimi-k2.5" in ids
+    assert len(ids) <= 10
+
+
+async def test_models_route_returns_502_when_catalog_fails(monkeypatch):
+    from fastapi import HTTPException
+
+    from backend.routes.ai_fixes import list_models
+
+    monkeypatch.setenv("OPENPATHS_API_KEY", "op-test")
+    monkeypatch.setenv("OPENPATHS_BASE_URL", "https://gateway.test/v1")
+    monkeypatch.delenv("OPENPATHS_MODELS", raising=False)
+    monkeypatch.delenv("OPENPATHS_MODEL", raising=False)
+    monkeypatch.delenv("LLM_EXTRA_PROVIDERS", raising=False)
+    llm_client.clear_catalog_cache()
+
+    async def boom(*, force=False):
+        raise llm_client.LLMError("models catalog returned HTTP 500: boom")
+
+    monkeypatch.setattr(llm_client, "fetch_openpaths_catalog", boom)
+
+    with pytest.raises(HTTPException) as excinfo:
+        await list_models()
+    assert excinfo.value.status_code == 502
+    assert "500" in str(excinfo.value.detail)
 
 
 def test_select_top_models_always_keeps_kimi():
+    # Ten higher-scoring vision families would otherwise fill the cap.
     catalog = {
-        f"claude-sonnet-{i}": {
-            "id": f"claude-sonnet-{i}",
+        mid: {
+            "id": mid,
             "pricing": {"input_per_1m_tokens": 3, "output_per_1m_tokens": 15},
             "capabilities": {"vision": True, "tools": True},
         }
-        for i in range(12)
+        for mid in (
+            "claude-sonnet-4-5",
+            "claude-opus-4",
+            "gpt-5.4",
+            "gpt-4o",
+            "gemini-2.5-pro",
+            "grok-4",
+            "glm-4.6v",
+            "o3",
+            "mistral-large",
+            "qwen3",
+        )
     }
     catalog["kimi-k2.5"] = {
         "id": "kimi-k2.5",
         "pricing": {"input_per_1m_tokens": 0.95, "output_per_1m_tokens": 4},
         "capabilities": {"vision": False},
     }
-    # Many sonnet variants collapse to one family; kimi must still appear.
     selected = llm_client._select_top_models(catalog, limit=10)
     ids = [row["id"] for row in selected]
+    assert len(ids) == 10
     assert "kimi-k2.5" in ids
+
+
+def test_select_top_models_prefers_gpt_flagship_over_nano():
+    catalog = {
+        "gpt-5.4-nano": {
+            "id": "gpt-5.4-nano",
+            "pricing": {"input_per_1m_tokens": 0.20, "output_per_1m_tokens": 1.25},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "gpt-5.4": {
+            "id": "gpt-5.4",
+            "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        },
+    }
+    ids = [row["id"] for row in llm_client._select_top_models(catalog, limit=10)]
+    assert "gpt-5.4" in ids
+    assert "gpt-5.4-nano" not in ids
+
+
+def test_is_chat_model_allows_omitted_token_price_keys():
+    assert llm_client._is_chat_model(
+        {
+            "id": "gpt-5.4",
+            "pricing": {"input_per_1m_tokens": 2.5},
+            "capabilities": {"vision": True},
+        }
+    )
+    assert llm_client._is_chat_model({"id": "chat-no-price", "pricing": {}})
+    assert not llm_client._is_chat_model(
+        {
+            "id": "seedance-2.0-text-to-video",
+            "pricing": {"per_second": 0.3},
+        }
+    )
+    assert not llm_client._is_chat_model(
+        {"id": "flux-pro", "pricing": {"per_image": 0.04}}
+    )
+
+
+def test_token_prices_accept_openpaths_and_openrouter_shapes():
+    inp, out = llm_client._token_prices(
+        {"pricing": {"input_per_1m_tokens": 3, "output_per_1m_tokens": 15}}
+    )
+    assert inp == 3
+    assert out == 15
+    inp, out = llm_client._token_prices(
+        {"input_price_per_1m": 0.2, "output_price_per_1m": 1.25}
+    )
+    assert inp == 0.2
+    assert out == 1.25
+    inp, out = llm_client._token_prices(
+        {"pricing": {"prompt": "0.000003", "completion": "0.000015"}}
+    )
+    assert inp == 3.0
+    assert out == 15.0
+    inp, out = llm_client._token_prices({"pricing": {"input_per_1m_tokens": 1.0}})
+    assert inp == 1.0
+    assert out is None
+
+
+def test_entry_supports_vision_from_alternate_fields():
+    assert llm_client._entry_supports_vision(
+        {"id": "x", "capabilities": {"vision": True}}
+    )
+    assert not llm_client._entry_supports_vision(
+        {"id": "x", "capabilities": {"vision": False}}
+    )
+    assert llm_client._entry_supports_vision({"id": "x", "supports_vision": True})
+    assert llm_client._entry_supports_vision(
+        {"id": "x", "architecture": {"input_modalities": ["text", "image"]}}
+    )
+    assert not llm_client._entry_supports_vision(
+        {"id": "x", "architecture": {"input_modalities": ["text"]}}
+    )
 
 
 def test_humanize_model_id():

@@ -7,11 +7,11 @@ Two sources feed one model registry (dropdown id -> endpoint spec):
 
     OPENPATHS_API_KEY    bearer token (never logged, never echoed in errors)
     OPENPATHS_BASE_URL   e.g. https://openpaths.io/v1
-    OPENPATHS_MODELS     optional prefer/allow list. When unset, the dropdown is
-                         filled from GET {BASE_URL}/models (top chat models fit
-                         for legal PDF→JSON fixing). When set, those ids are
-                         kept in order and enriched with catalog metadata.
-    OPENPATHS_MODEL      legacy single-model form, still honoured
+    OPENPATHS_MODELS     optional prefix. Those ids are shown first (enriched
+                         from the catalog when possible); remaining slots are
+                         filled from GET {BASE_URL}/models (top chat models
+                         fit for legal PDF→JSON fixing, capped at 10).
+    OPENPATHS_MODEL      legacy single-model form, still honoured as a prefix
 
     LLM_EXTRA_PROVIDERS  one JSON object for models on OTHER endpoints, e.g.
                          self-hosted deployments:
@@ -57,6 +57,20 @@ _EXCLUDE_ID = re.compile(
 )
 # Prefer first-party gateway ids over mirrored vendor routes.
 _MIRROR_PREFIX = re.compile(r"^(or|fireworks|together|nvidia|cursor|alibaba|zai)/")
+# Within a family, skip the cheap/small SKU so the dropdown shows the flagship.
+_TIER_PENALTY = re.compile(
+    r"(?:^|[-/.])(nano|mini|lite|flash-lite|haiku)(?:$|[-/.])",
+    re.IGNORECASE,
+)
+# Image/video/audio request pricing — not a chat-completions model.
+_NON_CHAT_PRICE_KEYS = (
+    "per_image",
+    "per_video",
+    "per_second",
+    "per_minute",
+    "per_hour",
+    "per_1m_characters",
+)
 
 # Families that work well for careful legal transcription + optional vision.
 _FAMILY_BOOST = (
@@ -141,6 +155,69 @@ def _as_float(value: Any) -> Optional[float]:
         return None
 
 
+def _pricing_dict(entry: Dict[str, Any]) -> Dict[str, Any]:
+    pricing = entry.get("pricing")
+    return pricing if isinstance(pricing, dict) else {}
+
+
+def _token_prices(entry: Dict[str, Any]) -> Tuple[Optional[float], Optional[float]]:
+    """Input/output USD per 1M tokens from OpenPaths, top-level, or OpenRouter shapes."""
+    pricing = _pricing_dict(entry)
+    inp = _as_float(pricing.get("input_per_1m_tokens"))
+    out = _as_float(pricing.get("output_per_1m_tokens"))
+    if inp is None:
+        inp = _as_float(entry.get("input_price_per_1m"))
+    if out is None:
+        out = _as_float(entry.get("output_price_per_1m"))
+    if inp is None:
+        prompt = _as_float(pricing.get("prompt"))
+        if prompt is not None:
+            inp = prompt * 1_000_000.0
+    if out is None:
+        completion = _as_float(pricing.get("completion"))
+        if completion is not None:
+            out = completion * 1_000_000.0
+    return inp, out
+
+
+def _entry_supports_vision(entry: Dict[str, Any]) -> bool:
+    """OpenPaths ``capabilities.vision``, then ``supports_vision``, then modalities."""
+    caps = entry.get("capabilities")
+    if isinstance(caps, dict) and "vision" in caps:
+        return bool(caps.get("vision"))
+    if "supports_vision" in entry:
+        return bool(entry.get("supports_vision"))
+    arch = entry.get("architecture")
+    if isinstance(arch, dict):
+        modalities = arch.get("input_modalities") or []
+        if isinstance(modalities, (list, tuple)):
+            return any(str(item).lower() == "image" for item in modalities)
+    return False
+
+
+def _entry_supports_tools(entry: Dict[str, Any]) -> bool:
+    caps = entry.get("capabilities")
+    if isinstance(caps, dict) and "tools" in caps:
+        return bool(caps.get("tools"))
+    return bool(entry.get("supports_tools"))
+
+
+def _find_catalog_entry(
+    catalog: Dict[str, Dict[str, Any]], name: str
+) -> Optional[Dict[str, Any]]:
+    """Resolve a dropdown/env id against catalog ids and aliases."""
+    if name in catalog:
+        return catalog[name]
+    needle = name.lower()
+    for entry in catalog.values():
+        if str(entry.get("id") or "").lower() == needle:
+            return entry
+        aliases = entry.get("aliases") or []
+        if any(str(alias).lower() == needle for alias in aliases):
+            return entry
+    return None
+
+
 def _humanize_id(model_id: str) -> str:
     """Turn a gateway id into a short label for the dropdown."""
     short = model_id.split("/")[-1]
@@ -193,23 +270,26 @@ def _family_key(model_id: str) -> str:
 
 
 def _is_chat_model(entry: Dict[str, Any]) -> bool:
-    pricing = entry.get("pricing") or {}
-    if "input_per_1m_tokens" not in pricing or "output_per_1m_tokens" not in pricing:
-        return False
+    """True for chat-completions models. Token prices are optional (OpenPaths omitempty)."""
     model_id = str(entry.get("id") or "")
     if not model_id or _EXCLUDE_ID.search(model_id):
+        return False
+    pricing = _pricing_dict(entry)
+    inp, out = _token_prices(entry)
+    has_token_price = inp is not None or out is not None
+    has_media_price = any(pricing.get(key) for key in _NON_CHAT_PRICE_KEYS)
+    if has_media_price and not has_token_price:
         return False
     return True
 
 
 def _score_model(entry: Dict[str, Any]) -> float:
+    """Higher is better for legal PDF→JSON fixing. Vision flagships beat nano/mini."""
     model_id = str(entry["id"])
-    caps = entry.get("capabilities") or {}
-    pricing = entry.get("pricing") or {}
     score = 0.0
-    if caps.get("vision"):
+    if _entry_supports_vision(entry):
         score += 100
-    if caps.get("tools"):
+    if _entry_supports_tools(entry):
         score += 8
     for pattern, boost in _FAMILY_BOOST:
         if pattern.search(model_id):
@@ -221,16 +301,15 @@ def _score_model(entry: Dict[str, Any]) -> float:
         score -= 40
     if model_id.endswith("-latest"):
         score += 6
-    # Prefer mid-range pricing; penalize extreme cost.
+    if _TIER_PENALTY.search(model_id.split("/")[-1]):
+        score -= 55
+    inp, out = _token_prices(entry)
     try:
-        inp = float(pricing.get("input_per_1m_tokens") or 0)
-        out = float(pricing.get("output_per_1m_tokens") or 0)
-        if inp + out > 40:
+        combined = (inp or 0.0) + (out or 0.0)
+        if combined > 40:
             score -= 25
-        elif inp + out > 20:
+        elif combined > 20:
             score -= 8
-        if 0 < inp + out < 1:
-            score += 4
     except (TypeError, ValueError):
         pass
     # Prefer shorter canonical ids over dated snapshots when scores tie.
@@ -239,19 +318,55 @@ def _score_model(entry: Dict[str, Any]) -> float:
 
 
 def _catalog_entry_to_info(entry: Dict[str, Any]) -> Dict[str, Any]:
-    pricing = entry.get("pricing") or {}
-    caps = entry.get("capabilities") or {}
     model_id = str(entry["id"])
+    inp, out = _token_prices(entry)
     return {
         "id": model_id,
         "label": _humanize_id(model_id),
-        "vision": bool(caps.get("vision")),
-        "input_price_per_1m": _as_float(pricing.get("input_per_1m_tokens")),
-        "output_price_per_1m": _as_float(pricing.get("output_per_1m_tokens")),
+        "vision": _entry_supports_vision(entry),
+        "input_price_per_1m": inp,
+        "output_price_per_1m": out,
     }
 
 
-def _select_top_models(catalog: Dict[str, Dict[str, Any]], *, limit: int = DROPDOWN_LIMIT) -> List[Dict[str, Any]]:
+def _stub_info(model_id: str) -> Dict[str, Any]:
+    return {
+        "id": model_id,
+        "label": _humanize_id(model_id),
+        "vision": False,
+        "input_price_per_1m": None,
+        "output_price_per_1m": None,
+    }
+
+
+def _ensure_kimi(
+    selected: List[Dict[str, Any]],
+    catalog: Dict[str, Dict[str, Any]],
+    *,
+    limit: int,
+) -> List[Dict[str, Any]]:
+    """Guarantee a Kimi option when the catalog has one."""
+    if any("kimi" in row["id"].lower() for row in selected):
+        return selected[:limit]
+    kimi_hits = [
+        entry
+        for entry in catalog.values()
+        if _is_chat_model(entry) and "kimi" in str(entry.get("id") or "").lower()
+    ]
+    if not kimi_hits:
+        return selected[:limit]
+    kimi_hits.sort(key=_score_model, reverse=True)
+    info = _catalog_entry_to_info(kimi_hits[0])
+    if len(selected) >= limit:
+        selected = [*selected[: limit - 1], info]
+    else:
+        selected = [*selected, info]
+    return selected[:limit]
+
+
+def _select_top_models(
+    catalog: Dict[str, Dict[str, Any]], *, limit: int = DROPDOWN_LIMIT
+) -> List[Dict[str, Any]]:
     """Pick up to ``limit`` chat models suited to AI fix work; always keep Kimi."""
     candidates = [entry for entry in catalog.values() if _is_chat_model(entry)]
     candidates.sort(key=_score_model, reverse=True)
@@ -267,22 +382,7 @@ def _select_top_models(catalog: Dict[str, Dict[str, Any]], *, limit: int = DROPD
         if len(selected) >= limit:
             break
 
-    # Guarantee a Kimi option when the catalog (or an alias) has one.
-    if not any("kimi" in m["id"].lower() for m in selected):
-        kimi_hits = [
-            entry
-            for entry in candidates
-            if "kimi" in str(entry.get("id") or "").lower()
-        ]
-        if kimi_hits:
-            kimi_hits.sort(key=_score_model, reverse=True)
-            info = _catalog_entry_to_info(kimi_hits[0])
-            if len(selected) >= limit:
-                selected[-1] = info
-            else:
-                selected.append(info)
-
-    return selected[:limit]
+    return _ensure_kimi(selected, catalog, limit=limit)
 
 
 def clear_catalog_cache() -> None:
@@ -348,7 +448,11 @@ def _info_from_spec(model_id: str, spec: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def list_model_infos() -> List[Dict[str, Any]]:
-    """Rich dropdown rows: id, label, vision, pricing. First entry is default."""
+    """Rich dropdown rows: id, label, vision, pricing. First entry is default.
+
+    Catalog HTTP failures propagate as ``LLMError`` (the models route maps
+    that to 502). An empty catalog is fine — env prefix and extras still work.
+    """
     api_key, base_url = _openpaths_credentials()
     prefer = _models_from_env()
     extras = _extra_providers()
@@ -357,38 +461,32 @@ async def list_model_infos() -> List[Dict[str, Any]]:
 
     catalog: Dict[str, Dict[str, Any]] = {}
     if api_key and base_url:
-        try:
-            catalog = await fetch_openpaths_catalog()
-        except LLMError:
-            # Fall back to env allow-list / extras if the catalog is down.
-            catalog = {}
+        catalog = await fetch_openpaths_catalog()
 
-    if prefer:
-        for name in prefer:
-            if name in seen:
-                continue
-            if name in catalog:
-                infos.append(_catalog_entry_to_info(catalog[name]))
-            else:
-                infos.append(
-                    {
-                        "id": name,
-                        "label": _humanize_id(name),
-                        "vision": False,
-                        "input_price_per_1m": None,
-                        "output_price_per_1m": None,
-                    }
-                )
-            seen.add(name)
-    elif catalog:
+    def append(info: Dict[str, Any]) -> None:
+        if info["id"] in seen:
+            return
+        infos.append(info)
+        seen.add(info["id"])
+
+    for name in prefer:
+        entry = _find_catalog_entry(catalog, name)
+        if entry is not None:
+            append(_catalog_entry_to_info(entry))
+        else:
+            append(_stub_info(name))
+
+    if catalog:
         for info in _select_top_models(catalog):
-            if info["id"] not in seen:
-                infos.append(info)
-                seen.add(info["id"])
+            if len(infos) >= DROPDOWN_LIMIT:
+                break
+            append(info)
+        infos[:] = _ensure_kimi(infos, catalog, limit=DROPDOWN_LIMIT)
+        seen.clear()
+        seen.update(row["id"] for row in infos)
 
     for name, spec in extras.items():
         if name in seen:
-            # Extra provider overrides routing; keep metadata if richer.
             continue
         infos.append(_info_from_spec(name, spec))
         seen.add(name)
@@ -481,8 +579,9 @@ def resolve_model(requested: str | None) -> str:
     requested = requested.strip()
     if requested in known or requested in cached_ids:
         return requested
-    # Dynamic catalog mode: any OpenPaths id is routable once credentials exist.
-    if openpaths_ready and not _models_from_env():
+    # Dynamic catalog mode: any OpenPaths id is routable once credentials exist
+    # and we are not in env-only (empty catalog) allow-list mode.
+    if openpaths_ready and (not _models_from_env() or cached_ids):
         return requested
     raise ValueError(
         f"unknown model {requested!r}; configured models: {', '.join(known) or '(none)'}"
@@ -508,10 +607,10 @@ def model_supports_vision(model: str | None) -> bool:
     if not model:
         return False
     cached = (_catalog_cache.get("by_id") or {}).get(model)
+    if not isinstance(cached, dict):
+        cached = _find_catalog_entry(_catalog_cache.get("by_id") or {}, model)
     if isinstance(cached, dict):
-        caps = cached.get("capabilities") or {}
-        if "vision" in caps:
-            return bool(caps.get("vision"))
+        return _entry_supports_vision(cached)
     try:
         extras = _extra_providers()
     except LLMNotConfigured:
