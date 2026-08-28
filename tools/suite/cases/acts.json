@@ -260,6 +260,19 @@
       },
       "arg": "Issue of certificate and duplicate",
       "description": "The companion half: s.203A must drop from 697 chars to 220."
+    },
+    {
+      "id": "r01_sta_2021_s40c_body_not_swallowed_by_footnote_zone",
+      "source": "reports/anomalies.md R01",
+      "status": "active",
+      "applies_to": "15.9.2021",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "40C"
+      },
+      "arg": "Subject to such conditions, restrictions, and procedures",
+      "description": "s.40C keeps its own provision instead of a heading-only stub.  The body line '567[omitted..] may post Officer of...' opens with a small left-margin marker but is 12.0pt BODY text; _is_footnote_marker_line tested only the first word, so _footnote_note_marker_tops anchored the footnote zone at 277.7 instead of the separator rule at 589.87 and handed 21 body lines to parse_footnotes."
     }
   ]
 }
