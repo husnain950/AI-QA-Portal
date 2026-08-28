@@ -8,6 +8,19 @@ Baseline: `main` at `e1aae5d`. All counts below were measured with
 
 **Total open anomalies: 157 invariant hits + 4 classes no invariant can see.**
 
+> **Acts lane update (branch `fix/anomaly-footnote-binding`).** 2B and 2D are closed.
+> Acts went **64 → 36** hits over **33 → 13** documents, with no invariant regressing on
+> any of the 80 staged editions. 25 scanned editions were **not** re-converted (OCR needs
+> the Phase 0 venv), so they still carry pre-fix JSON and their hits are unchanged rather
+> than re-measured. Ordinance and rules are untouched.
+>
+> | Invariant | Before | After |
+> |---|---|---|
+> | `section_carries_its_body` | 40 | 26 |
+> | `footnote_on_citing_leaf` | 14 | **0** |
+> | `no_foreign_section_start_in_body` | 9 | 9 |
+> | `clause_codes_plausible` | 1 | 1 |
+
 Rules of engagement:
 - Never commit to `main`. One branch and one PR per phase (see plan §How the work lands).
 - Every parser fix ships with its locking case or invariant **in the same PR**.
@@ -103,8 +116,13 @@ Affected: `The Sales Tax Act, 1990 amended up to July 01, 2014` (705) · Customs
 
 - [ ] Verify: `grep -c "(cid:" data/corpora/*/output/*.json` → **0**
 
-### 2B · Footnote-zone misplacement — **16 hits** (11 class B + 5 class C)
+### 2B · Footnote-zone misplacement — **14 hits** ✅ DONE (`fix/anomaly-footnote-binding`)
 Branch: `fix/anomaly-footnote-zone`
+
+**Measured, not 16.** The fix cleared 14 `section_carries_its_body` hits across 13 Sales
+Tax and Federal Excise editions (40 → 26 lane-wide). The 5 "class C" hits the plan folded
+in here — STA 15.9.2021 ss. 3B, 4, 5, 6, 7 — are **a different root cause** and are still
+open; see 2C-bis below.
 
 Root cause traced: `_footnote_note_marker_tops` tests only a line's **first word**. Body
 line `567[omitted..] may post Officer of…` at 12.0pt qualifies because `567` is small and
@@ -112,22 +130,37 @@ left-margin and `_is_amendment_note` fires on the verb `omitted`. Zone top retur
 **277.7** instead of the real rule at **589.87** — 21 body lines, all of s.40C, go to
 `parse_footnotes`.
 
-- [ ] Pick one root-cause fix (both cover all 16 at once):
-  - [ ] require the marker **line** to be footnote-sized (`_line_max_size(ln) <=
-        cal.footnote_text_max`) — already applied to the *next* line at `pagemodel.py:269`
-        but not the marker line itself; **or**
-  - [ ] make the code match its own docstring — `_footnote_zone_top` (`pagemodel.py:419`)
-        documents the marker anchor as a fallback *only when no narrow rule is found*, but
-        consults `note_tops` first, unconditionally. Same documented-vs-implemented drift
-        class PR #34 fixed in `_DOTFORM_RE`.
-- [ ] Verify against `pagemodel._demo` **and** the Customs `zone_mode="size"` path —
-      `_is_footnote_marker_line`'s callers are shared across lanes
+- [x] Took the line-size gate: `_line_max_size(ln) <= cal.footnote_text_max` inside
+      `_is_footnote_marker_line`, the shared choke point, so `_pull_footnote_start`
+      (`pagemodel.py:350`) gets it too
+- [x] **Rejected** the second option (narrow rule before the marker anchor). The comment
+      at `_footnote_zone_top` records why the marker anchor is deliberately first and names
+      the two documents it regresses — Division XVII 31.12.2019 and Division XIV
+      30.06.2020. The *docstring* is what drifted; it was corrected instead.
+- [x] Verified against `pagemodel._demo` (9 self-checks) **and** the Customs
+      `zone_mode="size"` path — Customs never reaches the marker branch and did not move
 - [ ] Give ledger R08 a real detector: `no_footnote_text_in_body` keys on the single
       literal `"Table substituted by the Finance Act"` (`_common.py:595`) and cannot see
-      the ordinance lane's **523 leaves in 12 documents**
-- [ ] Verify: STA s.40C carries its ~1,400-char provision in all 10 editions
+      the ordinance lane's **523 leaves in 12 documents**  *(still open)*
+- [ ] `packages/fbr_ingest/pagemodel.py:161` is a **separate copy** with the same defect
+      and drives the ordinance lane. Left alone: that lane's JSON is stale, so no honest
+      before/after exists until Phase 1 re-converts it.  *(follow-up)*
+- [x] Verified: STA s.40C carries its 1,153-char provision (15.9.2021), s.40D likewise
 
 Affected: s.40C ×10 editions + s.40D (30-06-2025) · STA 15.9.2021 ss. 3B, 4, 5, 6, 7
+
+### 2C-bis · STA 15.9.2021 ss. 3B, 4, 5, 6, 7 — **5 hits, reclassified**
+Branch: unassigned
+
+The plan filed these under 2B as "same zoning family, opening pages". **Traced with
+`tools/acts/why_unbuilt.py`: it is not a zoning bug at all.** The bodies print on PDF pages
+34, 34, 35, 35, 37 and *are* found there, but the section cursor has already advanced past
+them (`why_unbuilt` on s.4: `exp 40 found [34, 37] cursor 606 — all 2 occurrence(s) BEFORE
+cursor (blocked)`). The leaves then take their page from the TOC folio plus the calibrated
+`offset=6`, which is wrong in this region — hence `start_page` 40/40/41/41/43 pointing into
+s.8's text. This is the section-cursor family (ledger P06's neighbour), not `_footnote_zone_top`.
+
+- [ ] Decide: cursor fix, or an `exemptions/acts.json` entry naming the TOC-drift defect
 
 ### 2C · Trace-then-decide — **10 hits**
 Branch: `fix/anomaly-traced-residuals`
@@ -141,17 +174,25 @@ Each ends as a parser fix **or** an `exemptions/acts.json` entry. No third optio
 - [ ] Customs 2024 s.196K — source prints `'to Omitted 96u'` (1)
 - [ ] Customs 2025 s.79 — source prints `'A O mitted'` (1)
 
-### 2D · `footnote_on_citing_leaf` — **14 hits, one bug**
+### 2D · `footnote_on_citing_leaf` — **14 hits, one bug** ✅ DONE (`fix/anomaly-footnote-binding`)
 Branch: `fix/anomaly-orphan-footnote-adoption`
 
-All 14 have the identical shape: the note is attached to the leaf *immediately preceding*
-the one that cites it. `adopt_orphan_footnotes` (`builder.py:2312`) takes the first leaf
-whose `start_page..end_page` covers the note's page; an inflated span on the previous
-section wins. `builder.py:2981` already carries a comment flagging exactly this.
+**The plan's diagnosis was wrong.** `adopt_orphan_footnotes` picking the first
+page-covering leaf is not the cause — it is the completeness net that catches what the
+citation loop drops, and it needed no change. The cause is in `_build_one`: its
+citing_page+1 lookup (A20) reads the raw page index, while the rendered `<sup>` resolves
+the same marker through `footnote_map`, the run-merged view that keeps one note per marker.
+Where the next page prints a marker the run already bound elsewhere, the two disagree and
+the leaf holds a note it never cited.
 
-- [ ] Prefer a covered leaf that **cites** the ref; fall back to page-span only when none does
-- [ ] Verify all 14: `46.5→43/45A`, `62.5→43A/45A`, `43.3→27/29`, `34.10→7A/8`,
-      `46.5→25/26`, `85.3→49A/50`, `90.4→49A/50A`, `55.6→30/30DD`, …
+- [x] Require the note the citation resolved to be **among** the next page's candidates
+      before accepting any of them
+- [x] Membership, not identity — page 97 of Customs 30-06-2014 prints marker `4` twice and
+      s.83A cites it once, so both notes are s.83A's. An identity test orphaned the second
+      and cost 4 new failures on 4 editions.
+- [x] Collector branch left alone — filtering it the same way detached 18 notes across 15
+      Customs editions. Both figures measured, not predicted.
+- [x] Verified: **14 → 0** across all 80 staged editions, no document regressed
 
 ### 2D-bis · `no_foreign_section_start_in_body` (acts) — **9 hits, 9 documents**
 Branch: folded into 2B/2C, whichever fix moves the leaf
@@ -161,7 +202,8 @@ this one names the *thief* holding its text. The two usually clear together — 
 fix that gives the victim its text also removes the foreign start from the thief — but they
 are counted separately and must be **verified** separately, not assumed.
 
-- [ ] Re-run after 2B and 2C land; any hit still standing gets its own trace
+- [x] Re-ran after 2B and 2D landed: **9 → 9, unchanged.** The two invariants did *not*
+      clear together here — each residual still needs its own trace.
 - [ ] Customs 30.06.2019, 30.06.2020, 30.06.2021, 30.06.2022, 30.06.2023, 30.06.2024,
       30th June 2025 (1 each) · STA 15.9.2021 (1) · +1
 - [ ] Each residual ends as a parser fix or an `exemptions/acts.json` entry — no third option
