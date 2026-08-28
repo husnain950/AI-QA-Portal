@@ -38,7 +38,10 @@ Run the API and web dev servers directly (do NOT rely on `make up`, which uses D
   ranges/ETag and `immutable` caching — the API is not in the PDF request path at all. The
   nginx location is regex-guarded to content-addressed key shapes, so the volume's
   `.staging/`/`.cache/`/`.preflight/` dirs and legacy flat names answer 404 without touching
-  disk. Blob reads are in the READ rate-limit tier; upload *writes* stay HEAVY.
+  disk. If the volume is not attached to the web container (template not re-run yet) or a blob
+  is absent, nginx `try_files` falls back to the API route automatically, so merge and
+  volume-attach can happen in either order. Blob reads are in the READ rate-limit tier;
+  upload *writes* stay HEAVY.
 - Keep both paths working: a change that only tests dev (Vite proxy) can silently break prod
   (static mount), and vice versa. `python -m backend.audit_pdf_serving --check-url <base>`
   validates every document's `/uploads` URL end-to-end against a live deployment.
