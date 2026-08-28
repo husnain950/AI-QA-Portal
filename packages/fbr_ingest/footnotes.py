@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import html as _html
 import re
+import re as _re
 from dataclasses import dataclass
 
 LEFT_MARGIN_MAX = 95.0     # a marker starts a footnote if it sits near the left
@@ -152,8 +153,6 @@ def _edges_by_gap(words, gap=18.0) -> list[float]:
             edges.append(cur.x0)
     return edges
 
-
-import re as _re
 
 # a substituted table may open with the "TABLE" keyword OR straight into an
 # "S#" / "S. No." / "Sr. No." header row.

@@ -1095,8 +1095,10 @@ def _stacked_fraction(a, b) -> bool:
     lb, pb = b
     if la is None or lb is None or pa != pb:
         return False
-    ax0 = min(w.x0 for w in la.words); ax1 = max(w.x1 for w in la.words)
-    bx0 = min(w.x0 for w in lb.words); bx1 = max(w.x1 for w in lb.words)
+    ax0 = min(w.x0 for w in la.words)
+    ax1 = max(w.x1 for w in la.words)
+    bx0 = min(w.x0 for w in lb.words)
+    bx1 = max(w.x1 for w in lb.words)
     return 0 < (lb.top - la.top) < 20 and bx0 >= ax0 - 6 and bx1 <= ax1 + 6
 
 
@@ -1129,11 +1131,11 @@ def _layout_blocks(rows, geoms):
     Only plain "text" rows are touched; kinds, order and plain stay intact
     (a folded block keeps its lines newline-joined in the plain slot).
     """
-    lines = [l for (l, _) in geoms if l is not None and getattr(l, "words", None)]
+    lines = [ln for (ln, _) in geoms if ln is not None and getattr(ln, "words", None)]
     if not lines:
         return rows
-    left = min(min(w.x0 for w in l.words) for l in lines)
-    right = max(max(w.x1 for w in l.words) for l in lines)
+    left = min(min(w.x0 for w in ln.words) for ln in lines)
+    right = max(max(w.x1 for w in ln.words) for ln in lines)
 
     def is_formula(idx: int, after_formula: bool) -> bool:
         kind, plain, _ = rows[idx]

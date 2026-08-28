@@ -22,6 +22,7 @@ while the pure size-8 footnote lines fall into the footnote zone.
 
 from __future__ import annotations
 
+import re as _re
 from dataclasses import dataclass, field
 
 from .grammar import folio_value, is_marker_text, is_year_like
@@ -207,7 +208,7 @@ def _group_into_lines(words: list[Word]) -> list[Line]:
                 break
         if not placed:
             lines.append(Line(top=w.top, words=[w]))
-    lines.sort(key=lambda l: l.top)
+    lines.sort(key=lambda ln: ln.top)
     return lines
 
 
@@ -478,8 +479,6 @@ def _footnote_zone_top(page, lines, cal):
         return narrow
     return None
 
-
-import re as _re
 
 # edit verbs that mark a footnote NOTE (see _is_amendment_note)
 #: The printed CAPTION of a footnote apparatus, as its own line above the notes.
