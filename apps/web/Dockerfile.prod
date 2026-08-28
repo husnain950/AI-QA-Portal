@@ -15,4 +15,8 @@ COPY apps/web/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 ENV API_HOST=crx-api
 ENV API_PORT=8000
+# Directory whose uploads/ subtree holds the content-addressed blobs. In
+# production this is the shared crx-api-data volume mounted read-only; nginx
+# serves /uploads/<key> from it directly instead of proxying the API.
+ENV BLOB_ROOT=/app/data
 EXPOSE 80

@@ -73,8 +73,8 @@ See [`.env.example`](.env.example). Important knobs:
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` | PostgreSQL DSN (default `postgresql+psycopg://crx:crx@localhost:5432/crx`) |
-| `STORAGE_BACKEND` | `s3` (Compose/MinIO) or `filesystem` (blobs under `UPLOAD_DIR`) |
-| `UPLOAD_DIR` | Content-addressed PDF/JSON blobs, and the local cache for the S3 backend |
+| `STORAGE_BACKEND` | Local disk under `UPLOAD_DIR` (the default; what production runs) or `s3` (MinIO/S3) |
+| `UPLOAD_DIR` | Content-addressed PDF/JSON blobs, and the local cache for the S3 backend. In production the web container serves `/uploads/` straight from this directory |
 | `S3_*` | Endpoint, bucket, and keys when `STORAGE_BACKEND=s3` |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | The first admin, created on a user table with no rows |
 | `SESSION_HOURS` | Session lifetime (default 12) |
@@ -176,10 +176,12 @@ Production keeps its two kinds of state in two places:
   the first step of the template. `DATABASE_URL` is injected from the addon, never written
   into the template or an env file.
 - **The blobs** (source PDFs, versioned JSON, evidence bundles) stay content-addressed on the
-  6 GB nvme volume mounted at `/app/data`, where `UPLOAD_DIR` (`/app/data/uploads`) points,
-  with `STORAGE_BACKEND=filesystem`. The volume is attached to both `crx-api` and
-  `crx-worker` so the worker writes renders and exports to the same store. Compose uses
-  MinIO instead, over the same S3 code path.
+  6 GB nvme volume mounted at `/app/data`, where `UPLOAD_DIR` (`/app/data/uploads`) points.
+  The volume is attached to `crx-api`, `crx-worker`, **and `crx-web`**: the web container's
+  nginx serves `/uploads/<key>` straight from it (see `apps/web/nginx.conf`), so PDF delivery
+  carries no API process, session, or rate-limit dependency. The FastAPI `/uploads/{key}`
+  route remains for dev (the Vite proxy forwards there) and as a fallback. Compose defaults
+  to the same local-disk backend; set `STORAGE_BACKEND=s3` to run the MinIO path instead.
 
 Blobs survive redeploys and image rebuilds: documents uploaded 2026-08-13 were still served
 after a full rebuild on 2026-08-18.

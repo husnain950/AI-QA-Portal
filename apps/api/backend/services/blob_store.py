@@ -263,7 +263,8 @@ _storage_signature: tuple[str, ...] | None = None
 
 def get_storage() -> StorageBackend:
     global _storage, _storage_signature
-    backend = os.environ.get("STORAGE_BACKEND", "filesystem").strip().lower()
+    # Empty means unset: a .env carrying STORAGE_BACKEND= must still get the default.
+    backend = (os.environ.get("STORAGE_BACKEND") or "filesystem").strip().lower()  # pragma: allowlist secret
     signature = (
         backend,
         upload_root(),

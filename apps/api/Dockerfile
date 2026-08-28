@@ -29,7 +29,9 @@ ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONOPTIMIZE=2
 ENV DATABASE_URL=postgresql+psycopg://crx:crx@postgres:5432/crx
-ENV STORAGE_BACKEND=s3
+# No STORAGE_BACKEND default here on purpose: the code default (local disk under
+# UPLOAD_DIR, matching what crx-web's nginx serves) applies, and Compose /
+# Northflank set their own explicit value when they want s3.
 ENV UPLOAD_DIR=/app/data/uploads
 # One per corpus in backend.services.corpus_registry.CORPORA. A lane missing here
 # reports as "not mounted on this host" no matter what is actually in the volume.
