@@ -1,0 +1,409 @@
+<title>Five Schema Families</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#FBFAF7; --panel:#F4F2ED; --ink:#16202B; --ink-soft:#4A5563;
+  --rule:#DBD7CE; --rule-soft:#E9E5DC;
+  --blue:#1F4E79;      /* the colour FBR compilers print new amendments in */
+  --red:#A32226;       /* and the colour they print the latest ones in */
+  --blue-wash:#EAF0F6; --red-wash:#F7EAEA;
+  --measure:68ch;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#11171E; --panel:#182029; --ink:#E7E4DD; --ink-soft:#9BA6B2;
+  --rule:#2A343F; --rule-soft:#212A34;
+  --blue:#7FB0DC; --red:#E2807F;
+  --blue-wash:#16222E; --red-wash:#2A1C1E;
+}}
+:root[data-theme="dark"]{
+  --paper:#11171E; --panel:#182029; --ink:#E7E4DD; --ink-soft:#9BA6B2;
+  --rule:#2A343F; --rule-soft:#212A34;
+  --blue:#7FB0DC; --red:#E2807F;
+  --blue-wash:#16222E; --red-wash:#2A1C1E;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px 96px}
+
+/* ---- masthead: the gazette's own furniture, used honestly ---- */
+.masthead{border-bottom:1px solid var(--rule);padding:56px 0 28px;margin-bottom:48px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-soft);margin:0 0 18px}
+h1{font-family:Spectral,Georgia,serif;font-weight:600;font-size:clamp(34px,5.2vw,54px);
+  line-height:1.08;letter-spacing:-.015em;margin:0 0 16px;text-wrap:balance}
+.standfirst{font-family:Spectral,Georgia,serif;font-size:19px;line-height:1.55;
+  color:var(--ink-soft);max-width:var(--measure);margin:0}
+.standfirst em{color:var(--ink);font-style:italic}
+
+/* ---- section headings, numbered because this is an argument in sequence ---- */
+section{margin-top:56px}
+h2{font-family:Spectral,Georgia,serif;font-weight:600;font-size:26px;line-height:1.2;
+  margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance;
+  display:flex;align-items:baseline;gap:14px}
+h2 .n{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--blue);letter-spacing:.08em;flex:none;padding-top:2px}
+h3{font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:15px;
+  letter-spacing:.01em;margin:32px 0 10px}
+p{max-width:var(--measure);margin:0 0 14px}
+.lede{color:var(--ink-soft);margin-bottom:26px}
+code,.mono{font-family:"IBM Plex Mono",monospace;font-size:.88em}
+code{background:var(--panel);padding:1px 5px;border-radius:2px}
+strong{font-weight:600}
+a{color:var(--blue)}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+
+/* ---- the before/after pair: marked the way an amended statute marks itself ---- */
+.pair{display:grid;gap:2px;margin:22px 0 30px}
+@media(min-width:820px){.pair{grid-template-columns:1fr 1fr;gap:20px}}
+.side{border-left:3px solid var(--rule);padding:14px 0 14px 16px}
+.side.before{border-left-color:var(--red);background:linear-gradient(90deg,var(--red-wash),transparent 62%)}
+.side.after{border-left-color:var(--blue);background:linear-gradient(90deg,var(--blue-wash),transparent 62%)}
+.side .tag{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;margin:0 0 8px;font-weight:500}
+.side.before .tag{color:var(--red)}
+.side.after .tag{color:var(--blue)}
+.side p{margin:0 0 8px;font-size:14.5px;line-height:1.55}
+.side p:last-child{margin-bottom:0}
+.side .mono{display:block;font-size:12.5px;line-height:1.5;color:var(--ink-soft);
+  white-space:pre-wrap;word-break:break-word;margin-top:8px}
+
+/* ---- tables ---- */
+.scroll{overflow-x:auto;margin:18px 0 8px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+caption{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);padding-bottom:9px}
+th,td{text-align:left;padding:7px 14px 7px 0;border-bottom:1px solid var(--rule-soft);
+  vertical-align:baseline}
+thead th{border-bottom:1px solid var(--rule);font-weight:600;font-size:12px;
+  letter-spacing:.03em;color:var(--ink-soft);white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;
+  font-family:"IBM Plex Mono",monospace;padding-right:20px}
+tbody tr:last-child td{border-bottom:none}
+tr.total td{border-top:1px solid var(--rule);font-weight:600}
+
+/* ---- state pills ---- */
+.pill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.06em;padding:2px 7px;border-radius:2px;white-space:nowrap;
+  border:1px solid var(--rule)}
+.pill.ok{color:var(--blue);border-color:var(--blue);background:var(--blue-wash)}
+.pill.no{color:var(--red);border-color:var(--red);background:var(--red-wash)}
+
+/* ---- figures ---- */
+figure{margin:26px 0}
+figcaption{font-size:13px;color:var(--ink-soft);max-width:var(--measure);margin-top:12px}
+svg{display:block;max-width:100%;height:auto}
+.svgwrap{overflow-x:auto}
+
+/* ---- key numbers ---- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1px;background:var(--rule-soft);border:1px solid var(--rule-soft);margin:26px 0}
+.stat{background:var(--paper);padding:16px 18px}
+.stat .v{font-family:Spectral,Georgia,serif;font-size:32px;font-weight:600;
+  line-height:1;font-variant-numeric:tabular-nums;display:block}
+.stat .k{font-size:12.5px;color:var(--ink-soft);margin-top:7px;display:block;line-height:1.4}
+.stat.flag .v{color:var(--red)}
+.stat.good .v{color:var(--blue)}
+
+/* ---- run block ---- */
+pre{background:var(--panel);border-left:3px solid var(--rule);padding:14px 16px;
+  overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.65;
+  margin:16px 0;color:var(--ink)}
+footer{margin-top:72px;padding-top:22px;border-top:1px solid var(--rule);
+  font-size:13px;color:var(--ink-soft)}
+@media (prefers-reduced-motion:no-preference){
+  .side{transition:none}
+}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">FBR corpus platform · phase 0 · branch feat/phase0-structure-discovery</p>
+  <h1>Five schema families</h1>
+  <p class="standfirst">The parser chose how to read a document from <em>the folder it was filed in</em>. Measured across all 190 documents, that assumption fails on four separate axes — and one of them refuses nine editions of a live ordinance outright.</p>
+</header>
+
+<section>
+  <h2><span class="n">01</span> What changed</h2>
+  <p class="lede">Parsing behaviour used to come from the lane. Now it comes from what the document measurably is.</p>
+
+  <div class="pair">
+    <div class="side before">
+      <p class="tag">Before</p>
+      <p><strong>The directory decides.</strong> Three lanes, three parsing profiles, selected by which folder a PDF was filed in.</p>
+      <span class="mono">acts/  → legal_ingest + ACTS
+rules/ → legal_ingest + RULES
+ordinance/ → fbr_ingest (a separate fork)</span>
+    </div>
+    <div class="side after">
+      <p class="tag">After</p>
+      <p><strong>The document decides.</strong> One <code>pdftotext</code> pass, twenty measured fields, five ordered families — each carrying the evidence that chose it.</p>
+      <span class="mono">measure() → classify() → profile
+0 of 190 documents unexplained</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="v">190</span><span class="k">documents measured, up from 162 staged</span></div>
+    <div class="stat good"><span class="v">5</span><span class="k">families explain the whole corpus</span></div>
+    <div class="stat good"><span class="v">0</span><span class="k">unexplained documents</span></div>
+    <div class="stat flag"><span class="v">73</span><span class="k">documents the folder was routing wrongly</span></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">02</span> The four ways one cap failed</h2>
+
+  <h3>Two unrelated instrument kinds shared a lane</h3>
+  <p>An <em>amending</em> statute is not a <em>consolidated</em> one. Its leaves are directives that quote a different law. 36 documents are amending — 25 filed under <code>acts</code>, 11 under <code>ordinance</code> — and all 36 were being parsed as compilations.</p>
+
+  <div class="pair">
+    <div class="side before">
+      <p class="tag">Before · The Tax Laws (Amendment) Act, 2024</p>
+      <p>The Gazette masthead was parsed as a chapter of the Act. Its four real clauses hung beneath a publication label.</p>
+      <span class="mono">chapter code = "PART I"
+heading = "Acts, Ordinances,
+  President's Orders and Regulations"</span>
+    </div>
+    <div class="side after">
+      <p class="tag">After</p>
+      <p>Masthead suppressed. The instrument now names the three laws it changes, which is the one fact that makes it navigable.</p>
+      <span class="mono">family = amending (1.00)
+amends = Sales Tax Act, 1990
+         Federal Excise Act, 2005
+         Income Tax Ordinance, 2001</span>
+    </div>
+  </div>
+
+  <h3>The ordinance lane had only ever seen one law</h3>
+  <p>26 of its 42 inventory documents were never staged. The nine flat, contents-less Islamabad Capital Territory (Tax on Services) Ordinance editions route to <code>fbr_ingest</code>, which has no body-driven fallback.</p>
+
+  <div class="pair">
+    <div class="side before">
+      <p class="tag">Before · today's routing</p>
+      <p>Refuses to convert. Not a bad parse — <strong>no parse at all</strong>, for every one of the nine editions.</p>
+      <span class="mono">RuntimeError: TOC parse left 3
+section(s) without a chapter
+container: refusing to drop them.</span>
+    </div>
+    <div class="side after">
+      <p class="tag">After · same file, --profile auto</p>
+      <p>Classified <code>consolidated</code>, routed to the pipeline that already handles contents-less editions, and converted.</p>
+      <span class="mono">family consolidated (0.50)
+pages=15 chapters=1 sections=3</span>
+    </div>
+  </div>
+  <p>The parser was never broken for these documents. <strong>The routing was.</strong> That is the single clearest argument for choosing a profile from evidence rather than from a folder name.</p>
+
+  <h3>Shape varies inside a lane — and holds across editions</h3>
+  <p>The Customs Act prints 42 chapter lines in 15 of its 20 editions, spanning 2007 to 2025. Structure inside a document group is remarkably stable, which is what makes a family a useful unit at all.</p>
+
+  <figure>
+    <div class="svgwrap">
+      <svg viewBox="0 0 900 330" role="img" aria-label="Bar chart of the fourteen distinct document shapes in the corpus, grouped by container order, contents page and family">
+        <g font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor">
+          <text x="0" y="12" opacity=".55" font-size="10.5" letter-spacing="1.4">CONTAINERS · CONTENTS · FAMILY</text>
+          <text x="700" y="12" opacity=".55" font-size="10.5" letter-spacing="1.4">DOCUMENTS</text>
+        </g>
+        <g id="bars"></g>
+      </svg>
+    </div>
+    <figcaption>Fourteen distinct shapes across 190 documents. Container order and contents-page presence are <em>fields</em>, not families — the pipeline already handles both — so this is the check on whether five families cut the corpus where it actually bends.</figcaption>
+  </figure>
+
+  <h3>But eras break inside a group</h3>
+  <p>The Income Tax Ordinance 2001 is one law across thirteen text-bearing editions. At the 30 June 2024 edition the publisher re-typeset it, and the chapter-line count jumps twentyfold.</p>
+
+  <figure>
+    <div class="svgwrap">
+      <svg viewBox="0 0 900 250" role="img" aria-label="Step chart showing chapter-line count across Income Tax Ordinance editions, flat at 25 until a jump to 499 at the 30 June 2024 edition and 513 after">
+        <g id="drift"></g>
+      </svg>
+    </div>
+    <figcaption>Chapter lines per edition, ordered by page count. The <code>producer</code> string at the break is the corrupted <code>Microsoft® Word 20190㘮</code> — recorded as diagnostic evidence only; no family predicate is allowed to read it, or it becomes a filename special case wearing a different hat.</figcaption>
+  </figure>
+
+  <p>And one negative finding worth as much as the rest: <strong>“Finance Acts” is a filing folder, not a document group.</strong> Twenty files, four container shapes. Grouping by folder name would have manufactured a family out of a filing convention.</p>
+</section>
+
+<section>
+  <h2><span class="n">03</span> The families</h2>
+  <p class="lede">Order is significant: the first family whose required signals all hold wins. Optional signals are corroboration, and their hit rate is the confidence.</p>
+
+  <div class="scroll">
+    <table>
+      <caption>Every threshold names the document that forced it</caption>
+      <thead><tr><th>#</th><th>Family</th><th>Required</th><th class="num">Docs</th><th>Profile</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">1</td><td><strong>unconvertible</strong></td><td>legacy <code>.doc</code> / <code>.docx</code></td><td class="num">3</td><td><span class="pill no">refused</span></td></tr>
+        <tr><td class="mono">2</td><td><strong>urdu</strong></td><td>any Arabic codepoint</td><td class="num">4</td><td><span class="pill no">refused</span></td></tr>
+        <tr><td class="mono">3</td><td><strong>no_text_layer</strong></td><td>&lt; 300 chars/page, group cannot supply a family</td><td class="num">30</td><td><span class="pill no">refused</span></td></tr>
+        <tr><td class="mono">4</td><td><strong>amending</strong></td><td>density ≥ 2.0 <em>or</em> ≥ 1 directive heading</td><td class="num">36</td><td><span class="pill ok">AMENDING · new</span></td></tr>
+        <tr><td class="mono">5</td><td><strong>consolidated</strong></td><td>≥ 2 leaf lines</td><td class="num">117</td><td><span class="pill ok">ACTS / RULES</span></td></tr>
+        <tr class="total"><td></td><td>unexplained</td><td>—</td><td class="num">0</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Why the amending test needs two signals</h3>
+  <p>Amendment-language density alone is diluted by anything an instrument reproduces at length. A second signal — clause headings that name their target — carries the two documents density misses, and admits no false positive across all 144 text-bearing documents.</p>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Document</th><th class="num">Density</th><th class="num">Headings</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>Finance Act, 2022 <span class="mono" style="opacity:.6">952 pp</span></td><td class="num">1.23</td><td class="num">3</td><td><span class="pill ok">amending</span> density alone misses it</td></tr>
+        <tr><td>Tax Laws (Amendment) Ordinance No.1 of 2020</td><td class="num">1.85</td><td class="num">1</td><td><span class="pill ok">amending</span></td></tr>
+        <tr><td>Income Tax (Amendment) Ordinance, 2022</td><td class="num">2.06</td><td class="num">0</td><td><span class="pill ok">amending</span></td></tr>
+        <tr><td>Sales Tax Act, 1990 … <em>through Tax Laws (Amendment) Act, 2024</em></td><td class="num">0.10</td><td class="num">0</td><td><span class="pill ok">consolidated</span> the filename lies</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>That last row is the whole doctrine in one line: classification reads content, never filenames.</p>
+</section>
+
+<section>
+  <h2><span class="n">04</span> The node model</h2>
+  <div class="pair">
+    <div class="side before">
+      <p class="tag">Before</p>
+      <p>No <code>type</code> field existed anywhere in the output. A chapter, a schedule part and a section leaf were the same dict shape, told apart by which keys happened to be present.</p>
+      <p>Identity was an array position: <code>/chapters/0/sections/3</code>. Insert a node above a leaf and every id below it is re-minted.</p>
+    </div>
+    <div class="side after">
+      <p class="tag">After</p>
+      <p><code>type</code> on every node — <code>toc.Node.kind</code> always computed it and serialisation always discarded it.</p>
+      <p><code>node_key</code> is the ancestor chain by <em>code</em>, sitting beside the positional key and changing no existing id.</p>
+      <span class="mono">ch:vii/pt:i/s:114</span>
+    </div>
+  </div>
+  <p>Leaf-level diff and resync are not solved here, and were not meant to be. The point of doing discovery first is that the identity scheme built next does not silently inherit the one-cap-per-lane assumption.</p>
+</section>
+
+<section>
+  <h2><span class="n">05</span> What this deliberately does not build</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Not built</th><th>Because</th></tr></thead>
+      <tbody>
+        <tr><td><strong>A stratified sampler</strong></td><td>A full census over all 190 documents measures ~26 s. A sampler to avoid 26 seconds is more code than it saves, and it would hide the edition drift the report exists to show.</td></tr>
+        <tr><td><strong>A clustering algorithm</strong></td><td>190 points on 20 hand-picked features needs numpy, is threshold-sensitive, and the clusters get hand-labelled anyway. A <code>Counter</code> group-by is the evidence a human reads; five ordered predicates are what code runs.</td></tr>
+        <tr><td><strong>A families JSON schema and loader</strong></td><td>A family carries a profile, and a profile is behaviour — so families are dataclasses, like the rest of this repo's behaviour. The <em>measurements</em> are the JSON, because those are what must diff on a rerun.</td></tr>
+        <tr><td><strong>A post-OCR SRO family</strong></td><td>Not observable in any text layer today. The hypothesis is recorded as corroborating signals on <code>no_text_layer</code>, to be measured after OCR rather than guessed at now.</td></tr>
+        <tr><td><strong>An “ambiguous” state</strong></td><td>Built, measured, deleted. With ordered predicates a later match is always expected, so it flagged 29 documents where nothing was wrong.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">06</span> Evidence that nothing regressed</h2>
+  <p class="lede">The change is meant to be invisible to every consolidated document and visible only where the corpus says it should be.</p>
+
+  <div class="scroll">
+    <table>
+      <caption>Lane regression suites — stashed the diff and re-ran to confirm</caption>
+      <thead><tr><th>Lane</th><th class="num">At HEAD</th><th class="num">With this branch</th><th class="num">Editions</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>acts</td><td class="num">148</td><td class="num">148</td><td class="num">80</td><td><span class="pill ok">unchanged</span></td></tr>
+        <tr><td>rules</td><td class="num">90</td><td class="num">90</td><td class="num">11</td><td><span class="pill ok">unchanged</span></td></tr>
+        <tr><td>ordinance</td><td class="num">5</td><td class="num">5</td><td class="num">12</td><td><span class="pill ok">unchanged</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>These 243 hits are the pre-existing anomaly register, re-measured. It reads higher than the 157 previously recorded because PR #41 added an invariant and tightened another, and because much of the on-disk JSON predates several parser fixes — not because of anything on this branch.</p>
+
+  <p><strong>19 of them are <code>no_foreign_section_start_in_body</code></strong>, and that invariant says “a leaf contains the start of another section in its body”. That is the literal signature of an amending instrument parsed as a consolidated one: the other section is the one being quoted. Those should be re-measured after re-conversion under the family profiles, not patched.</p>
+
+  <h3>Byte-level check on a consolidated act</h3>
+  <p>Federal Excise Act, 2005 (as amended to 01.07.2017), converted both ways: <code>--profile auto</code> output is <strong>identical</strong> to lane routing once the new <code>type</code>, <code>node_key</code> and <code>metadata.family</code> keys are removed.</p>
+
+  <h3>Reproduce the whole thing</h3>
+<pre>python tools/stage_corpus.py --from "&lt;FBR repo root&gt;"
+python tools/discover_corpus.py --write        # 190 docs, ~26s
+python tools/discover_corpus.py --check        # no drift
+python tools/discover_corpus.py --assert       # 190 documents, 0 problems
+python tools/discover_corpus.py --reconcile --inventory &lt;xlsx&gt;
+python tools/discover_corpus.py --verify-lanes # 73 route differently
+python tools/run_tests_smoke.py                # 13 self-checks</pre>
+  <p><code>--check</code> is wired into the pipeline gate, so a family threshold that drifts away from the corpus fails the build instead of silently classifying wrongly. A missing corpus is a SKIP, exactly as the lane suites already are.</p>
+</section>
+
+<section>
+  <h2><span class="n">07</span> What is still open</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Open</th><th class="num">Docs</th><th>Next</th></tr></thead>
+      <tbody>
+        <tr><td>OCR cannot run — <code>.venv</code> is Python 3.14.7 against a 3.12 pin, <code>numpy</code> absent</td><td class="num">30</td><td>Phase 1. It also blocks two amending instruments that refuse today.</td></tr>
+        <tr><td>Low confidence — parses, but does not look like the rest of its family</td><td class="num">29</td><td>Listed by name in the report. Not a defect; a reading list.</td></tr>
+        <tr><td>Urdu editions — no RTL support in the pipeline</td><td class="num">4</td><td>Refused with a reason rather than mis-parsed.</td></tr>
+        <tr><td>Legacy <code>.doc</code> files</td><td class="num">3</td><td>Convert upstream, or leave refused.</td></tr>
+        <tr><td>Directive clauses are single leaves — Finance Act 2023's clause 4 is 12,470 characters</td><td class="num">36</td><td>The clause is not wrong; making it navigable is a parser feature with somewhere to live now.</td></tr>
+        <tr><td><code>fbr_ingest</code> remains a separate fork</td><td class="num">47</td><td>Still a v1 non-goal. This phase only supplies the numbers to decide it with.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <p>Generated from <code>tools/discovery/signatures.json</code> and <code>tools/discovery/report.md</code>. Every figure on this page is measured; none is hand-entered. Full detail in <code>wip/plan.md</code> and <code>wip/tasks.md</code>.</p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  const shapes = [
+    ["C","toc","consolidated",58],["flat","no toc","amending",33],
+    ["flat","no toc","no_text_layer",30],["flat","no toc","consolidated",24],
+    ["PCD","toc","consolidated",15],["CP","toc","consolidated",10],
+    ["C","no toc","consolidated",5],["flat","no toc","urdu",4],
+    ["CPD","toc","consolidated",4],["flat","no toc","unconvertible",3],
+    ["PC","toc","amending",1],["P","toc","amending",1],
+    ["CP","toc","amending",1],["flat","toc","consolidated",1]
+  ];
+  const famColor = {consolidated:"var(--blue)", amending:"var(--red)",
+    no_text_layer:"var(--ink-soft)", urdu:"var(--ink-soft)", unconvertible:"var(--ink-soft)"};
+  const x0 = 300, xw = 560, max = 58, rowH = 21, top = 26;
+  let s = "";
+  shapes.forEach((d,i)=>{
+    const y = top + i*rowH, w = Math.max(2, d[3]/max*xw);
+    const label = d[0] + "  ·  " + d[1] + "  ·  " + d[2];
+    s += `<text x="0" y="${y+11}" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor">${label}</text>`;
+    s += `<rect x="${x0}" y="${y+2}" width="${w}" height="13" fill="${famColor[d[2]]}" opacity="${d[2]==='consolidated'||d[2]==='amending'?0.9:0.34}"/>`;
+    s += `<text x="${x0+w+8}" y="${y+13}" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor" opacity=".7">${d[3]}</text>`;
+  });
+  document.getElementById("bars").innerHTML = s;
+
+  const ed = [
+    ["11.03.2019",609,25],["30.06.2018",611,25],["30.06.2019",633,25],["31.12.2019",634,25],
+    ["30.06.2020",670,13],["30.06.2021",739,25],["30.06.2022",767,25],["30.06.2023",781,25],
+    ["04.05.2024",784,25],["30.06.2024",801,499],["20.02.2026",821,513],["31.07.2025",822,513]
+  ];
+  const W=900,H=250,L=48,R=24,T=22,B=54;
+  const maxV=530, n=ed.length;
+  const px = i => L + i*((W-L-R)/(n-1));
+  const py = v => H-B - (v/maxV)*(H-T-B);
+  let g = "";
+  [0,100,200,300,400,500].forEach(v=>{
+    g += `<line x1="${L}" y1="${py(v)}" x2="${W-R}" y2="${py(v)}" stroke="var(--rule-soft)" stroke-width="1"/>`;
+    g += `<text x="${L-8}" y="${py(v)+4}" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".5">${v}</text>`;
+  });
+  // the break
+  const bx = (px(8)+px(9))/2;
+  g += `<line x1="${bx}" y1="${T}" x2="${bx}" y2="${H-B}" stroke="var(--red)" stroke-width="1" stroke-dasharray="3 3" opacity=".7"/>`;
+  g += `<text x="${bx+7}" y="${T+11}" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--red)">re-typeset at 30.06.2024</text>`;
+  let d = "";
+  ed.forEach((e,i)=>{ d += (i?" L":"M") + px(i) + " " + py(e[2]); });
+  g += `<path d="${d}" fill="none" stroke="var(--blue)" stroke-width="2"/>`;
+  ed.forEach((e,i)=>{
+    g += `<circle cx="${px(i)}" cy="${py(e[2])}" r="3.2" fill="var(--blue)"/>`;
+    g += `<text x="${px(i)}" y="${H-B+16}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="currentColor" opacity=".55" transform="rotate(-40 ${px(i)} ${H-B+16})">${e[0]}</text>`;
+  });
+  g += `<text x="${L}" y="${T-6}" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".55" letter-spacing="1.2">CHAPTER LINES PER EDITION</text>`;
+  document.getElementById("drift").innerHTML = g;
+})();
+</script>
