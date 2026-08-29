@@ -134,6 +134,15 @@ Retitled. **Phase 2 covers `acts` and `rules` only.** The `ordinance` lane route
 decision (`README.md:283` still lists it as a v1 non-goal). Re-converting it under
 `--profile auto` is not deferred out of caution — it is not expressible.
 
+> **NOT STARTED. Measured first — see [`wip/phase2-findings.md`](./phase2-findings.md).**
+> `--profile auto` was measured against the corpus it would rewrite, and it is currently
+> **worse than `--profile lane`** on both lanes this phase targets: it discards the RULES
+> profile for all 34 consolidated rules documents (12 differing fields), and it refuses
+> two acts documents that convert above the OCR floor today, quarantining their JSON.
+> Neither surfaced in Phase 0, which verified the suites at `HEAD` without re-converting.
+> The checklist below is corrected against those findings; finding 1 is fixed before any
+> OCR is paid for.
+
 ### What the toolchain rebuild unblocked, measured
 
 | lane | source files | JSON on disk | blocked, and why |
@@ -152,26 +161,59 @@ The 11 documents the rules lane does convert are the leftovers.
 `data/ocr_cache` is **0 B**, so none of this work is banked: all **2,456** pages
 (2,065 acts + 391 rules) will be paid in full, once, on the first run.
 
-- [ ] **Back up first** — `make backup-remote BASE_URL=<prod>` **and** a local
-      `pg_dump`. Re-parsing resets sign-off and flips changed leaves to unreviewed.
+- [ ] **Fix `--profile auto` before paying for any OCR.** A family cannot pick a profile
+      the lane already knows: `families.py:173` hardcodes `consolidated → ACTS`, and
+      `convert.py`'s `profile=None` overrides the `partial(run, profile=RULES)` binding
+      at `rules_ingest/__init__.py:20`. Both lane packages already export `PROFILE`, and
+      `convert.py:72` already imports that module. Ships with its locking test, beside
+      the Phase 1 `tools/tests/test_convert_all_profile.py` it mirrors.
+- [ ] **Widen `do_verify_lanes`** — `discover_corpus.py:412` `continue`s on
+      `family == "consolidated"`, which is the family every rules document is in, so the
+      one check that exists to catch a lane/profile mismatch is blind to this one.
+      Compare the **resolved** profile against the lane's instead.
+- [ ] **Back up the JSON, not the database.** Phase 2 runs no `make sync`, so it never
+      reaches the database — the sign-off risk is Phase 4's. What this run overwrites is
+      **91 on-disk JSONs, 120 MB**. Snapshot them to `output/_pre_phase2/`; a
+      subdirectory is invisible to the `output/*.json` glob that defines the corpus
+      (`run_suite.py:39`), which is why `_refused/` and `_run/` already live there. It is
+      also the only usable before/after baseline — the committed JSON lags `main`.
 - [ ] **Rules first, and separately.** 36 documents, **391 OCR pages** (measured with
       `convert_all.scan_page_count` over the whole lane, not sampled) — a fifth of the
       acts cost, and it roughly triples the lane. Half of it is the six Income Tax Rules
       2002 editions at 46 / 44 / 29 / 27 / 23 pages. Do it as its own run so its result
       is legible before the acts OCR marathon starts.
       `convert_all.py rules --profile auto`
+      Note what this run is and is not: **zero rules documents are amending**, so
+      `--profile auto` changes no routing here. The win is Phase 1's numpy fix.
 - [ ] **Then acts**, budgeting for 2,065 OCR pages at `--ocr-batch 1` (the flag's own
-      help says raising it measured *worse*). Use `--skip-existing` so an interrupted
-      run resumes rather than restarting under a changed revision.
+      help says raising it measured *worse*), and **`--timeout 10800`** — the 5400 s
+      default is ~90 min, and Finance Act 2017-18 alone is 683 OCR pages ≈ 57 min of
+      recognition before a ~950-page parse.
+      Do **not** pass `--skip-existing` on the first pass: it drops every target that
+      already has output (`convert_all.py:510`), which is the 80 files whose revision
+      this phase exists to unify. It is the *resume* flag — re-run the same command with
+      it only after an interrupt.
+      Expect the acts corpus to go **80 → 78**: `Benami Transactions (Prohibition) Act,
+      2017` and `Income Tax (Third Amendment) Act, 2016` are `no_text_layer`, which is
+      refused before OCR runs, so their JSON is quarantined. **Decided: accepted, not a
+      regression** — see finding 2.
+- [ ] **Rebuild the 9 provisional acts documents** with `--admit-below-floor`, in a
+      third short pass. An ordinary run does not produce them, so without it they keep
+      whatever revision last wrote them — the staleness this phase exists to remove.
 - [ ] Re-run `tools/discover_corpus.py --write` and review the `signatures.json` diff.
-      `signature.measure` is text-layer only, so a document that gains a text layer
-      through OCR **can legitimately change family** — most of the 30 `no_text_layer`
-      documents should stop being `no_text_layer`. A moved document needs a reason,
-      not a shrug.
-- [ ] Re-measure all three suites and rewrite the register below
+      It should be **EMPTY**, and a non-empty one is a finding. `signature.measure` reads
+      the PDF and OCR output goes to `data/ocr_cache`, never back into the PDF, so no
+      document can change family through re-conversion. (This entry previously predicted
+      the opposite — that most of the 30 `no_text_layer` documents would move. They
+      cannot; see finding 3.)
+- [ ] Re-measure all three suites and rewrite the register below. `ordinance` is not
+      re-converted, so its 5 must not move.
 
-**Gate:** every source document either converts or is refused with a family reason ·
-no lane regresses against the numbers in Phase 3 · `--check` clean after `--write`
+**Gate:** `--profile auto` resolves RULES for a rules document, locked by a test · every
+source document either converts or is refused with a family reason, and no refusal reason
+is an `ImportError` · no lane regresses against the numbers in Phase 3 (rules is
+re-baselined, not compared — it triples) · `signatures.json` diff empty · `--check` clean
+after `--write`
 
 ---
 
