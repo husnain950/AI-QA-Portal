@@ -4,6 +4,7 @@
     python tools/convert_all.py acts  --family customs
     python tools/convert_all.py acts  --phase 1 --batch 6
     python tools/convert_all.py rules --skip-existing --skip-scanned
+    python tools/convert_all.py rules --profile auto
     python tools/convert_all.py rules --list
 
 The lane is an argument, for the same reason it is one in ``tools/convert.py`` and
@@ -33,6 +34,8 @@ from __future__ import annotations
 import argparse
 import concurrent.futures as cf
 import datetime as _dt
+import importlib
+import inspect
 import json
 import os
 import pathlib
@@ -229,7 +232,8 @@ def _read_log(log: pathlib.Path) -> str:
 
 
 def convert(pdf: pathlib.Path, timeout: float | None = None,
-            keep_log: bool = True, admit_below_floor: bool = False) -> dict:
+            keep_log: bool = True, admit_below_floor: bool = False,
+            profile: str = "lane") -> dict:
     dest = out_path(pdf)
     t0 = time.time()
     # The child writes STRAIGHT INTO its log file, unbuffered, rather than into a
@@ -246,6 +250,8 @@ def convert(pdf: pathlib.Path, timeout: float | None = None,
         RUN_DIR.mkdir(parents=True, exist_ok=True)
     argv = [sys.executable, str(_HERE / "convert.py"), LANE,
             str(pdf), "-o", str(dest)]
+    if profile != "lane":
+        argv += ["--profile", profile]
     if admit_below_floor:
         argv.append("--admit-below-floor")
     env = {**os.environ, "PYTHONUNBUFFERED": "1"}
@@ -406,7 +412,7 @@ def _write_report(results: list[dict], total: int, seconds: float,
     (RUN_DIR / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def main() -> int:
+def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("lane", choices=LABELS, help="which corpus to convert")
     ap.add_argument("--family", choices=sorted(CONSOLIDATED) + ["all"],
@@ -424,6 +430,14 @@ def main() -> int:
                          "swap thrash, not compute -- OMP_NUM_THREADS=1 does not "
                          "help. Raise this only after re-measuring on a box with "
                          "free RAM; do not tune it on intuition.")
+    ap.add_argument("--profile", choices=("lane", "auto"), default="lane",
+                    help="passed through to convert.py for every file. 'lane' "
+                         "(the default) parses each PDF as whatever corpus it "
+                         "was filed under; 'auto' measures it and asks "
+                         "legal_ingest.families, which is the only way the 36 "
+                         "amending instruments in this corpus get the amending "
+                         "profile. A lane whose pipeline takes no profile is "
+                         "refused up front -- see main().")
     ap.add_argument("--list", action="store_true", help="list targets and exit")
     ap.add_argument("--skip-scanned", action="store_true",
                     help="convert only the text-layer files, leaving the scans "
@@ -454,7 +468,7 @@ def main() -> int:
                          "a hang must not masquerade as work (ledger P07). The "
                          "slowest legitimate file is Finance Act 2025 at 289 "
                          "OCR'd pages, so keep well above that. 0 disables.")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     _bind(args.lane)
 
     # CONSOLIDATED names three Acts, so these two filters mean nothing off that
@@ -468,6 +482,19 @@ def main() -> int:
         print(f"error: no source directory for the {args.lane} lane: {SOURCES}",
               file=sys.stderr)
         return 2
+    # Asked ONCE, here, rather than being discovered by every child.  The
+    # ordinance lane routes to fbr_ingest, whose ``run`` takes no profile, so
+    # ``convert.py`` exits 2 on each of its 45 files -- and that is not an
+    # _is_env_failure, so ``_quarantine`` would move all 12 existing ordinance
+    # JSONs out of the corpus.  A flag typo must not be able to empty a lane.
+    # Same check and same message as convert.py, asked of the pipeline rather
+    # than recorded here as another per-lane fact.
+    if args.profile == "auto":
+        run = importlib.import_module(get(args.lane).package).run
+        if "profile" not in inspect.signature(run).parameters:
+            print(f"error: the {args.lane} pipeline takes no profile, so "
+                  f"--profile auto does not apply", file=sys.stderr)
+            return 2
 
     fam = None if args.family in (None, "all") else args.family
     files = discover(fam, args.phase)
@@ -540,7 +567,8 @@ def main() -> int:
             continue
         with cf.ThreadPoolExecutor(max_workers=max(1, width)) as pool:
             futures = {pool.submit(convert, p, per_file, True,
-                                   args.admit_below_floor): p for p in group}
+                                   args.admit_below_floor, args.profile): p
+                       for p in group}
             state["running"] = [p.name for p in group[:width]]
             _write_status(state)
             # as_completed, NOT pool.map: map yields in SUBMISSION order, so the

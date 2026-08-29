@@ -115,7 +115,10 @@ does not have that blind spot.
 
 ---
 
-# Phase 1 — the anomaly register, re-measured
+# Phase 3 — the anomaly register, re-measured
+
+*(Numbered to match `wip/tasks.md`, which is the executable checklist. This section
+used to be called "Phase 1" here and "Phase 3" there, for the same work.)*
 
 The previous plan's register is **not** discarded. It is re-measured here against the
 JSON currently on disk, which is what the numbers below describe.
@@ -125,11 +128,21 @@ old register recorded, because PR #41 landed `no_chapter_caption_in_section_head
 and tightened `no_footnote_text_in_body`, and because the on-disk JSON predates
 several parser fixes.
 
-| Lane | hits | editions affected | converted |
-|---|---|---|---|
-| acts | 148 | 27 | 80 |
-| rules | 90 | 6 | 11 |
-| ordinance | 5 | 4 | 12 |
+| Lane | hits | editions affected | converted | of source files |
+|---|---|---|---|---|
+| acts | 148 | 27 | 80 | 93 |
+| rules | 90 | 6 | **11** | **48** |
+| ordinance | 5 | 4 | 12 | 45 |
+
+**Read the last column before the first.** The register is measured over what
+converted, and the rules lane converted 11 of 48 documents. The other 37 were not
+refused for anything the parser decided — 36 died on `No module named 'numpy'`,
+including every Income Tax Rules 2002 edition and every Sales Tax Rules 2006 edition,
+each on one or two scanned pages inside a 200–480 page document. The lane's entire
+consolidated backbone is missing, and the 11 present are the leftovers. Phase 1 has
+now removed that cause; until Phase 2 acts on it, the rules column below describes a
+sixth of the lane. The acts lane has the same shape at smaller scale: 25 editions
+carrying 2,065 image-backed pages have never been convertible on this host.
 
 | Invariant | acts | rules | ordinance |
 |---|---|---|---|
@@ -145,20 +158,22 @@ instrument parsed as a consolidated one: the other section is the one being quot
 Those 19 hits should be **re-measured after re-conversion under the family profiles**,
 not patched.
 
-Phase 1 order:
+Order, and why the register comes third:
 
-1. **Rebuild the toolchain.** `.venv` is Python **3.14.7** against a `>=3.12` pin, and
-   `numpy` / `rapidocr-onnxruntime` are absent, so no OCR runs. This blocks
-   re-converting 30 `no_text_layer` documents *and* several amending ones — Finance
-   Act 2023 and The Tax Laws (Amendment) Act 2020 both refuse today with
-   `OCR failed on page N: No module named 'numpy'`.
-2. **Re-convert all three lanes at one parser revision, with `--profile auto`.**
-   Only then are the register's numbers a property of the parser rather than of when
-   each file was last converted.
-3. **Re-measure**, then classify every surviving hit as fixed or exempted with traced
-   evidence (`tools/suite/README.md`). There is no third state.
-4. The pipeline→portal transport work from the previous plan — sync, seeding,
-   `version_metrics` — is unchanged and follows.
+1. **Phase 1 — rebuild the toolchain. Done (PR pending).** `.venv` was Python
+   **3.14.7** against a `>=3.12` pin with no OCR stack at all; it is now **3.12.13**
+   with every OCR pin resolved unchanged. The register was re-measured on the new
+   interpreter and did not move by a single hit, which is the evidence that it
+   describes the parser and not the box.
+2. **Phase 2 — re-convert `acts` and `rules` at one parser revision, with
+   `--profile auto`.** Only then are the register's numbers a property of the parser
+   rather than of when each file was last converted. `ordinance` is not a target: its
+   pipeline takes no profile, which is a Phase 4 decision.
+3. **Phase 3 — re-measure**, then classify every surviving hit as fixed or exempted
+   with traced evidence (`tools/suite/README.md`). There is no third state.
+4. **Phase 4 —** flip `--profile auto` to the default, decide `fbr_ingest`, and the
+   pipeline→portal transport work from the previous plan — sync, seeding,
+   `version_metrics` — unchanged.
 
-Nothing in Phase 1 needs the discovery stage to change again. That is the point of
+Nothing in Phases 1–4 needs the discovery stage to change again. That is the point of
 running it first.
