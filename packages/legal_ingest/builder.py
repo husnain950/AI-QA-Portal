@@ -1394,13 +1394,38 @@ _BRACKETED_DOTLESS_RE = re.compile(
 # Two suffix letters are enough on their own ("25 AA"); a LONE capital must carry
 # its own dot ("37 D." is section 37D, "44 Steel" is not section 44S).
 #
-# ponytail: bracket-gated, so an UNBRACKETED dot-separated code is still missed.
-# Measured over the corpus's 186,357 distinct body lines, all 146 unbracketed
-# instances of the shape are tariff/schedule rows -- widen only if that changes.
+# That guard was re-measured over 186,984 distinct body lines and it HAS changed:
+# unbracketed instances are no longer all tariff rows.  Two real families print
+# the shape with no amendment bracket at all --
+#
+#     150 ZQR. Application.-The provisions of this Chapter shall apply ...
+#     196-A. Statement of case to Supreme Court in certain cases.- If, on an ...
+#
+# -- an 18-section run of Sales Tax Rules 2006 whose codes the text layer splits
+# ("150 ZQR" for 150ZQR), and 32 hyphenated Customs Act sections.  So a SECOND,
+# unbracketed alternative is added rather than the bracket gate being dropped.
+#
+# It is narrower than the bracketed one in three ways, each measured:
+#
+#   * the dot after the letter run is MANDATORY.  Dropping the bracket with the
+#     existing lookahead gains 392 lines, the tariff rows the old note describes
+#     ("1 ITEM NAME 7.5 1 9.23 132.23", "10. PDA Delivery System").
+#   * the separator may be a HYPHEN or a SPACE but never a DOT.  A dot separator
+#     unbracketed is "2. A. Low Priced Cellular Mobile Phones", a rate row, and
+#     it is also the TOC's own "150. ZQR. Application [150ZQS. Definitions 110".
+#   * a space separator needs 2-4 letters, never a lone capital.  The lone
+#     capital unbracketed is "20 T. V. Sets Nos." and "42 G. I. Pipes and MS
+#     Pipes", where the letters are an abbreviation, not a suffix.
+#
+# Together: 48 lines gained, 0 lost.  47 are the two families above; the 48th is
+# a TOC leader row ("325 AA. Transactions between associates _____") that mints
+# the code 325AA, which no TOC entry carries, so it is indexed and never read.
 _DOTSUFFIX_RE = re.compile(
-    _HEAD + r"\[\s*\(?\s*(\d{1,4}(?:\s*[-.]\s*[A-Z]{1,4}"
+    _HEAD + r"(?:\[\s*\(?\s*(\d{1,4}(?:\s*[-.]\s*[A-Z]{1,4}"
     r"|\s+[A-Z]{2,4}|\s+[A-Z](?=\s*\.)))"
-    r"(?=\s*\.\s+[A-Z]|\s+[A-Z])")
+    r"(?=\s*\.\s+[A-Z]|\s+[A-Z])"
+    r"|(\d{1,4}(?:\s*-\s*[A-Z]{1,4}|\s+[A-Z]{2,4}))"
+    r"(?=\s*\.\s+[A-Z]))")
 
 
 def _candidate_code(line) -> str | None:
@@ -1464,7 +1489,8 @@ def _candidate_code_raw(line) -> str | None:
     # satisfied by this code's own separator.  See _DOTSUFFIX_RE.
     m = _DOTSUFFIX_RE.match(head)
     if m:
-        return m.group(1)
+        # two alternatives, two groups: bracketed is 1, unbracketed is 2
+        return m.group(1) or m.group(2)
     m = _DOTFORM_RE.match(head)
     if m:
         return m.group(1)
@@ -3076,6 +3102,34 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
 
 def _demo() -> None:
     """Pure-function pin: gazette preamble HTML must not glue titles into recitals."""
+    # A section code the text layer SPLIT still has to bind.  The unbracketed
+    # branch of _DOTSUFFIX_RE exists for two measured families and is narrow in
+    # three ways; each case below fails if one of those narrowings is removed.
+    class _L:
+        def __init__(self, t):
+            self._t = t
+
+        def text(self):
+            return self._t
+
+    # the two families the unbracketed branch is FOR
+    assert _candidate_code(_L(
+        "150 ZQR. Application.-The provisions of this Chapter shall apply"
+    )) == "150ZQR"
+    assert _candidate_code(_L(
+        "196-A. Statement of case to Supreme Court in certain cases.- If, on an"
+    )) == "196A"
+    # the bracketed branch is untouched
+    assert _candidate_code(_L("3[18.A Special customs duty on imported goods.-")) == "18A"
+    assert _candidate_code(_L("2[25 AA. Transactions between associates. - -")) == "25AA"
+    # ... and the three narrowings, each with the row it keeps out.  A lone
+    # capital is an abbreviation ("T.V.", "G.I."), a dot separator unbracketed is
+    # a rate row, and without the mandatory trailing dot the tariff tables flood
+    # in (392 lines, measured).
+    assert _candidate_code(_L("20 T. V. Sets Nos.")) is None
+    assert _candidate_code(_L("42 G. I. Pipes and MS Pipes '000' Meters")) is None
+    assert _candidate_code(_L("1 ITEM NAME 7.5 1 9.23 132.23")) is None
+
     assert _gazette_block_class("AN") == "act-title"
     assert _gazette_block_class("ACT") == "act-title"
     assert _gazette_block_class("ORDINANCE") == "act-title"
