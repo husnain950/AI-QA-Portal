@@ -329,19 +329,28 @@ def _size_zone_top(ordered, cal) -> float | None:
         if k < n and not small[k]:
             big_before += 1
     if best_k >= n:
-        return None
+        cap_k = _caption_zone_index(ordered)
+        return None if cap_k is None else ordered[cap_k].top
     if not any(_is_amendment_note(ln.text()) for ln in ordered[best_k:]):
-        return None
+        cap_k = _caption_zone_index(ordered)
+        return None if cap_k is None else ordered[cap_k].top
     best_k = _pull_quoted_notes_into_zone(ordered, small, best_k, cal)
     if best_k >= n:
-        return None
+        cap_k = _caption_zone_index(ordered)
+        return None if cap_k is None else ordered[cap_k].top
     if not any(_is_amendment_note(ln.text()) for ln in ordered[best_k:]):
-        return None
+        cap_k = _caption_zone_index(ordered)
+        return None if cap_k is None else ordered[cap_k].top
     # The apparatus's own caption belongs to the apparatus, not to the section
     # above it.  Only ever the line IMMEDIATELY above the zone, and only when it
     # is that caption by name -- see ``_FOOTNOTE_CAPTION_RE``.
     while best_k > 0 and _FOOTNOTE_CAPTION_RE.match(ordered[best_k - 1].text()):
         best_k -= 1
+    if _zone_swallows_heading(ordered, best_k):
+        cap_k = _caption_zone_index(ordered)
+        if cap_k is not None and not _zone_swallows_heading(ordered, cap_k):
+            return ordered[cap_k].top
+        return None
     return ordered[best_k].top
 
 
@@ -373,6 +382,11 @@ def _pull_quoted_notes_into_zone(ordered, small, best_k, cal) -> int:
         nxt = ordered[i + 1] if i + 1 < n else None
         quoted = nxt is not None and _QUOTED_HEAD_RE.match(nxt.text())
         if not (cue or quoted):
+            continue
+        # A live heading is not a quotation.  Quoted repealed text follows
+        # "as under:" / "as follows:"; a clause-title line without that cue
+        # is the next section and must stay in the body.
+        if quoted and not cue and _is_clause_heading_line(nxt):
             continue
         pulled = i
         break
@@ -499,6 +513,55 @@ def _footnote_zone_top(page, lines, cal):
 #: different defect with a different fix (ledger O03); this pattern cannot reach it.
 _FOOTNOTE_CAPTION_RE = _re.compile(r"^\s*LEGAL\s+REFERENC(?:E|ES|S)\s*$",
                                    _re.IGNORECASE)
+
+
+def _is_chapter_line(ln) -> bool:
+    from .grammar import CHAPTER_RE
+    return bool(CHAPTER_RE.match((ln.text() or "").strip()))
+
+
+def _zone_swallows_heading(ordered, k: int) -> bool:
+    """True when a live CHAPTER/section start would fall into the footnote zone.
+
+    Quoted repealed headings after "as under:" / "as follows:" are apparatus,
+    not a sandwich.  A live heading below the notes (14A under LEGAL REFERENCE)
+    is the sandwich this must refuse to eat.
+    """
+    in_quote = False
+    for ln in ordered[k:]:
+        if _OPEN_QUOTE_CUE_RE.search(ln.text() or ""):
+            in_quote = True
+        if in_quote:
+            continue
+        if _is_clause_heading_line(ln) or _is_chapter_line(ln):
+            return True
+    return False
+
+
+def _caption_zone_index(ordered) -> int | None:
+    """Index of a LEGAL REFERENCE caption that can open the footnote zone.
+
+    Used when the changepoint finds no zone (notes overleaf: the caption is
+    the last body-size line) or when notes follow the caption with no live
+    heading below.  A following CHAPTER/section start is a sandwich and must
+    not be eaten by a Y-cut at the caption.
+    """
+    last_nonempty = None
+    for i, ln in enumerate(ordered):
+        if (ln.text() or "").strip():
+            last_nonempty = i
+    for i, ln in enumerate(ordered):
+        if not _FOOTNOTE_CAPTION_RE.match(ln.text()):
+            continue
+        below = [ordered[j] for j in range(i + 1, len(ordered))
+                 if (ordered[j].text() or "").strip()]
+        if any(_is_clause_heading_line(x) or _is_chapter_line(x) for x in below):
+            continue
+        if i == last_nonempty:
+            return i
+        if any(_is_amendment_note(x.text()) for x in below):
+            return i
+    return None
 
 
 _AMEND_VERB_RE = _re.compile(
@@ -1075,6 +1138,19 @@ def build_page_model(page, index: int, cal, pdf_path: str | None = None,
     body_lines = [ln for ln in body_lines
                   if not _ARTIFACT_DOTNUM_RE.fullmatch(ln.text().strip())]
 
+    # LEGAL REFERENCE is footnote apparatus even when the Y-cut left it in
+    # the body (notes overleaf, or a sandwich the single cut refused).  It is
+    # never statute.  Keep it with the notes so it is not rendered as a
+    # trailing <p><strong>LEGAL REFERENCE</strong></p>.
+    caption_in_body = [ln for ln in body_lines
+                       if _FOOTNOTE_CAPTION_RE.match(ln.text())]
+    if caption_in_body:
+        body_lines = [ln for ln in body_lines
+                      if not _FOOTNOTE_CAPTION_RE.match(ln.text())]
+        have = {id(ln) for ln in footnote_lines}
+        footnote_lines = ([ln for ln in caption_in_body if id(ln) not in have]
+                          + footnote_lines)
+
     # 4) extract BODY tables from real gridlines.  Footnote-zone tables are
     #    not rendered here, but their bboxes are kept so footnotes.py can
     #    render the quoted lines inside them as fn-table grids.  Body table
@@ -1575,6 +1651,45 @@ def _demo() -> None:
                           "ARRIVAL AND DEPARTURE OF CONVEYANCE",
                           "LEGAL REFERENCE to section 4"):
         assert not _FOOTNOTE_CAPTION_RE.match(not_a_caption), not_a_caption
+
+    # Caption immediately above notes opens the zone.
+    with_caption = [
+        _body(80, "14. Stations for officers of customs to board and land.- The Board"),
+        _body(400, "LEGAL REFERENCE"),
+        _note(420, "19.", "Substituted by Finance Act, 2013. At the time of substitution"),
+        _note(440, "19.7", "section 14A was as under:"),
+    ]
+    zt = _size_zone_top(with_caption, cal)
+    assert zt == 400, zt
+    assert _FOOTNOTE_CAPTION_RE.match(with_caption[1].text())
+
+    # Caption last on the page (notes overleaf) still opens the zone.
+    last_line = [
+        _body(80, "14. Stations for officers of customs to board and land.- The Board"),
+        _body(400, "LEGAL REFERENCE"),
+    ]
+    zt = _size_zone_top(last_line, cal)
+    assert zt == 400, zt
+
+    # A CHAPTER caption in the same position is not apparatus.
+    ch_caption = [
+        _body(80, "14A. Provision of accommodation at customs ports, etc.- Any agency"),
+        _body(400, "MISCELLANEOUS"),
+        _note(420, "1.", "Inserted by the Finance Act, 2007."),
+    ]
+    zt = _size_zone_top(ch_caption, cal)
+    assert zt != 400, zt
+
+    # A live section start below the caption must not be swallowed.
+    sandwich = [
+        _body(80, "14. Stations for officers of customs to board and land.- The Board"),
+        _body(300, "LEGAL REFERENCE"),
+        _note(320, "19.", "Substituted by Finance Act, 2013."),
+        _body(500, "14A. Provision of security and accommodation at Customs-ports, etc.- Any"),
+    ]
+    zt = _size_zone_top(sandwich, cal)
+    if zt is not None:
+        assert sandwich[3].top < zt, (zt, sandwich[3].top)
 
     print("pagemodel self-check passed")
 

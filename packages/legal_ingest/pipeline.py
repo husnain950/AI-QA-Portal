@@ -218,7 +218,57 @@ def _demo() -> None:
         got = (f"S.R.O. {match.group('num')}({match.group('series').upper()})"
                f"/{match.group('year')}") if match else None
         assert got == want, (text, got, want)
+
+    from .builder import LineRef
+    from .pagemodel import Line, Word
+    from .toc import parse_toc
+
+    def _ln(text, page=40, top=100.0):
+        words, x = [], 72.0
+        for tok in text.split():
+            words.append(Word(text=tok, x0=x, x1=x + len(tok) * 5, top=top,
+                              size=12.0, fontname="Arial-BoldMT"))
+            x += len(tok) * 5 + 3
+        return LineRef(page=page, line=Line(top=top, words=words))
+
+    toc_lines = [
+        "        CHAPTER III",
+        "        DECLARATION OF PORTS, AIRPORTS, LAND CUSTOMS STATIONS, ETC.",
+        "        14.  Stations for officers of customs to board and land.  39",
+        "        14A. Provision of accommodation at customs ports, etc.    40",
+        "             PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION",
+        "        15.  Prohibitions.                                        41",
+        "        CHAPTER V",
+        "        LEVY OF, EXEMPTION FROM AND REPAYMENT OF, CUSTOMS-DUTIES",
+        "        18.  Goods dutiable.                                      45",
+    ]
+    chs, _sch, secs = parse_toc(toc_lines)
+    body = [
+        _ln("CHAPTER III", 39),
+        _ln("DECLARATION OF PORTS, AIRPORTS, LAND CUSTOMS STATIONS, ETC.", 39),
+        _ln("14. Stations for officers of customs to board and land.— Officers", 39),
+        _ln("14A. Provision of security and accommodation at Customs-ports, etc.— Any", 40),
+        _ln("CHAPTER IV", 41),
+        _ln("PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION", 41),
+        _ln("15. Prohibitions.— The Federal Government may", 41),
+        _ln("CHAPTER V", 45),
+        _ln("LEVY OF, EXEMPTION FROM AND REPAYMENT OF, CUSTOMS-DUTIES", 45),
+        _ln("18. Goods dutiable.— Except as otherwise provided", 45),
+    ]
+    n_ins = insert_missing_body_chapters(chs, secs, body)
+    assert n_ins >= 1, n_ins
+    assert [c.code for c in chs] == ["CHAPTER III", "CHAPTER IV", "CHAPTER V"], \
+        [c.code for c in chs]
+    ch4 = next(c for c in chs if c.code == "CHAPTER IV")
+    assert ch4.heading == "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION"
+    assert ch4.heading_source == "body"
+    by = {e.code: e for e in secs}
+    assert by["14A"].parent is chs[0]
+    assert by["15"].parent is ch4, (by["15"].parent and by["15"].parent.code)
+    assert by["18"].parent is chs[2]
+
     print("pipeline self-check passed")
+
 
 def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = None,
         admit_below_floor: bool = False, profile: Profile = ACTS) -> dict:
@@ -426,6 +476,9 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     n_bch = apply_body_chapter_headings(chapters, body_refs)
     if n_bch:
         progress(f"{n_bch} chapter heading(s) taken from the body caption")
+    n_ins = insert_missing_body_chapters(chapters, ordered_sections, body_refs)
+    if n_ins:
+        progress(f"{n_ins} chapter(s) filled/inserted from body (omitted from TOC)")
 
     # Every container, flattened: both ``build_sections`` (which hands a cut region
     # to the section that follows the heading) and ``preamble_refs`` need to know
@@ -647,6 +700,9 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         # from them, and the ``calibration_sane`` invariant checks them each run.
         "calibration": cal.as_dict(),
     }
+    body_nums = [num for _i, num, _c in body_chapter_entries(body_refs)]
+    if body_nums:
+        metadata["body_chapter_numerals"] = body_nums
     # What KIND of instrument this is. The leaf of a rule set is a Rule, not a
     # Section, and the portal labels leaves from one function -- without this it
     # would have to infer the instrument from the document's title. Only set where
@@ -948,6 +1004,55 @@ def omission_footnotes(code: str, exp_page: int, page_footnotes: dict,
     return out
 
 
+_ROMAN_VALUES = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100}
+
+
+def _roman_value(raw: str) -> float:
+    """Sortable value of a chapter numeral ("XVI-A" -> 16.1)."""
+    raw = re.sub(r"\s+", "", (raw or "").upper())
+    m = re.match(r"^([IVXLC]+)(?:-?([A-Z]{1,3}))?$", raw)
+    if not m:
+        if raw.isdigit():
+            return float(raw)
+        return 9999.0
+    total, prev = 0, 0
+    for ch in reversed(m.group(1)):
+        v = _ROMAN_VALUES[ch]
+        total += v if v >= prev else -v
+        prev = max(prev, v)
+    suffix = m.group(2) or ""
+    return total + sum(ord(c) - 64 for c in suffix) / 100.0
+
+
+def body_chapter_entries(body_refs) -> list:
+    """``(body_ref index, numeral, caption)`` for each CHAPTER line in the body."""
+    from .builder import _candidate_code, is_structural_boundary
+    from .grammar import CHAPTER_RE
+
+    out: list = []
+    for i, ref in enumerate(body_refs):
+        m = CHAPTER_RE.match(ref.line.text().strip())
+        if not m:
+            continue
+        num = re.sub(r"\s+", " ", m.group(1).strip().upper())
+        parts: list[str] = []
+        for j in range(i + 1, min(i + 4, len(body_refs))):
+            nxt = body_refs[j]
+            t = nxt.line.text().strip()
+            if (nxt.page != ref.page or not t
+                    or any(c.islower() for c in t)
+                    or sum(c.isalpha() for c in t) < 3
+                    or _candidate_code(nxt.line)
+                    or is_structural_boundary(t)):
+                break
+            if parts and parts[-1].endswith("-"):
+                parts[-1] += t
+            else:
+                parts.append(t)
+        out.append((i, num, " ".join(parts)))
+    return out
+
+
 def body_chapter_headings(body_refs) -> dict:
     """The CHAPTER captions as PRINTED IN THE BODY, keyed by chapter numeral.
 
@@ -967,34 +1072,122 @@ def body_chapter_headings(body_refs) -> dict:
     section heading always does).  At most three lines, so a mis-zoned page can
     never fold a paragraph into a chapter title.
     """
-    from .builder import _candidate_code, is_structural_boundary
-    from .grammar import CHAPTER_RE
-
     out: dict = {}
-    for i, ref in enumerate(body_refs):
-        m = CHAPTER_RE.match(ref.line.text().strip())
-        if not m:
-            continue
-        parts: list[str] = []
-        for j in range(i + 1, min(i + 4, len(body_refs))):
-            nxt = body_refs[j]
-            t = nxt.line.text().strip()
-            if (nxt.page != ref.page or not t
-                    or any(c.islower() for c in t)
-                    or sum(c.isalpha() for c in t) < 3
-                    or _candidate_code(nxt.line)
-                    or is_structural_boundary(t)):
-                break
-            # a caption wrapped mid-compound keeps the compound whole:
-            # "... AT CUSTOMS-" + "STATIONS" -> "... AT CUSTOMS-STATIONS"
-            if parts and parts[-1].endswith("-"):
-                parts[-1] += t
-            else:
-                parts.append(t)
-        if parts:
-            out.setdefault(re.sub(r"\s+", " ", m.group(1).strip().upper()),
-                           " ".join(parts))
+    for _i, num, cap in body_chapter_entries(body_refs):
+        if cap:
+            out.setdefault(num, cap)
     return out
+
+
+def _norm_caption(text: str) -> list[str]:
+    return re.sub(r"\s+", " ", (text or "").upper()).strip().split()
+
+
+def _captions_match(a: str, b: str) -> bool:
+    aw, bw = _norm_caption(a), _norm_caption(b)
+    if not aw or not bw:
+        return False
+    if aw == bw:
+        return True
+    n = min(len(aw), len(bw), 6)
+    return sum(1 for x, y in zip(aw[:n], bw[:n]) if x == y) >= min(3, n)
+
+
+def _chapter_numeral_of(ch) -> str | None:
+    from .grammar import CHAPTER_RE
+    m = CHAPTER_RE.match(ch.code or "")
+    return re.sub(r"\s+", " ", m.group(1).strip().upper()) if m else None
+
+
+def _previous_chapter(chapters, numeral: str):
+    val = _roman_value(numeral)
+    best, best_ch = -1.0, None
+    for ch in chapters:
+        n = _chapter_numeral_of(ch)
+        if not n:
+            continue
+        v = _roman_value(n)
+        if v < val and v > best:
+            best, best_ch = v, ch
+    return best_ch
+
+
+def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
+    """Insert CHAPTER nodes the body prints that the TOC omitted (ledger O03).
+
+    Customs contents skip CHAPTERS IV / IX / XI.  ``parse_toc`` now opens a
+    numeral-less node from the ALL-CAPS caption so following rows parent here;
+    this function fills that numeral from the body (and inserts a node from
+    scratch when the caption never classified).  Sections whose first body
+    hit sits after the new CHAPTER line are reparented.
+    """
+    from .builder import _candidate_code, _dotless_candidate_code
+
+    entries = body_chapter_entries(body_refs)
+    if not entries:
+        return 0
+    body_by_num = {num: (idx, cap) for idx, num, cap in entries}
+    taken = {n for ch in chapters if (n := _chapter_numeral_of(ch))}
+    n_changed = 0
+
+    def _fill(ch, num: str) -> None:
+        nonlocal n_changed
+        _idx, cap = body_by_num[num]
+        ch.toc_heading = ch.heading or ""
+        ch.code = "CHAPTER " + num
+        if cap:
+            ch.heading = cap
+        ch.heading_source = "body"
+        taken.add(num)
+        n_changed += 1
+
+    for ch in chapters:
+        if ch.code:
+            continue
+        match = next((num for num, (_i, cap) in body_by_num.items()
+                      if num not in taken and _captions_match(ch.heading, cap)),
+                     None)
+        if match:
+            _fill(ch, match)
+
+    unused = [num for _i, num, _c in entries if num not in taken]
+    empties = [ch for ch in chapters if not ch.code]
+    for ch, num in zip(empties, unused):
+        _fill(ch, num)
+
+    def _codes_in_span(lo: int, hi: int) -> set:
+        seen: set = set()
+        for j in range(lo + 1, hi):
+            cc = (_candidate_code(body_refs[j].line)
+                  or _dotless_candidate_code(body_refs[j].line))
+            if cc:
+                seen.add(cc)
+        return seen
+
+    remaining = [(idx, num, cap) for idx, num, cap in entries if num not in taken]
+    for idx, num, cap in remaining:
+        node = Node(kind="chapter", code="CHAPTER " + num, heading=cap or "")
+        node.toc_heading = ""
+        node.heading_source = "body"
+        chapters.append(node)
+        taken.add(num)
+        n_changed += 1
+        next_idx = len(body_refs)
+        for j, (nidx, nnum, _c) in enumerate(entries):
+            if nidx > idx:
+                next_idx = nidx
+                break
+        span = _codes_in_span(idx, next_idx)
+        prev = _previous_chapter(chapters, num)
+        for entry in ordered_sections:
+            if entry.code in span and (entry.parent is prev or entry.parent is None):
+                entry.parent = node
+
+    chapters.sort(key=lambda ch: (
+        _roman_value(_chapter_numeral_of(ch) or ""),
+        ch.code or "",
+    ))
+    return n_changed
 
 
 def apply_body_chapter_headings(chapters, body_refs) -> int:
@@ -1158,3 +1351,7 @@ def _node_to_dict(node: Node) -> dict:
     elif not node.parts and not node.divisions:
         d["sections"] = []
     return d
+
+
+if __name__ == "__main__":
+    _demo()
