@@ -2016,20 +2016,52 @@ _CHAPTER_CAPTION_IN_HEADING = re.compile(
     r"(?:\b[A-Z][A-Z'-]+\b[\s,]+){3,}\b[A-Z][A-Z'-]{3,}\b")
 
 
+def _caps_key(text) -> str:
+    """A caption's identity for comparison: letters and single spaces only.
+
+    Both sides of the test in ``inv_no_chapter_caption_in_section_heading`` go
+    through this, so a chapter numeral, stray punctuation or a re-wrap cannot
+    make the same caption look like two.
+    """
+    return re.sub(r"[^A-Z]+", " ", (text or "").upper()).strip()
+
+
 def inv_no_chapter_caption_in_section_heading(doc):
     """A section heading must not absorb a chapter's ALL-CAPS caption (O02/O03).
 
     Customs TOC omits CHAPTER IV / IX / XI; the leftover caption used to glue
     onto the previous section heading via ``CONT_RE``.  72A survives because
     its body binds; 14A shipped the glued TOC string as a placeholder heading.
+
+    The caps run is a PROXY, and on its own it is the wrong test: a section whose
+    own title is printed in capitals matches it exactly as well as a leaked
+    caption does.  Sales Tax Rules 2006 prints ``150 ZQZA. RESPONSIBILITIES OF
+    THE VENDOR.-(1) Subject to these rules,`` -- caps because that is how the
+    source sets that rule's title, and reported here in both editions once round
+    4 let the rule bind at all.
+
+    So ask what the name asks: is this run a caption that actually appears on a
+    CHAPTER of this document?  Measured over every hit on the register, that
+    separates them cleanly -- 82A's ``CLEARANCE OF GOODS FOR HOME-CONSUMPTION``
+    and 32AA's ``VII OFFENCES AND PENALTIES`` are both captions of their own
+    tree, and 150ZQZA's is not.
     """
+    captions = {_caps_key(c.get("heading")) for c in doc.get("chapters") or []}
+    captions.discard("")
     bad = []
     for leaf in iter_section_leaves(doc):
         heading = leaf.get("heading") or ""
         m = _CHAPTER_CAPTION_IN_HEADING.search(heading)
-        if m:
-            bad.append(f"section {leaf.get('code')}: chapter caption in heading "
-                       f"{m.group(0)!r}")
+        if not m:
+            continue
+        run = _caps_key(m.group(0))
+        # containment either way: the leak may carry the chapter numeral with it
+        # ("VII OFFENCES AND PENALTIES" against the chapter's own "OFFENCES AND
+        # PENALTIES"), or be truncated by the row it was glued onto.
+        if not any(run and c and (run in c or c in run) for c in captions):
+            continue
+        bad.append(f"section {leaf.get('code')}: chapter caption in heading "
+                   f"{m.group(0)!r}")
     return bad
 
 
@@ -2080,9 +2112,20 @@ def inv_body_chapters_in_tree(doc):
 
 def _demo_heading_leak_class() -> None:
     """Pins the heading-glue / apparatus-caption / omitted-chapter detectors."""
+    # The document must contain the chapter whose caption leaked, because that is
+    # what makes it a LEAK rather than a section whose own title is capitalised.
+    # Customs omits the ``CHAPTER IV`` row from its contents, but ``toc.py``'s
+    # _open_caption_chapter still opens a node for the bare caption -- so in every
+    # real instance of this defect the caption is in the tree, which is what
+    # inv_no_chapter_caption_in_section_heading now checks.  Verified on all three
+    # editions that carry the defect today.
     glued = {
         "metadata": {},
         "chapters": [{
+            "code": "",
+            "heading": "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION",
+            "sections": [],
+        }, {
             "code": "CHAPTER III",
             "sections": [{
                 "code": "14A",

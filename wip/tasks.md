@@ -197,8 +197,8 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**78 hits across 103 converted editions**, re-measured 2026-08-30 after round 4.
-210 → 193 → 148 → 92 → 78. Documents held: acts 80, rules 11, ordinance 12.
+**75 hits across 103 converted editions**, re-measured 2026-08-30 after round 5.
+210 → 193 → 148 → 92 → 78 → 75. Documents held: acts 80, rules 11, ordinance 12.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
 numerals, read the same way in the body scan, the tree and the invariant.
@@ -208,18 +208,20 @@ Round 3: [`wip/phase3-omissions-and-compilations.md`](./phase3-omissions-and-com
 — an unreadable glyph, and two documents that are not one instrument each.
 Round 4: [`wip/phase3-split-codes.md`](./phase3-split-codes.md) — the text layer splits a
 code, and a measured note that had gone out of date.
+Round 5: [`wip/phase3-toc-furniture.md`](./phase3-toc-furniture.md) — the contents page's
+own running title, read as a chapter.
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 19 (10) | 17 (4) | 5 (4) | **41** | 55 |
-| `no_foreign_section_start_in_body` | 10 (10) | 9 (4) | — | **19** | 20 |
-| `section_codes_ordered` | 7 (6) | — | — | 7 | 7 |
+| `section_carries_its_body` | 19 (10) | 17 (4) | 5 (4) | 41 | 41 |
+| `no_foreign_section_start_in_body` | 10 (10) | 9 (4) | — | 19 | 19 |
+| `section_codes_ordered` | 6 (5) | — | — | **6** | 7 |
 | `structure_counts` | — | 5 (2) | — | 5 | 5 |
-| `no_chapter_caption_in_section_heading` | 3 (3) | 2 (2) | — | **5** | 4 |
+| `no_chapter_caption_in_section_heading` | 3 (3) | — | — | **3** | 5 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
 | `no_footnote_text_in_body` | — | — | — | **0** | 45 |
 | `body_chapters_in_tree` | — | — | — | **0** | 21 |
-| **per lane** | **40** | **33** | **5** | **78** | 92 |
+| **per lane** | **39** | **31** | **5** | **75** | 78 |
 
 `no_chapter_caption_in_section_heading` gains one because round 4 made it visible: with
 rule 150ZQZA finally binding, its heading is readable, and it is a FALSE positive — the
@@ -302,7 +304,10 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       for every document we can measure — the seven amending instruments are clean on it,
       and all ten acts hits are in consolidated statutes (seven Customs editions, three
       Sales Tax). It may still hold for the 18 amending instruments behind OCR.
-- [ ] **`structure_counts` (5) — a parser defect, not a source quirk.** This entry used
+- [ ] **`structure_counts` (5) — a parser defect, not a source quirk.** Round 5's furniture
+      fix did **not** move it: the rules lane still shows the anonymous-container symptom
+      (three per Sales Tax Rules edition, plus `CHAPTER V-C` at page 47 sitting among
+      61–65), so a second path reaches `_open_caption_chapter`. This entry used
       to say the *source* places `XIV-AB/AC/AD` after `XIV-B/C/D`. That is **wrong**, and
       the source's own contents page says so: `XIV-AB ..105`, `XIV-AC ..105`,
       `XIV-AD ..107`, **then** `XIV-B ..111`, `XIV-BA ..125`, `XIV-C ..136`, `XIV-D ..140`
@@ -312,18 +317,30 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       first suspected — `_first_printed_page` returns correct values; it declines because
       the pages genuinely go backwards, which is the tree being wrong.
 - [ ] **`section_codes_ordered` (7, 6 acts editions)** — never triaged.
-- [ ] **`no_chapter_caption_in_section_heading` (5) — the invariant is a proxy.** It fires
-      on any run of 3+ ALL-CAPS words; what it *means* is that a chapter caption leaked in.
-      Test that directly — does the caps run match a caption actually on a chapter node of
-      this document? Measured over every current hit, that separates them cleanly:
-      `82A`/`CLEARANCE OF GOODS FOR HOME-CONSUMPTION` and `32AA`/`VII OFFENCES AND
-      PENALTIES` (×2) all match a chapter in their own tree; `150ZQZA`/`RESPONSIBILITIES OF
-      THE VENDOR` does not, because the source prints that title in capitals.
-- [ ] **`section_codes_ordered` (7) — one cause, shared with the class above.** Every hit
-      is an omitted-section placeholder at a tree position inconsistent with its code *and*
-      its page: `82A` (`10[82A. Omitted.`) sits after `224` while printing 144 pages
-      earlier; `32AA` (`10[32AA. ***]`) ran on into `Chapter-VII OFFENCES AND PENALTIES`,
-      which is the caption the class above reports. Fix the placement and both move.
+- [x] **The contents page's own title, read as a chapter — and the invariant's proxy.**
+      Two fixes, measured separately.
+      *Parser:* `82A out of order after 224` was a chapter-parsing problem, not an ordering
+      one. A TOC page break landing inside a wrapped section row leaves the running title
+      `THE CUSTOMS ACT,1969` on its own line; it is ALL-CAPS, so `is_foreign_caption`
+      accepts it and `_open_caption_chapter` opens a chapter for it. `_page_furniture`
+      exists for exactly that line — its docstring even names s.82A — but the two call
+      sites order the tests differently, and the one reached on a wrapped row tested
+      furniture *after* the caption branch had already fired. Customs 2008: **24 → 22
+      chapters** (its contents lists 22), 82A back in CHAPTER IX, 167–192 in CHAPTER XVIII,
+      **0 anonymous containers**, 297 sections preserved, 5 hits → 2.
+      *Invariant:* `no_chapter_caption_in_section_heading` fired on any run of 3+ capitalised
+      words. It now asks what its name asks — is the run a caption that appears on a chapter
+      of this document? The three real leaks all match a chapter in their own tree;
+      `150ZQZA`/`RESPONSIBILITIES OF THE VENDOR` does not, because the source sets that
+      rule's own title in capitals. Alone: rules **2 → 0**, acts holds at 3.
+      The locking fixture had to change with it — it pinned a leak in a document containing
+      no chapter with that caption, which cannot happen (`_open_caption_chapter` opens a
+      node even when the contents omit the `CHAPTER N` row). It now contains the chapter,
+      and still fails if that chapter is removed.
+- [ ] **`section_codes_ordered` (6) — a second, different misplacement.** Round 5 closed
+      only the Customs 2008 hit. The five Sales Tax hits are `CHAPTER I PRELIMINARY`
+      holding `['1', '2', '33A']` across pages 2–75: section 33A (page 75) is parented to
+      CHAPTER I instead of CHAPTER VII.
 - [ ] `clause_codes_plausible` (1, Finance Act 2024). The jump `7->8517` is an HS tariff
       heading read from a **table row**; the check excludes schedules but not table-derived
       codes (ledger P06).
