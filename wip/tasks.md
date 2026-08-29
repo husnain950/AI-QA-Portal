@@ -197,18 +197,19 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**148 hits across 38 of 103 converted editions**, re-measured 2026-08-30 after round 2.
-Down from 193, and from 210 at the Phase 2 close. Documents held: acts 80, rules 11,
-ordinance 12.
+**92 hits across 103 converted editions**, re-measured 2026-08-30 after round 3.
+193 → 148 → 92; the Phase 2 close was 210. Documents held: acts 80, rules 11, ordinance 12.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
 numerals, read the same way in the body scan, the tree and the invariant.
 Round 2: [`wip/phase3-legal-reference.md`](./phase3-legal-reference.md) — the apparatus
 caption, which was never in a body at all.
+Round 3: [`wip/phase3-omissions-and-compilations.md`](./phase3-omissions-and-compilations.md)
+— an unreadable glyph, and two documents that are not one instrument each.
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 27 (10) | 79 (6) | 5 (4) | 111 | 111 |
+| `section_carries_its_body` | 19 (10) | 31 (4) | 5 (4) | **55** | 111 |
 | `no_foreign_section_start_in_body` | 10 (10) | 10 (4) | — | 20 | 20 |
 | `section_codes_ordered` | 7 (6) | — | — | 7 | 7 |
 | `structure_counts` | — | 5 (2) | — | 5 | 5 |
@@ -216,7 +217,12 @@ caption, which was never in a body at all.
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
 | `no_footnote_text_in_body` | — | — | — | **0** | 45 |
 | `body_chapters_in_tree` | — | — | — | **0** | 21 |
-| **per lane** | **48 / 28 docs** | **95 / 6 docs** | **5 / 4 docs** | **148** | 193 |
+| **per lane** | **40** | **47** | **5** | **92** | 148 |
+
+48 of the `section_carries_its_body` drop is two compilations moved to
+`tools/suite/exemptions/rules.json` on evidence already accepted for sibling invariants;
+8 is the invariant learning to read `Omitte(cid:2)d`. The exemptions still run and still
+print their hit counts — an exemption documents a failure, it does not hide its size.
 
 Still a mixed-revision measurement: 61 scanned documents keep whatever revision last
 wrote them, and the rules column is measured over 11 of that lane's 48 documents.
@@ -237,8 +243,26 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       *Rules (2):* `_tree_chapter_numeral` and `_norm_body_numeral` normalised the two
       sides of one comparison differently. Replaced by a single `_numeral_key`, −27 lines.
       Measured on identical JSON, that alone is 210 → 189.
-- [ ] **`section_carries_its_body` (111)** — the largest class; 79 of it on six rules
-      editions, 27 on ten acts editions. Check whether one zoning cause explains both.
+- [x] **`section_carries_its_body` — the traced half. 111 → 55, no parser change.**
+      `(cid:N)` is a glyph whose font subset has no ToUnicode entry, and it is
+      **unrecoverable**: the Sales Tax Act 2014 producer emitted dozens of LinuxLibertine
+      subsets whose glyph `<02>` maps to a different character in each (`r`, `8`, `4`,
+      `l`), and the ones that print `(cid:2)` are exactly those missing that entry.
+      `_is_omission` now drops it before matching, so `Omitte(cid:2)d` reads as the
+      omission it is — **111 → 103**. Two further widenings were measured and rejected: a
+      dot-run marker buys **zero** (those leaves are already caught by their heading), and
+      intra-word spacing buys **one**, for a regex whose job is precision.
+      48 more are two compilations — Customs Rules 2001 (44 index rows) and Federal Excise
+      Rules 2005 (4 rows of a second instrument starting at PDF page 75) — exempted on the
+      evidence their sibling invariants already carry.
+      Adding those entries made the runner re-check the rest and report **two existing
+      exemptions as stale** (`no_orphan_marker_li`, and Federal Excise's own
+      `section_codes_ordered`); both deleted. All three lanes now report **0 stale**.
+- [ ] **`section_carries_its_body` — the remaining 55.** 14 are one printed defect: the
+      text layer splits the code (`150 ZQR.` for `150ZQR`), so `_candidate_code` returns
+      `None` for an entire 18-section run. ~24 are real zoning misses scattered 1–2 per
+      edition; 3 are a TOC row bound as body; 5 are ordinance (`fbr_ingest`, sequenced
+      after the Phase 4 decision on that fork).
 - [x] **`no_footnote_text_in_body` (45) — closed, and none of it was in a body.**
       All 45 hits were the string `LEGAL REFERENCE` inside a citation tooltip's `title=`
       attribute; the invariant searched raw markup, so an attribute counted as body text.
@@ -303,3 +327,25 @@ Branch: `feat/profile-auto-default`, then `fix/pipeline-to-portal`
       writes `version_metrics` so the portal can show pipeline health at all
 
 **Gate:** a parser fix merged to `main` is visible in the portal without a manual step
+
+---
+
+## Phase 5 — the instrument tree level
+
+Deferred here by decision: Phase 3 exempts around it, Phase 4 ships first, then this.
+
+A compilation is not one instrument. Customs Rules 2001 binds 44 separately-notified
+S.R.O. rule sets behind one index; Federal Excise Rules 2005 starts a second instrument at
+PDF page 75 with its own contents page. The tree has no level above chapter, so those
+documents' index rows become section leaves with no body, and their codes cannot ascend
+document-wide.
+
+- [ ] A level above chapter, so a compilation parses as N instruments
+- [ ] The six walkers that hardcode `chapter/part/division/section` as the child keys
+- [ ] The portal renderer
+- [ ] Re-convert the compilations
+
+**Gate: the deletion of the four `tools/suite/exemptions/rules.json` entries that name
+this phase** — `section_carries_its_body` and `section_codes_ordered` on Customs Rules
+2001, and `section_carries_its_body` on Federal Excise Rules 2005. That is the honest test
+that it worked, and the suite will report them stale on its own once it has.

@@ -21,11 +21,6 @@
     },
     {
       "applies_to": "Customs Rules, 2001",
-      "invariant": "no_orphan_marker_li",
-      "reason": "Same document, same cause as section_codes_ordered above. The literal first line of page 1 is a stray 'CHAPTER VII', so the whole compilation parses to one chapter and 62 leaves and a marker list item lands outside the leaf that cites it. TOC detection itself is correct (pages 1-5 score 54-86%, page 6 drops to 2%)."
-    },
-    {
-      "applies_to": "Customs Rules, 2001",
       "invariant": "no_jammed_words",
       "reason": "The source PDF's text layer emits the run as ONE 75-character token with no space glyphs inside it, so there is no positional information to split on. Recovering the spaces needs dictionary or language-model word splitting, which is non-deterministic and excluded by the README's 'no LLM/vision in the conversion path'."
     },
@@ -41,11 +36,6 @@
     },
     {
       "applies_to": "Federal Excise Rules 2005",
-      "invariant": "section_codes_ordered",
-      "reason": "Compilation in miniature. PDF page 75 starts a whole second instrument inside the body -- 'ELECTRONIC FILING OF FEDERAL EXCISE RETURN RULES, 2005' with its own CONTENTS page -- so its rules 1-5 land after rule 86 inside CHAPTER XVI. Same missing 'instrument' tree level as Customs Rules, 2001."
-    },
-    {
-      "applies_to": "Federal Excise Rules 2005",
       "invariant": "no_split_ordinals",
       "reason": "The parser refuses this merge DELIBERATELY. Footnote 54.104 prints 'dated 21 st June, 2006'; pagemodel's discriminators for a raised suffix are a size drop and the absence of a space glyph, and this token is equal size (8.04pt), dtop 0.00, with a real space -- indistinguishable from a genuine '21 st' typo in the source. Merging it would merge real typos too. The invariant does not know the parser made that choice."
     },
@@ -53,6 +43,16 @@
       "applies_to": "Federal Excise Rule Updated Upto 10.07.2014",
       "invariant": "no_split_ordinals",
       "reason": "Same deliberate parser refusal as the 2005 edition above: an equal-size, space-separated ordinal suffix that cannot be told apart from a source typo."
+    },
+    {
+      "applies_to": "Customs Rules, 2001",
+      "invariant": "section_carries_its_body",
+      "reason": "Same compilation as the section_codes_ordered entry above, measured on the same 44 S.R.O. rule-sets. The tree has no level above chapter, so the 563-page binder's INDEX rows become the section leaves: 'Passenger's Baggage (Import)Rules. 570(I)/98 dt.12.06.1998', 'Frustrated Cargo Export Rules 3(I)/70, dt 2.1.1970 86-89'. A leaf built from an index row has no body to carry, and 44 of the lane's 111 hits are exactly those rows. The invariant is right and the pipeline cannot express the document; the fix is the 'instrument' tree level in wip/tasks.md Phase 5, whose completion is the deletion of this entry."
+    },
+    {
+      "applies_to": "Federal Excise Rules 2005",
+      "invariant": "section_carries_its_body",
+      "reason": "Compilation in miniature. PDF page 75 starts a second instrument inside the body -- 'ELECTRONIC FILING OF FEDERAL EXCISE RETURN RULES, 2005' with its own CONTENTS page -- and that contents page's rows are parsed as this document's rules 1-4, so they carry leader dots where their text should be: 'Short title, application and commencement___________________', 'Filing of Electronic Federal Excise Return__________________'. A leaf built from a contents row has no body to carry. Same missing 'instrument' tree level as Customs Rules, 2001 above; the fix is wip/tasks.md Phase 5, whose completion is the deletion of this entry. (This document's section_codes_ordered exemption, which recorded the same page-75 evidence, was deleted in the same change -- the suite reported it as no longer failing.)"
     }
   ]
 }
