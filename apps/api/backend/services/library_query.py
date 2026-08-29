@@ -247,6 +247,26 @@ def build_where(filters: LibraryFilters, exclude: Optional[str] = None):
     return where, params
 
 
+def where_needs_stat_joins(filters: LibraryFilters, exclude: Optional[str] = None) -> bool:
+    """True when the WHERE clause reads stats / health / review (LATERAL joins)."""
+    def skipped(name: str) -> bool:
+        return exclude == name
+
+    return bool(
+        (filters.health and not skipped("health"))
+        or (filters.review and not skipped("review"))
+        or (filters.flagged and not skipped("flags"))
+        or (filters.annotations and not skipped("flags"))
+    )
+
+
+def count_from(filters: LibraryFilters, exclude: Optional[str] = None) -> str:
+    """FROM for COUNT(*). Unfiltered / name-only filters do not need per-document
+    section scans; those LATERAL joins are what made Library time out on a
+    single API worker against a real corpus."""
+    return FROM_DOCUMENTS if where_needs_stat_joins(filters, exclude) else "FROM documents d"
+
+
 SORTS = {
     "name": "lower(d.name), d.id",
     "name_desc": "lower(d.name) DESC, d.id",

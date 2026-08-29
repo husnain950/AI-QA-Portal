@@ -1,6 +1,5 @@
 import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import DashboardPage from './pages/DashboardPage';
 import LoginPage from './pages/LoginPage';
 import DialogHost from './components/ui/Dialog';
 import ToastHost from './components/ui/ToastHost';
@@ -9,6 +8,7 @@ import { authApi } from './utils/auth';
 import { queryClient } from './queryClient';
 import { useUiStore } from './stores/uiStore';
 
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const UploadPage = lazy(() => import('./pages/UploadPage'));
 const ReviewPage = lazy(() => import('./pages/ReviewPage'));
 const TriagePage = lazy(() => import('./pages/TriagePage'));

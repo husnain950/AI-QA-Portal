@@ -36,25 +36,32 @@ export const useLibraryStore = create((set, get) => ({
             params: pageParams ? String(pageParams) : null,
             facetsParams: facetsParams ? String(facetsParams) : null,
             status: 'loading', error: null,
-            items: [], total: 0, nextCursor: null,
+            items: [], total: 0, nextCursor: null, facets: null,
         });
         try {
-            const pagePromise = pageParams
-                ? api.get(`/v2/documents?${pageParams}`)
-                : Promise.resolve({ items: [], total: 0, next_cursor: null });
-            // Facet counts are advisory: a failure must not take the list down.
-            const facetsPromise = facetsParams
-                ? api.get(`/v2/documents/facets?${facetsParams}`).catch(() => null)
-                : Promise.resolve(null);
-            const [page, facets] = await Promise.all([pagePromise, facetsPromise]);
+            // The API is one uvicorn worker. Fire page and facets together and
+            // the worker may run the heavier facets query first, so the list
+            // sits behind it until the 15s client abort. Ask for the page
+            // first, paint it, then fill in facet counts.
+            const page = pageParams
+                ? await api.get(`/v2/documents?${pageParams}`, { timeoutMs: 30_000 })
+                : { items: [], total: 0, next_cursor: null };
             if (seq !== requestSeq) return;
-            set((state) => ({
+            set({
                 items: page.items,
                 total: page.total,
                 nextCursor: page.next_cursor,
+                status: 'ready',
+            });
+            if (!facetsParams) return;
+            const facets = await api.get(
+                `/v2/documents/facets?${facetsParams}`,
+                { timeoutMs: 30_000 },
+            ).catch(() => null);
+            if (seq !== requestSeq) return;
+            set((state) => ({
                 facets,
                 library: facets?.library || state.library,
-                status: 'ready',
             }));
         } catch (e) {
             if (seq !== requestSeq) return;
@@ -74,7 +81,7 @@ export const useLibraryStore = create((set, get) => ({
             const query = params
                 ? `${params}&cursor=${encodeURIComponent(nextCursor)}`
                 : `cursor=${encodeURIComponent(nextCursor)}`;
-            const page = await api.get(`/v2/documents?${query}`);
+            const page = await api.get(`/v2/documents?${query}`, { timeoutMs: 30_000 });
             if (seq !== requestSeq || get().key !== key) return;
             set((state) => ({
                 items: [...state.items, ...page.items],
