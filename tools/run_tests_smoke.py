@@ -65,9 +65,12 @@ def _self_checks(package: str, errors: list[str]) -> None:
     print(f"OK {package}: {ran} self-check(s) passed")
 
 
-def _regression(runner: list[str], output: Path, errors: list[str]) -> None:
+def _regression(runner: list[str], output: Path | None, errors: list[str]) -> None:
+    """Run a corpus-dependent check. ``output=None`` means the runner decides
+    for itself whether its corpus is present (``discover_corpus`` reads source
+    PDFs, not converted JSON, so it has no output directory to test)."""
     label = " ".join(runner)
-    if not any(output.glob("*.json")):
+    if output is not None and not any(output.glob("*.json")):
         print(f"SKIP {label}: no converted output under {output}")
         return
     environ = {**os.environ, "PYTHONPATH": os.pathsep.join(
@@ -108,6 +111,14 @@ def main() -> int:
     # The lane packages themselves are thin profile bindings with no _demo() of their
     # own -- without this the gate silently ran zero self-checks after the merge.
     _self_checks("legal_ingest", errors)
+
+    # Structure discovery is data, and stale data is worse than none: a family
+    # threshold that has drifted away from the corpus still classifies, it just
+    # classifies wrongly. `--check` re-measures and fails if the committed
+    # signatures no longer match. Like the lane suites it needs the gitignored
+    # corpus, so an unstaged tree is a SKIP -- `discover_corpus` prints
+    # "no corpus staged" and exits 0.
+    _regression(["tools/discover_corpus.py", "--check"], None, errors)
 
     for corpus in CORPORA:
         package = corpus.package
