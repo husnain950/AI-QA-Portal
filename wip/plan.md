@@ -121,13 +121,12 @@ does not have that blind spot.
 up in `wip/phase3-chapter-numerals.md`; the Phase 2 run that produced the baseline is in
 `wip/phase2-run.md`.)*
 
-**193 invariant hits across 38 of 103 converted editions**, measured 2026-08-29 after the
-first class landed. Phase 2 closed at 210 across 36 of 101; the acts lane is back to 80
-documents.
+**148 invariant hits across 38 of 103 converted editions**, measured 2026-08-30 after
+round 2. Round 1 closed at 193, Phase 2 at 210. The acts lane holds 80 documents.
 
 | Lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 93 | 28 | **80** | 93 |
+| acts | 48 | 28 | **80** | 93 |
 | rules | 95 | 6 | **11** | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
@@ -139,12 +138,12 @@ editions carrying 2,065 image-backed pages.
 | Invariant | acts | rules | ordinance | total |
 |---|---|---|---|---|
 | `section_carries_its_body` | 27 (10) | 79 (6) | 5 (4) | 111 |
-| `no_footnote_text_in_body` | 45 (20) | — | — | 45 |
 | `no_foreign_section_start_in_body` | 10 (10) | 10 (4) | — | 20 |
 | `section_codes_ordered` | 7 (6) | — | — | 7 |
 | `structure_counts` | — | 5 (2) | — | 5 |
 | `no_chapter_caption_in_section_heading` | 3 (3) | 1 (1) | — | 4 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 |
+| `no_footnote_text_in_body` | — | — | — | **0** |
 
 ## What round 1 closed, and what it taught
 
@@ -175,13 +174,18 @@ Two lessons worth carrying into the remaining classes:
 
 ## Order for what remains
 
-1. **`section_carries_its_body` (111)** — the largest class, and 79 of it sits on six
-   rules editions. Check whether one zoning cause explains both lanes before splitting it.
-2. **`no_footnote_text_in_body` (45 over 20 acts editions)** — a zoning family, not 45
-   defects. Classify before fixing.
-3. **`no_foreign_section_start_in_body` (20)** — now an ordinary defect in the
-   consolidated lane, since Phase 2 falsified the amending explanation for every document
-   currently measurable.
+1. **`section_carries_its_body` (111)** — the largest class. Round 2's triage
+   decomposed it from measurement rather than assumption: **48** are the two compilations
+   (Customs Rules 2001 and Federal Excise Rules 2005), whose cause is already traced and
+   accepted for three sibling invariants; **14** are one printed defect — the text layer
+   splits the code, `150 ZQR.` for `150ZQR`, so `_candidate_code` returns `None` for a
+   whole 18-section run; **8** are omissions the invariant fails to recognise (an
+   ellipsis `2[15. ... ]`, and `(cid:N)` corruption); the remaining ~41 are real zoning
+   misses and one untriaged group.
+2. **`no_foreign_section_start_in_body` (20)** — the mirror of class 1: the invariant only
+   fires when the victim leaf is itself heading-only, so these move with the start-detection
+   fixes rather than separately.
+3. ~~`no_footnote_text_in_body`~~ — **closed in round 2.**
 4. **`structure_counts` (5)** and **`section_codes_ordered` (7)** — both chapter-ordering
    shaped, and worth reading together.
 5. `no_chapter_caption_in_section_heading` (4), `clause_codes_plausible` (1).

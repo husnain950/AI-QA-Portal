@@ -515,6 +515,16 @@ _FOOTNOTE_CAPTION_RE = _re.compile(r"^\s*LEGAL\s+REFERENC(?:E|ES|S)\s*$",
                                    _re.IGNORECASE)
 
 
+def _drop_apparatus_captions(lines: list) -> list:
+    """Remove the footnote apparatus's own caption line from a zone.
+
+    Called on BOTH zones, so the caption is dropped whichever side of the Y-cut
+    it landed on -- see the comment at the call site for why it must not simply
+    be moved from one to the other.
+    """
+    return [ln for ln in lines if not _FOOTNOTE_CAPTION_RE.match(ln.text())]
+
+
 def _is_chapter_line(ln) -> bool:
     from .grammar import CHAPTER_RE
     return bool(CHAPTER_RE.match((ln.text() or "").strip()))
@@ -1138,18 +1148,25 @@ def build_page_model(page, index: int, cal, pdf_path: str | None = None,
     body_lines = [ln for ln in body_lines
                   if not _ARTIFACT_DOTNUM_RE.fullmatch(ln.text().strip())]
 
-    # LEGAL REFERENCE is footnote apparatus even when the Y-cut left it in
-    # the body (notes overleaf, or a sandwich the single cut refused).  It is
-    # never statute.  Keep it with the notes so it is not rendered as a
-    # trailing <p><strong>LEGAL REFERENCE</strong></p>.
-    caption_in_body = [ln for ln in body_lines
-                       if _FOOTNOTE_CAPTION_RE.match(ln.text())]
-    if caption_in_body:
-        body_lines = [ln for ln in body_lines
-                      if not _FOOTNOTE_CAPTION_RE.match(ln.text())]
-        have = {id(ln) for ln in footnote_lines}
-        footnote_lines = ([ln for ln in caption_in_body if id(ln) not in have]
-                          + footnote_lines)
+    # LEGAL REFERENCE labels the footnote apparatus.  It is not statute and not
+    # a note, so it belongs in NEITHER zone -- dropped from both, whichever side
+    # of the Y-cut it landed on.
+    #
+    # It used to be moved from the body into footnote_lines, which stopped it
+    # rendering as a trailing <p><strong>LEGAL REFERENCE</strong></p> but put it
+    # AHEAD of the first marker, where parse_footnotes reads a pre-marker line as
+    # the tail of a note continued from the previous page.  It came back as a
+    # "^cont" fragment and was spliced onto the previous page's last note -- into
+    # 473 footnote texts across 20 Customs editions, and into the citation
+    # tooltip of every leaf citing one.
+    #
+    # Dropping it here rather than in parse_footnotes keeps the conservation
+    # audit exact: tools/acts/audit_completeness.py compares this page model's
+    # footnote_lines against the output's footnote TEXTS, so a caption present on
+    # the source side and absent from the output side reads as 48 lost words per
+    # Customs edition.  Absent from both sides, the audit stays at 100%.
+    body_lines = _drop_apparatus_captions(body_lines)
+    footnote_lines = _drop_apparatus_captions(footnote_lines)
 
     # 4) extract BODY tables from real gridlines.  Footnote-zone tables are
     #    not rendered here, but their bboxes are kept so footnotes.py can
@@ -1578,7 +1595,7 @@ def _demo() -> None:
     assert w["_space_before"], "overrunning space glyph rejected -> jammed line"
 
     from .calibrate import Calibration
-    from .footnotes import parse_footnotes
+    from .footnotes import CONT_MARKER, parse_footnotes
 
     cal = Calibration(
         page_w=504, page_h=648,
@@ -1662,6 +1679,33 @@ def _demo() -> None:
     zt = _size_zone_top(with_caption, cal)
     assert zt == 400, zt
     assert _FOOTNOTE_CAPTION_RE.match(with_caption[1].text())
+
+    # ... and opening the zone is not enough: inside it, the caption sits ABOVE
+    # the first marker, and parse_footnotes reads a pre-marker line as the tail
+    # of a note continued from the previous page.  It came back as a "^cont"
+    # fragment that merge_footnote_continuations spliced onto the previous page's
+    # last note -- "LEGAL REFERENCE" in 473 footnote texts across 20 Customs
+    # editions, and in the citation tooltip of every leaf citing one.
+    #
+    # Dropped from the zone, the same lines yield note 19 alone, with its own
+    # text intact and no continuation fragment.
+    zone = _drop_apparatus_captions([ln for ln in with_caption if ln.top >= zt])
+    assert len(zone) == 2, [ln.text() for ln in zone]
+    caption_fns = parse_footnotes(zone, cal=cal)
+    assert [fn.marker for fn in caption_fns] == ["19"], \
+        [fn.marker for fn in caption_fns]
+    assert CONT_MARKER not in {fn.marker for fn in caption_fns}
+    assert not any(_FOOTNOTE_CAPTION_RE.search(fn.text) for fn in caption_fns), \
+        [fn.text for fn in caption_fns]
+    assert "section 14A was as under" in caption_fns[0].text, caption_fns[0].text
+
+    # The other side of the cut: a caption the Y-cut left in the BODY (notes
+    # overleaf) is dropped there too, not shuffled into the footnote zone -- so
+    # it is counted on neither side and the conservation audit stays exact.
+    body_side = [_body(80, "14. Stations for officers of customs to board."),
+                 _body(400, "LEGAL REFERENCE")]
+    assert [ln.text() for ln in _drop_apparatus_captions(body_side)] == \
+        ["14. Stations for officers of customs to board."]
 
     # Caption last on the page (notes overleaf) still opens the zone.
     last_line = [
