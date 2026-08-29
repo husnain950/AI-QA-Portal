@@ -1,0 +1,405 @@
+<title>A Glyph Nobody Can Read</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:      #f6f6f4;
+  --paper-sunk: #ecedea;
+  --ink:        #171c24;
+  --ink-soft:   #3a434f;
+  --muted:      #656e79;
+  --rule:       #d5d7d3;
+  --rule-soft:  #e4e5e2;
+  --accent:     #1d5b63;
+  --accent-bg:  #e2edee;
+  --defect:     #9c2f2a;
+  --defect-bg:  #f4e5e3;
+  --good:       #2c6146;
+  --good-bg:    #e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #12161b;
+    --paper-sunk: #1a1f26;
+    --ink:        #e3e6e3;
+    --ink-soft:   #b9c0c5;
+    --muted:      #8d97a1;
+    --rule:       #2c333c;
+    --rule-soft:  #232931;
+    --accent:     #6fb2ba;
+    --accent-bg:  #163034;
+    --defect:     #dd8880;
+    --defect-bg:  #331d1c;
+    --good:       #74b795;
+    --good-bg:    #162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #12161b;
+  --paper-sunk: #1a1f26;
+  --ink:        #e3e6e3;
+  --ink-soft:   #b9c0c5;
+  --muted:      #8d97a1;
+  --rule:       #2c333c;
+  --rule-soft:  #232931;
+  --accent:     #6fb2ba;
+  --accent-bg:  #163034;
+  --defect:     #dd8880;
+  --defect-bg:  #331d1c;
+  --good:       #74b795;
+  --good-bg:    #162b22;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 18px; line-height: 1.62;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+}
+.sheet { max-width: 1080px; margin: 0 auto; padding: 4rem 2rem 6rem; }
+
+.block { display: grid; grid-template-columns: 12.5rem 1fr; gap: 0 2.75rem; align-items: start; }
+.block + .block { margin-top: 3.25rem; }
+.gutter {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .74rem; line-height: 1.5; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--muted); text-align: right;
+  padding-top: .5rem; border-right: 1px solid var(--rule-soft);
+  padding-right: 2.75rem; margin-right: -2.75rem; min-height: 2rem;
+}
+.gutter .note {
+  display: block; text-transform: none; letter-spacing: 0;
+  font-size: .82rem; font-style: italic;
+  font-family: "Newsreader", Georgia, serif;
+  color: var(--muted); margin-top: .6rem; line-height: 1.45;
+}
+.body { min-width: 0; max-width: 62ch; }
+@media (max-width: 860px) {
+  .block { grid-template-columns: 1fr; gap: 0; }
+  .gutter {
+    text-align: left; border-right: 0; padding-right: 0; margin-right: 0;
+    border-left: 2px solid var(--rule); padding-left: .85rem;
+    margin-bottom: .9rem; padding-top: 0;
+  }
+  .body { max-width: none; }
+  .sheet { padding: 2.5rem 1.25rem 4rem; }
+}
+
+.masthead { border-bottom: 2px solid var(--ink); padding-bottom: 1.5rem; margin-bottom: 3.5rem; }
+.eyebrow {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .72rem; font-weight: 600; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--accent); margin: 0 0 1rem;
+}
+h1 {
+  font-weight: 300; font-size: clamp(2.1rem, 5vw, 3.4rem);
+  line-height: 1.08; letter-spacing: -.018em; margin: 0 0 .7rem; text-wrap: balance;
+}
+h1 em { font-style: italic; color: var(--accent); }
+.standfirst { font-size: 1.13rem; color: var(--ink-soft); margin: 0; max-width: 56ch; text-wrap: pretty; }
+
+h2 { font-weight: 400; font-size: 1.62rem; line-height: 1.2; letter-spacing: -.012em; margin: 0 0 1rem; text-wrap: balance; }
+h3 {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-weight: 600; font-size: .82rem; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--muted); margin: 2rem 0 .75rem;
+}
+p { margin: 0 0 1.05rem; text-wrap: pretty; }
+.body > :last-child { margin-bottom: 0; }
+strong { font-weight: 600; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, .scroller:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .845em;
+  background: var(--paper-sunk); padding: .1em .34em; border-radius: 3px;
+  border: 1px solid var(--rule-soft);
+}
+
+.scoreline {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 0 0 3.5rem;
+}
+.score { background: var(--paper); padding: 1.15rem; }
+.score dt {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .68rem; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted); margin: 0 0 .5rem;
+}
+.score dd { margin: 0; font-size: 1.85rem; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.score .was { font-size: .8rem; color: var(--muted); margin-left: .45rem; font-variant-numeric: tabular-nums; }
+.score .to { color: var(--good); }
+.score .flat { color: var(--ink-soft); }
+
+.scroller { overflow-x: auto; }
+pre {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .78rem; line-height: 1.75;
+  background: var(--paper-sunk); border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent); padding: 1rem 1.15rem;
+  margin: 0 0 1.05rem; white-space: pre;
+}
+pre code { background: none; padding: 0; border: 0; font-size: inherit; }
+pre .hl { color: var(--defect); font-weight: 500; }
+pre .ok { color: var(--good); font-weight: 500; }
+
+table { width: 100%; border-collapse: collapse; font-family: "Source Sans 3", system-ui, sans-serif; font-size: .875rem; margin: 0 0 1.05rem; }
+caption {
+  caption-side: top; text-align: left;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .7rem; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted); padding-bottom: .6rem;
+}
+th, td { text-align: left; padding: .62rem .75rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+thead th { font-size: .7rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); }
+tbody tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.chosen td { background: var(--good-bg); }
+tr.chosen td:first-child { box-shadow: inset 3px 0 0 var(--good); font-weight: 600; }
+tr.rejected td { color: var(--muted); }
+tr.rejected td:first-child { box-shadow: inset 3px 0 0 var(--rule); }
+.tag { display: inline-block; font-size: .68rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: .12rem .42rem; border-radius: 3px; white-space: nowrap; }
+.tag.bad { background: var(--defect-bg); color: var(--defect); }
+.tag.ok  { background: var(--good-bg);   color: var(--good); }
+
+/* glyph table — the evidence that (cid:2) is not one character */
+.glyphs { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 0 0 1.05rem; }
+.glyph { background: var(--paper); padding: .8rem .85rem; font-family: "Source Sans 3", system-ui, sans-serif; }
+.glyph .font { font-size: .66rem; letter-spacing: .05em; color: var(--muted); text-transform: uppercase; margin-bottom: .45rem; }
+.glyph .maps { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 1.05rem; color: var(--ink); }
+.glyph .maps .arrow { color: var(--muted); margin: 0 .35rem; font-size: .8rem; }
+.glyph.missing { background: var(--defect-bg); }
+.glyph.missing .maps { color: var(--defect); font-size: .82rem; font-style: italic; font-family: "Newsreader", Georgia, serif; }
+.glyph.missing .font { color: var(--defect); }
+
+.figcap { font-size: .82rem; color: var(--muted); font-style: italic; margin: 0 0 1.05rem; }
+.pull { border-left: 3px solid var(--accent); padding: .1rem 0 .1rem 1.15rem; margin: 1.6rem 0; font-size: 1.12rem; color: var(--ink-soft); font-style: italic; }
+.pull strong { font-style: normal; color: var(--ink); }
+
+footer {
+  margin-top: 4.5rem; padding-top: 1.5rem; border-top: 1px solid var(--rule);
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .5rem 1.5rem;
+}
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">Phase 3 · Round 3 · Anomaly register</p>
+    <h1>A glyph nobody can read, and two books <em>pretending</em> to be one</h1>
+    <p class="standfirst">
+      The largest class drops from 111 to 55 without the parser being touched. Everything
+      here is either the invariant misreading a document, or a document the pipeline
+      genuinely cannot express — and the suite volunteered two dead entries along the way.
+    </p>
+  </header>
+
+  <dl class="scoreline">
+    <div class="score"><dt>Register</dt><dd><span class="to">92</span><span class="was">← 148</span></dd></div>
+    <div class="score"><dt><code>section_carries_its_body</code></dt><dd><span class="to">55</span><span class="was">← 111</span></dd></div>
+    <div class="score"><dt>Parser changes</dt><dd><span class="flat">none</span></dd></div>
+    <div class="score"><dt>Re-conversion</dt><dd><span class="flat">not needed</span></dd></div>
+    <div class="score"><dt>Stale exemptions</dt><dd><span class="to">0</span><span class="was">← 2</span></dd></div>
+  </dl>
+
+  <section class="block">
+    <div class="gutter">
+      The glyph
+      <span class="note">279 occurrences, 5 editions — 250 of them in one.</span>
+    </div>
+    <div class="body">
+      <h2>Is <code>(cid:2)</code> recoverable? No, and the font says why</h2>
+      <p>
+        <code>_is_omission</code> exists so a heading-only leaf is not reported as missing
+        its body when the law itself omitted the section. It matches
+        <code>omitted</code> / <code>repealed</code> / <code>***</code>. Eight leaves print
+        their omission like this:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>Omitte<span class="hl">(cid:2)</span>d
+hav<span class="hl">(cid:2)</span> b<span class="hl">(cid:2)</span><span class="hl">(cid:2)</span>n <span class="hl">(cid:2)</span>xport<span class="hl">(cid:2)</span>d   <span style="color:var(--muted)">→ "have been exported"</span></code></pre>
+      </div>
+      <p>
+        <code>(cid:N)</code> is what pdfplumber emits for a glyph whose font subset carries
+        no ToUnicode entry. Before tolerating it, the question worth asking is whether it
+        can be <em>recovered</em>. Measured on <em>The Sales Tax Act, 1990</em>
+        (01.07.2014), which holds 250 of the 279 occurrences, the answer is no — and the
+        reason is specific:
+      </p>
+
+      <div class="glyphs">
+        <div class="glyph"><div class="font">HAAAAA+</div><div class="maps">&lt;02&gt;<span class="arrow">→</span>r</div></div>
+        <div class="glyph"><div class="font">JAAAAA+</div><div class="maps">&lt;02&gt;<span class="arrow">→</span>8</div></div>
+        <div class="glyph"><div class="font">ABAAAA+</div><div class="maps">&lt;02&gt;<span class="arrow">→</span>4</div></div>
+        <div class="glyph"><div class="font">DBAAAA+</div><div class="maps">&lt;02&gt;<span class="arrow">→</span>l</div></div>
+        <div class="glyph missing"><div class="font">BAAAAA+</div><div class="maps">no &lt;02&gt; entry</div></div>
+      </div>
+      <p class="figcap">
+        The producer emitted dozens of separate <code>LinuxLibertineG</code> subsets, each
+        with its own small CMap. Glyph <code>&lt;02&gt;</code> means a different character
+        in every one — and the subsets that actually print <code>(cid:2)</code> are exactly
+        those missing that entry. <code>BAAAAA+</code> lists 83 mappings and skips it.
+      </p>
+      <div class="pull">
+        There is no consistent mapping to recover, and none was ever written down.
+        <strong>The character is unreadable.</strong>
+      </div>
+      <p>
+        So the invariant drops it before matching, which is what lets
+        <code>Omitte(cid:2)d</code> read as the omission it is. <strong>111 → 103.</strong>
+      </p>
+
+      <h3>Two widenings measured, both rejected</h3>
+      <div class="scroller" tabindex="0">
+        <table>
+          <caption>Each candidate, measured over all three lanes</caption>
+          <thead><tr><th>Candidate</th><th class="num">Hits</th><th>Verdict</th></tr></thead>
+          <tbody>
+            <tr class="chosen">
+              <td>Strip <code>(cid:N)</code></td>
+              <td class="num">111 → 103</td>
+              <td><span class="tag ok">kept</span> — 8 hits, one line</td>
+            </tr>
+            <tr class="rejected">
+              <td>Accept a dot-run, <code>2[15. ... ]</code></td>
+              <td class="num">103 → 103</td>
+              <td>Zero. Those leaves are already caught by their heading</td>
+            </tr>
+            <tr class="rejected">
+              <td>Tolerate spacing, <code>A O mitted</code></td>
+              <td class="num">103 → 102</td>
+              <td>One hit, for <code>o\s?m\s?i\s?t\s?t\s?e\s?d</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Both were in the plan. The dot-run looked like a second signal and turned out to be
+        a duplicate of one already firing; the spacing tolerance costs precision in a regex
+        whose whole job is precision, to buy a single hit.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The compilations
+      <span class="note">48 hits — two documents that are not one instrument each.</span>
+    </div>
+    <div class="body">
+      <h2>A leaf built from an index row has no body to carry</h2>
+      <p>
+        <strong>Customs Rules, 2001 — 44 hits.</strong> 563 pages binding 44 separately
+        notified S.R.O. rule sets behind a single index. The tree has no level above
+        chapter, so the index rows <em>become</em> the section leaves:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>Passenger's Baggage (Import)Rules. 570(I)/98 dt.12.06.1998
+Frustrated Cargo Export Rules 3(I)/70, dt 2.1.1970  86-89</code></pre>
+      </div>
+      <p>
+        <strong>Federal Excise Rules 2005 — 4 hits.</strong> PDF page 75 starts a second
+        instrument inside the body — <em>Electronic Filing of Federal Excise Return Rules,
+        2005</em>, with its own contents page — whose rows are parsed as this document's
+        rules 1–4, carrying leader dots where their text should be.
+      </p>
+      <p>
+        None of this is new evidence. Both documents already carried exemptions on sibling
+        invariants for exactly this cause, and Customs Rules 2001 also carries a
+        <code>known_gap</code> case. The invariant is right; the pipeline cannot express
+        the document. The fix is the instrument tree level, now written down as
+        <strong>Phase 5</strong> — and the test that it worked is the deletion of these
+        entries.
+      </p>
+      <p class="figcap">
+        An exemption does not hide a failure's size: the invariant still runs and the
+        report still prints <code>[44 hit(s)]</code> beside the reason.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      Unprompted
+      <span class="note">The format doing the job the in-code skip could not.</span>
+    </div>
+    <div class="body">
+      <h2>The suite handed back two dead entries</h2>
+      <p>
+        Adding entries made the runner re-check the existing ones, and it reported two as
+        <strong>no longer failing</strong>:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>Customs Rules, 2001        <span class="ok">[no longer failing]</span> no_orphan_marker_li
+Federal Excise Rules 2005  <span class="ok">[no longer failing]</span> section_codes_ordered
+            exemption is now stale -- delete the entry</code></pre>
+      </div>
+      <p>
+        Both had been fixed by earlier rounds and nobody noticed. Deleted, as the report
+        instructs.
+      </p>
+      <p>
+        This is round 2's lesson arriving from the opposite direction. There, a skip
+        hardcoded <em>inside a check function</em> had gone stale in silence, because
+        nothing re-examines a condition buried in code. Here the declared format did the
+        work unasked — it surfaced dead entries as a side effect of an unrelated change.
+        The rules lane ends the round with 8 exemptions: two added, two removed.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      What is left
+      <span class="note">55 hits, triaged from measurement rather than assumption.</span>
+    </div>
+    <div class="body">
+      <h2>The remaining <code>section_carries_its_body</code></h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th class="num">n</th><th>Cause</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="num"><strong>14</strong></td>
+              <td><strong>A split code.</strong> The text layer prints <code>150 ZQR.</code>
+              for <code>150ZQR</code>, and <code>_candidate_code</code> requires the code
+              contiguous — so it returns <code>None</code> for an entire 18-section run
+              (Sales Tax Rules 2006, pages 143–152)</td>
+            </tr>
+            <tr><td class="num">~24</td><td>Real zoning misses, scattered 1–2 per edition</td></tr>
+            <tr><td class="num">3</td><td>A TOC row bound as body — <code>33. Offences and penalties 33A. Proceedings…</code></td></tr>
+            <tr><td class="num">5</td><td>Ordinance, which is <code>fbr_ingest</code>. Two are a footnote's text bound as a section body. Sequenced <em>after</em> the Phase 4 decision on that fork, so the work is not done twice</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Gates</h3>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr><td><code>ruff check</code> (bare, as CI runs it)</td><td><span class="tag ok">clean</span></td></tr>
+            <tr><td><code>pytest tools/tests</code></td><td>53 passed, 1 skipped</td></tr>
+            <tr><td>Stale exemptions, all three lanes</td><td><span class="tag ok">0</span></td></tr>
+            <tr><td>Parser changed</td><td>no — <code>packages/</code> untouched</td></tr>
+            <tr><td>Re-conversion</td><td>not needed; JSON identical to round 2</td></tr>
+            <tr><td>Documents — acts / rules / ordinance</td><td>80 / 11 / 12, held</td></tr>
+            <tr><td><code>data/ocr_cache</code></td><td>0 B</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Follows PR #47 — the apparatus caption</span>
+    <span>No OCR: 61 scanned documents untouched</span>
+    <span>Measured 2026-08-30</span>
+  </footer>
+
+</div>

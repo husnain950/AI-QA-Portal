@@ -1135,9 +1135,25 @@ _LEGITIMATELY_EMPTY = re.compile(
     rf"^{_CODE_DECOR}(?:omitted|repealed|\*\*\*)", re.IGNORECASE)
 
 
+#: pdfplumber emits ``(cid:N)`` for a glyph whose font subset has no ToUnicode
+#: entry.  It is never text, and it is NOT recoverable: measured on The Sales Tax
+#: Act 1990 (01.07.2014), the producer emitted dozens of separate LinuxLibertine
+#: subsets each carrying its own small CMap, and glyph 2 maps to a different
+#: character in each one ('r', '8', '4', 'l' ...) -- the subsets that print
+#: ``(cid:2)`` are exactly those whose CMap has no <02> entry at all.  There is no
+#: consistent mapping to recover, so the character is simply unreadable.
+#:
+#: 279 occurrences across 5 editions, 250 of them in that one document, where it
+#: lands mid-word: "hav(cid:2) b(cid:2)(cid:2)n (cid:2)xport(cid:2)d".  Dropping it
+#: is what lets a keyword match see ``Omitte(cid:2)d`` for the omission it is.
+_CID_GLYPH = re.compile(r"\(cid:\d+\)")
+
+
 def _is_omission(leaf) -> bool:
-    return bool(_LEGITIMATELY_EMPTY.match(leaf.get("heading") or "")
-                or _LEGITIMATELY_EMPTY.match(leaf.get("plain_text") or ""))
+    def readable(v):
+        return _CID_GLYPH.sub("", v or "")
+    return bool(_LEGITIMATELY_EMPTY.match(readable(leaf.get("heading")))
+                or _LEGITIMATELY_EMPTY.match(readable(leaf.get("plain_text"))))
 
 
 def _body_beyond_heading(leaf) -> str:
