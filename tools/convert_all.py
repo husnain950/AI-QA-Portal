@@ -491,7 +491,7 @@ def main(argv=None) -> int:
     # than recorded here as another per-lane fact.
     if args.profile == "auto":
         run = importlib.import_module(get(args.lane).package).run
-        if "profile" not in inspect.signature(run).parameters:
+        if "auto" not in inspect.signature(run).parameters:
             print(f"error: the {args.lane} pipeline takes no profile, so "
                   f"--profile auto does not apply", file=sys.stderr)
             return 2

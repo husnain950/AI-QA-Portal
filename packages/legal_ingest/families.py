@@ -32,7 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from .profiles import ACTS, AMENDING, Profile
+from .profiles import AMENDING, Profile
 from .signature import TEXT_LAYER_FLOOR, Signature
 
 Predicate = Callable[[Signature], bool]
@@ -79,11 +79,24 @@ class Family:
     """
 
     label: str
-    #: The printer profile this family parses with. ``None`` means the family is
-    #: not parseable at all and the pipeline refuses it.
+    #: The profile that OVERRIDES the lane's, or ``None`` when the lane's own is
+    #: right.  A family says what the document IS; a ``Profile`` says how its
+    #: printer sets type.  ``consolidated`` is every ordinary statute in this
+    #: corpus and it cannot know whether one is printed the Acts way or the Rules
+    #: way -- only the lane knows that, so it keeps what the lane bound.
+    #: ``amending`` overrides because no lane can express it: the Acts folder
+    #: holds both kinds and a filename cannot tell them apart.
     profile: Optional[Profile]
     required: tuple[tuple[str, Predicate], ...]
     optional: tuple[tuple[str, Predicate], ...] = ()
+    #: Whether the document can be parsed at all; False is refused by
+    #: ``pipeline.run``.  ``profile`` used to carry this as well -- ``None`` meant
+    #: BOTH "no override" and "refuse" -- and that is exactly how ``consolidated``
+    #: came to hardcode ACTS: the only way to say "parseable" was to name a
+    #: profile, and there was only one to name.  Measured cost of that conflation:
+    #: all 34 consolidated Rules documents would have re-converted as Acts, across
+    #: 12 fields of parsing behaviour (wip/phase2-findings.md finding 1).
+    parseable: bool = False
 
     def match(self, sig: Signature) -> tuple[bool, list[str]]:
         hits = [name for name, test in self.required if test(sig)]
@@ -127,6 +140,7 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         label="unconvertible",
         profile=None,
+        parseable=False,
         required=(("legacy_word_format", lambda s: s.extension in (".doc", ".docx")),),
     ),
     # Before no_text_layer: that a document is Urdu decides everything after it
@@ -134,6 +148,7 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         label="urdu",
         profile=None,
+        parseable=False,
         required=(("arabic_script", lambda s: s.script == "arabic"),),
         optional=(
             # The 259-page Customs Act Urdu edition against its 13-page contents
@@ -144,6 +159,7 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         label="no_text_layer",
         profile=None,
+        parseable=False,
         required=(("no_text_layer",
                    lambda s: s.chars_per_page < TEXT_LAYER_FLOOR),),
         optional=(
@@ -159,6 +175,15 @@ FAMILIES: tuple[Family, ...] = (
     Family(
         label="amending",
         profile=AMENDING,
+        parseable=True,
+        # AMENDING is built on the ACTS printer settings, so an amending
+        # instrument filed in the Rules lane would silently lose the eleven
+        # Rules printer fields.  There are ZERO such documents in this corpus
+        # -- every one of the 48 Rules files classifies consolidated,
+        # no_text_layer or urdu (wip/phase2-findings.md sec.8) -- so this is a
+        # measured ceiling, not an oversight.  The day one appears, the fix is
+        # dataclasses.replace(lane_profile, instrument_kind="amending",
+        # suppress_front_matter_containers=True), not a second constant.
         required=(("amending_language",
                    lambda s: s.amending_density >= AMENDING_DENSITY_MIN
                    or s.directive_headings >= DIRECTIVE_HEADINGS_MIN),),
@@ -171,7 +196,8 @@ FAMILIES: tuple[Family, ...] = (
     ),
     Family(
         label="consolidated",
-        profile=ACTS,
+        profile=None,
+        parseable=True,
         required=(("has_leaves", lambda s: s.leaf_lines >= LEAF_LINES_MIN),),
         optional=(
             ("has_contents_page", lambda s: s.toc_rows >= 20 or s.toc_dot_leaders >= 20),
@@ -216,7 +242,7 @@ def inherit(group_assignments) -> Optional[str]:
     """
     labels = {a.family for a in group_assignments
               if a.source == "measured" and a.family
-              and BY_LABEL[a.family].profile is not None}
+              and BY_LABEL[a.family].parseable}
     return labels.pop() if len(labels) == 1 else None
 
 

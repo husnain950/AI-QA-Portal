@@ -316,21 +316,57 @@ def _demo() -> None:
     print("pipeline self-check passed")
 
 
+def _resolve_profile(pdf_path: str, lane: "Profile", progress):
+    """The profile to parse ``pdf_path`` with, when the caller asked for ``auto``.
+
+    ``lane`` is the profile the corpus binding supplied -- ACTS from
+    ``acts_ingest``, RULES from ``rules_ingest``. The family OVERRIDES it only
+    when it names one, which today means only ``amending``.
+
+    That fallback is the whole point, and it was the bug: ``families`` used to
+    hardcode ``consolidated -> ACTS``, so ``--profile auto`` on the Rules lane
+    resolved ACTS for all 34 of its consolidated documents and discarded eleven
+    printer fields the Rules corpus needs (folio forms, raised ordinals,
+    sub-chapter rows). A family knows what a document IS. Only the lane knows
+    which printer set it.
+
+    Split out of ``run`` so the resolution can be tested without a PDF --
+    ``tools/tests/test_profile_auto_resolves_the_lane.py`` runs it over every
+    record in the committed ``tools/discovery/signatures.json``.
+    """
+    from .families import BY_LABEL, classify
+    from .signature import measure
+
+    assignment = classify(measure(pdf_path))
+    family = BY_LABEL.get(assignment.family) if assignment.family else None
+    if family is None or not family.parseable:
+        raise RuntimeError(
+            f"refusing {pdf_path.split('/')[-1]!r}: "
+            f"{assignment.family or 'no family'} is not parseable "
+            f"({'; '.join(assignment.evidence)})")
+    profile = family.profile or lane
+    progress(f"family {assignment.family} "
+             f"(confidence {assignment.confidence:.2f}) -> profile {profile.label}")
+    return profile, assignment
+
+
 def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = None,
         admit_below_floor: bool = False,
-        profile: "Profile | None" = ACTS) -> dict:
+        profile: "Profile" = ACTS, auto: bool = False) -> dict:
     """Convert one PDF to the document dict.
 
     ``profile`` says how this document is printed; see
     :mod:`legal_ingest.profiles` for what varies. It defaults to the Acts, whose
     profile turns every corpus-specific widening off.
 
-    ``profile=None`` asks :mod:`legal_ingest.families` instead: the document is
-    measured and classified, and the profile comes from the family it lands in.
-    That is the only way an amending instrument gets the amending profile, since
-    the Acts folder holds both kinds and the corpus label cannot tell them
-    apart. A family with no profile -- a legacy ``.doc``, an Urdu edition, a scan
-    with no text layer -- is refused here rather than parsed into nonsense.
+    ``auto`` measures the document first and asks
+    :mod:`legal_ingest.families` what it IS -- see :func:`_resolve_profile`.
+    ``profile`` stays the lane's answer and stays the fallback; a family
+    overrides it only when it names one, which is how an amending instrument
+    gets the amending profile (the Acts folder holds both kinds and the corpus
+    label cannot tell them apart). A family that is not parseable -- a legacy
+    ``.doc``, an Urdu edition, a scan with no text layer -- is refused here
+    rather than parsed into nonsense.
 
     ``admit_below_floor`` converts a scan whose inter-engine agreement is under
     ``ocr.AGREEMENT_FLOOR`` instead of refusing it, stamping
@@ -350,19 +386,8 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     ratchets.
     """
     assignment = None
-    if profile is None:
-        from .families import BY_LABEL, classify
-        from .signature import measure
-        assignment = classify(measure(pdf_path))
-        family = BY_LABEL.get(assignment.family) if assignment.family else None
-        if family is None or family.profile is None:
-            raise RuntimeError(
-                f"refusing {pdf_path.split('/')[-1]!r}: "
-                f"{assignment.family or 'no family'} is not parseable "
-                f"({'; '.join(assignment.evidence)})")
-        profile = family.profile
-        progress(f"family {assignment.family} "
-                 f"(confidence {assignment.confidence:.2f}) -> profile {profile.label}")
+    if auto:
+        profile, assignment = _resolve_profile(pdf_path, profile, progress)
 
     pdf = pdfplumber.open(pdf_path)
     total_pages = len(pdf.pages)

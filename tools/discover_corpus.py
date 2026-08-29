@@ -400,23 +400,46 @@ def do_reconcile(rows, xlsx: Path) -> int:
 def do_verify_lanes(rows) -> int:
     """Where the classifier and today's directory routing disagree.
 
-    Today the profile is chosen by lane: acts and rules both parse as
-    consolidated statutes, and the ordinance lane goes to a separate pipeline
-    built for one law. A disagreement here is not automatically a bug -- the
-    amending instruments SHOULD disagree, and that is the change -- but anything
-    outside the expected sets is a finding.
+    Today the profile is chosen by lane: the acts and rules lanes bind one each,
+    and the ordinance lane goes to a separate pipeline built for one law. A
+    disagreement here is not automatically a bug -- the amending instruments
+    SHOULD disagree, and that is the change -- but anything outside the expected
+    sets is a finding.
+
+    It compares the RESOLVED profile, the way ``pipeline._resolve_profile`` does,
+    and that is the fix. This used to ``continue`` on ``family ==
+    "consolidated"``, on the stated ground that "acts and rules both parse as
+    consolidated statutes" -- but that is the family every rules document is in,
+    so the one check whose job is catching a lane/profile mismatch was blind to
+    the only one in the corpus: ``families`` hardcoded ``consolidated -> ACTS``,
+    and ``--profile auto`` would have re-parsed all 34 consolidated Rules
+    documents as Acts (``wip/phase2-findings.md`` finding 1). It is also why
+    Phase 0's "73 of 190 route differently" contained no rules document at all.
+
+    The lane's profile is read from ``profiles.BY_LABEL``, whose key IS the
+    registry label (``profiles.py`` names that invariant), rather than importing
+    ``acts_ingest``/``rules_ingest`` -- this file classifies text and has no
+    reason to pull in the parse stack to read a constant.
     """
+    from legal_ingest.profiles import BY_LABEL as PROFILES
+
     disagree = collections.Counter()
     for row in rows:
-        family = row["assignment"].family
-        if family == "consolidated" or family is None:
+        family = BY_LABEL.get(row["assignment"].family)
+        if family is None:
+            continue                      # unexplained -- --assert owns that one
+        if not family.parseable:
+            disagree[(row["lane"],
+                      f"be refused: {row['assignment'].family}")] += 1
             continue
-        if family in ("unconvertible", "urdu", "no_text_layer"):
-            disagree[(row["lane"], f"refused: {family}")] += 1
-        else:
-            disagree[(row["lane"], family)] += 1
-    for (lane, family), n in sorted(disagree.items()):
-        print(f"  {n:>3}  {lane:<10} would parse as {family}")
+        # None for the ordinance lane, which binds no profile at all; a family
+        # that overrides nothing then resolves to None too, and agrees.
+        lane_profile = PROFILES.get(row["lane"])
+        resolved = family.profile or lane_profile
+        if resolved is not lane_profile:
+            disagree[(row["lane"], f"parse with the {resolved.label} profile")] += 1
+    for (lane, what), n in sorted(disagree.items()):
+        print(f"  {n:>3}  {lane:<10} would {what}")
     print(f"\n{sum(disagree.values())} of {len(rows)} documents route differently "
           f"under --profile auto")
     return 0
