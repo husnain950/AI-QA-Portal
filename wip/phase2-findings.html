@@ -1,0 +1,440 @@
+<title>Before the OCR Marathon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#FBFAF7; --raise:#F3F1EC; --ink:#16181D; --ink-2:#4A4E57; --ink-3:#7C818B;
+    --rule:#DFDCD4; --rule-2:#EDEAE3;
+    --pine:#2F5D50; --pine-tint:#E4EDE9;
+    --oxide:#A4342A; --oxide-tint:#F6E5E2;
+    --ochre:#8A5A14; --ochre-tint:#F7EDDC;
+    --shadow:none;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#14161A; --raise:#1C1F25; --ink:#E9E6DF; --ink-2:#B0B4BC; --ink-3:#848A94;
+      --rule:#2C3038; --rule-2:#22262C;
+      --pine:#79B3A0; --pine-tint:#1B2A26;
+      --oxide:#E28376; --oxide-tint:#2E1F1D;
+      --ochre:#D6A44E; --ochre-tint:#2B2318;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#14161A; --raise:#1C1F25; --ink:#E9E6DF; --ink-2:#B0B4BC; --ink-3:#848A94;
+    --rule:#2C3038; --rule-2:#22262C;
+    --pine:#79B3A0; --pine-tint:#1B2A26;
+    --oxide:#E28376; --oxide-tint:#2E1F1D;
+    --ochre:#D6A44E; --ochre-tint:#2B2318;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:16px; line-height:1.62; margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 28px 96px}
+
+  /* ---- masthead ---------------------------------------------------- */
+  header.mast{
+    border-bottom:2px solid var(--ink);
+    padding:56px 0 20px; margin-bottom:0;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .eyebrow{
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:11.5px; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--ink-3); display:flex; flex-wrap:wrap; gap:10px 18px;
+  }
+  h1{
+    font-family:Newsreader,Georgia,serif; font-weight:500;
+    font-size:clamp(38px,6vw,60px); line-height:1.04; letter-spacing:-.015em;
+    margin:0; text-wrap:balance;
+  }
+  .standfirst{
+    font-family:Newsreader,Georgia,serif; font-size:20px; line-height:1.5;
+    color:var(--ink-2); max-width:60ch; margin:0;
+  }
+
+  /* ---- verdict strip ----------------------------------------------- */
+  .verdict{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    border-bottom:1px solid var(--rule);
+  }
+  .v{padding:22px 24px 24px; border-right:1px solid var(--rule-2)}
+  .v:last-child{border-right:0}
+  .v dt{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--ink-3); margin:0 0 8px;
+  }
+  .v dd{
+    margin:0; font-family:Newsreader,Georgia,serif; font-size:34px; line-height:1;
+    font-variant-numeric:tabular-nums; letter-spacing:-.02em;
+  }
+  .v dd small{display:block; font-family:"IBM Plex Sans",sans-serif; font-size:13px;
+    line-height:1.4; color:var(--ink-2); margin-top:8px; letter-spacing:0}
+  .v.halt dd{color:var(--oxide)}
+  .v.calm dd{color:var(--pine)}
+
+  /* ---- sections ---------------------------------------------------- */
+  section{padding-top:52px}
+  h2{
+    font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    margin:0 0 22px; padding-bottom:10px; border-bottom:1px solid var(--rule);
+  }
+  p{max-width:68ch; margin:0 0 16px}
+  a{color:var(--pine); text-decoration-thickness:1px; text-underline-offset:2px}
+  a:focus-visible{outline:2px solid var(--pine); outline-offset:3px}
+
+  /* ---- findings: statute-style marginal numbering ------------------- */
+  .finding{
+    display:grid; grid-template-columns:64px 1fr; gap:0 24px;
+    padding:28px 0; border-top:1px solid var(--rule-2);
+  }
+  .finding:first-of-type{border-top:1px solid var(--rule)}
+  .num{
+    font-family:Newsreader,Georgia,serif; font-size:40px; line-height:.95;
+    color:var(--ink-3); font-variant-numeric:tabular-nums; letter-spacing:-.03em;
+  }
+  .finding.blocker .num{color:var(--oxide)}
+  .finding h3{
+    font-family:Newsreader,Georgia,serif; font-weight:500; font-size:25px;
+    line-height:1.22; margin:0 0 10px; letter-spacing:-.01em; text-wrap:balance;
+  }
+  .chip{
+    display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10.5px;
+    letter-spacing:.11em; text-transform:uppercase; padding:3px 8px;
+    margin:0 0 10px; border:1px solid currentColor;
+  }
+  .chip.blocker{color:var(--oxide); background:var(--oxide-tint)}
+  .chip.correction{color:var(--ochre); background:var(--ochre-tint)}
+  .chip.note{color:var(--pine); background:var(--pine-tint)}
+  .finding p:last-child{margin-bottom:0}
+
+  .decision{
+    border-left:3px solid var(--pine); background:var(--pine-tint);
+    padding:14px 18px; margin:16px 0 0; max-width:68ch;
+  }
+  .decision strong{font-weight:600}
+  .decision p{margin:0}
+
+  /* ---- data -------------------------------------------------------- */
+  .scroll{overflow-x:auto; margin:0 0 18px; max-width:100%}
+  table{border-collapse:collapse; width:100%; font-size:14.5px; min-width:460px}
+  caption{
+    text-align:left; font-family:"IBM Plex Mono",monospace; font-size:11px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+    padding-bottom:9px;
+  }
+  th,td{
+    text-align:left; padding:9px 16px 9px 0; border-bottom:1px solid var(--rule-2);
+    vertical-align:top;
+  }
+  th{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    border-bottom:1px solid var(--rule);
+  }
+  td.n,th.n{text-align:right; font-variant-numeric:tabular-nums;
+    font-family:"IBM Plex Mono",monospace; padding-right:24px}
+  td.was{color:var(--ink-3)}
+  td.is{color:var(--pine); font-weight:500}
+  tbody tr:last-child td{border-bottom:0}
+  .lane{font-family:"IBM Plex Mono",monospace; font-size:13.5px}
+
+  code,kbd{
+    font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.88em;
+    background:var(--raise); padding:1.5px 5px; border:1px solid var(--rule-2);
+  }
+  pre{
+    background:var(--raise); border:1px solid var(--rule); padding:16px 18px;
+    overflow-x:auto; font-size:13px; line-height:1.6; margin:0 0 18px;
+  }
+  pre code{background:none; border:0; padding:0}
+
+  ul{max-width:68ch; padding-left:20px; margin:0 0 16px}
+  li{margin-bottom:8px}
+  li::marker{color:var(--ink-3)}
+
+  footer{
+    margin-top:64px; padding-top:20px; border-top:2px solid var(--ink);
+    font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.06em;
+    color:var(--ink-3); display:flex; flex-wrap:wrap; gap:8px 24px;
+  }
+
+  @media (max-width:640px){
+    .finding{grid-template-columns:1fr; gap:6px}
+    .num{font-size:26px}
+    .v{border-right:0; border-bottom:1px solid var(--rule-2)}
+  }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">
+    <span>FBR Corpus Platform · crx</span>
+    <span>Phase 2 · pre-flight</span>
+    <span>2026-08-29</span>
+  </div>
+  <h1>Before the OCR marathon</h1>
+  <p class="standfirst">Phase&nbsp;1 cleared the last blocker on Phase&nbsp;2: re-convert
+  <span class="lane">acts</span> and <span class="lane">rules</span> at one parser revision
+  under <code>--profile auto</code>. That run costs about five hours of OCR. It was measured
+  first — and <code>--profile auto</code> is currently <em>worse</em> than the
+  <code>--profile lane</code> it replaces, on both lanes it targets.</p>
+</header>
+
+<dl class="verdict">
+  <div class="v"><dt>OCR pages owed</dt><dd>2,456<small><code>data/ocr_cache</code> is 0&nbsp;B — none of it is banked</small></dd></div>
+  <div class="v halt"><dt>Blockers found</dt><dd>2<small>Both make the run produce worse output than today</small></dd></div>
+  <div class="v"><dt>Corrections</dt><dd>4<small>Checklist steps that were wrong as written</small></dd></div>
+  <div class="v calm"><dt>Pages converted</dt><dd>0<small><code>data/corpora/</code> is byte-identical</small></dd></div>
+</dl>
+
+<section>
+  <h2>Baseline · this machine, today</h2>
+  <div class="scroll">
+  <table>
+    <caption>Both OCR censuses re-measured with <code>convert_all.scan_page_count</code> over the whole lane — every page, not sampled</caption>
+    <thead><tr>
+      <th>Lane</th><th class="n">Source files</th><th class="n">output/*.json</th>
+      <th class="n">_provisional/</th><th class="n">OCR pages owed</th><th>Files needing OCR</th>
+    </tr></thead>
+    <tbody>
+      <tr><td class="lane">acts</td><td class="n">93</td><td class="n">80</td><td class="n">9</td><td class="n">2,065</td><td>25</td></tr>
+      <tr><td class="lane">rules</td><td class="n">48</td><td class="n">11</td><td class="n">0</td><td class="n">391</td><td>36</td></tr>
+      <tr><td class="lane">ordinance</td><td class="n">45</td><td class="n">12</td><td class="n">0</td><td class="n">—</td><td>not a Phase 2 target</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The <span class="lane">rules</span> lane holds 11 of its 48 documents. Its whole
+  consolidated backbone — every Income Tax Rules 2002 and Sales Tax Rules 2006 edition —
+  has never been convertible on this host, each dying on one or two scanned pages inside a
+  200–480 page document. Phase&nbsp;1 removed that cause.</p>
+</section>
+
+<section>
+  <h2>Findings</h2>
+
+  <article class="finding blocker">
+    <div class="num">1</div>
+    <div>
+      <span class="chip blocker">Blocker</span>
+      <h3><code>--profile auto</code> throws away the RULES profile</h3>
+      <p><code>families.py:173</code> hardcodes <code>consolidated&nbsp;→&nbsp;ACTS</code>.
+      <code>convert.py --profile auto</code> passes <code>profile=None</code>, which
+      <strong>overrides</strong> the <code>partial(pipeline.run, profile=RULES)</code> binding at
+      <code>rules_ingest/__init__.py:20</code>. All 34 consolidated rules documents would parse as Acts.</p>
+      <div class="scroll">
+      <table>
+        <caption>ACTS vs RULES — 12 differing fields, every one of them parsing behaviour</caption>
+        <thead><tr><th>Profile field</th><th>ACTS</th><th>RULES</th><th>Profile field</th><th>ACTS</th><th>RULES</th></tr></thead>
+        <tbody>
+          <tr><td><code>instrument_kind</code></td><td class="was">None</td><td class="is">'rules'</td><td><code>subchapter_rows</code></td><td class="was">False</td><td class="is">True</td></tr>
+          <tr><td><code>ordinal_gap_max</code></td><td class="was">1.0</td><td class="is">2.5</td><td><code>toc_hyphen_leaders</code></td><td class="was">False</td><td class="is">True</td></tr>
+          <tr><td><code>ordinal_dtop_max</code></td><td class="was">2.5</td><td class="is">6.0</td><td><code>toc_codeless_rows</code></td><td class="was">False</td><td class="is">True</td></tr>
+          <tr><td><code>reattach_raised_ordinals</code></td><td class="was">False</td><td class="is">True</td><td><code>toc_tail_density_floor</code></td><td class="was">None</td><td class="is">0.2</td></tr>
+          <tr><td><code>folio_parenthesised</code></td><td class="was">False</td><td class="is">True</td><td><code>notifying_sro</code></td><td class="was">False</td><td class="is">True</td></tr>
+          <tr><td><code>folio_running_title</code></td><td class="was">False</td><td class="is">True</td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>The check that exists to catch this cannot see it. <code>discover_corpus.py:412</code>
+      — <code>--verify-lanes</code> — <code>continue</code>s on
+      <code>family == "consolidated"</code>, on the stated assumption that “acts and rules both
+      parse as consolidated statutes.” That is the family <em>every</em> rules document is in,
+      which is why Phase&nbsp;0’s “73 of 190 documents route differently” contains not a single
+      rules document.</p>
+      <p><code>wip/plan.md</code> records that same claim being corrected in
+      <code>profiles.py</code>’s docstring during Phase&nbsp;0. It survived here — and in
+      <code>families.py</code> it is not a docstring, it is the routing.</p>
+    </div>
+  </article>
+
+  <article class="finding blocker">
+    <div class="num">2</div>
+    <div>
+      <span class="chip blocker">Blocker</span>
+      <h3>It quarantines two acts documents that convert above the OCR floor</h3>
+      <p><code>no_text_layer</code> carries <code>profile=None</code>, so
+      <code>pipeline.py:358</code> refuses the document <strong>before OCR runs</strong> —
+      <code>signature.measure</code> is <code>pdftotext -layout</code> only, by design. That
+      refusal reason does not match <code>convert_all._ENV_FAILURE_RE</code>, so
+      <code>_quarantine</code> moves the previous output into <code>output/_refused/</code>.</p>
+      <div class="scroll">
+      <table>
+        <caption>Four acts documents in a refused family that already have JSON · <code>ocr.AGREEMENT_FLOOR</code> = 85.0</caption>
+        <thead><tr><th>Document</th><th>Where</th><th class="n">Pages OCR'd</th><th class="n">Agreement</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td>Benami Transactions (Prohibition) Act, 2017</td><td><code>output/</code></td><td class="n">26 / 26</td><td class="n">85.2%</td><td>above floor — shipping</td></tr>
+          <tr><td>Income Tax (Third Amendment) Act, 2016</td><td><code>output/</code></td><td class="n">9 / 9</td><td class="n">87.25%</td><td>above floor — shipping</td></tr>
+          <tr><td>Income Tax Amendment Act, 2016</td><td><code>_provisional/</code></td><td class="n">—</td><td class="n">below</td><td>correctly placed</td></tr>
+          <tr><td>Right of Access to Information Act, 2017</td><td><code>_provisional/</code></td><td class="n">—</td><td class="n">below</td><td>correctly placed</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>The bottom two show the post-OCR gate already sorting this population correctly on its
+      own. <span class="lane">rules</span> and <span class="lane">ordinance</span> have zero
+      documents in this position — it is an acts-only exposure.</p>
+      <div class="decision"><p><strong>Decision: <code>no_text_layer</code> stays refused, and
+      the loss is accepted.</strong> When Phase&nbsp;2 runs, the acts corpus goes
+      <strong>80&nbsp;→&nbsp;78</strong> and those two files move to <code>output/_refused/</code>.
+      Recorded so the drop reads as intended rather than as a regression.</p></div>
+    </div>
+  </article>
+
+  <article class="finding">
+    <div class="num">3</div>
+    <div>
+      <span class="chip correction">Correction</span>
+      <h3>Re-conversion cannot move a document out of <code>no_text_layer</code></h3>
+      <p><code>wip/tasks.md</code> predicted that after re-conversion “most of the 30
+      <code>no_text_layer</code> documents should stop being <code>no_text_layer</code>,” and
+      asked for the <code>signatures.json</code> diff to be reviewed on that basis.</p>
+      <p>They cannot move. <code>signature.measure</code> reads <strong>the PDF</strong>, and OCR
+      output is written to <code>data/ocr_cache</code> — never back into the PDF. A re-run of
+      <code>discover_corpus.py --write</code> measures the identical text layer and returns the
+      identical family, for all 30. Inverted: the signatures diff after Phase&nbsp;2 should be
+      <strong>empty</strong>, and a non-empty one is a finding.</p>
+    </div>
+  </article>
+
+  <article class="finding">
+    <div class="num">4</div>
+    <div>
+      <span class="chip correction">Correction</span>
+      <h3>The backup Phase 2 owes is the JSON, not the database</h3>
+      <p>The checklist asked for <code>make backup-remote</code> and a local <code>pg_dump</code>
+      first, because re-parsing resets sign-off. But Phase&nbsp;2 runs no <code>make sync</code>,
+      so it never reaches the database — that risk belongs to Phase&nbsp;4. (The Docker daemon is
+      down on this host in any case, so neither command can run.)</p>
+      <p>What this run actually overwrites is <strong>91 on-disk JSONs, 120&nbsp;MB</strong>. The
+      snapshot belongs at <code>output/_pre_phase2/</code>: a subdirectory is invisible to the
+      <code>output/*.json</code> glob that defines the corpus (<code>run_suite.py:39</code>),
+      which is why <code>_refused/</code> and <code>_run/</code> already live there. It is also
+      the only usable before/after baseline — the committed JSON lags <code>main</code>.</p>
+    </div>
+  </article>
+
+  <article class="finding">
+    <div class="num">5</div>
+    <div>
+      <span class="chip correction">Correction</span>
+      <h3><code>--skip-existing</code> is a resume flag, not a first-pass flag</h3>
+      <p>The checklist said to pass it on the acts run. On a <em>first</em> pass it drops every
+      target that already has output (<code>convert_all.py:510</code>) — the 80 files whose
+      revision this phase exists to unify. Correct usage: run without it; after an interrupt,
+      re-run the same command <strong>with</strong> it, and it picks up only what that pass had
+      not yet written.</p>
+    </div>
+  </article>
+
+  <article class="finding">
+    <div class="num">6</div>
+    <div>
+      <span class="chip correction">Correction</span>
+      <h3>The default <code>--timeout</code> is too tight for the acts run</h3>
+      <p><code>--timeout</code> defaults to 5400&nbsp;s (~90&nbsp;min) per file. At the rate
+      <code>--ocr-batch</code>’s own help records — 0.200&nbsp;pg/s at one process, with four
+      processes measuring <strong>59% worse</strong> — Finance Act 2017-18 alone is 683 OCR pages,
+      about 57 minutes of recognition, before a ~950-page document is parsed.</p>
+      <div class="scroll">
+      <table>
+        <caption>The acts lane's OCR cost is concentrated in the Finance Acts</caption>
+        <thead><tr><th>Document</th><th class="n">OCR pages</th><th class="n">≈ recognition</th></tr></thead>
+        <tbody>
+          <tr><td>Finance Act, 2017-18</td><td class="n">683</td><td class="n">57 min</td></tr>
+          <tr><td>Finance Act 2025</td><td class="n">290</td><td class="n">24 min</td></tr>
+          <tr><td>Finance Act, 2015</td><td class="n">236</td><td class="n">20 min</td></tr>
+          <tr><td>Finance Act 2016-17</td><td class="n">215</td><td class="n">18 min</td></tr>
+          <tr><td>Finance Act, 2014</td><td class="n">148</td><td class="n">12 min</td></tr>
+          <tr><td>Finance Act, 2020</td><td class="n">140</td><td class="n">12 min</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>The acts run needs <code>--timeout 10800</code>. Rules is comfortable at the default —
+      its largest is 46 pages.</p>
+    </div>
+  </article>
+
+  <article class="finding">
+    <div class="num">7</div>
+    <div>
+      <span class="chip correction">Correction</span>
+      <h3>The provisional lane goes stale unless it is rebuilt</h3>
+      <p><code>output/_provisional/</code> holds 9 below-floor acts documents that an ordinary run
+      does not produce, so without <code>--admit-below-floor</code> they keep whatever revision
+      last wrote them — the exact staleness Phase&nbsp;2 exists to remove.</p>
+      <div class="decision"><p><strong>Decision: rebuild them in a third short pass alongside the
+      acts run</strong>, so the whole acts lane sits at one parser revision.</p></div>
+    </div>
+  </article>
+
+  <article class="finding">
+    <div class="num">8</div>
+    <div>
+      <span class="chip note">Scope</span>
+      <h3>What Phase 2 actually buys, per lane</h3>
+      <ul>
+        <li><strong><span class="lane">rules</span></strong> — the win is Phase&nbsp;1’s numpy
+        fix, not profiles. Every one of its 48 documents classifies as <code>consolidated</code>,
+        <code>no_text_layer</code> or <code>urdu</code>; <strong>zero are amending</strong>, so
+        <code>--profile auto</code> changes no routing on this lane at all. It goes 11&nbsp;→&nbsp;~34
+        documents, restoring the lane’s entire consolidated backbone.</li>
+        <li><strong><span class="lane">acts</span></strong> — the 25 amending instruments getting
+        the AMENDING profile is the real payload of <code>--profile auto</code>, and the only
+        place it earns its name.</li>
+        <li><strong><span class="lane">ordinance</span></strong> — out of scope.
+        <code>fbr_ingest.run</code> takes no profile, and Phase&nbsp;1’s guard refuses the run
+        rather than letting 45 children fail and quarantine the lane’s 12 JSONs. Phase&nbsp;4
+        decides it.</li>
+      </ul>
+    </div>
+  </article>
+</section>
+
+<section>
+  <h2>What this changes about the order of work</h2>
+  <p>Findings 1 and 2 are both <code>--profile auto</code> being worse than
+  <code>--profile lane</code> on a lane it was never exercised against. Phase&nbsp;0 verified the
+  suites at <code>HEAD</code> without re-converting anything, which is why neither surfaced then —
+  and Phase&nbsp;4 is scheduled to make <code>--profile auto</code> the default.</p>
+  <p>So the OCR marathon is not the first thing Phase&nbsp;2 owes. Whenever it resumes:</p>
+  <ol>
+    <li>Fix finding 1 — a family cannot pick a profile the lane already knows. Both lane packages
+    already export <code>PROFILE</code>, and <code>convert.py:72</code> already imports that
+    module, so the seam exists.</li>
+    <li>Widen <code>do_verify_lanes</code> to compare the <strong>resolved</strong> profile rather
+    than skipping <code>consolidated</code>, so this class of mismatch is a finding next time
+    instead of a five-hour surprise.</li>
+    <li>Snapshot to <code>_pre_phase2/</code>, then run rules, then acts with
+    <code>--timeout 10800</code>, then the <code>--admit-below-floor</code> pass.</li>
+  </ol>
+  <p>Finding 2 needs no fix — the loss is accepted by decision.</p>
+</section>
+
+<section>
+  <h2>Reproduce</h2>
+<pre><code>.venv/bin/python tools/convert_all.py rules --list             # 48
+.venv/bin/python tools/convert_all.py acts  --list             # 93
+ls data/corpora/{acts,rules,ordinance}/output/*.json | wc -l    # 80 / 11 / 12
+
+# the 12 differing profile fields
+.venv/bin/python -c "import dataclasses,sys; sys.path.insert(0,'packages'); \
+  from legal_ingest.profiles import ACTS,RULES; a,r=map(dataclasses.asdict,(ACTS,RULES)); \
+  print([k for k in a if a[k]!=r[k]])"</code></pre>
+  <p>The two at-risk documents’ <code>metadata.ocr.mean_agreement</code> reads 85.2 and 87.25
+  against <code>ocr.AGREEMENT_FLOOR = 85.0</code>.</p>
+</section>
+
+<footer>
+  <span>Nothing converted · nothing fixed</span>
+  <span><code>data/corpora/</code> byte-identical</span>
+  <span>branch <code>docs/phase2-findings</code></span>
+</footer>
+
+</div>
