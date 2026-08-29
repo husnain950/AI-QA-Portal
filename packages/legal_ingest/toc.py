@@ -262,6 +262,58 @@ def _clean_heading(text: str) -> str:
     return text.lstrip(" .-—").rstrip(" .—")
 
 
+_ALL_CAPS_WORD_RE = re.compile(r"[A-Z][A-Z'-]*")
+
+
+def is_all_caps_caption(text: str) -> bool:
+    """True for a 3+ word ALL-CAPS caption (a chapter title, never a wrap).
+
+    Customs TOC omits CHAPTER IV / IX / XI (ledger O03).  The caption that
+    should have sat under the missing ``CHAPTER N`` row -- ``PROHIBITION AND
+    RESTRICTION OF IMPORTATION AND EXPORTATION`` -- is indented enough to
+    satisfy ``CONT_RE`` and used to glue onto the previous section's heading.
+    Real section titles in this corpus are title-case; a run of three or more
+    fully-capitalised words is a structural caption.
+    """
+    t = re.sub(r"\s+", " ", (text or "").strip())
+    if not t or any(c.islower() for c in t):
+        return False
+    return len(_ALL_CAPS_WORD_RE.findall(t)) >= 3
+
+
+def is_foreign_caption(heading_so_far: str, extra: str) -> bool:
+    """True when ``extra`` is an ALL-CAPS caption glued onto a title-case heading.
+
+    An ALL-CAPS continuation of an already ALL-CAPS heading is a wrap of the
+    same caption (chapter titles go through ``pending_heading_for``); those
+    stay joinable.
+    """
+    if not is_all_caps_caption(extra):
+        return False
+    so_far = (heading_so_far or "").strip()
+    if so_far and not any(c.islower() for c in so_far):
+        return False
+    return True
+
+
+def strip_foreign_caption_tail(text: str) -> str:
+    """Drop a trailing ALL-CAPS chapter caption from a title-case heading.
+
+    Used by the body-bind third pass (``_title_stems``) so a TOC heading that
+    still carries a glued caption can match the body title.
+    """
+    t = re.sub(r"\s+", " ", (text or "")).strip()
+    if not t or not any(c.islower() for c in t):
+        return t
+    words = t.split()
+    i = len(words)
+    while i > 0 and re.fullmatch(r"[A-Z][A-Z'-]*", words[i - 1] or ""):
+        i -= 1
+    if len(words) - i >= 3 and i > 0:
+        return " ".join(words[:i]).rstrip(" .,;:")
+    return t
+
+
 def _shared_prefix_words(a: str, b: str) -> int:
     aw, bw = a.split(), b.split()
     n = 0
@@ -416,6 +468,23 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
     pending_heading_for: Optional[Node] = None
     last_section: Optional[SectionEntry] = None
     pending_page: Optional[SectionEntry] = None
+
+    def _open_caption_chapter(caption: str) -> None:
+        """A TOC-omitted chapter whose numeral the body will fill in.
+
+        Customs prints CHAPTER IV / IX / XI in the body but omits the
+        ``CHAPTER N`` row from the contents (ledger O03).  The ALL-CAPS caption
+        is the only TOC trace; opening a node here stops it gluing onto the
+        previous section and parents the following rows to the right container.
+        """
+        nonlocal cur_chapter, cur_part, cur_division
+        nonlocal pending_heading_for, last_section, pending_page
+        node = Node(kind="chapter", code="", heading=caption)
+        chapters.append(node)
+        cur_chapter, cur_part, cur_division = node, None, None
+        pending_heading_for = node
+        last_section = None
+        pending_page = None
     # True once a TOC page-number line follows a division's first title: the next
     # title line begins a NEW entry rather than wrapping the current heading.  At
     # that title we decide, by the shared leading phrase, whether the two lines
@@ -590,6 +659,9 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
             mid = CONT_RE.match(line)
             if mid and not SECTION_RE.match(line):
                 extra = _clean_heading(mid.group("text"))
+                if extra and is_foreign_caption(pending_page.heading, extra):
+                    _open_caption_chapter(extra)
+                    continue
                 if (extra and extra not in furniture
                         and not re.fullmatch(r"\(?[ivxlcdm]+\)?", extra,
                                              re.IGNORECASE)):
@@ -690,6 +762,12 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
             if extra and re.fullmatch(r"\(?[ivxlcdm]+\)?", extra, re.IGNORECASE):
                 continue
             if extra in furniture:      # the contents' own running title
+                continue
+            # An omitted CHAPTER's ALL-CAPS caption (no ``CHAPTER N`` row): do
+            # not glue it onto the previous section -- open a chapter node so
+            # the following rows parent here.  See ``is_foreign_caption``.
+            if extra and is_foreign_caption(last_section.heading, extra):
+                _open_caption_chapter(extra)
                 continue
             if extra and (not extra.isdigit()
                           or _completes_heading_year(last_section.heading, extra)):
@@ -931,6 +1009,46 @@ def _demo() -> None:
     for e in wsecs:
         assert "CUSTOMS ACT" not in (e.heading or ""), (e.code, e.heading)
         assert "(viii)" not in (e.heading or ""), (e.code, e.heading)
+
+    # --- Customs Act 1969 (30.06.2025): omitted CHAPTER IV caption -----------
+    # The contents skip the ``CHAPTER IV`` row.  The ALL-CAPS caption after
+    # s.14A used to glue onto 14A's heading, and ss.15+ stayed parented to
+    # CHAPTER III.  The caption must open its own chapter node instead.
+    omitted_ch = [
+        "        CHAPTER III",
+        "        DECLARATION OF PORTS, AIRPORTS, LAND CUSTOMS STATIONS, ETC.",
+        "        14.  Stations for officers of customs to board and land.  39",
+        "        14A. Provision of accommodation at customs ports, etc.    40",
+        "             PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION",
+        "        15.  Prohibitions.                                        41",
+        "        16.  Power to prohibit or restrict importation and exportation of goods.  41",
+        "        CHAPTER V",
+        "        LEVY OF, EXEMPTION FROM AND REPAYMENT OF, CUSTOMS-DUTIES",
+        "        18.  Goods dutiable.                                      45",
+    ]
+    och, _sch, osecs = parse_toc(omitted_ch, ACTS)
+    assert [c.code for c in och] == ["CHAPTER III", "", "CHAPTER V"], \
+        [c.code for c in och]
+    assert och[1].heading == (
+        "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION"), \
+        och[1].heading
+    by_code = {e.code: e for e in osecs}
+    assert by_code["14A"].heading == (
+        "Provision of accommodation at customs ports, etc"), by_code["14A"].heading
+    assert "PROHIBITION" not in by_code["14A"].heading
+    assert by_code["14A"].parent is och[0], "14A must stay in CHAPTER III"
+    assert by_code["15"].parent is och[1], "15 must parent to the caption chapter"
+    assert by_code["16"].parent is och[1]
+    assert by_code["18"].parent is och[2]
+    assert strip_foreign_caption_tail(
+        "Provision of accommodation at customs ports, etc "
+        "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION"
+    ) == "Provision of accommodation at customs ports, etc"
+    assert not is_foreign_caption(
+        "PROHIBITION AND RESTRICTION OF", "IMPORTATION AND EXPORTATION")
+    assert is_foreign_caption(
+        "Provision of accommodation at customs ports, etc",
+        "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION")
 
     print("toc self-check passed")
 

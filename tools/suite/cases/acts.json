@@ -289,6 +289,71 @@
         "44.6"
       ],
       "description": "s.43A must not hold 46.5, which s.45A cites and renders.  s.43A cites marker '5' on page 45, page 45 prints no note '5', and the citing_page+1 lookup took page 46's note '5' -- a different note from the one footnote_map resolved for the rendered <sup>.  Off-page lookups now have to match the displayed title."
+    },
+    {
+      "id": "o03_2025_sec14a_heading_clean",
+      "source": "reports/anomalies.md O02/O03",
+      "status": "active",
+      "applies_to": "30th June, 2025",
+      "check": "section_heading_equals",
+      "target": {
+        "kind": "section",
+        "code": "14A"
+      },
+      "arg": "Provision of security and accommodation at Customs-ports, etc",
+      "description": "The 2025 TOC row for 14A has the un-listed Chapter IV caption glued onto it ('... etc PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION'); the heading must come from the body, not the glued TOC string. Companion of o02_2025_sec72a_heading_from_body on a different omitted chapter."
+    },
+    {
+      "id": "o03_2025_sec14a_body_present",
+      "source": "reports/anomalies.md O03",
+      "status": "active",
+      "applies_to": "30th June, 2025",
+      "check": "plain_contains",
+      "target": {
+        "kind": "section",
+        "code": "14A"
+      },
+      "arg": "Any agency or person",
+      "description": "s.14A must bind and carry its live provision. Without a starts[] hit the pipeline emits a heading-only TOC placeholder and s.14 absorbs the statute."
+    },
+    {
+      "id": "o03_2025_sec14_no_14a_text",
+      "source": "reports/anomalies.md O03",
+      "status": "active",
+      "applies_to": "30th June, 2025",
+      "check": "plain_not_contains",
+      "target": {
+        "kind": "section",
+        "code": "14"
+      },
+      "arg": "Provision of security and accommodation",
+      "description": "The companion half: s.14A's unbound text used to sit inside s.14, the same class as rca_2007_sec14_no_14a_text."
+    },
+    {
+      "id": "o03_2025_sec14_no_legal_reference",
+      "source": "reports/anomalies.md O03",
+      "status": "active",
+      "applies_to": "30th June, 2025",
+      "check": "plain_not_contains",
+      "target": {
+        "kind": "section",
+        "code": "14"
+      },
+      "arg": "LEGAL REFERENCE",
+      "description": "LEGAL REFERENCE is a Customs footnote-zone caption, body-sized. When notes sit overleaf it used to remain in s.14 as a <p><strong>."
+    },
+    {
+      "id": "o03_2025_chapter_iv_present",
+      "source": "reports/anomalies.md O03",
+      "status": "active",
+      "applies_to": "30th June, 2025",
+      "check": "chapter_heading_equals",
+      "target": {
+        "kind": "chapter",
+        "code": "CHAPTER IV"
+      },
+      "arg": "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION",
+      "description": "Customs TOC omits CHAPTER IV; the body prints it. Ungluing the caption without inserting a node would drop the title and leave ss.15+ parented to Chapter III."
     }
   ]
 }

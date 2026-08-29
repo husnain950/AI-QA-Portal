@@ -1432,6 +1432,32 @@ def _candidate_code(line) -> str | None:
     return code if code and is_code_like(code) else None
 
 
+#: Marker run plus opening bracket(s) as their own line, the code on the next.
+#: Customs 2025 prints s.14A as ``5&7[`` over ``(14A. Provision of security…``;
+#: neither line matches ``_DOTFORM_RE`` on its own (the paren is only legal
+#: inside ``[`` on the SAME line).
+_SPLIT_BRACKET_PREFIX_RE = re.compile(rf"^\s*{MARKER_PREFIX}\[+\s*$")
+_BARE_PAREN_SUFFIXED_DOT_RE = re.compile(
+    rf"^\s*\(({CODE_SUFFIXED})\s*\.")
+
+
+def _split_bracket_candidate_code(prev_line, line) -> str | None:
+    """Code when the amendment bracket closed on the previous line.
+
+    The paren is still only admitted after a bracket -- just split across the
+    line break.  ``CODE_SUFFIXED`` keeps this off ``(90.22).`` and ``(5) The``.
+    """
+    if prev_line is None or line is None:
+        return None
+    if not _SPLIT_BRACKET_PREFIX_RE.match((prev_line.text() or "").strip()):
+        return None
+    m = _BARE_PAREN_SUFFIXED_DOT_RE.match((line.text() or "")[:40])
+    if not m:
+        return None
+    code = norm_code(m.group(1))
+    return code if code and is_code_like(code) else None
+
+
 def _candidate_code_raw(line) -> str | None:
     head = line.text()[:40]
     # FIRST -- before _DOTFORM_RE, whose mandatory dot would otherwise be
@@ -1605,6 +1631,8 @@ def _title_stems(text: str) -> list:
     straight into the provision text on the same line.
     """
     head = re.split(r"[.,]\s*[-—–―─]|\.\s", text, maxsplit=1)[0]
+    from .toc import strip_foreign_caption_tail
+    head = strip_foreign_caption_tail(head)
     out = []
     for tok in re.findall(r"[A-Za-z]+", head):
         out.append(tok.lower()[:5])
@@ -1666,8 +1694,15 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
     code_positions: dict[str, list[int]] = defaultdict(list)
     for idx, ref in enumerate(body_refs):
         cc = _candidate_code(ref.line) or _dotless_candidate_code(ref.line)
+        start_idx = idx
+        if not cc and idx > 0:
+            prev = body_refs[idx - 1]
+            if prev.page == ref.page:
+                cc = _split_bracket_candidate_code(prev.line, ref.line)
+                if cc:
+                    start_idx = idx - 1
         if cc:
-            code_positions[cc].append(idx)
+            code_positions[cc].append(start_idx)
     # body-driven entries (TOC-less editions) carry their heading LineRef;
     # resolve those by IDENTITY -- exact, and it survives the second
     # build_sections pass after claim_placeholder_lines filters body_refs,
@@ -3155,6 +3190,21 @@ def _demo() -> None:
         line = _codeline(text)
         got = _candidate_code(line) or _dotless_candidate_code(line)
         assert got == want, (text[:46], got, want)
+
+    # Marker/bracket on the previous line, code on this one.  Without the
+    # prefix, a bare ``(14A.`` is not a section (the paren is only legal
+    # inside ``[``).
+    prefix = _codeline("5&7[")
+    split = _codeline("(14A. Provision of security and accommodation at Customs-ports")
+    assert _candidate_code(split) is None
+    assert _split_bracket_candidate_code(prefix, split) == "14A"
+    assert _split_bracket_candidate_code(_codeline("["), split) == "14A"
+    assert _split_bracket_candidate_code(prefix, _codeline("(90.22).")) is None
+    assert _split_bracket_candidate_code(prefix, _codeline("(5) The Federal Government")) is None
+    glued = ("Provision of accommodation at customs ports, etc "
+             "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION")
+    stems = _title_stems(glued)
+    assert "prohib" not in stems and stems[:3] == ["provi", "of", "accom"], stems
 
     # The guards.  A bare "(" outside the amendment bracket reads Finance Act
     # 2014's PCT tariff heading as a section; an inserted SUBSECTION has no dot

@@ -19,9 +19,9 @@ sys.path.insert(0, os.path.join(
 from suite import runner  # noqa: E402
 from suite.invariants import _common  # noqa: E402
 
-#: The Acts and the Rules run the same 55 checks; the Ordinance pipeline has no OCR
+#: The Acts and the Rules run the same 58 checks; the Ordinance pipeline has no OCR
 #: stage and no provisional/text-density concepts, so it runs 45.
-EXPECTED_COUNTS = {"acts": 55, "rules": 55, "ordinance": 45}
+EXPECTED_COUNTS = {"acts": 58, "rules": 58, "ordinance": 45}
 
 
 def test_section_attribution_helpers():
@@ -30,6 +30,18 @@ def test_section_attribution_helpers():
     as having lost its statutory text to a neighbour, so the shapes they must
     tell apart are pinned rather than left to the corpus."""
     _common._demo_section_attribution()
+
+
+def test_heading_leak_class_helpers():
+    """The O02/O03 detectors (caption-in-heading, LEGAL REFERENCE, body chapters)."""
+    _common._demo_heading_leak_class()
+
+
+def test_toc_omitted_chapter_caption_not_glued():
+    """PDF-independent pin: Customs 14A must not absorb the Chapter IV caption."""
+    from suite.invariants.acts import inv_toc_omitted_chapter_caption_not_glued
+
+    assert inv_toc_omitted_chapter_caption_not_glued({}) == []
 
 
 def test_each_lane_binds_its_full_invariant_set():
@@ -101,3 +113,27 @@ def test_unknown_invariant_name_is_an_error_not_a_silent_skip():
         assert "definitely_not_an_invariant" in str(err)
     else:
         raise AssertionError("an unknown invariant name must raise, not be skipped")
+
+
+def test_o03_cases_are_shipped():
+    import json
+    import os
+
+    path = os.path.join(os.path.dirname(__file__), "..", "suite", "cases", "acts.json")
+    with open(path, encoding="utf-8") as fh:
+        cases = json.load(fh)["cases"]
+    ids = {c["id"] for c in cases}
+    for cid in (
+        "o03_2025_sec14a_heading_clean",
+        "o03_2025_sec14a_body_present",
+        "o03_2025_sec14_no_14a_text",
+        "o03_2025_sec14_no_legal_reference",
+        "o03_2025_chapter_iv_present",
+        "o02_2025_sec72a_heading_from_body",
+        "rca_2007_sec14a_body_present",
+        "rca_2007_sec14_no_14a_text",
+    ):
+        assert cid in ids, cid
+    o03 = [c for c in cases if c["id"].startswith("o03_2025_")]
+    assert all(c["applies_to"] == "30th June, 2025" for c in o03)
+    assert all(c["status"] == "active" for c in o03)

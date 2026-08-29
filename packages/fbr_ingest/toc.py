@@ -140,6 +140,25 @@ def _join_heading(prev: str, cont: str) -> str:
     return (prev + " " + cont).strip()
 
 
+def _is_foreign_caption(heading_so_far: str, extra: str) -> bool:
+    """True when ``extra`` is a 3+ word ALL-CAPS caption on a title-case heading.
+
+    Same class as ``legal_ingest.toc.is_foreign_caption``: an omitted chapter
+    caption must not glue onto the previous section.  Ordinance contents
+    usually print the ``CHAPTER N`` row, but the CONT_RE fallthrough is the
+    same and the guard is cheap.
+    """
+    t = re.sub(r"\s+", " ", (extra or "").strip())
+    if not t or any(c.islower() for c in t):
+        return False
+    if len(re.findall(r"[A-Z][A-Z'-]*", t)) < 3:
+        return False
+    so_far = (heading_so_far or "").strip()
+    if so_far and not any(c.islower() for c in so_far):
+        return False
+    return True
+
+
 def _merge_parallel_titles(a: str, b: str):
     """Merge two TOC title lines that are parallel halves of ONE division heading.
 
@@ -331,6 +350,8 @@ def parse_toc(lines: list[str]):
         cm = CONT_RE.match(line)
         if cm and last_section is not None and not SECTION_RE.match(line):
             extra = _clean_heading(cm.group("text"))
+            if extra and _is_foreign_caption(last_section.heading, extra):
+                continue
             if extra and (not extra.isdigit()
                           or _completes_heading_year(last_section.heading, extra)):
                 last_section.heading = _join_heading(last_section.heading, extra)
