@@ -334,8 +334,36 @@ CHAPTER_RE = re.compile(
     rf"(?:\s*[–—]\s*(?P<title>\S.*?))?"
     rf"(?:\s+{PAGE_TOC})?\s*$",
     re.IGNORECASE)
+#: A PART row may print its CAPTION on the same line, which the numeral-only form
+#: rejected outright.  Sales Tax Rules 2006 contents:
+#:
+#:     PART-I RECOVERY ..................................................... 71
+#:     PART-II ATTACHMENT AND SALE OF MOVABLE PROPERTY ..................... 73
+#:     PART-III ATTACHMENT AND SALE OF IMMOVABLE PROPERTY .................. 78
+#:
+#: Those rows fell through to the heading-continuation branch, where their
+#: ALL-CAPS text satisfies ``is_foreign_caption`` and opened an anonymous CHAPTER
+#: for each -- lifting 64 rules out of their real chapter into two top-level
+#: containers, which is what put CHAPTER XIV-AB (page 123) after XIV-B (129).
+#:
+#: Two narrowings, both measured over 212,547 distinct corpus lines:
+#:
+#: * The caption group is ``(?-i:...)``.  The pattern is IGNORECASE for the
+#:   keyword's sake, and without the scoped flag the caption class matches
+#:   lowercase too -- "Part 1 of Second China Overseas Ports" and 47 sibling
+#:   schedule table rows.
+#: * A caption is only accepted when contents LEADERS or a page number follow it.
+#:   Without that, ``PART_RE`` matches a running page HEADER: Income Tax Rules
+#:   2002 prints "PART-I   SECOND SCHEDULE" at the top of 457 pages, which took
+#:   its measured ``part_lines`` from 43 to 595.  A contents row carries leaders
+#:   or a folio; a running header carries neither.
+#:
+#: Together: 13 lines gained, 0 lost, and every gain is a real contents row.
 PART_RE = re.compile(
-    rf"^\s*{spaced('PART')}[\s\-]+({NUMERAL})(?:\s+{PAGE_TOC})?\s*$",
+    rf"^\s*{spaced('PART')}[\s\-]+({NUMERAL})"
+    rf"(?:\s+(?P<caption>(?-i:[A-Z][A-Z\s,'&\-]{{3,}}?))"
+    rf"(?=\s*\.{{2,}}|\s+{PAGE_TOC}\s*$))?"
+    rf"(?:\s*\.{{2,}}\s*)?(?:\s+{PAGE_TOC})?\s*$",
     re.IGNORECASE)
 DIVISION_RE = re.compile(
     rf"^\s*{spaced('Division')}[\s\-]+({NUMERAL})(?:\s+{PAGE_TOC})?\s*$",

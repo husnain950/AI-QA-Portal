@@ -197,8 +197,8 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**75 hits across 103 converted editions**, re-measured 2026-08-30 after round 5.
-210 → 193 → 148 → 92 → 78 → 75. Documents held: acts 80, rules 11, ordinance 12.
+**70 hits across 103 converted editions**, re-measured 2026-08-30 after round 6.
+210 → 193 → 148 → 92 → 78 → 75 → 70. Documents held: acts 80, rules 11, ordinance 12.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
 numerals, read the same way in the body scan, the tree and the invariant.
@@ -210,18 +210,20 @@ Round 4: [`wip/phase3-split-codes.md`](./phase3-split-codes.md) — the text lay
 code, and a measured note that had gone out of date.
 Round 5: [`wip/phase3-toc-furniture.md`](./phase3-toc-furniture.md) — the contents page's
 own running title, read as a chapter.
+Round 6: [`wip/phase3-chapter-order.md`](./phase3-chapter-order.md) — a part is not a
+chapter, and a suffix is not a sum.
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
 | `section_carries_its_body` | 19 (10) | 17 (4) | 5 (4) | 41 | 41 |
 | `no_foreign_section_start_in_body` | 10 (10) | 9 (4) | — | 19 | 19 |
-| `section_codes_ordered` | 6 (5) | — | — | **6** | 7 |
-| `structure_counts` | — | 5 (2) | — | 5 | 5 |
-| `no_chapter_caption_in_section_heading` | 3 (3) | — | — | **3** | 5 |
+| `section_codes_ordered` | 6 (5) | — | — | 6 | 6 |
+| `no_chapter_caption_in_section_heading` | 3 (3) | — | — | 3 | 3 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
+| `structure_counts` | — | — | — | **0** | 5 |
 | `no_footnote_text_in_body` | — | — | — | **0** | 45 |
 | `body_chapters_in_tree` | — | — | — | **0** | 21 |
-| **per lane** | **39** | **31** | **5** | **75** | 78 |
+| **per lane** | **39** | **26** | **5** | **70** | 75 |
 
 `no_chapter_caption_in_section_heading` gains one because round 4 made it visible: with
 rule 150ZQZA finally binding, its heading is readable, and it is a FALSE positive — the
@@ -304,19 +306,32 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       for every document we can measure — the seven amending instruments are clean on it,
       and all ten acts hits are in consolidated statutes (seven Customs editions, three
       Sales Tax). It may still hold for the 18 amending instruments behind OCR.
-- [ ] **`structure_counts` (5) — a parser defect, not a source quirk.** Round 5's furniture
-      fix did **not** move it: the rules lane still shows the anonymous-container symptom
-      (three per Sales Tax Rules edition, plus `CHAPTER V-C` at page 47 sitting among
-      61–65), so a second path reaches `_open_caption_chapter`. This entry used
-      to say the *source* places `XIV-AB/AC/AD` after `XIV-B/C/D`. That is **wrong**, and
-      the source's own contents page says so: `XIV-AB ..105`, `XIV-AC ..105`,
-      `XIV-AD ..107`, **then** `XIV-B ..111`, `XIV-BA ..125`, `XIV-C ..136`, `XIV-D ..140`
-      — strictly ascending, exactly as the numerals read. The tree puts `XIV-B` before
-      `XIV-AB`, so the parser reordered them. A fix, not an exemption.
-      The invariant's printed-page escape (`invariants/rules.py:120`) is **not** dead as
-      first suspected — `_first_printed_page` returns correct values; it declines because
-      the pages genuinely go backwards, which is the tree being wrong.
-- [ ] **`section_codes_ordered` (7, 6 acts editions)** — never triaged.
+- [x] **`structure_counts` (5 → 0) — two fixes, and only the second moved the number.**
+      *A part is not a chapter.* `PART_RE` required the numeral to end the line, so
+      `PART-II ATTACHMENT AND SALE OF MOVABLE PROPERTY ..... 73` fell through to the caption
+      branch and opened a chapter, lifting 64 rules out of CHAPTER XI. Two measured
+      narrowings: the caption group needs `(?-i:…)` (unscoped it matches
+      `Part 1 of Second China Overseas Ports` and 47 schedule rows), and a caption is only
+      accepted when leaders or a folio follow (without it, Income Tax Rules 2002's running
+      header `PART-I   SECOND SCHEDULE` on 457 pages takes `part_lines` 43 → **595**).
+      **13 gained, 0 lost.** Sales Tax Rules: 43 → 41 chapters, 2 spurious containers → 4
+      real part nodes, 339 sections held — **and the register did not move.**
+      *A suffix is not a sum.* `insert_missing_body_chapters` sorted chapters by
+      `_roman_value`, which folds a suffix into two decimals by SUMMING its letters:
+      `XIV-AA` and `XIV-B` both 14.02, `XIV-AB`/`XIV-BA`/`XIV-C` all 14.03. Ordering on
+      `(base numeral, suffix letters)` reproduces the contents page exactly.
+      `_roman_value` itself is unchanged — round 1's Arabic/roman guard depends on it. The
+      `ch.code` tiebreak had to come out: `XIVA` and `XIV-A` share a key and a string
+      compare orders them by punctuation, not by the contents page. `list.sort` is stable,
+      so equal keys keep the TOC's order. Both facts locked.
+      `signatures.json` moved deliberately: 11 documents, `part_lines` plus
+      `container_order` `CP → PC`, **0 family changes**.
+- [ ] **`section_codes_ordered` (6) — a parenting error, not a body error.** Section 33A
+      binds its real body at page 75 but is parented to CHAPTER I, which holds
+      `['1', '2', '33A']` across pages 2–75. That edition reports `toc_pages_scanned: 0` —
+      it is TOC-less and rebuilt by `discover.py`, so the parenting comes from **body
+      discovery**, not `parse_toc`. The document also prints `[(33A) "supply chain" means …`
+      as a *definition clause* of section 2, inside CHAPTER I.
 - [x] **The contents page's own title, read as a chapter — and the invariant's proxy.**
       Two fixes, measured separately.
       *Parser:* `82A out of order after 224` was a chapter-parsing problem, not an ordering

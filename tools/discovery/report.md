@@ -13,7 +13,7 @@ measured from the staged corpus; nothing here is hand-entered.
 | urdu | 4 | no | 0.62 |
 | no_text_layer | 30 | no | 0.47 |
 | amending | 36 | yes | 0.73 |
-| consolidated | 117 | yes | 0.85 |
+| consolidated | 117 | no | 0.85 |
 | **unexplained** | 0 | -- | -- |
 
 By lane: ordinance 47, acts 95, rules 48
@@ -45,11 +45,12 @@ is what shows whether the five families are cutting the corpus where it bends.
 | 30 | flat | notoc | no_text_layer | Assets Declaration (Amendment) Ordinance 2019 |
 | 24 | flat | notoc | consolidated | The Islamabad Capital Territory (Tax on Services) Ordinance, 2001 |
 | 15 | PCD | toc | consolidated | Income Tax Ordinance, 2001 |
-| 10 | CP | toc | consolidated | Customs Rules, 2001 (Updated Up to 30.06.2023) |
+| 8 | PC | toc | consolidated | Sales Tax Rules 2006 |
 | 5 | C | notoc | consolidated | Public Finance Management Act, 2019 |
 | 4 | flat | notoc | urdu | Assets Declaration Ordinance, 2019 |
 | 4 | CPD | toc | consolidated | Income Tax Ordinance, 2001 |
 | 3 | flat | notoc | unconvertible | Income Tax Ordinance, 1979 - Old Laws |
+| 2 | CP | toc | consolidated | Customs Rules, 2001 (Updated Up to 30.06.2023) |
 | 1 | PC | toc | amending | Finance Acts |
 | 1 | P | toc | amending | Finance Acts |
 | 1 | CP | toc | amending | Finance Acts |
@@ -191,6 +192,20 @@ away.
 | 631 | consolidated | CPD | 44 | 8 | Microsoft® Word 2013 |  Income Tax Rules, 2002 Amended upto 8th September, 2020.p |
 | 946 | consolidated | PCD | 56 | 8 | -- |  Income Tax Rules, 2002 Amended upto 24.11.2023.pdf |
 
+### rules / Sales Tax Rules 2006  (9 editions, 2 shapes)
+
+| pages | family | containers | CH | dot leaders | producer | file |
+|---|---|---|---|---|---|---|
+| 113 | consolidated | CP | 15 | 213 | Microsoft® Word 2010 | THE SALES TAX RULES, 2006 UPDATED UPTO 11.08.2014.pdf |
+| 149 | consolidated | PC | 20 | 262 | Microsoft® Word 2010 | Sales Tax Rules 2006 (amended up to 30th June 2015).pdf |
+| 150 | consolidated | PC | 20 | 262 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 30.10.2018.pdf |
+| 193 | consolidated | PC | 27 | 367 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 30.06.2020 |
+| 218 | consolidated | PC | 28 | 372 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 31.12.2020 |
+| 224 | consolidated | PC | 31 | 500 | Microsoft® Word 2016 | Sales Tax Rules 2006 updated upto 30-06-2025.pdf |
+| 241 | consolidated | PC | 31 | 497 | Microsoft® Word 2019 | Sales Tax Rules, 2006 (Updated upto 01-01-2025).pdf |
+| 241 | consolidated | PC | 28 | 459 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 31.08.2021 |
+| 251 | consolidated | PC | 28 | 510 | Microsoft® Word 2019 | The Sales Tax Rules, 2006 updated upto 31.10.2023 |
+
 ## 5. Low confidence and unexplained
 
 Low confidence means the document parses but does not look like the rest of its
@@ -199,35 +214,8 @@ refuses it rather than forcing it into the nearest shape.
 
 | family | conf | lane | evidence | file |
 |---|---|---|---|---|
-| consolidated | 0.33 | ordinance | has_leaves; has_schedules | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | Foreign Assets (Declaration and Repatriation) Act, 2 |
-| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | The Federal Board of Revenue Act, 2007 (Amended up t |
-| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | The Pakistan Single Window Act, 2021.pdf |
-| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | Voluntary Declaration of Domestic Assets Act, 2018.p |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | AML_CFT Sanction Rules, 2020.pdf |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Counter-Measures for High Risk Jurisdiction Rules, 2 |
-| consolidated | 0.33 | rules | has_leaves; has_contents_page | Inland Revenue Uniform Rules, 2021.pdf |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | PSW Evidence of Identity Regulations, 2023.pdf |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Pakistan Single Window Evidence of Identity (EOI) Ru |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Pakistan Single Window Integrated Risk Management Sy |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Pakistan Single Window Trade Data Dissemination, Exc |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | S.R.O406(I)_2023 - PSW Trade Data Dissemination, Exc |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Sales Tax Special Procedure (Withholding) Rules, 200 |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Sharing of Declaration of Assets of Civil Servants R |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | The Pakistan Single Window (Deputation_Secondment of |
 | amending | 0.4 | acts | amending_language; gazette_masthead | Finance Act, 2019.pdf |
 | amending | 0.4 | acts | amending_language; names_its_targets | Finance Act, 2022.pdf |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | Islamabad Capital Territory (Tax on Services) amende |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.5 | acts | has_leaves; has_containers; names_its_leaf_kind | Public Finance Management Act, 2019.pdf |
-| consolidated | 0.5 | rules | has_leaves; has_containers; names_its_leaf_kind | FBR AML_CFT Regulations.pdf |
-| consolidated | 0.5 | rules | has_leaves; amendment_footnotes; names_its_leaf_kind | THE SALES TAX SPECIAL PROCEDURE (WITHHOLDING) RULES, |
 
 ## 6. Coverage
 
@@ -240,7 +228,7 @@ on a rerun means a family stopped being tested by real documents.
 | urdu | · | · | · | · | · | · | 4 |
 | no_text_layer | · | · | · | · | · | · | 30 |
 | amending | · | 1 | · | 1 | 1 | · | 33 |
-| consolidated | 63 | 10 | 4 | · | · | 15 | 25 |
+| consolidated | 63 | 2 | 4 | · | 8 | 15 | 25 |
 
-*12 of 35 cells exercised.*
+*13 of 35 cells exercised.*
 
