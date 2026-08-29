@@ -197,23 +197,26 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**193 hits across 38 of 103 converted editions**, re-measured 2026-08-29 after the first
-class landed. Down from 210 across 36 of 101 — and the acts lane is back to 80 documents.
+**148 hits across 38 of 103 converted editions**, re-measured 2026-08-30 after round 2.
+Down from 193, and from 210 at the Phase 2 close. Documents held: acts 80, rules 11,
+ordinance 12.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
 numerals, read the same way in the body scan, the tree and the invariant.
+Round 2: [`wip/phase3-legal-reference.md`](./phase3-legal-reference.md) — the apparatus
+caption, which was never in a body at all.
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
 | `section_carries_its_body` | 27 (10) | 79 (6) | 5 (4) | 111 | 111 |
-| `no_footnote_text_in_body` | 45 (20) | — | — | 45 | 45 |
 | `no_foreign_section_start_in_body` | 10 (10) | 10 (4) | — | 20 | 20 |
-| `section_codes_ordered` | 7 (6) | — | — | 7 | 6 |
-| `structure_counts` | — | 5 (2) | — | 5 | 4 |
-| `no_chapter_caption_in_section_heading` | 3 (3) | 1 (1) | — | 4 | 2 |
+| `section_codes_ordered` | 7 (6) | — | — | 7 | 7 |
+| `structure_counts` | — | 5 (2) | — | 5 | 5 |
+| `no_chapter_caption_in_section_heading` | 3 (3) | 1 (1) | — | 4 | 4 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
+| `no_footnote_text_in_body` | — | — | — | **0** | 45 |
 | `body_chapters_in_tree` | — | — | — | **0** | 21 |
-| **per lane** | **93 / 28 docs** | **95 / 6 docs** | **5 / 4 docs** | **193** | 210 |
+| **per lane** | **48 / 28 docs** | **95 / 6 docs** | **5 / 4 docs** | **148** | 193 |
 
 Still a mixed-revision measurement: 61 scanned documents keep whatever revision last
 wrote them, and the rules column is measured over 11 of that lane's 48 documents.
@@ -236,9 +239,25 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       Measured on identical JSON, that alone is 210 → 189.
 - [ ] **`section_carries_its_body` (111)** — the largest class; 79 of it on six rules
       editions, 27 on ten acts editions. Check whether one zoning cause explains both.
-- [ ] **`no_footnote_text_in_body` (45, 20 acts editions)** — classify into cause classes
-      before fixing. It shed 64 hits to re-conversion alone; what is left is what the
-      current parser actually does.
+- [x] **`no_footnote_text_in_body` (45) — closed, and none of it was in a body.**
+      All 45 hits were the string `LEGAL REFERENCE` inside a citation tooltip's `title=`
+      attribute; the invariant searched raw markup, so an attribute counted as body text.
+      Zero appeared in rendered text. Stripping tags first is **193 → 148 on identical
+      JSON**.
+      Behind the false positive, a real defect it was not measuring: `build_page_model`
+      moved the apparatus caption out of the body into `footnote_lines`, where it lands
+      *before* the first marker — and a pre-marker line is by definition a continuation,
+      so it came back as `^cont` and was spliced onto the previous page's last note.
+      **473 footnote texts across 20 Customs editions.** The caption belongs in neither
+      zone and is now dropped from both (`_drop_apparatus_captions`).
+      The first version of the fix guarded `parse_footnotes` instead and left the caption
+      in `footnote_lines`; `audit_completeness.py` compares that against the output's
+      footnote texts and correctly read it as **48 lost words per edition**. Dropping one
+      layer earlier keeps conservation at 100.000% on both sides.
+      Also deleted a hardcoded `known_gaps` skip inside the check (Income Tax Ordinance
+      11.03.2019, Division XXI) — re-measured as **stale**, matching no branch of the
+      invariant before or after. A skip buried in a function cannot report itself stale;
+      an `exemptions/` entry does.
 - [ ] **`no_foreign_section_start_in_body` (20).** The amending hypothesis is falsified
       for every document we can measure — the seven amending instruments are clean on it,
       and all ten acts hits are in consolidated statutes (seven Customs editions, three

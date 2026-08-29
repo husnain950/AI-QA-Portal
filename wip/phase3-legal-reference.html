@@ -1,0 +1,583 @@
+<title>The Caption That Was Never There</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:      #f6f6f4;
+  --paper-sunk: #ecedea;
+  --ink:        #171c24;
+  --ink-soft:   #3a434f;
+  --muted:      #656e79;
+  --rule:       #d5d7d3;
+  --rule-soft:  #e4e5e2;
+  --accent:     #1d5b63;
+  --accent-bg:  #e2edee;
+  --defect:     #9c2f2a;
+  --defect-bg:  #f4e5e3;
+  --good:       #2c6146;
+  --good-bg:    #e3eee8;
+  --shadow:     0 1px 2px rgba(23,28,36,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #12161b;
+    --paper-sunk: #1a1f26;
+    --ink:        #e3e6e3;
+    --ink-soft:   #b9c0c5;
+    --muted:      #8d97a1;
+    --rule:       #2c333c;
+    --rule-soft:  #232931;
+    --accent:     #6fb2ba;
+    --accent-bg:  #163034;
+    --defect:     #dd8880;
+    --defect-bg:  #331d1c;
+    --good:       #74b795;
+    --good-bg:    #162b22;
+    --shadow:     0 1px 2px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #12161b;
+  --paper-sunk: #1a1f26;
+  --ink:        #e3e6e3;
+  --ink-soft:   #b9c0c5;
+  --muted:      #8d97a1;
+  --rule:       #2c333c;
+  --rule-soft:  #232931;
+  --accent:     #6fb2ba;
+  --accent-bg:  #163034;
+  --defect:     #dd8880;
+  --defect-bg:  #331d1c;
+  --good:       #74b795;
+  --good-bg:    #162b22;
+  --shadow:     0 1px 2px rgba(0,0,0,.3);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  line-height: 1.62;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sheet {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 4rem 2rem 6rem;
+}
+
+/* ---- the gutter: a marginal apparatus, which is what this page is about ---- */
+.block {
+  display: grid;
+  grid-template-columns: 12.5rem 1fr;
+  gap: 0 2.75rem;
+  align-items: start;
+}
+.block + .block { margin-top: 3.25rem; }
+.gutter {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .74rem;
+  line-height: 1.5;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: right;
+  padding-top: .5rem;
+  border-right: 1px solid var(--rule-soft);
+  padding-right: 2.75rem;
+  margin-right: -2.75rem;
+  min-height: 2rem;
+}
+.gutter .note {
+  display: block;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: .82rem;
+  font-style: italic;
+  font-family: "Newsreader", Georgia, serif;
+  color: var(--muted);
+  margin-top: .6rem;
+  line-height: 1.45;
+}
+.body { min-width: 0; max-width: 62ch; }
+
+@media (max-width: 860px) {
+  .block { grid-template-columns: 1fr; gap: 0; }
+  .gutter {
+    text-align: left; border-right: 0; padding-right: 0; margin-right: 0;
+    border-left: 2px solid var(--rule); padding-left: .85rem;
+    margin-bottom: .9rem; padding-top: 0;
+  }
+  .body { max-width: none; }
+  .sheet { padding: 2.5rem 1.25rem 4rem; }
+}
+
+/* ---- masthead ---- */
+.masthead { border-bottom: 2px solid var(--ink); padding-bottom: 1.5rem; margin-bottom: 3.5rem; }
+.eyebrow {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .72rem; font-weight: 600; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--accent); margin: 0 0 1rem;
+}
+h1 {
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 300; font-size: clamp(2.1rem, 5vw, 3.4rem);
+  line-height: 1.08; letter-spacing: -.018em;
+  margin: 0 0 .7rem; text-wrap: balance;
+}
+h1 em { font-style: italic; color: var(--accent); }
+.standfirst {
+  font-size: 1.13rem; color: var(--ink-soft); margin: 0;
+  max-width: 56ch; text-wrap: pretty;
+}
+
+h2 {
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 400; font-size: 1.62rem; line-height: 1.2;
+  letter-spacing: -.012em; margin: 0 0 1rem; text-wrap: balance;
+}
+h3 {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-weight: 600; font-size: .82rem; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--muted);
+  margin: 2rem 0 .75rem;
+}
+p { margin: 0 0 1.05rem; text-wrap: pretty; }
+.body > :last-child { margin-bottom: 0; }
+strong { font-weight: 600; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, .scroller:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px;
+}
+
+code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .845em;
+  background: var(--paper-sunk);
+  padding: .1em .34em; border-radius: 3px;
+  border: 1px solid var(--rule-soft);
+}
+
+/* ---- scoreline ---- */
+.scoreline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule);
+  margin: 0 0 3.5rem;
+}
+.score { background: var(--paper); padding: 1.15rem 1.15rem 1.05rem; }
+.score dt {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .68rem; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted); margin: 0 0 .5rem;
+}
+.score dd {
+  margin: 0; font-size: 1.85rem; font-weight: 300; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.score .was {
+  font-size: .8rem; color: var(--muted); margin-left: .45rem;
+  font-variant-numeric: tabular-nums;
+}
+.score .to { color: var(--good); }
+.score .flat { color: var(--ink-soft); }
+
+/* ---- code specimen ---- */
+.scroller { overflow-x: auto; }
+pre {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .78rem; line-height: 1.75;
+  background: var(--paper-sunk);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  padding: 1rem 1.15rem; margin: 0 0 1.05rem;
+  white-space: pre; tab-size: 2;
+}
+pre code { background: none; padding: 0; border: 0; font-size: inherit; }
+pre .hl { color: var(--defect); font-weight: 500; }
+pre .dim { color: var(--muted); }
+
+/* ---- tables ---- */
+table {
+  width: 100%; border-collapse: collapse;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .875rem; margin: 0 0 1.05rem;
+}
+caption {
+  caption-side: top; text-align: left;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .7rem; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+  padding-bottom: .6rem;
+}
+th, td {
+  text-align: left; padding: .62rem .75rem;
+  border-bottom: 1px solid var(--rule-soft); vertical-align: top;
+}
+thead th {
+  font-size: .7rem; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.chosen td { background: var(--good-bg); }
+tr.chosen td:first-child { box-shadow: inset 3px 0 0 var(--good); font-weight: 600; }
+tr.rejected td { color: var(--muted); }
+.tag {
+  display: inline-block; font-size: .68rem; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: .12rem .42rem; border-radius: 3px; white-space: nowrap;
+}
+.tag.bad  { background: var(--defect-bg); color: var(--defect); }
+.tag.ok   { background: var(--good-bg);   color: var(--good); }
+
+/* ---- the zone diagram ---- */
+.zones {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--rule); border: 1px solid var(--rule);
+  margin: 0 0 1.05rem;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+}
+.zone { background: var(--paper); padding: 1rem; }
+.zone h4 {
+  margin: 0 0 .7rem; font-size: .7rem; font-weight: 600;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
+}
+.line {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .72rem; padding: .3rem .5rem; margin-bottom: .28rem;
+  border: 1px solid var(--rule-soft); background: var(--paper-sunk);
+  color: var(--ink-soft); border-radius: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.line.caption {
+  border-color: var(--defect); background: var(--defect-bg);
+  color: var(--defect); font-weight: 500;
+}
+.line.gone {
+  border-style: dashed; border-color: var(--rule);
+  background: transparent; color: var(--muted);
+  text-decoration: line-through; text-decoration-color: var(--muted);
+}
+.cut {
+  display: flex; align-items: center; gap: .6rem;
+  font-size: .66rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--accent); margin: .55rem 0;
+}
+.cut::before, .cut::after {
+  content: ""; flex: 1; height: 0; border-top: 1px dashed var(--accent);
+}
+@media (max-width: 620px) { .zones { grid-template-columns: 1fr; } }
+
+.figcap {
+  font-size: .82rem; color: var(--muted); font-style: italic;
+  margin: 0 0 1.05rem;
+}
+
+.pull {
+  border-left: 3px solid var(--accent);
+  padding: .1rem 0 .1rem 1.15rem;
+  margin: 1.6rem 0; font-size: 1.12rem;
+  color: var(--ink-soft); font-style: italic;
+}
+.pull strong { font-style: normal; color: var(--ink); }
+
+footer {
+  margin-top: 4.5rem; padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: .8rem; color: var(--muted);
+  display: flex; flex-wrap: wrap; gap: .5rem 1.5rem;
+}
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">Phase 3 · Round 2 · Anomaly register</p>
+    <h1>The caption that was <em>never</em> in a body</h1>
+    <p class="standfirst">
+      Forty-five hits said footnote text had leaked into statutory prose. None of it had.
+      Behind the false positive sat a real defect ten times the size — and a measurement
+      that moved the fix one layer earlier.
+    </p>
+  </header>
+
+  <dl class="scoreline">
+    <div class="score">
+      <dt>Register</dt>
+      <dd><span class="to">148</span><span class="was">← 193</span></dd>
+    </div>
+    <div class="score">
+      <dt><code>no_footnote_text_in_body</code></dt>
+      <dd><span class="to">0</span><span class="was">← 45</span></dd>
+    </div>
+    <div class="score">
+      <dt>Footnotes carrying it</dt>
+      <dd><span class="to">0</span><span class="was">← 473</span></dd>
+    </div>
+    <div class="score">
+      <dt>Documents</dt>
+      <dd><span class="flat">80</span><span class="was">held</span></dd>
+    </div>
+    <div class="score">
+      <dt>OCR cache</dt>
+      <dd><span class="flat">0 B</span></dd>
+    </div>
+  </dl>
+
+  <section class="block">
+    <div class="gutter">
+      The finding
+      <span class="note">45 of 45 hits, measured across the whole acts lane.</span>
+    </div>
+    <div class="body">
+      <h2>The invariant was reading markup, not text</h2>
+      <p>
+        Every hit was <code>LEGAL REFERENCE caption in body</code>, on Customs Act sections
+        79, 81 and 123 and the Second and Third Schedules, across twenty editions. The
+        message is wrong. The caption is not in the prose — it is inside a citation
+        tooltip:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>&lt;sup class="cite" title="Added by Finance Act, 2015&amp;#10;<span class="hl">LEGAL REFERENCE</span>"&gt;79.8&lt;/sup&gt;</code></pre>
+      </div>
+      <p>
+        <code>inv_no_footnote_text_in_body</code> ran its pattern over the raw
+        <code>html</code> string, so an <em>attribute</em> counted as body text. Measured
+        over the lane: <strong>45 of 45</strong> hits sit inside a <code>title=</code>
+        attribute, and <strong>zero</strong> appear in rendered text — not in
+        <code>plain_text</code>, not in the HTML outside the attributes.
+      </p>
+      <p>
+        The check now strips tags first, using the same
+        <code>re.sub(r"&lt;[^&gt;]+&gt;", "", html)</code> idiom <code>_common.py</code>
+        already applies in five other places.
+      </p>
+      <div class="pull">
+        Measured on <strong>identical JSON</strong>, the invariant fix alone is
+        <strong>193 → 148</strong>.
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      What it hid
+      <span class="note">473 footnote texts, against 45 reported hits.</span>
+    </div>
+    <div class="body">
+      <h2>A tooltip carries the note it points at</h2>
+      <p>
+        So the caption being <em>in</em> the tooltip meant the caption was in the
+        footnote's own text. That is a real defect, and a far bigger one than the register
+        ever showed: <code>LEGAL REFERENCE</code> sat in <strong>473 footnote texts across
+        20 Customs editions</strong>.
+      </p>
+      <p>
+        The path was two steps, each individually reasonable. The page has a single
+        horizontal cut separating body from footnotes. The caption is set at
+        <em>body</em> size, so the cut lands below it — leaving apparatus in the prose.
+        Step one rescued it across. Step two then read a line sitting above the first
+        marker the only way it knows how: as the tail of a note continued from the
+        previous page.
+      </p>
+
+      <div class="zones">
+        <div class="zone">
+          <h4>Before — rescued across the cut</h4>
+          <div class="line">14. Stations for officers of customs…</div>
+          <div class="cut">Y-cut</div>
+          <div class="line caption">LEGAL REFERENCE &nbsp;→ ^cont</div>
+          <div class="line">19. Substituted by Finance Act, 2013…</div>
+        </div>
+        <div class="zone">
+          <h4>After — dropped from both</h4>
+          <div class="line">14. Stations for officers of customs…</div>
+          <div class="cut">Y-cut</div>
+          <div class="line gone">LEGAL REFERENCE</div>
+          <div class="line">19. Substituted by Finance Act, 2013…</div>
+        </div>
+      </div>
+      <p class="figcap">
+        A pre-marker line is, by definition, a continuation — so the caption came back as a
+        <code>^cont</code> fragment and was spliced onto the <em>previous</em> page's last
+        note. A caption printed above the notes was appended to the note before it, and
+        every leaf citing that note inherited it.
+      </p>
+      <p>
+        The caption is neither statute nor a note. It now belongs to neither zone, dropped
+        from both by <code>_drop_apparatus_captions</code>, whichever side of the cut it
+        landed on.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The layer decision
+      <span class="note">The shorter fix was in the wrong place, and the conservation audit said so.</span>
+    </div>
+    <div class="body">
+      <h2>Where the guard goes changes what it costs</h2>
+      <p>
+        The first version guarded <code>parse_footnotes</code>: skip a caption when
+        building notes, leave it in <code>footnote_lines</code>. It worked — 473 to nil —
+        and it was wrong. <code>audit_completeness.py</code> compares the page model's
+        <code>footnote_lines</code> against the output's footnote <em>texts</em>, so a
+        caption present on one side and absent from the other is, to the audit, lost text.
+      </p>
+      <div class="scroller" tabindex="0">
+        <table>
+          <caption>Customs Act 1969, 11.03.2019 — word conservation</caption>
+          <thead>
+            <tr>
+              <th>Where the fix sits</th>
+              <th class="num">Body</th>
+              <th class="num">Footnotes</th>
+              <th class="num">Missing</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="rejected">
+              <td>Before this PR</td>
+              <td class="num">100.000%</td>
+              <td class="num">100.000%</td>
+              <td class="num">0</td>
+            </tr>
+            <tr class="rejected">
+              <td>Guard in <code>parse_footnotes</code></td>
+              <td class="num">100.000%</td>
+              <td class="num">99.775%</td>
+              <td class="num"><span class="tag bad">48</span></td>
+            </tr>
+            <tr class="chosen">
+              <td>Drop in <code>build_page_model</code></td>
+              <td class="num">100.000%</td>
+              <td class="num">100.000%</td>
+              <td class="num"><span class="tag ok">0</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        The 48 were <code>LEGAL: 24</code>, <code>REFERENCE: 21</code>,
+        <code>REFERENCES: 2</code>, <code>REFERENCS: 1</code> — the caption itself, in all
+        three printed spellings the Customs Act uses.
+      </p>
+      <p>
+        Dropping it one layer earlier costs nothing on either side and is the
+        <em>shorter</em> diff: it replaces the old move-between-zones block rather than
+        adding to it, and it lets <code>footnotes.py</code> and <code>grammar.py</code>
+        leave the changeset entirely. Source footnote tokens went 21,369 → 21,321 — the 48
+        now counted on neither side.
+      </p>
+      <p>
+        The lock moved with the fix. It asserts on
+        <code>_drop_apparatus_captions</code>, the seam the behaviour actually lives on —
+        verified to fail when the filter is stubbed out. Locked at
+        <code>parse_footnotes</code>, the earlier version's test would still have passed.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      Incidental
+      <span class="note">A skip inside a function cannot report itself stale.</span>
+    </div>
+    <div class="body">
+      <h2>One tracked gap that had already closed</h2>
+      <p>
+        The check carried a hardcoded skip for a single (edition, leaf) pair — Income Tax
+        Ordinance 11.03.2019, Division XXI, whose substituted rate table once rendered
+        inside the division body.
+      </p>
+      <p>
+        Re-measured, that leaf matches <strong>no branch</strong> of the check: no marker
+        text, no caption, in neither <code>plain_text</code> nor <code>html</code>, before
+        this PR as well as after. Earlier work had closed it and nothing noticed.
+      </p>
+      <p>
+        That is the argument for the repo's own format. An entry in
+        <code>tools/suite/exemptions/</code> prints <em>“exemption is now stale — delete
+        the entry”</em> the moment its invariant starts passing. A skip buried in a
+        function is silent forever. Deleted rather than moved, because there is nothing
+        left to exempt.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      Gates
+      <span class="note">Every other invariant class is unchanged — no regressions, nothing newly visible.</span>
+    </div>
+    <div class="body">
+      <h2>What was checked</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead>
+            <tr><th>Gate</th><th>Result</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>ruff check</code> (bare, as CI runs it)</td><td><span class="tag ok">clean</span></td></tr>
+            <tr><td><code>pytest tools/tests</code></td><td>53 passed, 1 skipped</td></tr>
+            <tr><td>Package self-checks incl. the new lock</td><td><span class="tag ok">pass</span></td></tr>
+            <tr><td><code>discover_corpus.py --check</code></td><td>no drift</td></tr>
+            <tr><td><code>signatures.json</code></td><td>0 lines changed</td></tr>
+            <tr><td>Conservation, body / footnotes</td><td>100.000% / 100.000%</td></tr>
+            <tr><td>Documents — acts / rules / ordinance</td><td>80 / 11 / 12, held</td></tr>
+            <tr><td><code>data/ocr_cache</code></td><td>0 B</td></tr>
+            <tr><td>Rollback snapshot</td><td><code>output/_pre_r2/</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Register after round 2</h3>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th>Invariant</th>
+              <th class="num">acts</th><th class="num">rules</th>
+              <th class="num">ord.</th><th class="num">total</th><th class="num">was</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>section_carries_its_body</code></td><td class="num">27</td><td class="num">79</td><td class="num">5</td><td class="num">111</td><td class="num">111</td></tr>
+            <tr><td><code>no_foreign_section_start_in_body</code></td><td class="num">10</td><td class="num">10</td><td class="num">—</td><td class="num">20</td><td class="num">20</td></tr>
+            <tr><td><code>section_codes_ordered</code></td><td class="num">7</td><td class="num">—</td><td class="num">—</td><td class="num">7</td><td class="num">7</td></tr>
+            <tr><td><code>structure_counts</code></td><td class="num">—</td><td class="num">5</td><td class="num">—</td><td class="num">5</td><td class="num">5</td></tr>
+            <tr><td><code>no_chapter_caption_in_section_heading</code></td><td class="num">3</td><td class="num">1</td><td class="num">—</td><td class="num">4</td><td class="num">4</td></tr>
+            <tr><td><code>clause_codes_plausible</code></td><td class="num">1</td><td class="num">—</td><td class="num">—</td><td class="num">1</td><td class="num">1</td></tr>
+            <tr class="chosen"><td><code>no_footnote_text_in_body</code></td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">0</td><td class="num">45</td></tr>
+            <tr><td><strong>per lane</strong></td><td class="num"><strong>48</strong></td><td class="num"><strong>95</strong></td><td class="num"><strong>5</strong></td><td class="num"><strong>148</strong></td><td class="num">193</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="figcap">
+        One pre-existing failure found and <em>not</em> introduced here: the rules case
+        <code>str_bracketed_chapters_classify</code> reads
+        <code>BY ELECTRONIC OROTHER MEANS</code>. Verified failing on original code
+        against original JSON — the same jammed-token cause this document already carries
+        a <code>no_jammed_words</code> exemption for. It belongs to that class's round.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <span>Follows PR #46 — chapter numerals</span>
+    <span>No OCR: 61 scanned documents untouched</span>
+    <span>Measured 2026-08-30</span>
+  </footer>
+
+</div>

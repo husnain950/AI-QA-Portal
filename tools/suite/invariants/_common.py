@@ -586,25 +586,17 @@ def inv_no_footnote_text_in_body(doc):
     bug and the Customs apparatus-caption leak (a body-sized ``LEGAL REFERENCE``
     line left in the previous leaf when notes sit overleaf).
 
-    TRACKED KNOWN GAP (deferred fix): the 11.03.2019 edition prints Division XXI's
-    (Advance Tax on Banking Transactions, s.236P -- since omitted) substituted
-    rate table as a deeply-nested footnote-quoted block that renders inside the
-    division body.  Content is fully conserved (99.997% body / 100% footnotes) --
-    this is a placement issue whose fix needs fn-table zoning surgery
-    (_extract_body_tables / footnotes.py), too risky to attempt for one
-    since-omitted division without regressing the eleven green editions.  Only
-    this ONE (edition, leaf) pair is exempted; the guard stays fully live for
-    every other leaf and every other edition.  Remove the entry once the zoning
-    fix lands.
+    This carried one hardcoded (edition, leaf) skip -- Income Tax Ordinance
+    11.03.2019, Division XXI, whose substituted rate table used to render inside
+    the division body.  Re-measured 2026-08-30: that leaf now matches NO branch
+    of this check -- no marker, no caption, in neither plain_text nor html.  The
+    skip was stale, and being hardcoded inside the function is why nothing said
+    so; an entry in ``tools/suite/exemptions/`` reports itself as stale the
+    moment its invariant starts passing.  Deleted rather than moved.
     """
     bad = []
     markers = ("Table substituted by the Finance Act",)
-    filename = (doc.get("metadata") or {}).get("filename", "")
-    known_gaps = (("11th March, 2019", "Division XXI"),)  # see docstring
     for leaf in iter_all_leaves(doc):
-        if any(ed in filename and str(leaf.get("code")) == code
-               for ed, code in known_gaps):
-            continue
         body = leaf.get("plain_text", "")
         html = leaf.get("html", "")
         hit = False
@@ -615,7 +607,13 @@ def inv_no_footnote_text_in_body(doc):
                 break
         if hit:
             continue
-        if _LEGAL_REF_CAPTION.search(body) or _LEGAL_REF_CAPTION.search(html):
+        # Rendered text only.  Searching raw markup also reads ATTRIBUTES, and
+        # a citation tooltip legitimately carries the note it points at
+        # (title="Added by Finance Act, 2015 ..."), so every caption that the
+        # parser had correctly placed in the footnote apparatus was reported
+        # as a leak in the body.  All 45 hits of this class were that.
+        if _LEGAL_REF_CAPTION.search(body) or _LEGAL_REF_CAPTION.search(
+                re.sub(r"<[^>]+>", "", html)):
             bad.append(f"section {leaf.get('code')}: LEGAL REFERENCE caption in body")
     return bad
 
