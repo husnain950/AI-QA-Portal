@@ -1,0 +1,325 @@
+<title>The Running Title That Became a Chapter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:#f6f6f4; --paper-sunk:#ecedea; --ink:#171c24; --ink-soft:#3a434f;
+  --muted:#656e79; --rule:#d5d7d3; --rule-soft:#e4e5e2;
+  --accent:#1d5b63; --accent-bg:#e2edee;
+  --defect:#9c2f2a; --defect-bg:#f4e5e3;
+  --good:#2c6146; --good-bg:#e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+    --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+    --accent:#6fb2ba; --accent-bg:#163034;
+    --defect:#dd8880; --defect-bg:#331d1c;
+    --good:#74b795; --good-bg:#162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+  --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+  --accent:#6fb2ba; --accent-bg:#163034;
+  --defect:#dd8880; --defect-bg:#331d1c;
+  --good:#74b795; --good-bg:#162b22;
+}
+* { box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif; font-size:18px;
+  line-height:1.62; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+.sheet { max-width:1080px; margin:0 auto; padding:4rem 2rem 6rem; }
+.block { display:grid; grid-template-columns:12.5rem 1fr; gap:0 2.75rem; align-items:start; }
+.block + .block { margin-top:3.25rem; }
+.gutter { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.74rem; line-height:1.5;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right;
+  padding-top:.5rem; border-right:1px solid var(--rule-soft); padding-right:2.75rem;
+  margin-right:-2.75rem; min-height:2rem; }
+.gutter .note { display:block; text-transform:none; letter-spacing:0; font-size:.82rem;
+  font-style:italic; font-family:"Newsreader",Georgia,serif; color:var(--muted);
+  margin-top:.6rem; line-height:1.45; }
+.body { min-width:0; max-width:62ch; }
+@media (max-width:860px) {
+  .block { grid-template-columns:1fr; gap:0; }
+  .gutter { text-align:left; border-right:0; padding-right:0; margin-right:0;
+    border-left:2px solid var(--rule); padding-left:.85rem; margin-bottom:.9rem; padding-top:0; }
+  .body { max-width:none; } .sheet { padding:2.5rem 1.25rem 4rem; }
+}
+.masthead { border-bottom:2px solid var(--ink); padding-bottom:1.5rem; margin-bottom:3.5rem; }
+.eyebrow { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.72rem; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 1rem; }
+h1 { font-weight:300; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08;
+  letter-spacing:-.018em; margin:0 0 .7rem; text-wrap:balance; }
+h1 em { font-style:italic; color:var(--accent); }
+.standfirst { font-size:1.13rem; color:var(--ink-soft); margin:0; max-width:56ch; text-wrap:pretty; }
+h2 { font-weight:400; font-size:1.62rem; line-height:1.2; letter-spacing:-.012em; margin:0 0 1rem; text-wrap:balance; }
+h3 { font-family:"Source Sans 3",system-ui,sans-serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:2rem 0 .75rem; }
+p { margin:0 0 1.05rem; text-wrap:pretty; }
+.body > :last-child { margin-bottom:0; }
+strong { font-weight:600; }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible, .scroller:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:2px; }
+code { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.845em;
+  background:var(--paper-sunk); padding:.1em .34em; border-radius:3px; border:1px solid var(--rule-soft); }
+.scoreline { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin:0 0 3.5rem; }
+.score { background:var(--paper); padding:1.15rem; }
+.score dt { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.68rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem; }
+.score dd { margin:0; font-size:1.85rem; font-weight:300; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.score .was { font-size:.8rem; color:var(--muted); margin-left:.45rem; font-variant-numeric:tabular-nums; }
+.score .to { color:var(--good); } .score .flat { color:var(--ink-soft); }
+.scroller { overflow-x:auto; }
+pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem; line-height:1.75;
+  background:var(--paper-sunk); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:1rem 1.15rem; margin:0 0 1.05rem; white-space:pre; }
+pre code { background:none; padding:0; border:0; font-size:inherit; }
+pre .hl { color:var(--defect); font-weight:500; }
+pre .dim { color:var(--muted); }
+table { width:100%; border-collapse:collapse; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.875rem; margin:0 0 1.05rem; }
+caption { caption-side:top; text-align:left; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:.6rem; }
+th, td { text-align:left; padding:.62rem .75rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:.7rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--rule); }
+tbody tr:last-child td { border-bottom:0; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+tr.yes td:last-child { color:var(--defect); font-weight:600; }
+tr.no td:last-child { color:var(--good); font-weight:600; }
+tr.wrong td:first-child { box-shadow:inset 3px 0 0 var(--defect); }
+tr.right td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+.tag { display:inline-block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .42rem; border-radius:3px; white-space:nowrap; }
+.tag.ok { background:var(--good-bg); color:var(--good); }
+.tag.bad { background:var(--defect-bg); color:var(--defect); }
+.figcap { font-size:.82rem; color:var(--muted); font-style:italic; margin:0 0 1.05rem; }
+.pull { border-left:3px solid var(--accent); padding:.1rem 0 .1rem 1.15rem; margin:1.6rem 0;
+  font-size:1.12rem; color:var(--ink-soft); font-style:italic; }
+.pull strong { font-style:normal; color:var(--ink); }
+blockquote { margin:0 0 1.05rem; padding:.1rem 0 .1rem 1.15rem; border-left:2px solid var(--rule);
+  color:var(--muted); font-style:italic; font-size:.95rem; }
+footer { margin-top:4.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-family:"Source Sans 3",system-ui,sans-serif; font-size:.8rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">Phase 3 · Round 5 · Anomaly register</p>
+    <h1>The contents page's own title, read as a <em>chapter</em></h1>
+    <p class="standfirst">
+      A message about section ordering turned out to be about chapter parsing. The filter
+      that should have caught it already existed — and was consulted at the wrong end of
+      one test.
+    </p>
+  </header>
+
+  <dl class="scoreline">
+    <div class="score"><dt>Register</dt><dd><span class="to">75</span><span class="was">← 78</span></dd></div>
+    <div class="score"><dt>Customs 2008 chapters</dt><dd><span class="to">22</span><span class="was">← 24</span></dd></div>
+    <div class="score"><dt>Anonymous containers</dt><dd><span class="to">0</span><span class="was">← 2</span></dd></div>
+    <div class="score"><dt>Caption hits</dt><dd><span class="to">3</span><span class="was">← 5</span></dd></div>
+    <div class="score"><dt>Sections preserved</dt><dd><span class="flat">297</span></dd></div>
+  </dl>
+
+  <section class="block">
+    <div class="gutter">
+      The message lied
+      <span class="note">Not an ordering problem. A parsing one.</span>
+    </div>
+    <div class="body">
+      <h2><code>82A out of order after 224</code></h2>
+      <p>
+        Section 82A sat at tree position <strong>262</strong> — after the document's last
+        section — while printing on page 91. It was not in CHAPTER IX where it belongs. It
+        was in an <strong>anonymous container</strong> appended to the end of the tree, and
+        so were sections 167–192, in a second one. The parse reported <strong>24 chapters
+        against a contents page listing 22</strong>.
+      </p>
+      <p>Both containers open at a TOC page break, and both breaks land inside a wrapped row:</p>
+      <div class="scroller" tabindex="0">
+<pre><code>82.    Procedure in case of goods not cleared or warehoused or
+                              (viii)
+             <span class="hl">THE CUSTOMS ACT,1969</span>          <span class="dim">← ALL-CAPS: a "foreign caption"</span>
+       transshipped or exported or removed from the port within
+       twenty days after unloading or filing of declaration.    66
+
+82A.   Omitted.                                                 67   <span class="dim">← lands inside it</span></code></pre>
+      </div>
+      <p>
+        The contents page's own running title is capitalised, so it satisfies
+        <code>is_foreign_caption</code> and <code>_open_caption_chapter</code> opens a
+        chapter for it. Everything until the next real chapter heading parents there.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The fix
+      <span class="note">One line. The filter already knew this exact string.</span>
+    </div>
+    <div class="body">
+      <h2>Two call sites, two orderings, one of them right</h2>
+      <p>
+        <code>toc.py</code> has <code>_page_furniture</code> for precisely this line. Its
+        docstring names this document and this section:
+      </p>
+      <blockquote>
+        The 2007 Customs contents centre "THE&nbsp;&nbsp;CUSTOMS&nbsp;&nbsp;&nbsp;ACT,1969"
+        on all 22 of theirs […] so the copy that lands after the last section row of a page
+        was glued to that row — s.82A's heading came out "Omitted THE CUSTOMS ACT,1969".
+      </blockquote>
+      <p>The set is consulted at two call sites, and they order the tests differently:</p>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>Call site</th><th>Order of tests</th></tr></thead>
+          <tbody>
+            <tr class="right"><td>the <code>last_section</code> path</td><td><code>in furniture</code> → <strong>then</strong> <code>is_foreign_caption</code></td></tr>
+            <tr class="wrong"><td>the <code>pending_page</code> path</td><td><code>is_foreign_caption</code> → then <code>in furniture</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        The second is the one reached when a page break lands inside a <em>wrapped</em> row
+        — exactly this case — and by then the caption branch has already fired. Test
+        furniture first, as the other site already does.
+      </p>
+      <div class="pull">
+        Customs 2008 now parses <strong>22 chapters</strong>, 82A is back in CHAPTER IX
+        (pages 86–91), 167–192 in CHAPTER XVIII, zero anonymous containers, all 297
+        sections preserved. That edition drops from 5 hits to 2.
+      </div>
+      <p class="figcap">
+        Round 1's shape again: not a missing rule, but two places applying the same rule in
+        a different order.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The invariant
+      <span class="note">Measured separately, on identical JSON.</span>
+    </div>
+    <div class="body">
+      <h2>A proxy standing in for what the name says</h2>
+      <p>
+        <code>_CHAPTER_CAPTION_IN_HEADING</code> fires on any run of three or more
+        capitalised words. What the check <em>means</em> is that a chapter's caption leaked
+        into a section heading — and a section whose own title is set in capitals matches
+        the proxy just as well:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>150 ZQZA. <span class="hl">RESPONSIBILITIES OF THE VENDOR</span>.–(1) Subject to these rules,</code></pre>
+      </div>
+      <p>
+        That is Sales Tax Rules 2006 setting that rule's own title in capitals — reported in
+        <em>both</em> editions once round 4 let the rule bind at all. So the check now asks
+        the question its name asks: <strong>is this run a caption that appears on a chapter
+        of this document?</strong>
+      </p>
+      <div class="scroller" tabindex="0">
+        <table>
+          <caption>Every hit on the register</caption>
+          <thead><tr><th>Document</th><th>Section</th><th>Caps run</th><th>On a chapter?</th></tr></thead>
+          <tbody>
+            <tr class="yes"><td>Customs 2012</td><td><code>82A</code></td><td>CLEARANCE OF GOODS FOR HOME-CONSUMPTION</td><td>yes</td></tr>
+            <tr class="yes"><td>Sales Tax 2020</td><td><code>32AA</code></td><td>VII OFFENCES AND PENALTIES</td><td>yes</td></tr>
+            <tr class="yes"><td>Sales Tax 2019</td><td><code>32AA</code></td><td>VII OFFENCES AND PENALTIES</td><td>yes</td></tr>
+            <tr class="no"><td>Sales Tax Rules ×2</td><td><code>150ZQZA</code></td><td>RESPONSIBILITIES OF THE VENDOR</td><td>no</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Invariant fix alone: rules <strong>2 → 0</strong>, acts holds at <strong>3</strong> —
+        every real leak still gating.
+      </p>
+
+      <h3>The locking fixture was wrong, and that is a finding</h3>
+      <p>
+        The synthetic document that pins this detector has section 14A with
+        <code>PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION</code> glued to its
+        heading — and <strong>no chapter carrying that caption</strong>. Under the new check
+        it stopped firing.
+      </p>
+      <p>
+        Worth stating rather than patching away, because it asks a real question: can the
+        leak happen while the chapter is absent from the tree? It cannot. Customs omits the
+        <code>CHAPTER IV</code> row from its contents, but
+        <code>_open_caption_chapter</code> still opens a node for the bare caption — so the
+        chapter is present, verified on all three editions carrying the defect today.
+      </p>
+      <p>
+        The fixture was missing the very thing that makes its document a leak. It now
+        includes it, and still fails if that chapter is removed.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      Not fixed
+      <span class="note">The class is not closed.</span>
+    </div>
+    <div class="body">
+      <h2>What this did not move</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr>
+              <td><code>section_codes_ordered</code> <strong>7 → 6</strong></td>
+              <td>Only the Customs 2008 hit was this cause. The five Sales Tax hits are a
+              different misplacement: <code>CHAPTER I PRELIMINARY</code> holds
+              <code>['1', '2', '33A']</code> across pages 2–75 — section 33A (page 75) is
+              parented to CHAPTER I instead of CHAPTER VII</td>
+            </tr>
+            <tr>
+              <td><code>structure_counts</code> <strong>5, unchanged</strong></td>
+              <td>The rules lane still shows the anonymous-container symptom — three per
+              Sales Tax Rules edition, plus <code>CHAPTER V-C</code> at page 47 sitting
+              among 61–65 — so a second path reaches <code>_open_caption_chapter</code></td>
+            </tr>
+            <tr>
+              <td>36 anonymous chapters corpus-wide</td>
+              <td>Most are <strong>legitimate</strong>: a flat act — the Finance Acts and
+              amending instruments — is given exactly one synthetic root by design</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Gates</h3>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr><td><code>ruff check</code> (bare, as CI runs it)</td><td><span class="tag ok">clean</span></td></tr>
+            <tr><td><code>pytest tools/tests</code></td><td>53 passed, 1 skipped</td></tr>
+            <tr><td>Package self-checks</td><td>13 pass</td></tr>
+            <tr><td><code>discover_corpus.py --check</code></td><td>no drift</td></tr>
+            <tr><td><code>signatures.json</code></td><td>unchanged</td></tr>
+            <tr><td>Conservation, body / footnotes</td><td>100.000% / 100.000%</td></tr>
+            <tr><td>Stale exemptions, all three lanes</td><td><span class="tag ok">0</span></td></tr>
+            <tr><td>Documents</td><td>80 / 11 / 12, held</td></tr>
+            <tr><td><code>data/ocr_cache</code></td><td>0 B</td></tr>
+            <tr><td>Rollback</td><td><code>output/_pre_r5/</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Follows PR #49 — the split code</span>
+    <span>No OCR: 61 scanned documents untouched</span>
+    <span>Measured 2026-08-30</span>
+  </footer>
+
+</div>

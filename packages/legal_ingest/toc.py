@@ -659,7 +659,22 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
             mid = CONT_RE.match(line)
             if mid and not SECTION_RE.match(line):
                 extra = _clean_heading(mid.group("text"))
-                if extra and is_foreign_caption(pending_page.heading, extra):
+                # The furniture test must come BEFORE the caption test, not after
+                # it.  The other call site (below) already orders them that way;
+                # here they were reversed, so the contents' own running title --
+                # "THE CUSTOMS ACT,1969", ALL-CAPS and therefore a perfectly good
+                # foreign caption -- opened a chapter of its own every time a TOC
+                # page break landed inside a wrapped section row.
+                #
+                # Two such breaks in the 2008 Customs edition: after s.82's
+                # middle line and after s.166's, which put s.82A and ss.167-192
+                # into two ANONYMOUS trailing containers.  That is why 82A came
+                # out at tree position 262, after s.224, while printing on page
+                # 91 -- and why section_codes_ordered reported "82A out of order
+                # after 224".  The TOC parsed 24 chapters against a contents page
+                # listing 22.
+                if extra and extra not in furniture and is_foreign_caption(
+                        pending_page.heading, extra):
                     _open_caption_chapter(extra)
                     continue
                 if (extra and extra not in furniture
