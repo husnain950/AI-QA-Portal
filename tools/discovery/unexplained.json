@@ -1,0 +1,15 @@
+{
+  "_comment": [
+    "Documents that no schema family explains, and that are expected to stay that way.",
+    "",
+    "Same shape and same doctrine as tools/suite/exemptions/*.json: `applies_to` is a",
+    "substring of the document's path, `reason` must be traced to the source document",
+    "BEFORE the entry is written, and the classifier still runs and still reports -- an",
+    "entry only stops `discover_corpus.py --assert` from failing the build.",
+    "",
+    "It is empty, and its emptiness is the assertion: all 190 staged documents currently",
+    "land in a family. An entry here means discovery has met something it cannot yet",
+    "describe, which is a finding to write up, not a line to add quietly."
+  ],
+  "exemptions": []
+}

@@ -1,9 +1,21 @@
-"""What differs between the corpora this pipeline reads.
+"""What differs between the documents this pipeline reads.
 
 `fbr_ingest` (the Ordinance) is a separate pipeline. Within *this* one, the Acts and
-the Rules are the same family of document -- CHAPTER / PART / numbered leaf / footnote
-block -- and were for a while two verbatim forks of the same 11,500 lines. Nine of the
-thirteen modules were byte-identical; the rest differed in the ways recorded below.
+the Rules corpora were for a while two verbatim forks of the same 11,500 lines. Nine
+of the thirteen modules were byte-identical; the rest differed in the ways recorded
+below.
+
+**They are not, however, "the same family of document", which is what this docstring
+used to claim.** Measured over the 183-document inventory, the Acts folder holds two
+structurally unrelated instrument kinds: 117 CONSOLIDATED statutes (CHAPTER / PART /
+numbered leaf / footnote block) and 25 AMENDING ones -- the Finance Acts and the
+"(Amendment) Act" family -- whose leaves are directives quoting a DIFFERENT law, and
+which print no containers of their own beyond the gazette's masthead. A corpus label
+never separated those; :mod:`legal_ingest.families` does.
+
+A `Profile` is what a document's PRINTER does. A `Family` is what the document IS.
+They are independent axes and this file used to conflate them; `families.py` holds
+the second and composes this one into it.
 
 Most of that divergence was not a difference of corpus at all, but a fix one fork got
 and the other did not: a TOC-side schedule anchor whose comment said it was "the same
@@ -81,6 +93,24 @@ class Profile:
     #: notified by one; an Act is enacted, not notified.
     notifying_sro: bool = False
 
+    # -- amending instruments ----------------------------------------------
+    #: Reject a structural heading printed BEFORE the instrument's first clause.
+    #:
+    #: In an amending instrument the only container ahead of clause 1 is the
+    #: gazette's own masthead -- "PART I / Acts, Ordinances, President's Orders
+    #: and Regulations" -- which is a publication section, not a chapter of the
+    #: Act. `discover._quoted_container` already rejects containers printed
+    #: AFTER the first clause (they are quoted from the amended law) and its
+    #: docstring names the masthead as the front-matter case it does NOT cover.
+    #: This is that case. Left uncovered, `The Tax Laws (Amendment) Act, 2024`
+    #: ships a chapter with `code="PART I"` and the masthead line as its
+    #: heading, and its four real clauses hang beneath it.
+    #:
+    #: Off for the consolidated corpora, and Public Finance Management Act 2019
+    #: is why it must stay off: it is a gazette reproducing an Act WITH ten
+    #: chapters, and those chapters legitimately parent its sections.
+    suppress_front_matter_containers: bool = False
+
 
 ACTS = Profile(label="acts")
 
@@ -99,7 +129,24 @@ RULES = Profile(
     notifying_sro=True,
 )
 
-BY_LABEL = {p.label: p for p in (ACTS, RULES)}
+#: An amending instrument -- a Finance Act, or any "(Amendment) Act/Ordinance".
+#: It declares no structure of its own: a flat list of numbered directives, each
+#: naming a law it changes and quoting the text it inserts. Selected by
+#: :func:`legal_ingest.families.classify`, never by a corpus label -- the Acts
+#: folder holds both kinds, and a filename cannot tell them apart (`Sales Tax
+#: Act, 1990 as amended up to 07th May, 2024 through Tax Laws (Amendment) Act,
+#: 2024` is consolidated, and measures amending density 0.1).
+#:
+#: The printer fields stay at the Acts settings: these documents are gazette
+#: prints, and no typography difference has been measured against them. Only the
+#: two structural fields move.
+AMENDING = Profile(
+    label="amending",
+    instrument_kind="amending",
+    suppress_front_matter_containers=True,
+)
+
+BY_LABEL = {p.label: p for p in (ACTS, RULES, AMENDING)}
 
 
 def _demo() -> None:
@@ -112,6 +159,17 @@ def _demo() -> None:
                     ACTS.toc_hyphen_leaders, ACTS.toc_codeless_rows,
                     ACTS.notifying_sro))
     assert ACTS.toc_tail_density_floor is None
+    # Every amending-specific behaviour is OFF for the consolidated corpora, so
+    # adding the family changes no existing Acts or Rules document.
+    assert not ACTS.suppress_front_matter_containers
+    assert not RULES.suppress_front_matter_containers
+    assert AMENDING.suppress_front_matter_containers
+    assert AMENDING.instrument_kind == "amending"
+    # ...and the amending profile inherits every Acts printer setting unchanged.
+    assert (AMENDING.ordinal_gap_max, AMENDING.ordinal_dtop_max) == \
+           (ACTS.ordinal_gap_max, ACTS.ordinal_dtop_max)
+    assert not AMENDING.notifying_sro and not AMENDING.folio_parenthesised
+    assert BY_LABEL["amending"] is AMENDING
     assert RULES.instrument_kind == "rules"
     assert (RULES.ordinal_gap_max, RULES.ordinal_dtop_max) == (2.5, 6.0)
     assert BY_LABEL["acts"] is ACTS and BY_LABEL["rules"] is RULES

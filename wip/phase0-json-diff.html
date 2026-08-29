@@ -1,0 +1,353 @@
+<title>Every Node Gets a Name</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#FBFAF7; --panel:#F4F2ED; --ink:#16202B; --ink-soft:#4A5563;
+  --rule:#DBD7CE; --rule-soft:#E9E5DC;
+  --blue:#1F4E79; --red:#A32226;
+  --add-bg:#E7F0F7; --add-mark:#1F4E79;
+  --del-bg:#F8E9E9; --del-mark:#A32226;
+  --measure:68ch;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#11171E; --panel:#182029; --ink:#E7E4DD; --ink-soft:#9BA6B2;
+  --rule:#2A343F; --rule-soft:#212A34;
+  --blue:#7FB0DC; --red:#E2807F;
+  --add-bg:#152633; --add-mark:#7FB0DC;
+  --del-bg:#2C1B1D; --del-mark:#E2807F;
+}}
+:root[data-theme="dark"]{
+  --paper:#11171E; --panel:#182029; --ink:#E7E4DD; --ink-soft:#9BA6B2;
+  --rule:#2A343F; --rule-soft:#212A34;
+  --blue:#7FB0DC; --red:#E2807F;
+  --add-bg:#152633; --add-mark:#7FB0DC;
+  --del-bg:#2C1B1D; --del-mark:#E2807F;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1020px;margin:0 auto;padding:0 24px 96px}
+
+.masthead{border-bottom:1px solid var(--rule);padding:56px 0 28px;margin-bottom:44px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-soft);margin:0 0 18px}
+h1{font-family:Spectral,Georgia,serif;font-weight:600;font-size:clamp(34px,5.2vw,54px);
+  line-height:1.08;letter-spacing:-.015em;margin:0 0 16px;text-wrap:balance}
+.standfirst{font-family:Spectral,Georgia,serif;font-size:19px;line-height:1.55;
+  color:var(--ink-soft);max-width:var(--measure);margin:0}
+.standfirst em{color:var(--ink);font-style:italic}
+
+section{margin-top:52px}
+h2{font-family:Spectral,Georgia,serif;font-weight:600;font-size:26px;line-height:1.2;
+  margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance;display:flex;align-items:baseline;gap:14px}
+h2 .n{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--blue);letter-spacing:.08em;flex:none;padding-top:2px}
+h3{font-weight:600;font-size:15px;margin:30px 0 10px}
+p{max-width:var(--measure);margin:0 0 14px}
+.lede{color:var(--ink-soft);margin-bottom:24px}
+code{font-family:"IBM Plex Mono",monospace;font-size:.88em;background:var(--panel);
+  padding:1px 5px;border-radius:2px}
+strong{font-weight:600}
+a{color:var(--blue)}
+a:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+
+/* ---- the JSON diff, marked the way a compiler marks an amended statute ---- */
+.diff{border:1px solid var(--rule);margin:18px 0 8px;overflow:hidden}
+.diff-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:9px 14px;border-bottom:1px solid var(--rule);background:var(--panel);
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-soft);flex-wrap:wrap}
+.diff-head .path{color:var(--ink);letter-spacing:.04em;text-transform:none;font-size:12px}
+.code{overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.62;
+  padding:10px 0}
+.code .l{display:block;white-space:pre;padding:0 14px 0 0}
+.code .l::before{content:attr(data-m);display:inline-block;width:20px;padding-left:8px;
+  color:var(--ink-soft);opacity:.5;font-weight:500}
+.code .add{background:var(--add-bg)}
+.code .add::before{color:var(--add-mark);opacity:1}
+.code .del{background:var(--del-bg)}
+.code .del::before{color:var(--del-mark);opacity:1}
+.code .k{color:var(--blue)}
+.code .s{color:var(--ink)}
+.code .c{color:var(--ink-soft);font-style:italic}
+
+.split{display:grid;gap:18px;margin:18px 0}
+@media(min-width:880px){.split{grid-template-columns:1fr 1fr}}
+
+.scroll{overflow-x:auto;margin:18px 0 8px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+caption{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);padding-bottom:9px}
+th,td{text-align:left;padding:7px 14px 7px 0;border-bottom:1px solid var(--rule-soft);vertical-align:baseline}
+thead th{border-bottom:1px solid var(--rule);font-weight:600;font-size:12px;
+  letter-spacing:.03em;color:var(--ink-soft);white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;
+  font-family:"IBM Plex Mono",monospace;padding-right:20px;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td .mono{font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+
+.pill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.06em;padding:2px 7px;border-radius:2px;white-space:nowrap;border:1px solid var(--rule)}
+.pill.ok{color:var(--blue);border-color:var(--blue);background:var(--add-bg)}
+.pill.no{color:var(--red);border-color:var(--red);background:var(--del-bg)}
+
+.callout{border-left:3px solid var(--blue);background:linear-gradient(90deg,var(--add-bg),transparent 70%);
+  padding:14px 0 14px 16px;margin:22px 0}
+.callout p{margin:0;font-size:14.5px}
+.callout.warn{border-left-color:var(--red);background:linear-gradient(90deg,var(--del-bg),transparent 70%)}
+
+footer{margin-top:72px;padding-top:22px;border-top:1px solid var(--rule);
+  font-size:13px;color:var(--ink-soft)}
+footer p{max-width:none}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">FBR corpus platform · phase 0 · PR #42 · the payload</p>
+  <h1>Every node gets a name</h1>
+  <p class="standfirst">What actually changed in the parsed JSON. Four keys added, none removed, and one chapter that should never have existed deleted from an amending act. Every excerpt below is real output, diffed against a build of the base commit.</p>
+</header>
+
+<section>
+  <h2><span class="n">01</span> The key census</h2>
+  <p class="lede">Two documents converted twice: once from a worktree at <code>915b17d</code>, once on this branch with <code>--profile auto</code>.</p>
+
+  <div class="scroll">
+    <table>
+      <caption>Federal Excise Act, 2005 (as amended to 01.07.2017) — a consolidated statute</caption>
+      <thead><tr><th>Key</th><th class="num">Before</th><th class="num">After</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td><code>type</code></td><td class="num">0</td><td class="num">77</td><td>every container and leaf</td></tr>
+        <tr><td><code>node_key</code></td><td class="num">0</td><td class="num">77</td><td>every container and leaf</td></tr>
+        <tr><td><code>metadata.family</code></td><td class="num">0</td><td class="num">1</td><td>document</td></tr>
+        <tr><td><code>metadata.family_confidence</code></td><td class="num">0</td><td class="num">1</td><td>document</td></tr>
+        <tr><td colspan="4" style="padding-top:12px"><strong>Removed: none. Changed: none.</strong> Strip the four new keys and the two files are <strong>byte-identical</strong>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <caption>The Tax Laws (Amendment) Act, 2024 — an amending instrument</caption>
+      <thead><tr><th>Key</th><th class="num">Before</th><th class="num">After</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td><code>type</code> / <code>node_key</code></td><td class="num">0</td><td class="num">5</td><td>1 container + 4 clauses</td></tr>
+        <tr><td><code>metadata.family</code> / <code>family_confidence</code></td><td class="num">0</td><td class="num">1</td><td>document</td></tr>
+        <tr><td><code>metadata.instrument_kind</code></td><td class="num">0</td><td class="num">1</td><td>document — <code>"amending"</code></td></tr>
+        <tr><td><code>metadata.amends[]</code></td><td class="num">0</td><td class="num">3</td><td>one per target law</td></tr>
+        <tr><td><code>heading</code> · <code>toc_heading</code> · <code>heading_source</code></td><td class="num">5</td><td class="num">4</td><td><span class="pill no">−1</span> the masthead chapter is gone</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>That single dropped <code>heading</code> is the only thing this change ever <em>removes</em> from a document, and §03 is why.</p>
+</section>
+
+<section>
+  <h2><span class="n">02</span> A consolidated act: nothing moves</h2>
+  <p class="lede">The same leaf, before and after. Two keys appended; every existing key, and every character of statutory text, untouched.</p>
+
+  <div class="diff">
+    <div class="diff-head"><span>Federal Excise Act 2005</span><span class="path">chapters[1].sections[0]</span></div>
+    <div class="code">
+<span class="l" data-m=" ">{</span>
+<span class="l" data-m=" ">  <span class="k">"code"</span>: <span class="s">"3"</span>,</span>
+<span class="l" data-m=" ">  <span class="k">"heading"</span>: <span class="s">"Duties specified in the First Schedule to be levied"</span>,</span>
+<span class="l" data-m=" ">  <span class="k">"toc_heading"</span>: <span class="s">"Duties specified in the First Schedule to be levied"</span>,</span>
+<span class="l" data-m=" ">  <span class="k">"heading_source"</span>: <span class="s">"body"</span>,</span>
+<span class="l" data-m=" ">  <span class="k">"page_number"</span>: 10,</span>
+<span class="l" data-m=" ">  <span class="k">"html"</span>: <span class="s">"&lt;h4 class=\"section-heading\"&gt;3. Duties specified in the …"</span>,</span>
+<span class="l" data-m=" ">  <span class="k">"plain_text"</span>: <span class="s">"3. Duties specified in the First Schedule to be levied.– …"</span>,</span>
+<span class="l" data-m=" ">  <span class="k">"start_page"</span>: 10,</span>
+<span class="l" data-m=" ">  <span class="k">"end_page"</span>: 11,</span>
+<span class="l" data-m=" ">  <span class="k">"footnotes"</span>: [ … ],</span>
+<span class="l add" data-m="+">  <span class="k">"type"</span>: <span class="s">"section"</span>,</span>
+<span class="l add" data-m="+">  <span class="k">"node_key"</span>: <span class="s">"ch:ii/s:3"</span></span>
+<span class="l" data-m=" ">}</span>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p><strong>Why this matters more than it looks.</strong> Before, this dict and its parent chapter were the <em>same shape</em>. A consumer told a container from a leaf by guessing which keys happened to be present — <code>sections</code> for one, <code>html</code> for the other. <code>toc.Node.kind</code> had always computed the answer, and <code>_node_to_dict</code> had always thrown it away.</p>
+  </div>
+
+  <h3>The same stamp, at every level</h3>
+  <div class="diff">
+    <div class="diff-head"><span>nodes stamped in this one document</span><span class="path">77</span></div>
+    <div class="code">
+<span class="l" data-m=" "><span class="c">chapter  </span> <span class="s">"ch:ii"</span>                        <span class="c">chapters[1]</span></span>
+<span class="l" data-m=" "><span class="c">section  </span> <span class="s">"ch:ii/s:3"</span>                   <span class="c">chapters[1].sections[0]</span></span>
+<span class="l" data-m=" "><span class="c">schedule </span> <span class="s">"sch:first-schedule"</span>          <span class="c">schedules[0]</span></span>
+<span class="l" data-m=" "><span class="c">part     </span> <span class="s">"sch:first-schedule/pt:table-i"</span> <span class="c">schedules[0].parts[0]</span></span>
+    </div>
+  </div>
+  <p>That last row is a node the old model could not describe: a schedule <em>part</em> that carries <code>html</code> and <code>plain_text</code> directly instead of children. Positionally a part, functionally a leaf — and now it says <code>"type": "part"</code> rather than leaving the reader to work it out.</p>
+</section>
+
+<section>
+  <h2><span class="n">03</span> An amending act: one chapter deleted</h2>
+  <p class="lede">The Tax Laws (Amendment) Act, 2024 declares no chapters. It printed one thing that looked like a container, and the parser believed it.</p>
+
+  <div class="diff">
+    <div class="diff-head"><span>The Tax Laws (Amendment) Act, 2024</span><span class="path">chapters[0]</span></div>
+    <div class="code">
+<span class="l del" data-m="−">{</span>
+<span class="l del" data-m="−">  <span class="k">"code"</span>: <span class="s">"PART I"</span>,</span>
+<span class="l del" data-m="−">  <span class="k">"heading"</span>: <span class="s">"Acts, Ordinances, President’s Orders and Regulations NATIONAL ASSEMBLY SECRETARIAT"</span>,</span>
+<span class="l del" data-m="−">  <span class="k">"toc_heading"</span>: <span class="s">"Acts, Ordinances, President’s Orders and Regulations NATIONAL ASSEMBLY SECRETARIAT"</span>,</span>
+<span class="l del" data-m="−">  <span class="k">"heading_source"</span>: <span class="s">"toc"</span>,</span>
+<span class="l del" data-m="−">  <span class="k">"sections"</span>: [ <span class="c">/* all four real clauses of the Act */</span> ]</span>
+<span class="l del" data-m="−">}</span>
+<span class="l" data-m=" "></span>
+<span class="l add" data-m="+">{</span>
+<span class="l add" data-m="+">  <span class="k">"code"</span>: <span class="s">""</span>,</span>
+<span class="l add" data-m="+">  <span class="k">"type"</span>: <span class="s">"chapter"</span>,</span>
+<span class="l add" data-m="+">  <span class="k">"node_key"</span>: <span class="s">"ch:~root"</span>,</span>
+<span class="l add" data-m="+">  <span class="k">"sections"</span>: [ <span class="c">/* the same four clauses, unchanged */</span> ]</span>
+<span class="l add" data-m="+">}</span>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <p><strong>“PART I — Acts, Ordinances, President’s Orders and Regulations / NATIONAL ASSEMBLY SECRETARIAT”</strong> is the masthead of the <em>Gazette of Pakistan</em>. It is the name of the publication section the Act was printed in. It was being served as a chapter of the Act, with the Act's four clauses filed underneath it.</p>
+  </div>
+
+  <p>The replacement carries <code>code: ""</code> — the synthetic root a flat act already got, now named <code>ch:~root</code> rather than given a position. The four clauses, their codes, headings, page ranges, HTML and footnotes are <strong>identical on both sides</strong>. Only the false parent is gone.</p>
+</section>
+
+<section>
+  <h2><span class="n">04</span> An amending act now says what it amends</h2>
+  <p class="lede">Read off the clause headings, which already parsed. No new extraction — this only stops the one fact that makes such a document navigable from being spread across untitled blocks of quoted text.</p>
+
+  <div class="diff">
+    <div class="diff-head"><span>The Tax Laws (Amendment) Act, 2024</span><span class="path">metadata</span></div>
+    <div class="code">
+<span class="l" data-m=" ">  <span class="k">"filename"</span>: <span class="s">"The Tax Laws (Amendment) Act, 2024.pdf"</span>,</span>
+<span class="l" data-m=" ">  <span class="k">"total_pages"</span>: 17,</span>
+<span class="l" data-m=" ">  <span class="k">"sections_count"</span>: 4,</span>
+<span class="l add" data-m="+">  <span class="k">"family"</span>: <span class="s">"amending"</span>,</span>
+<span class="l add" data-m="+">  <span class="k">"family_confidence"</span>: 1.0,</span>
+<span class="l add" data-m="+">  <span class="k">"instrument_kind"</span>: <span class="s">"amending"</span>,</span>
+<span class="l add" data-m="+">  <span class="k">"amends"</span>: [</span>
+<span class="l add" data-m="+">    { <span class="k">"section"</span>: <span class="s">"2"</span>, <span class="k">"verb"</span>: <span class="s">"amendment"</span>,</span>
+<span class="l add" data-m="+">      <span class="k">"instrument"</span>: <span class="s">"Sales Tax Act, 1990"</span>,</span>
+<span class="l add" data-m="+">      <span class="k">"citation"</span>: <span class="s">""</span>, <span class="k">"provision"</span>: <span class="s">""</span> },</span>
+<span class="l add" data-m="+">    { <span class="k">"section"</span>: <span class="s">"3"</span>, <span class="k">"verb"</span>: <span class="s">"amendment"</span>,</span>
+<span class="l add" data-m="+">      <span class="k">"instrument"</span>: <span class="s">"Federal Excise Act, 2005"</span>,</span>
+<span class="l add" data-m="+">      <span class="k">"citation"</span>: <span class="s">""</span>, <span class="k">"provision"</span>: <span class="s">""</span> },</span>
+<span class="l add" data-m="+">    { <span class="k">"section"</span>: <span class="s">"4"</span>, <span class="k">"verb"</span>: <span class="s">"amendment"</span>,</span>
+<span class="l add" data-m="+">      <span class="k">"instrument"</span>: <span class="s">"Income Tax Ordinance, 2001"</span>,</span>
+<span class="l add" data-m="+">      <span class="k">"citation"</span>: <span class="s">"Ordinance XLIX of 2001"</span>, <span class="k">"provision"</span>: <span class="s">""</span> }</span>
+<span class="l add" data-m="+">  ]</span>
+    </div>
+  </div>
+
+  <h3>The heading grammar this had to survive</h3>
+  <p>Five verbs, an inner provision split, and a cut where the clause body has been glued onto its own heading. Each row below is a verbatim heading from the 36 amending documents, and each is pinned in the pipeline self-check.</p>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Clause heading</th><th>instrument</th><th>citation</th><th>provision</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">Amendments of the Customs Act, 1969 (IV of 1969)</td><td class="mono">Customs Act, 1969</td><td class="mono">IV of 1969</td><td>—</td></tr>
+        <tr><td class="mono">Amendment of section 7, Act VII of 2010</td><td class="mono">Act VII of 2010</td><td>—</td><td class="mono">section 7</td></tr>
+        <tr><td class="mono">Insertion of new section 19C, Act XXVII of 1997</td><td class="mono">Act XXVII of 1997</td><td>—</td><td class="mono">section 19C</td></tr>
+        <tr><td class="mono">Amendment of Ordinance XLIX of 2001</td><td class="mono">Ordinance XLIX of 2001</td><td>—</td><td>—</td></tr>
+        <tr><td class="mono">Amendments of the Federal Excise Act, 2005.ln the Federal Excise Act, 2005, the following…</td><td class="mono">Federal Excise Act, 2005</td><td>—</td><td>—</td></tr>
+        <tr><td class="mono">Definitions</td><td colspan="3">— nothing recorded; a consolidated act's own titles must name no target</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>That fifth row is the reason for the body-glue cut: without it the instrument name swallows a paragraph. Note also the OCR damage in the source — <code>.ln the</code>, not <code>. In the</code> — which the pattern has to tolerate.</p>
+</section>
+
+<section>
+  <h2><span class="n">05</span> <code>node_key</code>: identity by code, not by position</h2>
+
+  <div class="split">
+    <div class="diff">
+      <div class="diff-head"><span>existing · source_key</span></div>
+      <div class="code">
+<span class="l" data-m=" "><span class="s">"/chapters/0/sections/3"</span></span>
+<span class="l" data-m=" "></span>
+<span class="l" data-m=" "><span class="c">array position. Minted into a UUID5</span></span>
+<span class="l" data-m=" "><span class="c">by json_parser._stable_id. Insert a</span></span>
+<span class="l" data-m=" "><span class="c">node above this leaf and every id</span></span>
+<span class="l" data-m=" "><span class="c">below it is re-minted — which orphans</span></span>
+<span class="l" data-m=" "><span class="c">the reviewer annotations attached to</span></span>
+<span class="l" data-m=" "><span class="c">them.</span></span>
+      </div>
+    </div>
+    <div class="diff">
+      <div class="diff-head"><span>new · node_key</span></div>
+      <div class="code">
+<span class="l add" data-m="+"><span class="s">"ch:vii/pt:i/s:114"</span></span>
+<span class="l" data-m=" "></span>
+<span class="l" data-m=" "><span class="c">the ancestor chain by the codes the</span></span>
+<span class="l" data-m=" "><span class="c">statute itself prints. Sits BESIDE</span></span>
+<span class="l" data-m=" "><span class="c">source_key and changes no existing</span></span>
+<span class="l" data-m=" "><span class="c">id, so this needs no migration — it</span></span>
+<span class="l" data-m=" "><span class="c">is a handle for the diff work, put</span></span>
+<span class="l" data-m=" "><span class="c">in place before it is needed.</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <caption>How a key is built</caption>
+      <thead><tr><th>Node</th><th>Prefix</th><th>Slug rule</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>chapter</td><td class="mono">ch:</td><td>keyword stripped, lowercased</td><td class="mono">CHAPTER XIV-A → ch:xiv-a</td></tr>
+        <tr><td>part</td><td class="mono">pt:</td><td>same</td><td class="mono">Table-I → pt:table-i</td></tr>
+        <tr><td>division</td><td class="mono">dv:</td><td>same</td><td class="mono">Division I → dv:i</td></tr>
+        <tr><td>schedule</td><td class="mono">sch:</td><td>same</td><td class="mono">FIRST SCHEDULE → sch:first-schedule</td></tr>
+        <tr><td>section / rule</td><td class="mono">s:</td><td>code as printed</td><td class="mono">114A → s:114a</td></tr>
+        <tr><td>synthetic root</td><td class="mono">ch:</td><td>named, not positioned</td><td class="mono">"" → ch:~root</td></tr>
+        <tr><td>repeated sibling code</td><td>—</td><td>ordinal suffix, so a key is unique within its parent</td><td class="mono">s:114 · s:114~2</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>This does not solve versioning, and was not meant to. It makes sure the identity scheme built next has something to hold on to other than an array index.</p>
+</section>
+
+<section>
+  <h2><span class="n">06</span> Scope, honestly</h2>
+  <p class="lede">Three limits a reviewer should know before reading the on-disk corpus.</p>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Pipeline</th><th>Documents</th><th>Gets the new keys?</th></tr></thead>
+      <tbody>
+        <tr><td><code>legal_ingest</code> — acts, rules</td><td>143 staged, 91 converted</td><td><span class="pill ok">yes</span> unconditionally, on both routes</td></tr>
+        <tr><td><code>fbr_ingest</code> — the ordinance fork</td><td>47 staged, 12 converted</td><td><span class="pill no">no</span> untouched by this PR</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><code>fbr_ingest</code> diverges by 3,500+ lines and its merge is an explicit v1 non-goal (<code>README.md:283</code>). This PR does not relitigate that — it supplies the numbers to decide it with. The consequence for now is real: the 12 converted Income Tax Ordinance editions keep the old node shape, so <code>type</code> and <code>node_key</code> are not yet universal across the corpus.</p>
+
+  <div class="callout warn">
+    <p><strong>The on-disk JSON has not been regenerated.</strong> Every excerpt on this page comes from a conversion run for this review. Re-converting all three lanes is Phase 2 in <code>wip/tasks.md</code>, and it is blocked on OCR — the virtualenv is Python 3.14.7 against a 3.12 pin with <code>numpy</code> absent, which also stops two amending instruments converting at all.</p>
+  </div>
+
+  <h3>Reproduce both sides</h3>
+  <div class="diff">
+    <div class="diff-head"><span>shell</span></div>
+    <div class="code">
+<span class="l" data-m=" "><span class="c"># baseline, from a worktree at the base commit</span></span>
+<span class="l" data-m=" ">git worktree add --detach /tmp/base 915b17d</span>
+<span class="l" data-m=" ">(cd /tmp/base &amp;&amp; python tools/convert.py acts "&lt;pdf&gt;" -o /tmp/before.json)</span>
+<span class="l" data-m=" "></span>
+<span class="l" data-m=" "><span class="c"># this branch</span></span>
+<span class="l" data-m=" ">python tools/convert.py acts --profile auto "&lt;pdf&gt;" -o /tmp/after.json</span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>Companion to the architecture review for PR #42. Both pages are generated from real conversions; no figure or excerpt is hand-entered. Source: <code>wip/phase0-json-diff.html</code>.</p>
+</footer>
+
+</div>

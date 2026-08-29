@@ -47,6 +47,15 @@ def main(argv=None) -> int:
     ap.add_argument("-o", "--output", help="output JSON path "
                     "(default: alongside the PDF)")
     ap.add_argument("--quiet", action="store_true", help="suppress progress output")
+    ap.add_argument("--profile", choices=("lane", "auto"), default="lane",
+                    help="how to choose the parse profile. 'lane' (the default) "
+                         "uses the corpus the PDF was filed under, which is how "
+                         "this has always worked. 'auto' measures the document "
+                         "and asks legal_ingest.families -- the only way an "
+                         "amending instrument gets the amending profile, since "
+                         "the Acts corpus holds both kinds and a filename cannot "
+                         "tell them apart. A lane whose pipeline takes no profile "
+                         "ignores it.")
     ap.add_argument("--admit-below-floor", action="store_true",
                     help="convert a scan whose inter-engine agreement is under "
                          "the fidelity floor instead of refusing it. The result "
@@ -70,6 +79,12 @@ def main(argv=None) -> int:
     # Ordinance has no OCR stage, so its `run` has no such parameter, and a lane
     # that grows one starts accepting the flag without an edit here.
     kwargs = {}
+    if args.profile == "auto":
+        if "profile" not in inspect.signature(run).parameters:
+            print(f"error: the {args.lane} pipeline takes no profile, so "
+                  f"--profile auto does not apply", file=sys.stderr)
+            return 2
+        kwargs["profile"] = None
     if "admit_below_floor" in inspect.signature(run).parameters:
         kwargs["admit_below_floor"] = args.admit_below_floor
     elif args.admit_below_floor:

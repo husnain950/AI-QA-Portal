@@ -267,16 +267,70 @@ def _demo() -> None:
     assert by["15"].parent is ch4, (by["15"].parent and by["15"].parent.code)
     assert by["18"].parent is chs[2]
 
+    # ---- amending-clause headings, pinned on the real corpus -------------
+    # Every shape below is a verbatim clause heading from the 30 amending
+    # documents on disk. They are the reason the pattern has five verbs, an
+    # inner provision split and a body-glue cut, rather than one "Amendments
+    # of the X Act" literal.
+    class _N:
+        def __init__(self, sections):
+            self.sections, self.parts, self.divisions = sections, [], []
+
+    for heading, instrument, citation, provision in (
+        ("Amendments of the Customs Act, 1969 (IV of 1969)",
+         "Customs Act, 1969", "IV of 1969", ""),
+        ("Amendments in the Income Tax Ordinance, 2001 (XLIX of 2001). In the",
+         "Income Tax Ordinance, 2001", "XLIX of 2001", ""),
+        ("Amendment of section 7, Act VII of 2010", "Act VII of 2010", "", "section 7"),
+        ("Insertion of new section 19C, Act XXVII of 1997",
+         "Act XXVII of 1997", "", "section 19C"),
+        ("Amendment of Ordinance XLIX of 2001", "Ordinance XLIX of 2001", "", ""),
+        ("Amendments of the Federal Excise Act, 2005.ln the Federal Excise Act, "
+         "2005, the following", "Federal Excise Act, 2005", "", ""),
+    ):
+        got = amended_instruments([_N([{"code": "4", "heading": heading}])])[0]
+        assert (got["instrument"], got["citation"], got["provision"]) == \
+               (instrument, citation, provision), (heading, got)
+    # A consolidated act's own section titles must name nothing.
+    assert amended_instruments([_N([{"code": "2", "heading": "Definitions"},
+                                    {"code": "9", "heading": "Repeal"}])]) == []
+
+    # ---- node identity ---------------------------------------------------
+    tree = [{"code": "CHAPTER VII", "parts": [
+        {"code": "PART I", "divisions": [], "parts": [],
+         "sections": [{"code": "114"}, {"code": "114"}]}],
+        "divisions": [], "sections": []}]
+    stamp_identity(tree, "chapter")
+    assert tree[0]["type"] == "chapter" and tree[0]["node_key"] == "ch:vii"
+    assert tree[0]["parts"][0]["node_key"] == "ch:vii/pt:i"
+    # by CODE, not by array index -- and a repeated sibling code still resolves
+    assert [s["node_key"] for s in tree[0]["parts"][0]["sections"]] == \
+           ["ch:vii/pt:i/s:114", "ch:vii/pt:i/s:114~2"]
+    # the synthetic root a flat act gets is named as synthetic, not positioned
+    root = [{"code": "", "parts": [], "divisions": [], "sections": [{"code": "1"}]}]
+    stamp_identity(root, "chapter")
+    assert root[0]["node_key"] == "ch:~root"
+    assert _slug("CHAPTER XIV-A", "chapter") == "xiv-a"
+    assert _slug("114A", "section") == "114a"
+
     print("pipeline self-check passed")
 
 
 def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = None,
-        admit_below_floor: bool = False, profile: Profile = ACTS) -> dict:
+        admit_below_floor: bool = False,
+        profile: "Profile | None" = ACTS) -> dict:
     """Convert one PDF to the document dict.
 
-    ``profile`` says which corpus this document belongs to; see
+    ``profile`` says how this document is printed; see
     :mod:`legal_ingest.profiles` for what varies. It defaults to the Acts, whose
     profile turns every corpus-specific widening off.
+
+    ``profile=None`` asks :mod:`legal_ingest.families` instead: the document is
+    measured and classified, and the profile comes from the family it lands in.
+    That is the only way an amending instrument gets the amending profile, since
+    the Acts folder holds both kinds and the corpus label cannot tell them
+    apart. A family with no profile -- a legacy ``.doc``, an Urdu edition, a scan
+    with no text layer -- is refused here rather than parsed into nonsense.
 
     ``admit_below_floor`` converts a scan whose inter-engine agreement is under
     ``ocr.AGREEMENT_FLOOR`` instead of refusing it, stamping
@@ -295,6 +349,21 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     directory.  The floor stops being a wall and becomes a label, and it still
     ratchets.
     """
+    assignment = None
+    if profile is None:
+        from .families import BY_LABEL, classify
+        from .signature import measure
+        assignment = classify(measure(pdf_path))
+        family = BY_LABEL.get(assignment.family) if assignment.family else None
+        if family is None or family.profile is None:
+            raise RuntimeError(
+                f"refusing {pdf_path.split('/')[-1]!r}: "
+                f"{assignment.family or 'no family'} is not parseable "
+                f"({'; '.join(assignment.evidence)})")
+        profile = family.profile
+        progress(f"family {assignment.family} "
+                 f"(confidence {assignment.confidence:.2f}) -> profile {profile.label}")
+
     pdf = pdfplumber.open(pdf_path)
     total_pages = len(pdf.pages)
 
@@ -469,7 +538,7 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     if not ordered_sections:
         from .discover import discover_structure
         chapters, ordered_sections = discover_structure(
-            body_refs, printed_by_page, page_footnotes)
+            body_refs, printed_by_page, page_footnotes, profile=profile)
         progress(f"body-driven structure: {len(chapters)} chapters, "
                  f"{len(ordered_sections)} sections")
 
@@ -752,6 +821,17 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     # First-class document class for Library tags.  Same rules as portal
     # ``backend.services.document_provenance`` (OCR_FULL_RATIO = 0.9).
     ocr_meta = metadata.get("ocr")
+    if assignment is not None:
+        metadata["family"] = assignment.family
+        metadata["family_confidence"] = round(assignment.confidence, 2)
+    if profile.instrument_kind == "amending":
+        # What this instrument changes, taken from the clause headings that
+        # already parse ("4. Amendments of the Customs Act, 1969 (IV of 1969)").
+        # No new extraction: it is the one fact that makes an amending document
+        # navigable, and without it every Finance Act looks like nine untitled
+        # blocks of quoted text.
+        metadata["amends"] = amended_instruments(chapters)
+
     if not ocr_meta:
         metadata["source_kind"] = "native-digital"
     else:
@@ -768,6 +848,8 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         "chapters": [_node_to_dict(c) for c in chapters],
         "schedules": schedules_out,
     }
+    stamp_identity(result["chapters"], "chapter")
+    stamp_identity(result["schedules"], "schedule")
     # the enacting preamble (text before section 1: "AN ORDINANCE ... WHEREAS ...")
     from .builder import _build_preamble_html, preamble_refs
     pre = preamble_refs(body_refs, ordered_sections, containers)
@@ -1333,6 +1415,137 @@ def _page_starts_schedules(pm) -> bool:
     Quoted titles are skipped -- see ``_opens_schedules``.
     """
     return any(_opens_schedules(ln.text().strip()) for ln in pm.body_lines)
+
+
+#: Node type -> the abbreviation used in ``node_key``.
+_KEY_ABBREV = {"chapter": "ch", "part": "pt", "division": "dv",
+               "schedule": "sch", "section": "s"}
+
+#: Where a child list sits in the tree, and what a node in it IS. This is the
+#: convention the output has always followed positionally; stamping it makes a
+#: consumer stop having to infer a node's kind from which keys happen to exist.
+_CHILD_KINDS = (("parts", "part"), ("divisions", "division"), ("sections", "section"))
+
+#: An amending clause's heading. Measured over every clause heading in the 30
+#: amending documents on disk, the grammar is
+#:
+#:     <verb> (of|in|to) [the] <target>
+#:
+#: with five verbs, and a target that is either the amended law
+#: ("the Customs Act, 1969 (IV of 1969)"), a bare statute citation ("Ordinance
+#: XLIX of 2001"), or a provision inside one ("section 7, Act VII of 2010").
+_AMENDS_RE = re.compile(
+    r"^(?P<verb>Amendments?|Insertion|Substitution|Omission|Addition|Enactment)"
+    r"\s+(?:of|in|to)\s+(?:new\s+)?(?:the\s+)?(?P<target>.+)$", re.IGNORECASE)
+
+#: A provision named ahead of the law it sits in: "section 7, Act VII of 2010".
+_AMENDS_TARGET_RE = re.compile(
+    r"^(?P<provision>(?:new\s+)?(?:sections?|sub-sections?|clauses?|rules?|"
+    r"schedules?|tables?)\b[^,]*),\s*(?P<instrument>.+)$", re.IGNORECASE)
+
+#: A trailing statute citation: "(IV of 1969)", "(Ordinance XLIX of 2001)".
+_AMENDS_CITE_RE = re.compile(r"\s*\(([^()]*\bof\b[^()]*)\)\s*$", re.IGNORECASE)
+
+#: Where the clause's BODY has been glued onto its heading. Real, and common:
+#: "Amendments of the Federal Excise Act, 2005.ln the Federal Excise Act, 2005,
+#: the followin...". Cut there or the instrument name swallows a paragraph.
+_AMENDS_BODY_RE = re.compile(
+    r"\.\s*(?:[IiLl]n\s+the\b|There\s+is\s+hereby\b|the\s+following\b).*$")
+
+
+def amended_instruments(chapters) -> list[dict]:
+    """Which laws an amending instrument changes, and in which of its clauses.
+
+    Read off the clause headings, which already parse: an amending act numbers
+    its clauses and titles each one for the law it changes. Nothing new is
+    extracted -- this only stops the one fact that makes such a document
+    navigable from being spread across nine untitled blocks of quoted text. On
+    ``The Tax Laws (Amendment) Act, 2024`` it names all three targets; on a
+    Finance Act it names every act that year's budget touched.
+
+    Deliberately NOT a parse of the directives themselves. Splitting a clause
+    into per-amendment sub-nodes is a parser feature, and the clause is not
+    wrong as it stands -- Finance Act 2023's clause 4 is 12,470 characters of
+    quoted Customs Act text because clause 4 IS that long. This names the target
+    so that work has somewhere to attach.
+    """
+    found: list[dict] = []
+
+    def record(leaf) -> None:
+        m = _AMENDS_RE.match((leaf.get("heading") or "").strip())
+        if not m:
+            return
+        target = _AMENDS_BODY_RE.sub("", m.group("target")).strip(" .,")
+        provision = ""
+        inner = _AMENDS_TARGET_RE.match(target)
+        if inner:
+            provision = re.sub(r"^new\s+", "", inner.group("provision"), flags=re.I)
+            target = inner.group("instrument").strip(" .,")
+        citation = ""
+        cite = _AMENDS_CITE_RE.search(target)
+        if cite:
+            citation = cite.group(1).strip()
+            target = target[:cite.start()].strip(" .,")
+        found.append({"section": leaf.get("code"),
+                      "verb": m.group("verb").lower().rstrip("s"),
+                      "instrument": target,
+                      "citation": citation,
+                      "provision": provision})
+
+    def walk(nodes) -> None:
+        for node in nodes:
+            for leaf in node.sections:
+                record(leaf)
+            walk(node.parts)
+            walk(node.divisions)
+
+    walk(chapters)
+    return found
+
+
+def stamp_identity(nodes, kind: str, prefix: str = "") -> None:
+    """Give every node its ``type`` and its ``node_key``, in place.
+
+    Two additive keys, on containers and leaves alike:
+
+    ``type``      what the node IS. ``toc.Node.kind`` has always computed this
+                  and ``_node_to_dict`` has always thrown it away, so the output
+                  used one dict shape for a chapter, a schedule part and a
+                  section leaf and left a consumer to tell them apart by which
+                  keys happened to be present.
+
+    ``node_key``  the ancestor chain BY CODE -- ``ch:vii/pt:i/s:114`` -- not by
+                  array index. It sits beside the ``source_key`` that
+                  ``json_parser._stable_id`` mints (``/chapters/0/sections/3``),
+                  changes no id, and costs nothing now; what it buys is that a
+                  later leaf-level diff has a handle that survives a node being
+                  inserted above it. Sibling codes that repeat get an ordinal, so
+                  the key is unique within its parent.
+    """
+    seen: dict[str, int] = {}
+    for node in nodes:
+        code = _slug(node.get("code") or "", kind)
+        seen[code] = seen.get(code, 0) + 1
+        if seen[code] > 1:
+            code = f"{code}~{seen[code]}"
+        node["type"] = kind
+        node["node_key"] = f"{prefix}{_KEY_ABBREV.get(kind, kind)}:{code}"
+        for key, child_kind in _CHILD_KINDS:
+            if node.get(key):
+                stamp_identity(node[key], child_kind, node["node_key"] + "/")
+
+
+def _slug(code: str, kind: str) -> str:
+    """``"CHAPTER XIV-A"`` -> ``"xiv-a"``; ``"114A"`` -> ``"114a"``.
+
+    An empty code is the synthetic root a flat act gets (the 20 Finance Acts and
+    the single gazette Acts have no containers at all, so ``run`` makes one to
+    parent their clauses). It is named as synthetic rather than given a position,
+    because a position is exactly the kind of identity ``node_key`` exists to
+    avoid depending on.
+    """
+    text = re.sub(rf"^\s*{kind}\b[\s\-]*", "", code.strip(), flags=re.IGNORECASE)
+    return re.sub(r"\s+", "-", text.strip()).lower() or "~root"
 
 
 def _node_to_dict(node: Node) -> dict:

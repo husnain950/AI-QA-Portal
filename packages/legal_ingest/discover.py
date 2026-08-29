@@ -398,14 +398,54 @@ def _quoted_container(is_amendment: bool, last_key) -> bool:
     return is_amendment and last_key is not None
 
 
+def _front_matter_container(profile, is_amendment: bool, idx: int,
+                            section_start: int) -> bool:
+    """Whether a structural heading here is the GAZETTE's, not the instrument's.
+
+    ``_quoted_container`` above rejects containers printed AFTER the first
+    clause, and its docstring names the case it does not cover: "the only
+    container it prints is the gazette's own part label in the front matter
+    ('PART I / Acts, Ordinances, President's Orders and Regulations', page 2,
+    ahead of clause 1)". This is that case, and left uncovered it is what ships
+    ``The Tax Laws (Amendment) Act, 2024`` with a chapter whose code is
+    ``"PART I"`` and whose heading is the masthead line, its four real clauses
+    hanging beneath it.
+
+    ``section_start`` is where the instrument's own numbering begins, already
+    computed for the P15 anchor. When no anchor was found it is 0 and this
+    rejects nothing, which is the safe direction: a container wrongly kept is a
+    misplaced node, a container wrongly dropped orphans every clause under it.
+
+    Gated on the profile, so it cannot reach a consolidated statute. Public
+    Finance Management Act 2019 is the case to protect -- a gazette reproducing
+    an Act WITH ten chapters, whose chapters legitimately parent its sections;
+    it classifies ``consolidated`` (amending density 0.50) and never gets here.
+    """
+    return (is_amendment
+            and getattr(profile, "suppress_front_matter_containers", False)
+            and idx < section_start)
+
+
 def discover_structure(body_refs, printed_by_page, page_footnotes,
-                       _gate: bool = True):
+                       _gate: bool = True, profile=None):
     """Reconstruct ``(chapters, ordered_sections)`` from the body stream.
 
     Same contract as :func:`toc.parse_toc` (schedules stay on their existing
     body-driven path), except every real section entry also carries
     ``anchor`` -- the LineRef of its heading line.
+
+    ``profile`` supplies what the document IS, when the caller already knows.
+    ``amending_density`` below is a good measure and a poor gate: it is diluted
+    by anything the instrument reproduces at length, so Finance Act 2022 (a
+    952-page amending act carrying a tariff schedule) measures 1.23 against a
+    2.0 threshold, and ledger P14 records Finance Act 2025 at 0.21 because its
+    own amending clauses land in the footnote zone. ``families.classify`` reads
+    the whole document and does not have that blind spot, so when it has already
+    decided, its answer wins and the density is not consulted.
     """
+    from .profiles import ACTS
+
+    profile = profile or ACTS
 
     # Does this document use a bold face AT ALL?  ``_bold_title`` gates every
     # section start below, and a document typeset wholly in one plain face (the
@@ -417,7 +457,8 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
     # Is this document an amendment instrument at all?  The clause-title gate
     # below is only safe inside one -- see ``_is_own_clause_title``.
     density = amending_density(body_refs, page_footnotes)
-    is_amendment = _gate and density >= AMENDING_DENSITY_MIN
+    is_amendment = _gate and (profile.instrument_kind == "amending"
+                              or density >= AMENDING_DENSITY_MIN)
     rejected: list[str] = []
 
     chapters: list[Node] = []
@@ -507,8 +548,9 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
             continue
 
         # ---- structural heading (CHAPTER / PART / Division) ----------------
-        if is_structural_boundary(text) and not _quoted_container(is_amendment,
-                                                                  last_key):
+        if is_structural_boundary(text) and not _quoted_container(
+                is_amendment, last_key) and not _front_matter_container(
+                    profile, is_amendment, idx, section_start):
             core = re.sub(r"\s+", " ", _STRUCT_DECOR_RE.sub("", text)).strip()
             kw = core.split()[0].upper()
             numeral = core.split(None, 1)[1] if " " in core else ""
@@ -705,7 +747,7 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
     # Finance Act 2022 to 0 sections and lost 4,563 words.
     if is_amendment and not reals and rejected:
         return discover_structure(body_refs, printed_by_page, page_footnotes,
-                                  _gate=False)
+                                  _gate=False, profile=profile)
 
     # ---- pass 2: omitted/repealed/renumbered placeholders ------------------
     # A placeholder is admitted only where its code fits between the REAL
