@@ -5,8 +5,11 @@
 #     ../.venv/bin/pip install -r requirements-ocr.txt
 #
 # Exact versions as installed and measured on 2026-08-01 (macOS arm64,
-# Python 3.13).  Pinned because an OCR model change silently changes the text
-# of a statute: re-pin only together with a fresh scripts/ocr_review.py run.
+# Python 3.13), and re-resolved unchanged on Python 3.12 on 2026-08-29 -- the
+# interpreter pyproject.toml pins and CI and the container both run, so these
+# are now measured on the same one.  Every pin below has a cp312 wheel; nothing
+# had to move.  Pinned because an OCR model change silently changes the text of
+# a statute: re-pin only together with a fresh tools/acts/ocr_review.py run.
 
 rapidocr-onnxruntime==1.2.3
 onnxruntime==1.28.0

@@ -1,0 +1,358 @@
+<title>Eleven of Forty-Eight</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#FBFAF7; --panel:#F4F2ED; --ink:#16202B; --ink-soft:#4A5563;
+  --rule:#DBD7CE; --rule-soft:#E9E5DC;
+  --blue:#1F4E79;      /* the colour FBR compilers print new amendments in */
+  --red:#A32226;       /* and the colour they print the latest ones in */
+  --blue-wash:#EAF0F6; --red-wash:#F7EAEA;
+  --measure:68ch;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#11171E; --panel:#182029; --ink:#E7E4DD; --ink-soft:#9BA6B2;
+  --rule:#2A343F; --rule-soft:#212A34;
+  --blue:#7FB0DC; --red:#E2807F;
+  --blue-wash:#16222E; --red-wash:#2A1C1E;
+}}
+:root[data-theme="dark"]{
+  --paper:#11171E; --panel:#182029; --ink:#E7E4DD; --ink-soft:#9BA6B2;
+  --rule:#2A343F; --rule-soft:#212A34;
+  --blue:#7FB0DC; --red:#E2807F;
+  --blue-wash:#16222E; --red-wash:#2A1C1E;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px 96px}
+
+.masthead{border-bottom:1px solid var(--rule);padding:56px 0 28px;margin-bottom:48px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-soft);margin:0 0 18px}
+h1{font-family:Spectral,Georgia,serif;font-weight:600;font-size:clamp(34px,5.2vw,54px);
+  line-height:1.08;letter-spacing:-.015em;margin:0 0 16px;text-wrap:balance}
+.standfirst{font-family:Spectral,Georgia,serif;font-size:19px;line-height:1.55;
+  color:var(--ink-soft);max-width:var(--measure);margin:0}
+.standfirst em{color:var(--ink);font-style:italic}
+
+section{margin-top:56px}
+h2{font-family:Spectral,Georgia,serif;font-weight:600;font-size:26px;line-height:1.2;
+  margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance;
+  display:flex;align-items:baseline;gap:14px}
+h2 .n{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--blue);letter-spacing:.08em;flex:none;padding-top:2px}
+h3{font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:15px;
+  letter-spacing:.01em;margin:32px 0 10px}
+p{max-width:var(--measure);margin:0 0 14px}
+.lede{color:var(--ink-soft);margin-bottom:26px}
+code,.mono{font-family:"IBM Plex Mono",monospace;font-size:.88em}
+code{background:var(--panel);padding:1px 5px;border-radius:2px}
+strong{font-weight:600}
+a{color:var(--blue)}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+
+.pair{display:grid;gap:2px;margin:22px 0 30px}
+@media(min-width:820px){.pair{grid-template-columns:1fr 1fr;gap:20px}}
+.side{border-left:3px solid var(--rule);padding:14px 0 14px 16px}
+.side.before{border-left-color:var(--red);background:linear-gradient(90deg,var(--red-wash),transparent 62%)}
+.side.after{border-left-color:var(--blue);background:linear-gradient(90deg,var(--blue-wash),transparent 62%)}
+.side .tag{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;margin:0 0 8px;font-weight:500}
+.side.before .tag{color:var(--red)}
+.side.after .tag{color:var(--blue)}
+.side p{margin:0 0 8px;font-size:14.5px;line-height:1.55}
+.side p:last-child{margin-bottom:0}
+.side .mono{display:block;font-size:12.5px;line-height:1.5;color:var(--ink-soft);
+  white-space:pre-wrap;word-break:break-word;margin-top:8px}
+
+.scroll{overflow-x:auto;margin:18px 0 8px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+caption{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);padding-bottom:9px}
+th,td{text-align:left;padding:7px 14px 7px 0;border-bottom:1px solid var(--rule-soft);
+  vertical-align:baseline}
+thead th{border-bottom:1px solid var(--rule);font-weight:600;font-size:12px;
+  letter-spacing:.03em;color:var(--ink-soft);white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;
+  font-family:"IBM Plex Mono",monospace;padding-right:20px}
+tbody tr:last-child td{border-bottom:none}
+tr.total td{border-top:1px solid var(--rule);font-weight:600}
+
+.pill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.06em;padding:2px 7px;border-radius:2px;white-space:nowrap;
+  border:1px solid var(--rule)}
+.pill.ok{color:var(--blue);border-color:var(--blue);background:var(--blue-wash)}
+.pill.no{color:var(--red);border-color:var(--red);background:var(--red-wash)}
+
+figure{margin:26px 0}
+figcaption{font-size:13px;color:var(--ink-soft);max-width:var(--measure);margin-top:12px}
+svg{display:block;max-width:100%;height:auto}
+.svgwrap{overflow-x:auto}
+
+.legend{display:flex;gap:20px;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:.06em;color:var(--ink-soft);margin:0 0 14px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
+.legend i.b{background:var(--blue)} .legend i.r{background:var(--red)}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1px;background:var(--rule-soft);border:1px solid var(--rule-soft);margin:26px 0}
+.stat{background:var(--paper);padding:16px 18px}
+.stat .v{font-family:Spectral,Georgia,serif;font-size:32px;font-weight:600;
+  line-height:1;font-variant-numeric:tabular-nums;display:block}
+.stat .k{font-size:12.5px;color:var(--ink-soft);margin-top:7px;display:block;line-height:1.4}
+.stat.flag .v{color:var(--red)}
+.stat.good .v{color:var(--blue)}
+
+pre{background:var(--panel);border-left:3px solid var(--rule);padding:14px 16px;
+  overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.65;
+  margin:16px 0;color:var(--ink)}
+pre b{font-weight:500;color:var(--blue)}
+pre s{color:var(--red);text-decoration:none}
+
+/* the quarantine chain: a mechanism, drawn as one */
+.chain{list-style:none;padding:0;margin:20px 0 8px;display:grid;gap:0}
+.chain li{display:grid;grid-template-columns:26px 1fr;gap:14px;padding:9px 0;
+  border-bottom:1px solid var(--rule-soft);font-size:14.5px;line-height:1.5}
+.chain li:last-child{border-bottom:none}
+.chain .s{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-soft);
+  padding-top:4px;font-variant-numeric:tabular-nums}
+.chain li.cut{background:var(--blue-wash);border-left:3px solid var(--blue);
+  padding-left:13px;grid-template-columns:26px 1fr;margin:4px 0}
+.chain li.cut .s{color:var(--blue)}
+.chain li.harm{color:var(--red)}
+footer{margin-top:72px;padding-top:22px;border-top:1px solid var(--rule);
+  font-size:13px;color:var(--ink-soft)}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Phase 1 · fix/local-stack-and-toolchain · 29 August 2026</p>
+  <h1>Eleven of Forty-Eight</h1>
+  <p class="standfirst">The rules lane converts eleven of its forty-eight documents. Not one of
+  the thirty-seven missing was refused for anything the parser decided — thirty-six died on
+  <em>No module named 'numpy'</em>. Phase 1 rebuilds the interpreter that was never there, and
+  closes a flag that could have emptied a lane.</p>
+</header>
+
+<div class="stats">
+  <div class="stat"><span class="v">3.12.13</span><span class="k">interpreter, was 3.14.7 against a <code>&gt;=3.12</code> pin</span></div>
+  <div class="stat flag"><span class="v">36</span><span class="k">rules documents blocked on a missing <code>numpy</code></span></div>
+  <div class="stat flag"><span class="v">2,065</span><span class="k">acts pages needing OCR, none of it banked</span></div>
+  <div class="stat good"><span class="v">0</span><span class="k">hits moved — the register is the parser's, not the box's</span></div>
+  <div class="stat good"><span class="v">12</span><span class="k">ordinance JSONs the new guard stops a typo deleting</span></div>
+</div>
+
+<section>
+  <h2><span class="n">01</span>The interpreter nothing agreed on</h2>
+  <p class="lede">Four places in this repo name an interpreter. Three said 3.12. The one that
+  actually ran the pipeline said 3.14.7, and no OCR wheel exists for it.</p>
+
+  <div class="pair">
+    <div class="side before">
+      <p class="tag">Before</p>
+      <p><code>.venv</code> on <strong>Python 3.14.7</strong>, against <code>pyproject.toml</code>'s
+      <code>requires-python = "&gt;=3.12"</code>, CI's <code>python-version: '3.12'</code>, and the
+      container's own 3.12.</p>
+      <p>Every OCR import missing — not out of date, <em>absent</em>:</p>
+      <span class="mono">numpy                ModuleNotFoundError
+onnxruntime          ModuleNotFoundError
+rapidocr_onnxruntime ModuleNotFoundError
+cv2 · pyclipper · shapely   ModuleNotFoundError</span>
+    </div>
+    <div class="side after">
+      <p class="tag">After</p>
+      <p><code>.venv</code> on <strong>Python 3.12.13</strong> — the version everything else
+      already claimed. 58 packages.</p>
+      <p>Every OCR pin resolved <strong>unchanged</strong> on cp312. Nothing had to move, so no
+      re-pin and no <code>ocr_review.py</code> run was owed:</p>
+      <span class="mono">numpy                2.5.1
+onnxruntime          1.28.0
+rapidocr_onnxruntime 1.2.3
+opencv-python 5.0.0 · pyclipper 1.4.0 · shapely 2.1.2</span>
+    </div>
+  </div>
+  <p>The pins carried a note saying they were measured on Python 3.13. They are now measured on
+  the 3.12 that CI and the container run, and the file says so.</p>
+</section>
+
+<section>
+  <h2><span class="n">02</span>What it cost, lane by lane</h2>
+  <p class="lede">A lane is defined by its <code>output/*.json</code>. Measured against the source
+  files actually staged beside them, two of the three lanes are mostly absent.</p>
+
+  <figure>
+    <div class="legend">
+      <span><i class="b"></i>converted</span>
+      <span><i class="r"></i>not converted</span>
+    </div>
+    <div class="svgwrap">
+      <svg id="cov" viewBox="0 0 900 210" role="img" aria-label="Bar chart of converted versus unconverted source documents per lane: acts 80 of 93, rules 11 of 48, ordinance 12 of 45. The full data is in the table below."></svg>
+    </div>
+    <figcaption>Bars are on one scale, so length is the size of the lane and colour is its
+    coverage. The rules lane is not small — it is empty.</figcaption>
+  </figure>
+
+  <div class="scroll">
+    <table>
+      <caption>Corpus coverage, 29 August 2026</caption>
+      <thead><tr><th>Lane</th><th class="num">source files</th><th class="num">JSON on disk</th><th>what is missing, and why</th></tr></thead>
+      <tbody>
+        <tr><td>acts</td><td class="num">93</td><td class="num">80</td><td><strong>25 editions carry image-backed pages — 2,065 of them.</strong> Finance Act 2017-18 alone is 683, then 2025 (290), 2015 (236), 2016-17 (215), 2014 (148), 2020 (140)</td></tr>
+        <tr><td>rules</td><td class="num">48</td><td class="num">11</td><td><strong>36 refuse on <code>No module named 'numpy'</code></strong>, plus 1 real refusal — the Urdu edition, 20,107 characters read and 0 reaching the document</td></tr>
+        <tr><td>ordinance</td><td class="num">45</td><td class="num">12</td><td>not a Phase 2 target: <code>fbr_ingest</code> takes no profile at all</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The rules lane is the finding. Its 36 blocked documents include <strong>every</strong> Income
+  Tax Rules 2002 edition and <strong>every</strong> Sales Tax Rules 2006 edition — the lane's whole
+  consolidated backbone — each dying on one or two scanned pages buried inside a 200-to-480 page
+  document:</p>
+  <pre>OCR failed on page 482 of 'Income Tax Rules, 2002 Amended upto 24.11.2023.pdf':
+No module named 'numpy'. This page carries no usable text layer, so refusing
+to emit a document that would silently omit it.</pre>
+  <p>The eleven that do convert are the leftovers — the SROs short enough to have no scan in them.
+  Which means the anomaly register's rules column, <strong>90 hits over 6 editions</strong>, is
+  measured over a sixth of the lane it will be.</p>
+</section>
+
+<section>
+  <h2><span class="n">03</span>Phase 2 could not run — and one way it could have emptied a lane</h2>
+  <p class="lede">Phase 2 is "re-convert every lane with <code>--profile auto</code>". Reading the
+  converter, it could not do that, and the closer failure mode was worse than a missing flag.</p>
+
+  <div class="pair">
+    <div class="side before">
+      <p class="tag">Before · convert_all.py</p>
+      <p>The batch converter — the only practical way to reach 168 source files — hardcoded its
+      child command. <code>--profile</code> appeared nowhere in the file; it existed only on
+      <code>convert.py</code>, which converts one PDF.</p>
+      <span class="mono">argv = [sys.executable, "convert.py", LANE,
+        str(pdf), "-o", str(dest)]</span>
+    </div>
+    <div class="side after">
+      <p class="tag">After</p>
+      <p>Threaded through <code>convert()</code> exactly the way <code>--admit-below-floor</code>
+      already was, and refused up front for a lane whose pipeline cannot take it.</p>
+      <span class="mono">argv = [sys.executable, "convert.py", LANE,
+        str(pdf), "-o", str(dest)]
+if profile != "lane":
+    argv += ["--profile", profile]</span>
+    </div>
+  </div>
+
+  <h3>What <code>--profile auto</code> on the ordinance lane would have done</h3>
+  <p>Not "fail". This chain runs to completion, and every link already existed:</p>
+  <ol class="chain">
+    <li><span class="s">1</span><span>The <code>ordinance</code> lane maps to <code>fbr_ingest</code>, whose <code>run</code> takes no <code>profile</code> parameter.</span></li>
+    <li><span class="s">2</span><span><code>convert.py</code> exits 2 on <em>each</em> of the lane's 45 files: <span class="mono">error: the ordinance pipeline takes no profile</span></span></li>
+    <li><span class="s">3</span><span>That reason is not an <code>_is_env_failure</code> — it names no missing module, so the guard that protects against exactly this does not fire.</span></li>
+    <li class="harm"><span class="s">4</span><span><code>_quarantine</code> moves each file's previous output out of <code>output/</code>. <strong>All 12 ordinance JSONs, gone from the corpus, on a flag typo.</strong></span></li>
+    <li class="cut"><span class="s">✓</span><span><strong>Now cut at step 1.</strong> One check in <code>main()</code>, before any file is touched, asking the pipeline the same question <code>convert.py</code> asks. The run refuses; nothing is converted and nothing is moved.</span></li>
+  </ol>
+  <p>Locked by <code>tools/tests/test_convert_all_profile.py</code>, which fails if either half is
+  removed — verified by removing them. Its guard test fakes the source directory present, because
+  without that it would pass on CI for the wrong reason: the corpus is gitignored there, so the
+  earlier "no source directory" check would return 2 whether or not the guard exists.</p>
+</section>
+
+<section>
+  <h2><span class="n">04</span>What the gate proved</h2>
+  <pre>.venv/bin/python --version                    <b>3.12.13</b>
+import numpy, onnxruntime, rapidocr_onnxruntime  <b>clean</b>
+tesseract --version                           <b>5.5.2 / leptonica 1.87.0</b>, unchanged
+pdftotext -v                                  <b>26.08.0</b>  (signature.measure shells out to it)
+tools/discover_corpus.py --check               <b>no drift</b>
+ruff check apps/api tools                      <b>All checks passed!</b>
+pytest tools/tests                             <b>48 passed</b>  (46 + the 2 new)
+
+run_suite.py acts       <b>148</b> hits   run_suite.py rules      <b>90</b> hits
+run_suite.py ordinance    <b>5</b> hits   — identical to the pre-rebuild register</pre>
+  <p>The last line is the load-bearing one. <code>signature.measure</code> shells out to
+  <code>pdftotext</code> and the whole parse stack changed interpreter underneath it; a register
+  that did not move by a single hit is the evidence that it describes the parser and the corpus,
+  not the box.</p>
+
+  <h3>Two things the gate could not clear</h3>
+  <p>Both pre-existing, both recorded rather than papered over.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>What</th><th>Why it is not a rebuild regression</th></tr></thead>
+      <tbody>
+        <tr><td><code>make test-api</code></td><td>The Docker daemon is down on this host, so all 445 errors are one cause: <span class="mono">connection to server at "127.0.0.1", port 5432 ... refused</span>. No test failed for a code reason.</td></tr>
+        <tr><td><code>test_scan_heading_leaks_skips_without_corpus</code></td><td>It asserts <code>main(["acts"]) == 0</code>, which is only true <strong>where the corpus is absent</strong>. With the corpus staged the scan correctly finds 144 hits across 80 files and returns non-zero. Green on CI, red on any machine that actually has the corpus.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">05</span>What is now unblocked, and deliberately not done</h2>
+  <p class="lede">Nothing was converted this round, by decision. <code>data/corpora/</code> is
+  byte-identical, so no reviewer's sign-off was reset.</p>
+  <div class="scroll">
+    <table>
+      <caption>Queued for Phase 2</caption>
+      <thead><tr><th>Run</th><th class="num">documents</th><th class="num">OCR pages</th><th>shape</th></tr></thead>
+      <tbody>
+        <tr><td>rules — do this first, and alone</td><td class="num">36</td><td class="num">391</td><td>a fifth of the acts cost, and it roughly triples the lane. Half of it is six Income Tax Rules 2002 editions (46, 44, 29, 27, 23 pages)</td></tr>
+        <tr><td>acts — the marathon</td><td class="num">25</td><td class="num">2,065</td><td>memory-bound at <code>--ocr-batch 1</code>; use <code>--skip-existing</code> so an interrupted run resumes</td></tr>
+        <tr><td>ordinance</td><td class="num">—</td><td class="num">—</td><td><span class="pill no">blocked</span> not expressible until the <code>fbr_ingest</code> decision in Phase 4</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><code>data/ocr_cache</code> is <strong>0 B</strong>. None of this work is banked, so all
+  <strong>2,456</strong> pages will be paid in full, once, on the first run. After it, <code>discover_corpus --write</code>
+  has to be re-read rather than re-run: <code>signature.measure</code> reads the text layer only, so
+  a document that gains one through OCR can legitimately change family. A moved document needs a
+  reason, not a shrug.</p>
+</section>
+
+<footer>
+  <p>Phase 1 of <code>wip/plan.md</code> · branch <code>fix/local-stack-and-toolchain</code> ·
+  measured 29 August 2026 on macOS arm64 against the corpus staged on this machine.
+  Follows <em>Five Schema Families</em> (PR #42).</p>
+</footer>
+</div>
+
+<script>
+(() => {
+  const data = [
+    {lane:"acts",      done:80, total:93},
+    {lane:"rules",     done:11, total:48},
+    {lane:"ordinance", done:12, total:45},
+  ];
+  const svg = document.getElementById("cov");
+  const NS = "http://www.w3.org/2000/svg";
+  const X0 = 108, X1 = 760, MAX = 93, ROW = 56, TOP = 26;
+  const el = (n, a) => { const e = document.createElementNS(NS, n);
+    for (const k in a) e.setAttribute(k, a[k]); return e; };
+
+  data.forEach((d, i) => {
+    const y = TOP + i * ROW, h = 22;
+    const w = (n) => (n / MAX) * (X1 - X0);
+    // lane name
+    const t = el("text", {x:X0-14, y:y+16, "text-anchor":"end", fill:"currentColor",
+      "font-family":"IBM Plex Mono, monospace", "font-size":13});
+    t.textContent = d.lane; svg.appendChild(t);
+    // converted, then a 2px surface gap, then the remainder
+    svg.appendChild(el("rect", {x:X0, y, width:Math.max(0,w(d.done)), height:h, rx:3,
+      fill:"var(--blue)"}));
+    const restX = X0 + w(d.done) + 2, restW = w(d.total - d.done) - 2;
+    if (restW > 0) svg.appendChild(el("rect", {x:restX, y, width:restW, height:h, rx:3,
+      fill:"var(--red)"}));
+    // direct labels: every bar, because there are only three
+    const lab = el("text", {x:X1+14, y:y+16, fill:"currentColor",
+      "font-family":"IBM Plex Mono, monospace", "font-size":13,
+      "font-variant-numeric":"tabular-nums"});
+    lab.textContent = `${d.done} / ${d.total}`; svg.appendChild(lab);
+    const pct = el("text", {x:X0+8, y:y+38, fill:"currentColor", opacity:".55",
+      "font-family":"IBM Plex Mono, monospace", "font-size":11});
+    pct.textContent = `${Math.round(100*d.done/d.total)}% converted`;
+    svg.appendChild(pct);
+  });
+})();
+</script>
