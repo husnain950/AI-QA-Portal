@@ -115,65 +115,73 @@ does not have that blind spot.
 
 ---
 
-# Phase 3 — the anomaly register, re-measured
+# Phase 3 — the anomaly register, re-measured after Phase 2
 
-*(Numbered to match `wip/tasks.md`, which is the executable checklist. This section
-used to be called "Phase 1" here and "Phase 3" there, for the same work.)*
+*(Numbered to match `wip/tasks.md`, which is the executable checklist. The run that
+produced these numbers is written up in `wip/phase2-run.md`.)*
 
-The previous plan's register is **not** discarded. It is re-measured here against the
-JSON currently on disk, which is what the numbers below describe.
-
-**243 invariant hits across 37 of 103 converted editions** — higher than the 157 the
-old register recorded, because PR #41 landed `no_chapter_caption_in_section_heading`
-and tightened `no_footnote_text_in_body`, and because the on-disk JSON predates
-several parser fixes.
+**210 invariant hits across 36 of 101 converted editions**, measured immediately after
+the Phase 2 run of 2026-08-29. The previous version of this section recorded 243 across
+37 of 103, measured on JSON that in places predated several merged parser fixes. That
+is the difference: the corpus caught up with the parser.
 
 | Lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 148 | 27 | 80 | 93 |
-| rules | 90 | 6 | **11** | **48** |
-| ordinance | 5 | 4 | 12 | 45 |
+| acts | 109 | 26 | 78 | 93 |
+| rules | 96 | 6 | **11** | **48** |
+| ordinance | 5 | 4 | 12 | 46 |
 
-**Read the last column before the first.** The register is measured over what
-converted, and the rules lane converted 11 of 48 documents. The other 37 were not
-refused for anything the parser decided — 36 died on `No module named 'numpy'`,
-including every Income Tax Rules 2002 edition and every Sales Tax Rules 2006 edition,
-each on one or two scanned pages inside a 200–480 page document. The lane's entire
-consolidated backbone is missing, and the 11 present are the leftovers. Phase 1 has
-now removed that cause; until Phase 2 acts on it, the rules column below describes a
-sixth of the lane. The acts lane has the same shape at smaller scale: 25 editions
-carrying 2,065 image-backed pages have never been convertible on this host.
+**Read the last column before the first.** The rules lane still converts 11 of 48
+documents. Phase 2 removed the `No module named 'numpy'` cause but not the OCR cost
+behind it: the other 36 are scans, and this run skipped every scan in the corpus by
+instruction. The acts lane has the same shape at smaller scale — 25 editions carrying
+2,065 image-backed pages.
 
-| Invariant | acts | rules | ordinance |
-|---|---|---|---|
-| `no_footnote_text_in_body` | 109 (20 docs) | — | — |
-| `section_carries_its_body` | 26 (9) | 78 (6) | 5 (4) |
-| `no_foreign_section_start_in_body` | 9 (9) | 10 (4) | — |
-| `no_chapter_caption_in_section_heading` | 3 (3) | 2 (2) | — |
-| `clause_codes_plausible` | 1 (1) | — | — |
+| Invariant | acts | rules | ordinance | total |
+|---|---|---|---|---|
+| `section_carries_its_body` | 27 (10) | 79 (6) | 5 (4) | 111 |
+| `no_footnote_text_in_body` | 45 (20) | — | — | 45 |
+| `body_chapters_in_tree` | 19 (19) | 2 (1) | — | 21 |
+| `no_foreign_section_start_in_body` | 10 (10) | 10 (4) | — | 20 |
+| `section_codes_ordered` | 6 (4) | — | — | 6 |
+| `structure_counts` | — | 4 (2) | — | 4 |
+| `no_chapter_caption_in_section_heading` | 1 (1) | 1 (1) | — | 2 |
+| `clause_codes_plausible` | 1 (1) | — | — | 1 |
 
-**Read `no_foreign_section_start_in_body` in the light of Phase 0.** "A leaf contains
-the START of another section in its body" is the literal signature of an amending
-instrument parsed as a consolidated one: the other section is the one being quoted.
-Those 19 hits should be **re-measured after re-conversion under the family profiles**,
-not patched.
+Three classes are new, and **not because anything broke**:
+`inv_body_chapters_in_tree` is a documented no-op on JSON that lacks
+`metadata.body_chapter_numerals` — "so old output does not fail the lane until it is
+reconverted". It was dormant on stale output. 31 hits the previous register could not
+see.
 
-Order, and why the register comes third:
+**And the amending hypothesis this section used to lead with is falsified.** It read:
+"`no_foreign_section_start_in_body` is the literal signature of an amending instrument
+parsed as a consolidated one … those hits should be re-measured after re-conversion
+under the family profiles, not patched." They were re-measured. The seven amending
+instruments that converted are **clean** on that invariant — clean on everything except
+one `clause_codes_plausible` hit on Finance Act 2024 — and all ten acts hits are in
+consolidated statutes: seven Customs Act editions (2019–2025, one each) and three Sales
+Tax Act editions. The hypothesis survives only for the 18 amending instruments still
+behind OCR, and it is no longer a reason to schedule that class first.
 
-1. **Phase 1 — rebuild the toolchain. Done (PR pending).** `.venv` was Python
-   **3.14.7** against a `>=3.12` pin with no OCR stack at all; it is now **3.12.13**
-   with every OCR pin resolved unchanged. The register was re-measured on the new
-   interpreter and did not move by a single hit, which is the evidence that it
-   describes the parser and not the box.
-2. **Phase 2 — re-convert `acts` and `rules` at one parser revision, with
-   `--profile auto`.** Only then are the register's numbers a property of the parser
-   rather than of when each file was last converted. `ordinance` is not a target: its
-   pipeline takes no profile, which is a Phase 4 decision.
-3. **Phase 3 — re-measure**, then classify every surviving hit as fixed or exempted
-   with traced evidence (`tools/suite/README.md`). There is no third state.
-4. **Phase 4 —** flip `--profile auto` to the default, decide `fbr_ingest`, and the
-   pipeline→portal transport work from the previous plan — sync, seeding,
+Order, and what is left:
+
+1. **Phase 1 — rebuild the toolchain. Done (PR #43).** `.venv` was Python **3.14.7**
+   against a `>=3.12` pin with no OCR stack; it is **3.12.13** with every OCR pin
+   resolved unchanged.
+2. **Phase 2 — re-convert at one parser revision. Done for the text-layer half
+   (this PR).** 84 documents re-converted across all three lanes with
+   `--profile auto` where the pipeline takes one; every scanned document skipped by
+   instruction, `data/ocr_cache` still 0 B. The blocker had to be fixed first: a family
+   cannot pick a profile the lane already knows. **What it still owes is the OCR half**
+   — 61 documents, 2,456 pages, of which 35 documents need ≤ 10 pages each.
+3. **Phase 3 — close the register above**, fixed or exempted with traced evidence
+   (`tools/suite/README.md`). There is no third state. It now opens with two documents
+   the current parser refuses outright, which cost the corpus more than any hit does.
+4. **Phase 4 —** flip `--profile auto` to the default, decide `fbr_ingest` (Phase 2
+   measured its cost again: 10 of the ordinance lane's 19 text-layer documents cannot
+   convert at all), and the pipeline→portal transport work — sync, seeding,
    `version_metrics` — unchanged.
 
-Nothing in Phases 1–4 needs the discovery stage to change again. That is the point of
+Nothing in Phases 3–4 needs the discovery stage to change again. That is the point of
 running it first.

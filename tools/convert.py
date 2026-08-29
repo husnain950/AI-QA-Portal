@@ -80,11 +80,16 @@ def main(argv=None) -> int:
     # that grows one starts accepting the flag without an edit here.
     kwargs = {}
     if args.profile == "auto":
-        if "profile" not in inspect.signature(run).parameters:
+        # ``auto``, not ``profile=None``: the lane's own profile stays bound by
+        # the partial in acts_ingest/rules_ingest and is the FALLBACK the family
+        # overrides. Passing None instead threw it away, which is how
+        # --profile auto came to parse all 34 consolidated Rules documents as
+        # Acts (wip/phase2-findings.md finding 1).
+        if "auto" not in inspect.signature(run).parameters:
             print(f"error: the {args.lane} pipeline takes no profile, so "
                   f"--profile auto does not apply", file=sys.stderr)
             return 2
-        kwargs["profile"] = None
+        kwargs["auto"] = True
     if "admit_below_floor" in inspect.signature(run).parameters:
         kwargs["admit_below_floor"] = args.admit_below_floor
     elif args.admit_below_floor:
