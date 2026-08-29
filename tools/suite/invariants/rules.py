@@ -24,6 +24,7 @@ from ._common import (
     _is_amendment_instrument,
     _schedule_ordinal,
 )
+from .acts import inv_toc_omitted_chapter_caption_not_glued  # noqa: F401
 
 # a split ordinal ("30 th June", "1 st day") or a stray leading suffix line --
 # both mean the superscript ordinal was not re-attached to its number

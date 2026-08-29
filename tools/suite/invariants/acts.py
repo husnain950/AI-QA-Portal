@@ -54,8 +54,9 @@ def inv_structure_counts(doc):
     or the tree assembled out of order, which is the defect the floor was really
     proxying for.  (A chapter dropped *with* its sections is caught by the
     conservation gate, and one dropped without them by ``no_orphan_sections`` and
-    the pipeline's parent-less-section refusal.)  Holes are NOT an error: the
-    Customs TOC omits CHAPTERS IV / IX / XI, which the body prints (ledger O03).
+    the pipeline's parent-less-section refusal.)  Holes in the TOC are filled from
+    the body by ``insert_missing_body_chapters``; ``body_chapters_in_tree`` then
+    requires every body-printed ``CHAPTER N`` to exist as a node (ledger O03).
 
     The schedule COUNT is likewise edition-dependent -- new
     schedules were added over the years (9 in the 30.06.2018 edition, 15 by
@@ -187,6 +188,45 @@ def inv_toc_first_chapter_parse(_doc):
         firsts = [s for s in secs if s.code in ("1", "2", "3")]
         if len(firsts) != 3 or any(s.parent is not chapters[0] for s in firsts):
             bad.append(f"{label}: sections 1-3 not all parented to CHAPTER I")
+    return bad
+
+
+def inv_toc_omitted_chapter_caption_not_glued(_doc):
+    """Pure-function pin: an omitted CHAPTER's ALL-CAPS caption must not join
+    the previous section heading (Customs 2025 s.14A / Chapter IV).
+
+    Independent of which JSON is under test -- the same fragment as
+    ``legal_ingest.toc._demo``.
+    """
+    from legal_ingest.toc import parse_toc
+    lines = [
+        "        CHAPTER III",
+        "        DECLARATION OF PORTS, AIRPORTS, LAND CUSTOMS STATIONS, ETC.",
+        "        14.  Stations for officers of customs to board and land.  39",
+        "        14A. Provision of accommodation at customs ports, etc.    40",
+        "             PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION",
+        "        15.  Prohibitions.                                        41",
+        "        16.  Power to prohibit or restrict importation and exportation of goods.  41",
+        "        CHAPTER V",
+        "        LEVY OF, EXEMPTION FROM AND REPAYMENT OF, CUSTOMS-DUTIES",
+        "        18.  Goods dutiable.                                      45",
+    ]
+    chapters, _scheds, secs = parse_toc(lines)
+    bad = []
+    if [c.code for c in chapters] != ["CHAPTER III", "", "CHAPTER V"]:
+        bad.append(f"omitted chapter not opened from caption: "
+                   f"{[c.code for c in chapters]}")
+        return bad
+    if chapters[1].heading != (
+            "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION"):
+        bad.append(f"caption chapter heading {chapters[1].heading!r}")
+    by = {s.code: s for s in secs}
+    if "PROHIBITION" in (by.get("14A") and by["14A"].heading or ""):
+        bad.append(f"14A heading absorbed caption: {by['14A'].heading!r}")
+    if by.get("14A") is None or by["14A"].parent is not chapters[0]:
+        bad.append("14A not parented to CHAPTER III")
+    if by.get("15") is None or by["15"].parent is not chapters[1]:
+        bad.append("15 not parented to the caption chapter")
     return bad
 
 

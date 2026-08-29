@@ -573,10 +573,18 @@ def inv_no_structural_heading_in_body(doc):
     return bad
 
 
+#: Customs (and a handful of siblings) title the amendment-note block
+#: ``LEGAL REFERENCE`` / the printer typo ``LEGAL REFERENCS``.  Body-sized, so
+#: a missed zone leaves the caption in the previous leaf as a ``<p><strong>``.
+_LEGAL_REF_CAPTION = re.compile(r"LEGAL\s+REFERENC(?:E|ES|S)\b")
+
+
 def inv_no_footnote_text_in_body(doc):
-    """A footnote's tell-tale intro ('Table substituted by the Finance Act', 'read
-    as follows') must never appear in a section/division BODY -- it belongs below
-    the footnote separator.  Guards the substituted-table-spilling-into-body bug.
+    """A footnote's tell-tale intro ('Table substituted by the Finance Act',
+    'LEGAL REFERENCE') must never appear in a section/division BODY -- it belongs
+    below the footnote separator.  Guards the substituted-table-spilling-into-body
+    bug and the Customs apparatus-caption leak (a body-sized ``LEGAL REFERENCE``
+    line left in the previous leaf when notes sit overleaf).
 
     TRACKED KNOWN GAP (deferred fix): the 11.03.2019 edition prints Division XXI's
     (Advance Tax on Banking Transactions, s.236P -- since omitted) substituted
@@ -598,10 +606,17 @@ def inv_no_footnote_text_in_body(doc):
                for ed, code in known_gaps):
             continue
         body = leaf.get("plain_text", "")
+        html = leaf.get("html", "")
+        hit = False
         for mk in markers:
             if mk in body:
                 bad.append(f"section {leaf.get('code')}: footnote text in body ({mk!r})")
+                hit = True
                 break
+        if hit:
+            continue
+        if _LEGAL_REF_CAPTION.search(body) or _LEGAL_REF_CAPTION.search(html):
+            bad.append(f"section {leaf.get('code')}: LEGAL REFERENCE caption in body")
     return bad
 
 
@@ -1979,6 +1994,124 @@ def inv_bold_gate_unchanged_on_text_layer(doc):
     return []
 
 
+#: Same caption-run signal as portal ``heading_body_bleed``: four or more
+#: consecutive ALL-CAPS words, one of them long.  Short function words must
+#: count or ``PROHIBITION AND RESTRICTION OF IMPORTATION`` splits at ``OF``.
+#: NO re.IGNORECASE -- the case is the signal.
+_CHAPTER_CAPTION_IN_HEADING = re.compile(
+    r"(?:\b[A-Z][A-Z'-]+\b[\s,]+){3,}\b[A-Z][A-Z'-]{3,}\b")
+
+
+def inv_no_chapter_caption_in_section_heading(doc):
+    """A section heading must not absorb a chapter's ALL-CAPS caption (O02/O03).
+
+    Customs TOC omits CHAPTER IV / IX / XI; the leftover caption used to glue
+    onto the previous section heading via ``CONT_RE``.  72A survives because
+    its body binds; 14A shipped the glued TOC string as a placeholder heading.
+    """
+    bad = []
+    for leaf in iter_section_leaves(doc):
+        heading = leaf.get("heading") or ""
+        m = _CHAPTER_CAPTION_IN_HEADING.search(heading)
+        if m:
+            bad.append(f"section {leaf.get('code')}: chapter caption in heading "
+                       f"{m.group(0)!r}")
+    return bad
+
+
+def _tree_chapter_numeral(code):
+    """Normalised numeral of a chapter code (``CHAPTER XVI-A`` -> ``XVI-A``)."""
+    m = _CHAPTER_NUM_RE.match((code or "").strip())
+    if not m:
+        return None
+    num = m.group(1).upper()
+    suffix = (m.group(2) or "").upper()
+    return f"{num}-{suffix}" if suffix else num
+
+
+def _norm_body_numeral(raw):
+    return re.sub(r"[\s\-]+", "-", (raw or "").strip().upper()).strip("-")
+
+
+def inv_body_chapters_in_tree(doc):
+    """Every ``CHAPTER N`` printed in the body must exist as a tree node (O03).
+
+    Relies on ``metadata.body_chapter_numerals`` written by the pipeline after
+    ``insert_missing_body_chapters``.  Missing metadata (pre-fix JSON) is a
+    no-op so old output does not fail the lane until it is reconverted.
+    """
+    numerals = (doc.get("metadata") or {}).get("body_chapter_numerals") or []
+    if not numerals:
+        return []
+    present = {_tree_chapter_numeral(ch.get("code"))
+               for ch in (doc.get("chapters") or [])}
+    present.discard(None)
+    bad = []
+    for raw in numerals:
+        key = _norm_body_numeral(raw)
+        if key not in present:
+            bad.append(f"body CHAPTER {raw} has no tree node")
+    return bad
+
+
+def _demo_heading_leak_class() -> None:
+    """Pins the heading-glue / apparatus-caption / omitted-chapter detectors."""
+    glued = {
+        "metadata": {},
+        "chapters": [{
+            "code": "CHAPTER III",
+            "sections": [{
+                "code": "14A",
+                "heading": (
+                    "Provision of accommodation at customs ports, etc "
+                    "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION"),
+                "plain_text": (
+                    "14A. Provision of accommodation at customs ports, etc "
+                    "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION"),
+                "html": (
+                    "<h4 class=\"section-heading\">14A. Provision of accommodation "
+                    "at customs ports, etc PROHIBITION AND RESTRICTION OF "
+                    "IMPORTATION AND EXPORTATION.—</h4>"),
+            }, {
+                "code": "14",
+                "heading": "Stations for officers of customs to board and land",
+                "plain_text": (
+                    "14. Stations for officers of customs to board and land.— "
+                    "Officers.\nLEGAL REFERENCE"),
+                "html": "<p><strong>LEGAL REFERENCE</strong></p>",
+            }],
+        }],
+    }
+    assert inv_no_chapter_caption_in_section_heading(glued)
+    assert inv_no_footnote_text_in_body(glued)
+    clean = {
+        "metadata": {"body_chapter_numerals": ["III", "IV", "V"]},
+        "chapters": [
+            {"code": "CHAPTER III", "heading": "DECLARATION OF PORTS",
+             "sections": [{
+                 "code": "14A",
+                 "heading": (
+                     "Provision of security and accommodation at Customs-ports, etc"),
+                 "plain_text": (
+                     "14A. Provision of security and accommodation at Customs-ports, "
+                     "etc.— Any agency or person managing a customs-port."),
+                 "html": "<p>Any agency or person</p>",
+             }]},
+            {"code": "CHAPTER IV",
+             "heading": "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION",
+             "sections": []},
+            {"code": "CHAPTER V", "heading": "LEVY OF CUSTOMS-DUTIES",
+             "sections": []},
+        ],
+    }
+    assert inv_no_chapter_caption_in_section_heading(clean) == []
+    assert inv_no_footnote_text_in_body(clean) == []
+    assert inv_body_chapters_in_tree(clean) == []
+    hole = dict(clean, chapters=clean["chapters"][:1] + clean["chapters"][2:])
+    assert any("CHAPTER IV" in m or "IV" in m for m in inv_body_chapters_in_tree(hole))
+    assert inv_body_chapters_in_tree({"metadata": {}, "chapters": []}) == []
+
+
 #: Invariant *order* for the Acts and the Rules lanes, whose ALL_INVARIANTS lists were
 #: byte-identical. The Ordinance lane runs a different set and passes its own order.
 _ORDER = [
@@ -2020,12 +2153,15 @@ _ORDER = [
     "no_control_chars",
     "preamble_present",
     "no_toc_row_in_heading",
+    "no_chapter_caption_in_section_heading",
     "structure_counts",
+    "body_chapters_in_tree",
     "no_orphan_sections",
     "section_carries_its_body",
     "no_foreign_section_start_in_body",
     "section_codes_ordered",
     "toc_first_chapter_parse",
+    "toc_omitted_chapter_caption_not_glued",
     "toc_schedule_regexes",
     "calibration_sane",
     "text_density_plausible",
