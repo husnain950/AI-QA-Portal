@@ -121,13 +121,13 @@ does not have that blind spot.
 up in `wip/phase3-chapter-numerals.md`; the Phase 2 run that produced the baseline is in
 `wip/phase2-run.md`.)*
 
-**75 invariant hits across 103 converted editions**, measured 2026-08-30 after round 5.
-210 → 193 → 148 → 92 → 78 → 75. The acts lane holds 80 documents.
+**70 invariant hits across 103 converted editions**, measured 2026-08-30 after round 6.
+210 → 193 → 148 → 92 → 78 → 75 → 70. The acts lane holds 80 documents.
 
 | Lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
 | acts | 39 | 28 | **80** | 93 |
-| rules | 31 | 4 | **11** | **48** |
+| rules | 26 | 4 | **11** | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
 **Read the last column before the first.** The rules lane still converts 11 of 48
@@ -140,7 +140,7 @@ editions carrying 2,065 image-backed pages.
 | `section_carries_its_body` | 19 (10) | 17 (4) | 5 (4) | **41** |
 | `no_foreign_section_start_in_body` | 10 (10) | 9 (4) | — | **19** |
 | `section_codes_ordered` | 6 (5) | — | — | **6** |
-| `structure_counts` | — | 5 (2) | — | 5 |
+| `structure_counts` | — | — | — | **0** |
 | `no_chapter_caption_in_section_heading` | 3 (3) | — | — | **3** |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 |
 | `no_footnote_text_in_body` | — | — | — | **0** |
@@ -186,10 +186,9 @@ Two lessons worth carrying into the remaining classes:
    fires when the victim leaf is itself heading-only, so these move with the start-detection
    fixes rather than separately.
 3. ~~`no_footnote_text_in_body`~~ — **closed in round 2.**
-4. **`structure_counts` (5)** — corrected: the source's contents page lists
-   `XIV-AB ..105`, `XIV-AC ..105`, `XIV-AD ..107` **before** `XIV-B ..111`, strictly
-   ascending. The tree reverses them, so this is a parser defect and not the source quirk
-   an earlier draft of this plan described.
+4. ~~`structure_counts`~~ — **closed in round 6.** The parser sorted chapters by a numeral
+   value that sums a suffix's letters, so `XIV-AB`, `XIV-BA` and `XIV-C` all collided at
+   14.03. A suffix is alphabetical, not additive.
 5. **`section_codes_ordered` (7)** and **`no_chapter_caption_in_section_heading` (5)** —
    one cause: an omitted-section placeholder lands at a tree position matching neither its
    code nor its page, and its segment then runs on into the next chapter heading.

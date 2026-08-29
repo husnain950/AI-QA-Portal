@@ -203,6 +203,27 @@ def _notifying_sro(refs, scan_lines: int = 400) -> str | None:
 
 def _demo() -> None:
     """Self-check: the S.R.O. grammar, which identifies the instrument."""
+    # Chapter ORDER is the contents page's, not a numeral arithmetic's.
+    # _roman_value sums a suffix's letters, so XIV-AA and XIV-B both come to
+    # 14.02 and XIV-AB, XIV-BA and XIV-C all to 14.03 -- sorting by it interleaved
+    # two families of Sales Tax Rules 2006 and put chapters printed on pages
+    # 123-125 after ones on 129-158.  A suffix is alphabetical, not additive.
+    class _Ch:
+        def __init__(self, code):
+            self.code = code
+
+    _src = ["CHAPTER XIV", "CHAPTER XIVA", "CHAPTER XIV-A", "CHAPTER XIV-AA",
+            "CHAPTER XIV-AB", "CHAPTER XIV-AC", "CHAPTER XIV-AD", "CHAPTER XIV-B",
+            "CHAPTER XIV-BA", "CHAPTER XIV-BB", "CHAPTER XIV-C", "CHAPTER XIV-D"]
+    assert sorted(_src, key=lambda c: _chapter_sort_key(_Ch(c))) == _src, \
+        sorted(_src, key=lambda c: _chapter_sort_key(_Ch(c)))
+    # XIVA and XIV-A are two DIFFERENT chapters and share a key; the sort must
+    # leave them in the order the contents page gave, not order them by
+    # punctuation.  A code tiebreak puts "XIV-A" first and fails here.
+    assert [c for c in sorted(["CHAPTER XIVA", "CHAPTER XIV-A"],
+                              key=lambda c: _chapter_sort_key(_Ch(c)))] == \
+        ["CHAPTER XIVA", "CHAPTER XIV-A"]
+
     cases = [
         ("CUSTOMS RULES, 2001 (S.R.O.450(I)/2001, DATED 18.6.2001)", "S.R.O. 450(I)/2001"),
         ("Notification No. S.R.O. 918(I)/2019, dated 7th August, 2019",
@@ -1164,6 +1185,43 @@ def _roman_value(raw: str) -> float:
     return total + sum(ord(c) - 64 for c in suffix) / 100.0
 
 
+def _chapter_sort_key(ch) -> tuple:
+    """Ordering key for a chapter: the base numeral, then the suffix LETTERS.
+
+    ``_roman_value`` folds a suffix into two decimal places by SUMMING its letter
+    values, which is fine for the nearest-previous-chapter search it was written
+    for and wrong as an ordering.  It collides:
+
+        XIV-AA -> 14.02   XIV-B  -> 14.02
+        XIV-AB -> 14.03   XIV-BA -> 14.03   XIV-C -> 14.03
+
+    so sorting Sales Tax Rules 2006's chapters by it interleaved two families --
+    XIV-B, XIV-AB, XIV-BA, XIV-C, XIV-AC, XIV-BB, XIV-D, XIV-AD -- against a
+    contents page that lists AB, AC and AD (printed pages 105-107) BEFORE XIV-B
+    (111).  Chapters printed on pages 123-125 came out after ones on 129-158,
+    which is what ``structure_counts`` reports.
+
+    A suffix is an alphabetical sequence, not a sum: the source's own order is
+    A, AA, AB, AC, AD, B, BA, BB, C, D.  Comparing the letters as a string is
+    exactly that, and it leaves a numeral with no suffix first.
+
+    The code itself is deliberately NOT a tiebreak.  ``XIVA`` and ``XIV-A`` are
+    two different chapters of this document -- round 1 established that -- and
+    they share a key, so a string tiebreak would order them by their punctuation
+    ("-" sorts before "A") rather than by the contents page, which lists XIVA
+    first.  ``list.sort`` is stable, so equal keys keep the TOC's own order,
+    which is the authority here.
+    """
+    numeral = _chapter_numeral_of(ch) or ""
+    raw = re.sub(r"\s+", "", numeral.upper())
+    m = re.match(r"^([IVXLC]+|\d+)(?:-?([A-Z]{1,3}))?$", raw)
+    if not m:
+        return (_roman_value(numeral), "")
+    base = m.group(1)
+    value = float(base) if base.isdigit() else _roman_value(base)
+    return (value, m.group(2) or "")
+
+
 def body_chapter_entries(body_refs) -> list:
     """``(body_ref index, numeral, caption)`` for each CHAPTER line in the body.
 
@@ -1360,10 +1418,7 @@ def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
             if entry.code in span and (entry.parent is prev or entry.parent is None):
                 entry.parent = node
 
-    chapters.sort(key=lambda ch: (
-        _roman_value(_chapter_numeral_of(ch) or ""),
-        ch.code or "",
-    ))
+    chapters.sort(key=_chapter_sort_key)
     return n_changed
 
 
