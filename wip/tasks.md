@@ -197,8 +197,8 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**92 hits across 103 converted editions**, re-measured 2026-08-30 after round 3.
-193 → 148 → 92; the Phase 2 close was 210. Documents held: acts 80, rules 11, ordinance 12.
+**78 hits across 103 converted editions**, re-measured 2026-08-30 after round 4.
+210 → 193 → 148 → 92 → 78. Documents held: acts 80, rules 11, ordinance 12.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
 numerals, read the same way in the body scan, the tree and the invariant.
@@ -206,18 +206,24 @@ Round 2: [`wip/phase3-legal-reference.md`](./phase3-legal-reference.md) — the 
 caption, which was never in a body at all.
 Round 3: [`wip/phase3-omissions-and-compilations.md`](./phase3-omissions-and-compilations.md)
 — an unreadable glyph, and two documents that are not one instrument each.
+Round 4: [`wip/phase3-split-codes.md`](./phase3-split-codes.md) — the text layer splits a
+code, and a measured note that had gone out of date.
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 19 (10) | 31 (4) | 5 (4) | **55** | 111 |
-| `no_foreign_section_start_in_body` | 10 (10) | 10 (4) | — | 20 | 20 |
+| `section_carries_its_body` | 19 (10) | 17 (4) | 5 (4) | **41** | 55 |
+| `no_foreign_section_start_in_body` | 10 (10) | 9 (4) | — | **19** | 20 |
 | `section_codes_ordered` | 7 (6) | — | — | 7 | 7 |
 | `structure_counts` | — | 5 (2) | — | 5 | 5 |
-| `no_chapter_caption_in_section_heading` | 3 (3) | 1 (1) | — | 4 | 4 |
+| `no_chapter_caption_in_section_heading` | 3 (3) | 2 (2) | — | **5** | 4 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
 | `no_footnote_text_in_body` | — | — | — | **0** | 45 |
 | `body_chapters_in_tree` | — | — | — | **0** | 21 |
-| **per lane** | **40** | **47** | **5** | **92** | 148 |
+| **per lane** | **40** | **33** | **5** | **78** | 92 |
+
+`no_chapter_caption_in_section_heading` gains one because round 4 made it visible: with
+rule 150ZQZA finally binding, its heading is readable, and it is a FALSE positive — the
+source prints that section's own title in capitals. Round 5 fixes the invariant.
 
 48 of the `section_carries_its_body` drop is two compilations moved to
 `tools/suite/exemptions/rules.json` on evidence already accepted for sibling invariants;
@@ -258,11 +264,21 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       Adding those entries made the runner re-check the rest and report **two existing
       exemptions as stale** (`no_orphan_marker_li`, and Federal Excise's own
       `section_codes_ordered`); both deleted. All three lanes now report **0 stale**.
-- [ ] **`section_carries_its_body` — the remaining 55.** 14 are one printed defect: the
-      text layer splits the code (`150 ZQR.` for `150ZQR`), so `_candidate_code` returns
-      `None` for an entire 18-section run. ~24 are real zoning misses scattered 1–2 per
-      edition; 3 are a TOC row bound as body; 5 are ordinance (`fbr_ingest`, sequenced
-      after the Phase 4 decision on that fork).
+- [x] **The split code — 14 hits, and a measured note that had expired.** The text layer
+      prints `150 ZQR.` for `150ZQR`, so `_candidate_code` returned `None` for an entire
+      18-rule chapter. `_DOTSUFFIX_RE` already reads a split suffix but is bracket-gated,
+      with a `ponytail:` note saying all 146 unbracketed instances were tariff rows —
+      *"widen only if that changes"*. Re-measured over 186,984 lines: **it has changed.**
+      Dropping the gate outright still gains 392 tariff rows, so the gate stays and a
+      second, narrower unbracketed branch is added beside it: mandatory trailing dot,
+      hyphen-or-space separator but never a dot, and 2–4 letters but never a lone capital.
+      **48 gained, 0 lost**, each narrowing locked by a case that fails without it.
+      Honest caveat: the acts lane did **not** move. 32 of the 48 gained lines were
+      hyphenated Customs sections already binding by another route — lines newly matched
+      is not the same measurement as sections newly bound.
+- [ ] **`section_carries_its_body` — the remaining 41.** ~24 real zoning misses scattered
+      1–2 per edition; 3 a TOC row bound as body; 5 ordinance (`fbr_ingest`, sequenced
+      after the Phase 4 decision on that fork); the rest untriaged.
 - [x] **`no_footnote_text_in_body` (45) — closed, and none of it was in a body.**
       All 45 hits were the string `LEGAL REFERENCE` inside a citation tooltip's `title=`
       attribute; the invariant searched raw markup, so an attribute counted as body text.
@@ -286,13 +302,31 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       for every document we can measure — the seven amending instruments are clean on it,
       and all ten acts hits are in consolidated statutes (seven Customs editions, three
       Sales Tax). It may still hold for the 18 amending instruments behind OCR.
-- [ ] **`structure_counts` (5)** — Sales Tax Rules 2006 places `CHAPTER XIV-AB`,
-      `XIV-AC` and `XIV-AD` (printed pages 123–125) after `XIV-B`, `XIV-C` and `XIV-D`
-      (129–158). XIV-AC joined the list in round 1, when the decoration strip let the
-      parser see it at all.
+- [ ] **`structure_counts` (5) — a parser defect, not a source quirk.** This entry used
+      to say the *source* places `XIV-AB/AC/AD` after `XIV-B/C/D`. That is **wrong**, and
+      the source's own contents page says so: `XIV-AB ..105`, `XIV-AC ..105`,
+      `XIV-AD ..107`, **then** `XIV-B ..111`, `XIV-BA ..125`, `XIV-C ..136`, `XIV-D ..140`
+      — strictly ascending, exactly as the numerals read. The tree puts `XIV-B` before
+      `XIV-AB`, so the parser reordered them. A fix, not an exemption.
+      The invariant's printed-page escape (`invariants/rules.py:120`) is **not** dead as
+      first suspected — `_first_printed_page` returns correct values; it declines because
+      the pages genuinely go backwards, which is the tree being wrong.
 - [ ] **`section_codes_ordered` (7, 6 acts editions)** — never triaged.
-- [ ] `no_chapter_caption_in_section_heading` (4) and `clause_codes_plausible` (1, on
-      Finance Act 2024 — the only failure across all seven amending instruments).
+- [ ] **`no_chapter_caption_in_section_heading` (5) — the invariant is a proxy.** It fires
+      on any run of 3+ ALL-CAPS words; what it *means* is that a chapter caption leaked in.
+      Test that directly — does the caps run match a caption actually on a chapter node of
+      this document? Measured over every current hit, that separates them cleanly:
+      `82A`/`CLEARANCE OF GOODS FOR HOME-CONSUMPTION` and `32AA`/`VII OFFENCES AND
+      PENALTIES` (×2) all match a chapter in their own tree; `150ZQZA`/`RESPONSIBILITIES OF
+      THE VENDOR` does not, because the source prints that title in capitals.
+- [ ] **`section_codes_ordered` (7) — one cause, shared with the class above.** Every hit
+      is an omitted-section placeholder at a tree position inconsistent with its code *and*
+      its page: `82A` (`10[82A. Omitted.`) sits after `224` while printing 144 pages
+      earlier; `32AA` (`10[32AA. ***]`) ran on into `Chapter-VII OFFENCES AND PENALTIES`,
+      which is the caption the class above reports. Fix the placement and both move.
+- [ ] `clause_codes_plausible` (1, Finance Act 2024). The jump `7->8517` is an HS tariff
+      heading read from a **table row**; the check excludes schedules but not table-derived
+      codes (ledger P06).
 - [ ] Re-examine the 29 low-confidence documents in `tools/discovery/report.md` §5
       against their re-converted output. Low confidence is not a defect; it is a list
       of the documents whose output deserves a human read.
