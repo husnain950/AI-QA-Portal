@@ -115,73 +115,90 @@ does not have that blind spot.
 
 ---
 
-# Phase 3 — the anomaly register, re-measured after Phase 2
+# Phase 3 — the anomaly register, in progress
 
-*(Numbered to match `wip/tasks.md`, which is the executable checklist. The run that
-produced these numbers is written up in `wip/phase2-run.md`.)*
+*(Numbered to match `wip/tasks.md`, which is the executable checklist. Round 1 is written
+up in `wip/phase3-chapter-numerals.md`; the Phase 2 run that produced the baseline is in
+`wip/phase2-run.md`.)*
 
-**210 invariant hits across 36 of 101 converted editions**, measured immediately after
-the Phase 2 run of 2026-08-29. The previous version of this section recorded 243 across
-37 of 103, measured on JSON that in places predated several merged parser fixes. That
-is the difference: the corpus caught up with the parser.
+**193 invariant hits across 38 of 103 converted editions**, measured 2026-08-29 after the
+first class landed. Phase 2 closed at 210 across 36 of 101; the acts lane is back to 80
+documents.
 
 | Lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 109 | 26 | 78 | 93 |
-| rules | 96 | 6 | **11** | **48** |
+| acts | 93 | 28 | **80** | 93 |
+| rules | 95 | 6 | **11** | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
 **Read the last column before the first.** The rules lane still converts 11 of 48
-documents. Phase 2 removed the `No module named 'numpy'` cause but not the OCR cost
-behind it: the other 36 are scans, and this run skipped every scan in the corpus by
-instruction. The acts lane has the same shape at smaller scale — 25 editions carrying
-2,065 image-backed pages.
+documents — the other 36 are scans and one is Urdu, and this round of work skipped every
+scan in the corpus by instruction. The acts lane has the same shape at smaller scale: 25
+editions carrying 2,065 image-backed pages.
 
 | Invariant | acts | rules | ordinance | total |
 |---|---|---|---|---|
 | `section_carries_its_body` | 27 (10) | 79 (6) | 5 (4) | 111 |
 | `no_footnote_text_in_body` | 45 (20) | — | — | 45 |
-| `body_chapters_in_tree` | 19 (19) | 2 (1) | — | 21 |
 | `no_foreign_section_start_in_body` | 10 (10) | 10 (4) | — | 20 |
-| `section_codes_ordered` | 6 (4) | — | — | 6 |
-| `structure_counts` | — | 4 (2) | — | 4 |
-| `no_chapter_caption_in_section_heading` | 1 (1) | 1 (1) | — | 2 |
+| `section_codes_ordered` | 7 (6) | — | — | 7 |
+| `structure_counts` | — | 5 (2) | — | 5 |
+| `no_chapter_caption_in_section_heading` | 3 (3) | 1 (1) | — | 4 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 |
 
-Three classes are new, and **not because anything broke**:
-`inv_body_chapters_in_tree` is a documented no-op on JSON that lacks
-`metadata.body_chapter_numerals` — "so old output does not fail the lane until it is
-reconverted". It was dormant on stale output. 31 hits the previous register could not
-see.
+## What round 1 closed, and what it taught
 
-**And the amending hypothesis this section used to lead with is falsified.** It read:
-"`no_foreign_section_start_in_body` is the literal signature of an amending instrument
-parsed as a consolidated one … those hits should be re-measured after re-conversion
-under the family profiles, not patched." They were re-measured. The seven amending
-instruments that converted are **clean** on that invariant — clean on everything except
-one `clause_codes_plausible` hit on Finance Act 2024 — and all ten acts hits are in
-consolidated statutes: seven Customs Act editions (2019–2025, one each) and three Sales
-Tax Act editions. The hypothesis survives only for the 18 amending instruments still
-behind OCR, and it is no longer a reason to schedule that class first.
+`body_chapters_in_tree` is gone — 21 hits, two causes, one class. **The body scan, the
+tree and the invariant were each reading a chapter numeral differently**, and the three
+symptoms looked unrelated until they were traced:
 
-Order, and what is left:
+- A heading printed `4 [Chapter-I` — footnote marker in front of the amendment bracket —
+  was invisible to the body scan, so two Sales Tax Act editions had parentless sections
+  and **refused to convert at all**. The fix reads the line through the stripper that
+  `is_structural_boundary`, called three lines below in the same function, already used.
+- `CHAPTER 1` (Arabic, page 23 of the Customs Act) matched no roman `I`, so a second,
+  empty PRELIMINARY chapter was inserted in 19 editions — the reason they all read 23
+  chapters against a contents page saying 22.
+- The invariant's own two normalisers disagreed with each other.
 
-1. **Phase 1 — rebuild the toolchain. Done (PR #43).** `.venv` was Python **3.14.7**
-   against a `>=3.12` pin with no OCR stack; it is **3.12.13** with every OCR pin
-   resolved unchanged.
-2. **Phase 2 — re-convert at one parser revision. Done for the text-layer half
-   (this PR).** 84 documents re-converted across all three lanes with
-   `--profile auto` where the pipeline takes one; every scanned document skipped by
-   instruction, `data/ocr_cache` still 0 B. The blocker had to be fixed first: a family
-   cannot pick a profile the lane already knows. **What it still owes is the OCR half**
-   — 61 documents, 2,456 pages, of which 35 documents need ≤ 10 pages each.
-3. **Phase 3 — close the register above**, fixed or exempted with traced evidence
-   (`tools/suite/README.md`). There is no third state. It now opens with two documents
-   the current parser refuses outright, which cost the corpus more than any hit does.
-4. **Phase 4 —** flip `--profile auto` to the default, decide `fbr_ingest` (Phase 2
-   measured its cost again: 10 of the ordinance lane's 19 text-layer documents cannot
-   convert at all), and the pipeline→portal transport work — sync, seeding,
-   `version_metrics` — unchanged.
+Two lessons worth carrying into the remaining classes:
+
+1. **Measure the invariant fix and the parser fix separately.** On identical JSON the
+   invariant fix alone is 210 → 189; the parser fix then reads 189 → 193, and every one
+   of those four is either a document that did not exist before (the two restored
+   editions, 2 hits each) or a defect newly *visible* (`CHAPTER XIV-AC`). A single total
+   would have hidden all of that.
+2. **The obvious generalisation was wrong.** Matching numerals by value collapses `XIVA`
+   and `XIV-A`, which are two different chapters of Sales Tax Rules 2006 — a fact
+   `structure_counts` already had a comment about. The corpus, and the comments already
+   in the code, are where a fix gets checked before it is measured.
+
+## Order for what remains
+
+1. **`section_carries_its_body` (111)** — the largest class, and 79 of it sits on six
+   rules editions. Check whether one zoning cause explains both lanes before splitting it.
+2. **`no_footnote_text_in_body` (45 over 20 acts editions)** — a zoning family, not 45
+   defects. Classify before fixing.
+3. **`no_foreign_section_start_in_body` (20)** — now an ordinary defect in the
+   consolidated lane, since Phase 2 falsified the amending explanation for every document
+   currently measurable.
+4. **`structure_counts` (5)** and **`section_codes_ordered` (7)** — both chapter-ordering
+   shaped, and worth reading together.
+5. `no_chapter_caption_in_section_heading` (4), `clause_codes_plausible` (1).
+
+Every hit ends **fixed** or **exempted with traced evidence** in
+`tools/suite/exemptions/<lane>.json` (`tools/suite/README.md`). There is no third state.
+
+## And what Phase 2 still owes, unchanged
+
+61 scanned documents, 2,456 OCR pages — of which **35 documents need ≤ 10 pages each**,
+172 pages in total. Finance Acts 2022 and 2023 are one page each. The
+`--admit-below-floor` rebuild of the 9 provisional acts documents waits on the same
+thing, and the ordinance lane's other 10 text-layer documents wait on the Phase 4
+`fbr_ingest` decision.
+
+**Phase 4 —** flip `--profile auto` to the default, decide `fbr_ingest`, and the
+pipeline→portal transport work — sync, seeding, `version_metrics` — unchanged.
 
 Nothing in Phases 3–4 needs the discovery stage to change again. That is the point of
 running it first.
