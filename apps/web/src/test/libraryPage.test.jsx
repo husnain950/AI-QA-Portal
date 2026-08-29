@@ -280,7 +280,10 @@ describe('Library page', () => {
         expect(screen.getByTestId('location')).toHaveTextContent('sort=newest');
         // newest first: customs (2025-06) leads in flat… grouped keeps family order by first hit.
         await waitFor(() => {
-            expect(api.get).toHaveBeenCalledWith(expect.stringContaining('sort=newest'));
+            expect(api.get).toHaveBeenCalledWith(
+                expect.stringContaining('sort=newest'),
+                expect.objectContaining({ timeoutMs: 30_000 }),
+            );
         });
     });
 
