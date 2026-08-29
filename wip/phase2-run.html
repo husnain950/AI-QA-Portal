@@ -1,0 +1,431 @@
+<title>The Text-Layer Half</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#FBFAF7; --raise:#F3F1EC; --ink:#16181D; --ink-2:#4A4E57; --ink-3:#7C818B;
+    --rule:#DFDCD4; --rule-2:#EDEAE3;
+    --pine:#2F5D50; --pine-tint:#E4EDE9;
+    --oxide:#A4342A; --oxide-tint:#F6E5E2;
+    --ochre:#8A5A14; --ochre-tint:#F7EDDC;
+    --shadow:none;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#14161A; --raise:#1C1F25; --ink:#E9E6DF; --ink-2:#B0B4BC; --ink-3:#848A94;
+      --rule:#2C3038; --rule-2:#22262C;
+      --pine:#79B3A0; --pine-tint:#1B2A26;
+      --oxide:#E28376; --oxide-tint:#2E1F1D;
+      --ochre:#D6A44E; --ochre-tint:#2B2318;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#14161A; --raise:#1C1F25; --ink:#E9E6DF; --ink-2:#B0B4BC; --ink-3:#848A94;
+    --rule:#2C3038; --rule-2:#22262C;
+    --pine:#79B3A0; --pine-tint:#1B2A26;
+    --oxide:#E28376; --oxide-tint:#2E1F1D;
+    --ochre:#D6A44E; --ochre-tint:#2B2318;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:16px; line-height:1.62; margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 28px 96px}
+
+  /* ---- masthead ---------------------------------------------------- */
+  header.mast{
+    border-bottom:2px solid var(--ink);
+    padding:56px 0 20px; margin-bottom:0;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .eyebrow{
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:11.5px; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--ink-3); display:flex; flex-wrap:wrap; gap:10px 18px;
+  }
+  h1{
+    font-family:Newsreader,Georgia,serif; font-weight:500;
+    font-size:clamp(38px,6vw,60px); line-height:1.04; letter-spacing:-.015em;
+    margin:0; text-wrap:balance;
+  }
+  .standfirst{
+    font-family:Newsreader,Georgia,serif; font-size:20px; line-height:1.5;
+    color:var(--ink-2); max-width:60ch; margin:0;
+  }
+
+  /* ---- verdict strip ----------------------------------------------- */
+  .verdict{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    border-bottom:1px solid var(--rule);
+  }
+  .v{padding:22px 24px 24px; border-right:1px solid var(--rule-2)}
+  .v:last-child{border-right:0}
+  .v dt{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--ink-3); margin:0 0 8px;
+  }
+  .v dd{
+    margin:0; font-family:Newsreader,Georgia,serif; font-size:34px; line-height:1;
+    font-variant-numeric:tabular-nums; letter-spacing:-.02em;
+  }
+  .v dd small{display:block; font-family:"IBM Plex Sans",sans-serif; font-size:13px;
+    line-height:1.4; color:var(--ink-2); margin-top:8px; letter-spacing:0}
+  .v.halt dd{color:var(--oxide)}
+  .v.calm dd{color:var(--pine)}
+
+  /* ---- sections ---------------------------------------------------- */
+  section{padding-top:52px}
+  h2{
+    font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    margin:0 0 22px; padding-bottom:10px; border-bottom:1px solid var(--rule);
+  }
+  p{max-width:68ch; margin:0 0 16px}
+  a{color:var(--pine); text-decoration-thickness:1px; text-underline-offset:2px}
+  a:focus-visible{outline:2px solid var(--pine); outline-offset:3px}
+
+  /* ---- findings: statute-style marginal numbering ------------------- */
+  .finding{
+    display:grid; grid-template-columns:64px 1fr; gap:0 24px;
+    padding:28px 0; border-top:1px solid var(--rule-2);
+  }
+  .finding:first-of-type{border-top:1px solid var(--rule)}
+  .num{
+    font-family:Newsreader,Georgia,serif; font-size:40px; line-height:.95;
+    color:var(--ink-3); font-variant-numeric:tabular-nums; letter-spacing:-.03em;
+  }
+  .finding.blocker .num{color:var(--oxide)}
+  .finding h3{
+    font-family:Newsreader,Georgia,serif; font-weight:500; font-size:25px;
+    line-height:1.22; margin:0 0 10px; letter-spacing:-.01em; text-wrap:balance;
+  }
+  .chip{
+    display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10.5px;
+    letter-spacing:.11em; text-transform:uppercase; padding:3px 8px;
+    margin:0 0 10px; border:1px solid currentColor;
+  }
+  .chip.blocker{color:var(--oxide); background:var(--oxide-tint)}
+  .chip.correction{color:var(--ochre); background:var(--ochre-tint)}
+  .chip.note{color:var(--pine); background:var(--pine-tint)}
+  .finding p:last-child{margin-bottom:0}
+
+  .decision{
+    border-left:3px solid var(--pine); background:var(--pine-tint);
+    padding:14px 18px; margin:16px 0 0; max-width:68ch;
+  }
+  .decision strong{font-weight:600}
+  .decision p{margin:0}
+
+  /* ---- data -------------------------------------------------------- */
+  .scroll{overflow-x:auto; margin:0 0 18px; max-width:100%}
+  table{border-collapse:collapse; width:100%; font-size:14.5px; min-width:460px}
+  caption{
+    text-align:left; font-family:"IBM Plex Mono",monospace; font-size:11px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+    padding-bottom:9px;
+  }
+  th,td{
+    text-align:left; padding:9px 16px 9px 0; border-bottom:1px solid var(--rule-2);
+    vertical-align:top;
+  }
+  th{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    border-bottom:1px solid var(--rule);
+  }
+  td.n,th.n{text-align:right; font-variant-numeric:tabular-nums;
+    font-family:"IBM Plex Mono",monospace; padding-right:24px}
+  td.was{color:var(--ink-3)}
+  td.is{color:var(--pine); font-weight:500}
+  tbody tr:last-child td{border-bottom:0}
+  .lane{font-family:"IBM Plex Mono",monospace; font-size:13.5px}
+
+  code,kbd{
+    font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.88em;
+    background:var(--raise); padding:1.5px 5px; border:1px solid var(--rule-2);
+  }
+  pre{
+    background:var(--raise); border:1px solid var(--rule); padding:16px 18px;
+    overflow-x:auto; font-size:13px; line-height:1.6; margin:0 0 18px;
+  }
+  pre code{background:none; border:0; padding:0}
+
+  ul{max-width:68ch; padding-left:20px; margin:0 0 16px}
+  li{margin-bottom:8px}
+  li::marker{color:var(--ink-3)}
+
+  footer{
+    margin-top:64px; padding-top:20px; border-top:2px solid var(--ink);
+    font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.06em;
+    color:var(--ink-3); display:flex; flex-wrap:wrap; gap:8px 24px;
+  }
+
+  @media (max-width:640px){
+    .finding{grid-template-columns:1fr; gap:6px}
+    .num{font-size:26px}
+    .v{border-right:0; border-bottom:1px solid var(--rule-2)}
+  }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">
+    <span>FBR Corpus Platform · crx</span>
+    <span>Phase 2 · executed</span>
+    <span>2026-08-29</span>
+  </div>
+  <h1>The text-layer half</h1>
+  <p class="standfirst">Phase&nbsp;2 was a five-hour OCR marathon with two blockers in front
+  of it. The blockers are fixed and the marathon is deferred: every document that needs no
+  OCR has been re-converted, in all three lanes, at one parser revision. The corpus caught
+  up with the parser — and the register fell from 243 to 210 while gaining three classes
+  that had been invisible.</p>
+</header>
+
+<dl class="verdict">
+  <div class="v calm"><dt>Documents converted</dt><dd>84<small>64 acts · 11 rules · 9 ordinance</small></dd></div>
+  <div class="v calm"><dt>Register</dt><dd>243 → 210<small>36 of 101 editions still carry a hit</small></dd></div>
+  <div class="v"><dt>OCR paid</dt><dd>0<small><code>data/ocr_cache</code> is still 0&nbsp;B</small></dd></div>
+  <div class="v halt"><dt>Documents lost</dt><dd>2<small>Sales Tax Act editions the current parser refuses</small></dd></div>
+</dl>
+
+<section>
+  <h2>The blocker that had to land first</h2>
+  <p><code>families.py</code> hardcoded <code>consolidated&nbsp;→&nbsp;ACTS</code>, and
+  <code>convert.py</code> passed <code>profile=None</code>, which overrode the
+  <code>partial(pipeline.run, profile=RULES)</code> binding in <code>rules_ingest</code>.
+  Every consolidated rules document would have re-converted as an Act, across twelve fields
+  of parsing behaviour.</p>
+
+  <p>The model was already written down in both docstrings — <em>a Profile is what the
+  PRINTER does; a Family is what the document IS</em> — and the code contradicted it. A
+  family meaning “an ordinary consolidated statute” cannot know whether that statute is
+  printed the Acts way or the Rules way. <strong>Only the lane knows.</strong> So the
+  family’s profile became an <em>override</em>: <code>consolidated</code> names none and
+  keeps what the lane bound, and <code>amending</code> is the only family that overrides
+  anything. Refusal moved to a separate <code>Family.parseable</code>, because
+  <code>profile=None</code> had been carrying both meanings at once — which is exactly why
+  <code>consolidated</code> named a profile in the first place.</p>
+
+  <pre><code>$ tools/convert.py rules "…/AML_CFT Sanction Rules, 2020.pdf" --profile auto
+[rules] family consolidated (confidence 0.33) -> profile rules
+…
+instrument_kind = rules | notified_by = S.R.O. 950(I)/2020</code></pre>
+
+  <p><code>notified_by</code> is a RULES-only behaviour. Under the old resolution this
+  document would have been parsed as an Act and lost it.</p>
+
+  <div class="scroll">
+  <table>
+    <caption><code>discover_corpus --verify-lanes</code>, measured both ways</caption>
+    <thead><tr><th>Check</th><th class="n">rules</th><th class="n">ordinance</th><th class="n">of 190</th></tr></thead>
+    <tbody>
+      <tr><td class="was">with the hardcode restored</td><td class="n was">34 as acts</td><td class="n was">22 as acts</td><td class="n was">129</td></tr>
+      <tr><td class="is">as fixed</td><td class="n is">0</td><td class="n is">0</td><td class="n is">73 — Phase 0’s number</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The check that should have caught this could not: it <code>continue</code>d on
+  <code>family == "consolidated"</code>, which is the family every rules document is in. It
+  compares the <em>resolved</em> profile now.</p>
+</section>
+
+<section>
+  <h2>What the run did, per lane</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Lane</th><th class="n">documents</th><th class="n">converted</th><th class="n">refused</th><th class="n">skipped (OCR)</th><th class="n">register</th></tr></thead>
+    <tbody>
+      <tr><td class="lane">acts</td><td class="n">80 → <strong>78</strong></td><td class="n">64</td><td class="n">4</td><td class="n">25 (2,065 pp)</td><td class="n is">148 → 109</td></tr>
+      <tr><td class="lane">rules</td><td class="n">11 → 11</td><td class="n">11</td><td class="n">1</td><td class="n">36 (391 pp)</td><td class="n was">90 → 96</td></tr>
+      <tr><td class="lane">ordinance</td><td class="n">12 → 12</td><td class="n">9</td><td class="n">10</td><td class="n">27</td><td class="n">5 → 5</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Every refusal names a reason and <strong>not one is an <code>ImportError</code></strong>,
+  which is the gate this phase owed. <code>discover_corpus --check</code> reports no drift,
+  as finding 3 predicted: OCR never writes back into a PDF, and no OCR ran.</p>
+</section>
+
+<section>
+  <h2>Findings</h2>
+
+  <div class="finding blocker">
+    <div class="num">1</div>
+    <div>
+      <span class="chip blocker">Data loss</span>
+      <h3>Two Sales Tax Act editions the current parser refuses</h3>
+      <p><code>Sales Tax Act,1990 as amended up to 30.06.2020</code> and
+      <code>The Sales Tax Act, 1990 (as amended up to 31st December, 2019)</code> both fail
+      with <code>TOC parse left 2 section(s) without a chapter container</code>. Both had
+      JSON; it is now in <code>output/_refused/</code>, and the acts lane reads 78.</p>
+      <p><strong>This is not the 80 → 78 the pre-flight predicted.</strong> That one was
+      about two <code>no_text_layer</code> documents being refused before OCR — and it did
+      not happen, because both are scans and were never attempted. These are different
+      documents and a different cause: the JSON on disk was written by an older revision
+      that could convert them.</p>
+      <div class="decision"><p><strong>Controlled:</strong> both classify
+      <code>consolidated</code> at confidence 1.0, so they resolve to ACTS — the same
+      profile the lane binds — and <code>--profile lane</code> raises the identical error.
+      Parser drift, not the profile. Highest-value Phase 3 item, because it costs the
+      corpus documents rather than hits.</p></div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="num">2</div>
+    <div>
+      <span class="chip correction">Defect + false positive</span>
+      <h3>One spurious chapter, nineteen documents</h3>
+      <pre><code>tree chapter codes: ['CHAPTER 1', 'CHAPTER I', 'CHAPTER II', ...]
+                      ^^^^^^^^^ 'PRELIMINARY', 0 sections
+                                  duplicate of 'CHAPTER I' 'PRELIMINARY', 2 sections</code></pre>
+      <p><code>insert_missing_body_chapters</code> reads a body line printing the numeral as
+      an Arabic <code>1</code>, finds no roman <code>I</code> to match, and inserts a second,
+      empty PRELIMINARY chapter. That is also why every Customs edition went 22&nbsp;→&nbsp;23
+      chapters. All nineteen <code>body_chapters_in_tree</code> hits on the acts lane are this
+      one cause.</p>
+      <p>The invariant reporting it is half-blind too: <code>_tree_chapter_numeral</code>
+      returns <code>None</code> for a non-roman numeral and drops it from the set it compares
+      against. On the rules lane the same pair disagrees the other way —
+      <code>"CHAPTER VIA"</code> normalises to <code>VI-A</code> on the tree side and
+      <code>VIA</code> on the body side — producing 2 hits on chapters that are present.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="num">3</div>
+    <div>
+      <span class="chip note">Hypothesis falsified</span>
+      <h3>The amending instruments were not the foreign-section hits</h3>
+      <p>Both planning documents argued that
+      <code>no_foreign_section_start_in_body</code> is “the literal signature of an amending
+      instrument parsed as a consolidated one”, and that Phase 2 might close those hits with
+      no parser change. Measured: the seven amending instruments that converted are
+      <strong>clean</strong> on that invariant — clean on everything, in fact, bar one
+      <code>clause_codes_plausible</code> hit on Finance Act 2024.</p>
+      <p>All ten acts hits sit in consolidated statutes: seven Customs Act editions
+      (2019–2025, one each) and three Sales Tax Act editions. The hypothesis survives only
+      for the eighteen amending instruments still behind OCR, and it can no longer be the
+      reason to schedule that class first.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="num">4</div>
+    <div>
+      <span class="chip note">Measurement</span>
+      <h3>Three of the register’s eight classes were dormant, not absent</h3>
+      <p><code>inv_body_chapters_in_tree</code> reads
+      <code>metadata.body_chapter_numerals</code>, and its docstring makes it a deliberate
+      no-op on JSON without the key “so old output does not fail the lane until it is
+      reconverted”. The old JSON predates the key, so the invariant never ran.
+      Re-conversion woke it up: <strong>31 hits the previous register could not see</strong>,
+      across <code>body_chapters_in_tree</code>, <code>section_codes_ordered</code> and
+      <code>structure_counts</code>.</p>
+      <p>That is the argument for re-converting at one revision, stated as a number.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="num">5</div>
+    <div>
+      <span class="chip correction">Cost of skipping OCR</span>
+      <h3>Seven amending instruments, not twenty-five</h3>
+      <p>Seven documents now carry <code>instrument_kind="amending"</code> — the first time
+      anything in this corpus has been parsed as the amending instrument it is. The other
+      eighteen are blocked by scanned pages, and two of them by <strong>one page each</strong>:
+      Finance Act 2022 (952 pages, one scanned cover) and Finance Act 2023.</p>
+      <div class="scroll">
+      <table>
+        <caption>The cheap tail, measured across acts and rules</caption>
+        <thead><tr><th>Threshold</th><th class="n">documents</th><th class="n">OCR pages</th><th class="n">≈ time</th></tr></thead>
+        <tbody>
+          <tr><td>≤ 1 page</td><td class="n">3</td><td class="n">3</td><td class="n">seconds</td></tr>
+          <tr><td>≤ 10 pages</td><td class="n">35</td><td class="n">172</td><td class="n">~15 min</td></tr>
+          <tr><td>≤ 30 pages</td><td class="n">50</td><td class="n">504</td><td class="n">~45 min</td></tr>
+          <tr><td class="was">everything</td><td class="n was">61</td><td class="n was">2,456</td><td class="n was">~3.5 h</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="decision"><p><strong>Decided: not this round.</strong> Every scanned
+      document stays unconverted, by instruction. The tail is recorded so it stays a decision
+      someone can take, rather than a fact nobody measured.</p></div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="num">6</div>
+    <div>
+      <span class="chip note">Handled</span>
+      <h3>The ordinance lane would have doubled itself</h3>
+      <p>Not one of its twelve JSONs was named what <code>convert_all.out_path</code> would
+      name it — they are hand-normalised against differently-spelled sources, though their
+      <code>metadata.filename</code> matches the staged PDFs. Converting the lane produced
+      <strong>21 files for 12 editions</strong>.</p>
+      <p>Resolved after the run rather than before, so a failed conversion could not cost an
+      edition: each old name was matched to a new JSON by <code>metadata.filename</code> and
+      only then retired, with every file still banked in <code>output/_pre_phase2/</code>.
+      Nine pairs matched — <strong>structurally identical, down to the count of sections,
+      chapters and schedules</strong> — and three old files with no re-converted twin were
+      kept.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>The register, all three lanes</h2>
+  <div class="scroll">
+  <table>
+    <caption>210 hits across 36 of 101 converted editions — was 243 across 37 of 103</caption>
+    <thead><tr><th>Invariant</th><th class="n">acts</th><th class="n">rules</th><th class="n">ordinance</th><th class="n">total</th><th class="n">was</th></tr></thead>
+    <tbody>
+      <tr><td><code>section_carries_its_body</code></td><td class="n">27 (10)</td><td class="n">79 (6)</td><td class="n">5 (4)</td><td class="n">111</td><td class="n was">109</td></tr>
+      <tr><td><code>no_footnote_text_in_body</code></td><td class="n">45 (20)</td><td class="n">—</td><td class="n">—</td><td class="n is">45</td><td class="n was">109</td></tr>
+      <tr><td><code>body_chapters_in_tree</code></td><td class="n">19 (19)</td><td class="n">2 (1)</td><td class="n">—</td><td class="n">21</td><td class="n was">new</td></tr>
+      <tr><td><code>no_foreign_section_start_in_body</code></td><td class="n">10 (10)</td><td class="n">10 (4)</td><td class="n">—</td><td class="n">20</td><td class="n was">19</td></tr>
+      <tr><td><code>section_codes_ordered</code></td><td class="n">6 (4)</td><td class="n">—</td><td class="n">—</td><td class="n">6</td><td class="n was">new</td></tr>
+      <tr><td><code>structure_counts</code></td><td class="n">—</td><td class="n">4 (2)</td><td class="n">—</td><td class="n">4</td><td class="n was">new</td></tr>
+      <tr><td><code>no_chapter_caption_in_section_heading</code></td><td class="n">1 (1)</td><td class="n">1 (1)</td><td class="n">—</td><td class="n is">2</td><td class="n was">5</td></tr>
+      <tr><td><code>clause_codes_plausible</code></td><td class="n">1 (1)</td><td class="n">—</td><td class="n">—</td><td class="n">1</td><td class="n was">1</td></tr>
+      <tr><td><strong>per lane</strong></td><td class="n"><strong>109 / 26</strong></td><td class="n"><strong>96 / 6</strong></td><td class="n"><strong>5 / 4</strong></td><td class="n"><strong>210</strong></td><td class="n was">243</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Two labels the numbers do not carry on their own. It is a <strong>mixed-revision
+  measurement</strong> — 61 scanned documents keep whatever revision last wrote them. And
+  the rules column is measured over <strong>11 of that lane’s 48 documents</strong>; the
+  other 37 are scans and one Urdu edition.</p>
+</section>
+
+<section>
+  <h2>Gates</h2>
+  <div class="scroll">
+  <table>
+    <tbody>
+      <tr><td><code>discover_corpus.py --check</code></td><td class="is">no drift</td></tr>
+      <tr><td><code>discover_corpus.py --verify-lanes</code></td><td class="is">73 of 190, unchanged from Phase 0 · 0 rules documents route wrongly</td></tr>
+      <tr><td><code>data/ocr_cache</code></td><td class="is">0 B — no OCR paid for by accident</td></tr>
+      <tr><td>every source document converts or is refused with a reason</td><td class="is">yes — no refusal is an <code>ImportError</code></td></tr>
+      <tr><td><code>pytest tools/tests</code></td><td class="is">53 passed, 1 skipped</td></tr>
+      <tr><td>package self-checks</td><td class="is">11 pass</td></tr>
+      <tr><td>rollback</td><td><code>output/_pre_phase2/</code>, 103 files across three lanes</td></tr>
+      <tr><td><code>make test-pipeline</code></td><td class="was">red, honestly so — it runs the lane suites and the register is open</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>
+  <span>84 documents converted · 0 OCR pages</span>
+  <span>register 243 → 210</span>
+  <span>branch <code>fix/phase2-reconvert-text-layer</code></span>
+</footer>
+
+</div>
