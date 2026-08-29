@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/check_entry_bundle.mjs",
     "lint": "oxlint --deny-warnings",
     "test": "vitest run",
     "smoke": "node scripts/visual_smoke.mjs",

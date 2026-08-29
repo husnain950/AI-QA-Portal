@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { waitFor } from '@testing-library/react';
 
 vi.mock('../utils/api', () => ({
     api: { get: vi.fn() },
@@ -47,6 +48,28 @@ describe('libraryStore', () => {
         expect(state.nextCursor).toBe('cursor-2');
         expect(state.facets.library_total).toBe(9);
         expect(state.library.documents).toBe(9);
+        expect(api.get.mock.calls[0][1]).toEqual({ timeoutMs: 30_000 });
+    });
+
+    it('paints the list before a slow facets request finishes', async () => {
+        let releaseFacets;
+        const hangingFacets = new Promise((resolve) => { releaseFacets = resolve; });
+        api.get.mockImplementation((path) => (
+            path.startsWith('/v2/documents/facets') ? hangingFacets : page([DOC('a')], 1)
+        ));
+
+        const pending = useLibraryStore.getState().load('k1', {
+            page: new URLSearchParams(),
+            facets: new URLSearchParams(),
+        });
+        await waitFor(() => expect(useLibraryStore.getState().status).toBe('ready'));
+        expect(useLibraryStore.getState().items.map((doc) => doc.id)).toEqual(['a']);
+        expect(useLibraryStore.getState().facets).toBeNull();
+
+        releaseFacets(FACETS);
+        await pending;
+        expect(useLibraryStore.getState().facets.library_total).toBe(9);
+        expect(useLibraryStore.getState().library.documents).toBe(9);
     });
 
     it('loadMore appends the cursor page instead of replacing it', async () => {
@@ -74,11 +97,11 @@ describe('libraryStore', () => {
     it('drops a slow response from an abandoned filter state', async () => {
         let releaseFirst;
         const first = new Promise((resolve) => { releaseFirst = resolve; });
-        api.get.mockImplementationOnce(() => first);
-        api.get.mockResolvedValueOnce(FACETS);
-        api.get.mockImplementation(async (path) => (
-            path.startsWith('/v2/documents/facets') ? FACETS : page([DOC('new')], 1)
-        ));
+        api.get.mockImplementation(async (path) => {
+            if (path.includes('q=old')) return first;
+            if (path.startsWith('/v2/documents/facets')) return FACETS;
+            return page([DOC('new')], 1);
+        });
 
         const stale = useLibraryStore.getState().load('k1', { page: new URLSearchParams('q=old'), facets: new URLSearchParams() });
         await useLibraryStore.getState().load('k2', { page: new URLSearchParams('q=new'), facets: new URLSearchParams() });

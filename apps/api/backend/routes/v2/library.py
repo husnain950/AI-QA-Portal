@@ -156,7 +156,7 @@ async def documents_page(
     order, order_params = lq.order_sql(sort, filters.q)
 
     async with db.execute(
-        f"SELECT COUNT(*) {lq.FROM_DOCUMENTS}{where}", params
+        f"SELECT COUNT(*) {lq.count_from(filters)}{where}", params
     ) as cur:
         total = int((await cur.fetchone())[0])
     async with db.execute(

@@ -417,3 +417,18 @@ async def test_findings_page_orders_errors_before_warnings(runtime_sandbox, clie
 
         by_score = await get(client, "/findings", sort="score")
         assert [item["detector"] for item in by_score["items"]] == ["low", "high"]
+
+
+async def test_count_from_skips_section_scans_until_a_stat_filter_needs_them(runtime_sandbox):
+    """Unfiltered Library COUNT used to LATERAL-scan every section of every
+    document just to return a number, which is what timed the page out."""
+    from backend.services import library_query as lq
+
+    light = lq.count_from(lq.LibraryFilters())
+    assert "LATERAL" not in light
+    assert "LATERAL" not in lq.count_from(lq.LibraryFilters(q="customs"))
+    assert "LATERAL" not in lq.count_from(lq.LibraryFilters(lanes=("customs",)))
+    assert "LATERAL" in lq.count_from(lq.LibraryFilters(flagged=True))
+    assert "LATERAL" in lq.count_from(lq.LibraryFilters(review=("complete",)))
+    assert "LATERAL" in lq.count_from(lq.LibraryFilters(health=("within_gate",)))
+    assert "LATERAL" not in lq.count_from(lq.LibraryFilters(flagged=True), exclude="flags")
