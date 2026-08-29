@@ -267,6 +267,39 @@ def _demo() -> None:
     assert by["15"].parent is ch4, (by["15"].parent and by["15"].parent.code)
     assert by["18"].parent is chs[2]
 
+    # A chapter heading wearing a footnote marker AND the amendment bracket is
+    # still a chapter heading. The Sales Tax Act, 1990 prints its first one as
+    # "4 [Chapter-I" and the rest bare, so CHAPTER I was invisible to the body
+    # scan, sections 1 and 2 had no container, and the 30.06.2020 and 31.12.2019
+    # editions refused to convert at all.
+    assert [num for _i, num, _c in body_chapter_entries([_ln("4 [Chapter-I", 2)])] \
+        == ["I"]
+    assert [num for _i, num, _c in body_chapter_entries([_ln("1[CHAPTER XVI-A", 9)])] \
+        == ["XVI-A"]
+
+    # ...and a numeral is matched by VALUE, not spelling. The Customs Act 1969
+    # prints "CHAPTER 1" on page 23 and roman everywhere else; matching as
+    # strings inserted a second, EMPTY chapter beside the real CHAPTER I in 19
+    # editions -- which is why they all reported 23 chapters against a contents
+    # page that says 22.
+    chs2, _s2, secs2 = parse_toc(["        CHAPTER I", "        PRELIMINARY",
+                                  "        1.  Short title.   1"])
+    before = [c.code for c in chs2]
+    assert insert_missing_body_chapters(chs2, secs2, [
+        _ln("CHAPTER 1", 23), _ln("PRELIMINARY", 23),
+        _ln("1. Short title.— This Act may", 23)]) == 0
+    assert [c.code for c in chs2] == before == ["CHAPTER I"], [c.code for c in chs2]
+
+    # ...and ONLY that gap. Sales Tax Rules 2006 carries CHAPTER XIVA (omitted)
+    # and CHAPTER XIV-A (monitoring) as two different chapters, which share a
+    # _roman_value; a value-only match would have dropped one of them.
+    chs3, _s3, secs3 = parse_toc(["        CHAPTER XIV-A", "        MONITORING",
+                                  "        150.  Application.   9"])
+    assert insert_missing_body_chapters(chs3, secs3, [
+        _ln("CHAPTER XIVA", 12), _ln("OMITTED", 12)]) == 1
+    assert sorted(c.code for c in chs3) == ["CHAPTER XIV-A", "CHAPTER XIVA"], \
+        [c.code for c in chs3]
+
     # ---- amending-clause headings, pinned on the real corpus -------------
     # Every shape below is a verbatim clause heading from the 30 amending
     # documents on disk. They are the reason the pattern has five verbs, an
@@ -1132,13 +1165,23 @@ def _roman_value(raw: str) -> float:
 
 
 def body_chapter_entries(body_refs) -> list:
-    """``(body_ref index, numeral, caption)`` for each CHAPTER line in the body."""
-    from .builder import _candidate_code, is_structural_boundary
+    """``(body_ref index, numeral, caption)`` for each CHAPTER line in the body.
+
+    The line is read through ``_STRUCT_DECOR_RE`` first, exactly as
+    ``is_structural_boundary`` -- called three lines below -- already reads it.
+    ``CHAPTER_RE`` tolerates the amendment bracket but not the footnote marker in
+    front of it, and an inserted chapter wears both: The Sales Tax Act, 1990
+    prints its first chapter as ``4 [Chapter-I``, so CHAPTER I was invisible here
+    while ``Chapter-II`` through ``Chapter-X`` were not. Sections 1 and 2 then had
+    no container, and ``run`` refused the whole document rather than drop them --
+    the 30.06.2020 and 31.12.2019 editions produced nothing at all.
+    """
+    from .builder import _STRUCT_DECOR_RE, _candidate_code, is_structural_boundary
     from .grammar import CHAPTER_RE
 
     out: list = []
     for i, ref in enumerate(body_refs):
-        m = CHAPTER_RE.match(ref.line.text().strip())
+        m = CHAPTER_RE.match(_STRUCT_DECOR_RE.sub("", ref.line.text().strip()))
         if not m:
             continue
         num = re.sub(r"\s+", " ", m.group(1).strip().upper())
@@ -1237,6 +1280,33 @@ def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
     taken = {n for ch in chapters if (n := _chapter_numeral_of(ch))}
     n_changed = 0
 
+    def _taken(num: str) -> bool:
+        """Whether ``chapters`` already holds this numeral, in EITHER notation.
+
+        A document that prints its first chapter as an Arabic ``1`` while its
+        contents page and every other chapter say ``I`` is not missing a chapter.
+        The Customs Act 1969 does exactly that on page 23, and matching as strings
+        inserted a second, EMPTY "CHAPTER 1 / PRELIMINARY" beside the real
+        "CHAPTER I / PRELIMINARY" in 19 editions -- which is also why every one of
+        them reported 23 chapters where the contents page says 22.
+
+        **Only the Arabic/roman notation gap is bridged**, and the guard below is
+        what keeps it that way: ``XIVA`` and ``XIV-A`` share a ``_roman_value``
+        but are two DIFFERENT chapters of Sales Tax Rules 2006 -- the first
+        omitted, the second the monitoring chapter -- and collapsing them would
+        drop one from the tree. Same-notation numerals still compare as strings.
+
+        ``_roman_value``'s 9999.0 is "cannot read this numeral"; two unreadable
+        numerals must not become equal through it.
+        """
+        if num in taken:
+            return True
+        value = _roman_value(num)
+        if value == 9999.0:
+            return False
+        return any(t.isdigit() != num.isdigit() and _roman_value(t) == value
+                   for t in taken)
+
     def _fill(ch, num: str) -> None:
         nonlocal n_changed
         _idx, cap = body_by_num[num]
@@ -1252,12 +1322,12 @@ def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
         if ch.code:
             continue
         match = next((num for num, (_i, cap) in body_by_num.items()
-                      if num not in taken and _captions_match(ch.heading, cap)),
+                      if not _taken(num) and _captions_match(ch.heading, cap)),
                      None)
         if match:
             _fill(ch, match)
 
-    unused = [num for _i, num, _c in entries if num not in taken]
+    unused = [num for _i, num, _c in entries if not _taken(num)]
     empties = [ch for ch in chapters if not ch.code]
     for ch, num in zip(empties, unused):
         _fill(ch, num)
@@ -1271,7 +1341,7 @@ def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
                 seen.add(cc)
         return seen
 
-    remaining = [(idx, num, cap) for idx, num, cap in entries if num not in taken]
+    remaining = [(idx, num, cap) for idx, num, cap in entries if not _taken(num)]
     for idx, num, cap in remaining:
         node = Node(kind="chapter", code="CHAPTER " + num, heading=cap or "")
         node.toc_heading = ""

@@ -2019,18 +2019,33 @@ def inv_no_chapter_caption_in_section_heading(doc):
     return bad
 
 
-def _tree_chapter_numeral(code):
-    """Normalised numeral of a chapter code (``CHAPTER XVI-A`` -> ``XVI-A``)."""
-    m = _CHAPTER_NUM_RE.match((code or "").strip())
-    if not m:
-        return None
-    num = m.group(1).upper()
-    suffix = (m.group(2) or "").upper()
-    return f"{num}-{suffix}" if suffix else num
+def _numeral_key(num):
+    """A chapter numeral's identity, independent of how it is spelled.
 
+    ONE normaliser, used on both sides of the comparison below -- which is the
+    whole point.  There used to be two, and they disagreed:
+    ``_tree_chapter_numeral("CHAPTER VIA")`` returned ``VI-A`` while
+    ``_norm_body_numeral("VIA")`` returned ``VIA``, so any chapter whose code
+    carries an unhyphenated suffix was reported missing while sitting in the
+    tree (Sales Tax Rules 2006, CHAPTER VIA and VIAB).
 
-def _norm_body_numeral(raw):
-    return re.sub(r"[\s\-]+", "-", (raw or "").strip().upper()).strip("-")
+    Arabic and roman are the same numeral too: the Customs Act 1969 prints its
+    first chapter as ``CHAPTER 1`` on page 23 and roman everywhere else, in 19
+    editions.  ``None`` means the numeral could not be read at all, and never
+    matches anything -- an unreadable numeral must stay loud rather than
+    silently equal another unreadable one.
+    """
+    raw = re.sub(r"[\s\-]+", "", (num or "").strip().upper())
+    raw = re.sub(r"^CHAPTER", "", raw)
+    m = re.match(r"^([IVXLC]+)([A-Z]{1,3})?$", raw)
+    if m:
+        total, prev = 0, 0
+        for ch in reversed(m.group(1)):
+            v = _ROMAN_VALUES[ch]
+            total += v if v >= prev else -v
+            prev = max(prev, v)
+        return (total, m.group(2) or "")
+    return (int(raw), "") if raw.isdigit() else None
 
 
 def inv_body_chapters_in_tree(doc):
@@ -2043,15 +2058,10 @@ def inv_body_chapters_in_tree(doc):
     numerals = (doc.get("metadata") or {}).get("body_chapter_numerals") or []
     if not numerals:
         return []
-    present = {_tree_chapter_numeral(ch.get("code"))
-               for ch in (doc.get("chapters") or [])}
-    present.discard(None)
-    bad = []
-    for raw in numerals:
-        key = _norm_body_numeral(raw)
-        if key not in present:
-            bad.append(f"body CHAPTER {raw} has no tree node")
-    return bad
+    present = {k for ch in (doc.get("chapters") or [])
+               if (k := _numeral_key(ch.get("code"))) is not None}
+    return [f"body CHAPTER {raw} has no tree node" for raw in numerals
+            if _numeral_key(raw) not in present]
 
 
 def _demo_heading_leak_class() -> None:

@@ -3,7 +3,7 @@
 Executable checklist for [`wip/plan.md`](./plan.md). Dependency order — do not start a
 phase until the one above it passes its gate.
 
-Baseline: `main` at `863b8fe` (PR #44). Every count below was measured on 2026-08-29
+Baseline: `main` at `942db87` (PR #45). Every count below was measured on 2026-08-29
 with `python tools/run_suite.py <lane>` and `python tools/discover_corpus.py` against
 the corpus staged on this machine — the Phase 3 register **after** the Phase 2 run.
 
@@ -197,66 +197,59 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**210 hits across 36 of 101 converted editions**, re-measured 2026-08-29 immediately
-after the Phase 2 run. Down from 243 across 37 of 103, and the composition changed more
-than the total did.
+**193 hits across 38 of 103 converted editions**, re-measured 2026-08-29 after the first
+class landed. Down from 210 across 36 of 101 — and the acts lane is back to 80 documents.
+
+Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
+numerals, read the same way in the body scan, the tree and the invariant.
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 27 (10) | 79 (6) | 5 (4) | 111 | 109 |
-| `no_footnote_text_in_body` | 45 (20) | — | — | 45 | 109 |
-| `body_chapters_in_tree` | 19 (19) | 2 (1) | — | 21 | **new** |
-| `no_foreign_section_start_in_body` | 10 (10) | 10 (4) | — | 20 | 19 |
-| `section_codes_ordered` | 6 (4) | — | — | 6 | **new** |
-| `structure_counts` | — | 4 (2) | — | 4 | **new** |
-| `no_chapter_caption_in_section_heading` | 1 (1) | 1 (1) | — | 2 | 5 |
+| `section_carries_its_body` | 27 (10) | 79 (6) | 5 (4) | 111 | 111 |
+| `no_footnote_text_in_body` | 45 (20) | — | — | 45 | 45 |
+| `no_foreign_section_start_in_body` | 10 (10) | 10 (4) | — | 20 | 20 |
+| `section_codes_ordered` | 7 (6) | — | — | 7 | 6 |
+| `structure_counts` | — | 5 (2) | — | 5 | 4 |
+| `no_chapter_caption_in_section_heading` | 3 (3) | 1 (1) | — | 4 | 2 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
-| **per lane** | **109 / 26 docs** | **96 / 6 docs** | **5 / 4 docs** | **210** | 243 |
+| `body_chapters_in_tree` | — | — | — | **0** | 21 |
+| **per lane** | **93 / 28 docs** | **95 / 6 docs** | **5 / 4 docs** | **193** | 210 |
 
-Two labels the numbers do not carry on their own:
+Still a mixed-revision measurement: 61 scanned documents keep whatever revision last
+wrote them, and the rules column is measured over 11 of that lane's 48 documents.
 
-- **Three classes are new because they were DORMANT, not because anything broke.**
-  `inv_body_chapters_in_tree` reads `metadata.body_chapter_numerals` and its docstring
-  makes it a deliberate no-op on JSON without the key, "so old output does not fail the
-  lane until it is reconverted". Re-conversion woke it up: **31 hits the previous
-  register could not see.**
-- **It is still a mixed-revision measurement.** 61 scanned documents keep whatever
-  revision last wrote them, and the rules column is measured over 11 of 48 documents.
-
-- [ ] **Two Sales Tax Act editions the current parser REFUSES** —
-      `TOC parse left 2 section(s) without a chapter container (1, 2...)` on the
-      30.06.2020 and 31.12.2019 editions. This is not a register hit; it costs the
-      corpus two documents, which makes it the highest-value item here. Controlled as
-      parser drift, not profile (`--profile lane` raises the identical error).
-- [ ] **`body_chapters_in_tree` (21) — two causes, both small.**
-      *Acts (19, one hit each):* `insert_missing_body_chapters` reads a body line
-      printing the numeral as Arabic `1`, finds no roman `I`, and inserts a **second,
-      empty** `CHAPTER 1 / PRELIMINARY` beside `CHAPTER I / PRELIMINARY`. That is also
-      why every Customs edition went 22 → 23 chapters.
-      *Rules (2):* a false positive — `_tree_chapter_numeral("CHAPTER VIA")` returns
-      `VI-A` while `_norm_body_numeral("VIA")` returns `VIA`, so the two sides of one
-      comparison normalise differently and a chapter that IS in the tree is reported
-      missing.
-- [ ] **`no_footnote_text_in_body` (45, 20 acts editions)** — classify into cause
-      classes before fixing. It shed 64 hits to re-conversion alone; what is left is
-      what the current parser actually does.
-- [ ] **`section_carries_its_body` (111)** — the rules lane carries 79 over 6 editions
-      and the acts lane 27 over 10. Check whether one zoning cause explains both.
-- [ ] **`no_foreign_section_start_in_body` (20).** **The amending hypothesis is
-      falsified for the documents we can measure.** The seven amending instruments that
-      converted are clean on this invariant; all ten acts hits are in *consolidated*
-      statutes — seven Customs editions (2019–2025, one hit each) and three Sales Tax
-      editions. It may still hold for the 18 amending instruments behind OCR, but it is
-      no longer a reason to schedule this class first.
-- [ ] **`structure_counts` (4)** — Sales Tax Rules 2006 places `CHAPTER XIV-AB`
-      (printed page 123), `XIV-AC` (123) and `XIV-AD` (125) *after* `XIV-B` (129),
-      `XIV-C` (154) and `XIV-D` (158). The invariant already forgives a numeral that
-      goes backwards while the pages go forwards, so it is firing on the case it exists
-      for: the tree assembled out of document order.
-- [ ] **`section_codes_ordered` (6, 4 acts editions)** — new, never triaged.
-- [ ] `no_chapter_caption_in_section_heading` (2) and `clause_codes_plausible` (1, on
-      Finance Act 2024 — now correctly parsed as amending, and its single hit is the
-      only failure across all seven amending instruments).
+- [x] **Two Sales Tax Act editions the parser refused** — the 30.06.2020 and 31.12.2019
+      editions print their first chapter as `4 [Chapter-I`, a footnote marker in front of
+      the amendment bracket, so `CHAPTER_RE` missed it while `Chapter-II`…`Chapter-X`
+      matched. Sections 1 and 2 were parentless and the document refused outright.
+      `body_chapter_entries` now reads its line through `_STRUCT_DECOR_RE`, the same
+      stripper `is_structural_boundary` — called three lines below it — already uses.
+      **acts 78 → 80.**
+- [x] **`body_chapters_in_tree` (21) — both causes closed.**
+      *Acts (19):* the Customs Act 1969 prints `CHAPTER 1` in Arabic on page 23 and roman
+      elsewhere, so `insert_missing_body_chapters` inserted a second, EMPTY chapter beside
+      the real one — and reported 23 chapters against a contents page saying 22. Numerals
+      now match across the notation gap only; `XIVA` and `XIV-A` stay two chapters, with a
+      case that fails if that guard is removed. **Every Customs edition now reads 22.**
+      *Rules (2):* `_tree_chapter_numeral` and `_norm_body_numeral` normalised the two
+      sides of one comparison differently. Replaced by a single `_numeral_key`, −27 lines.
+      Measured on identical JSON, that alone is 210 → 189.
+- [ ] **`section_carries_its_body` (111)** — the largest class; 79 of it on six rules
+      editions, 27 on ten acts editions. Check whether one zoning cause explains both.
+- [ ] **`no_footnote_text_in_body` (45, 20 acts editions)** — classify into cause classes
+      before fixing. It shed 64 hits to re-conversion alone; what is left is what the
+      current parser actually does.
+- [ ] **`no_foreign_section_start_in_body` (20).** The amending hypothesis is falsified
+      for every document we can measure — the seven amending instruments are clean on it,
+      and all ten acts hits are in consolidated statutes (seven Customs editions, three
+      Sales Tax). It may still hold for the 18 amending instruments behind OCR.
+- [ ] **`structure_counts` (5)** — Sales Tax Rules 2006 places `CHAPTER XIV-AB`,
+      `XIV-AC` and `XIV-AD` (printed pages 123–125) after `XIV-B`, `XIV-C` and `XIV-D`
+      (129–158). XIV-AC joined the list in round 1, when the decoration strip let the
+      parser see it at all.
+- [ ] **`section_codes_ordered` (7, 6 acts editions)** — never triaged.
+- [ ] `no_chapter_caption_in_section_heading` (4) and `clause_codes_plausible` (1, on
+      Finance Act 2024 — the only failure across all seven amending instruments).
 - [ ] Re-examine the 29 low-confidence documents in `tools/discovery/report.md` §5
       against their re-converted output. Low confidence is not a defect; it is a list
       of the documents whose output deserves a human read.

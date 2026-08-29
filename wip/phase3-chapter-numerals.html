@@ -1,0 +1,339 @@
+<title>One Numeral, Three Readings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#FBFAF7; --raise:#F3F1EC; --ink:#16181D; --ink-2:#4A4E57; --ink-3:#7C818B;
+    --rule:#DFDCD4; --rule-2:#EDEAE3;
+    --pine:#2F5D50; --pine-tint:#E4EDE9;
+    --oxide:#A4342A; --oxide-tint:#F6E5E2;
+    --ochre:#8A5A14; --ochre-tint:#F7EDDC;
+    --shadow:none;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#14161A; --raise:#1C1F25; --ink:#E9E6DF; --ink-2:#B0B4BC; --ink-3:#848A94;
+      --rule:#2C3038; --rule-2:#22262C;
+      --pine:#79B3A0; --pine-tint:#1B2A26;
+      --oxide:#E28376; --oxide-tint:#2E1F1D;
+      --ochre:#D6A44E; --ochre-tint:#2B2318;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#14161A; --raise:#1C1F25; --ink:#E9E6DF; --ink-2:#B0B4BC; --ink-3:#848A94;
+    --rule:#2C3038; --rule-2:#22262C;
+    --pine:#79B3A0; --pine-tint:#1B2A26;
+    --oxide:#E28376; --oxide-tint:#2E1F1D;
+    --ochre:#D6A44E; --ochre-tint:#2B2318;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:16px; line-height:1.62; margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 28px 96px}
+
+  /* ---- masthead ---------------------------------------------------- */
+  header.mast{
+    border-bottom:2px solid var(--ink);
+    padding:56px 0 20px; margin-bottom:0;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .eyebrow{
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:11.5px; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--ink-3); display:flex; flex-wrap:wrap; gap:10px 18px;
+  }
+  h1{
+    font-family:Newsreader,Georgia,serif; font-weight:500;
+    font-size:clamp(38px,6vw,60px); line-height:1.04; letter-spacing:-.015em;
+    margin:0; text-wrap:balance;
+  }
+  .standfirst{
+    font-family:Newsreader,Georgia,serif; font-size:20px; line-height:1.5;
+    color:var(--ink-2); max-width:60ch; margin:0;
+  }
+
+  /* ---- verdict strip ----------------------------------------------- */
+  .verdict{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    border-bottom:1px solid var(--rule);
+  }
+  .v{padding:22px 24px 24px; border-right:1px solid var(--rule-2)}
+  .v:last-child{border-right:0}
+  .v dt{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--ink-3); margin:0 0 8px;
+  }
+  .v dd{
+    margin:0; font-family:Newsreader,Georgia,serif; font-size:34px; line-height:1;
+    font-variant-numeric:tabular-nums; letter-spacing:-.02em;
+  }
+  .v dd small{display:block; font-family:"IBM Plex Sans",sans-serif; font-size:13px;
+    line-height:1.4; color:var(--ink-2); margin-top:8px; letter-spacing:0}
+  .v.halt dd{color:var(--oxide)}
+  .v.calm dd{color:var(--pine)}
+
+  /* ---- sections ---------------------------------------------------- */
+  section{padding-top:52px}
+  h2{
+    font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    margin:0 0 22px; padding-bottom:10px; border-bottom:1px solid var(--rule);
+  }
+  p{max-width:68ch; margin:0 0 16px}
+  a{color:var(--pine); text-decoration-thickness:1px; text-underline-offset:2px}
+  a:focus-visible{outline:2px solid var(--pine); outline-offset:3px}
+
+  /* ---- findings: statute-style marginal numbering ------------------- */
+  .finding{
+    display:grid; grid-template-columns:64px 1fr; gap:0 24px;
+    padding:28px 0; border-top:1px solid var(--rule-2);
+  }
+  .finding:first-of-type{border-top:1px solid var(--rule)}
+  .num{
+    font-family:Newsreader,Georgia,serif; font-size:40px; line-height:.95;
+    color:var(--ink-3); font-variant-numeric:tabular-nums; letter-spacing:-.03em;
+  }
+  .finding.blocker .num{color:var(--oxide)}
+  .finding h3{
+    font-family:Newsreader,Georgia,serif; font-weight:500; font-size:25px;
+    line-height:1.22; margin:0 0 10px; letter-spacing:-.01em; text-wrap:balance;
+  }
+  .chip{
+    display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10.5px;
+    letter-spacing:.11em; text-transform:uppercase; padding:3px 8px;
+    margin:0 0 10px; border:1px solid currentColor;
+  }
+  .chip.blocker{color:var(--oxide); background:var(--oxide-tint)}
+  .chip.correction{color:var(--ochre); background:var(--ochre-tint)}
+  .chip.note{color:var(--pine); background:var(--pine-tint)}
+  .finding p:last-child{margin-bottom:0}
+
+  .decision{
+    border-left:3px solid var(--pine); background:var(--pine-tint);
+    padding:14px 18px; margin:16px 0 0; max-width:68ch;
+  }
+  .decision strong{font-weight:600}
+  .decision p{margin:0}
+
+  /* ---- data -------------------------------------------------------- */
+  .scroll{overflow-x:auto; margin:0 0 18px; max-width:100%}
+  table{border-collapse:collapse; width:100%; font-size:14.5px; min-width:460px}
+  caption{
+    text-align:left; font-family:"IBM Plex Mono",monospace; font-size:11px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+    padding-bottom:9px;
+  }
+  th,td{
+    text-align:left; padding:9px 16px 9px 0; border-bottom:1px solid var(--rule-2);
+    vertical-align:top;
+  }
+  th{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    border-bottom:1px solid var(--rule);
+  }
+  td.n,th.n{text-align:right; font-variant-numeric:tabular-nums;
+    font-family:"IBM Plex Mono",monospace; padding-right:24px}
+  td.was{color:var(--ink-3)}
+  td.is{color:var(--pine); font-weight:500}
+  tbody tr:last-child td{border-bottom:0}
+  .lane{font-family:"IBM Plex Mono",monospace; font-size:13.5px}
+
+  code,kbd{
+    font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.88em;
+    background:var(--raise); padding:1.5px 5px; border:1px solid var(--rule-2);
+  }
+  pre{
+    background:var(--raise); border:1px solid var(--rule); padding:16px 18px;
+    overflow-x:auto; font-size:13px; line-height:1.6; margin:0 0 18px;
+  }
+  pre code{background:none; border:0; padding:0}
+
+  ul{max-width:68ch; padding-left:20px; margin:0 0 16px}
+  li{margin-bottom:8px}
+  li::marker{color:var(--ink-3)}
+
+  footer{
+    margin-top:64px; padding-top:20px; border-top:2px solid var(--ink);
+    font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.06em;
+    color:var(--ink-3); display:flex; flex-wrap:wrap; gap:8px 24px;
+  }
+
+  @media (max-width:640px){
+    .finding{grid-template-columns:1fr; gap:6px}
+    .num{font-size:26px}
+    .v{border-right:0; border-bottom:1px solid var(--rule-2)}
+  }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">
+    <span>FBR Corpus Platform · crx</span>
+    <span>Phase 3 · round 1</span>
+    <span>2026-08-29</span>
+  </div>
+  <h1>One numeral, three readings</h1>
+  <p class="standfirst">Phase&nbsp;2 left five items open. The first turned out to be three
+  defects with one shape — the body scan, the document tree and the invariant each
+  recognised a chapter numeral differently. Closing it returned two documents the parser
+  had been refusing outright, deleted nineteen chapters that were never in the statute,
+  and took the register from 210 to 193.</p>
+</header>
+
+<dl class="verdict">
+  <div class="v calm"><dt>Documents restored</dt><dd>2<small>acts back to 80 — both Sales Tax Act editions</small></dd></div>
+  <div class="v calm"><dt>Phantom chapters</dt><dd>19 → 0<small>every Customs edition now reads 22, as its contents page says</small></dd></div>
+  <div class="v calm"><dt>Register</dt><dd>210 → 193<small><code>body_chapters_in_tree</code> closed entirely</small></dd></div>
+  <div class="v"><dt>OCR paid</dt><dd>0<small><code>data/ocr_cache</code> is still 0&nbsp;B</small></dd></div>
+</dl>
+
+<section>
+  <h2>1 · A heading wearing a footnote marker was invisible</h2>
+  <p>The two documents Phase 2 lost were not lost to the profile change and had nothing to
+  do with OCR. The Sales Tax Act, 1990 prints its first chapter like this:</p>
+  <pre><code>4 [Chapter-I</code></pre>
+  <p>An amendment footnote marker, in front of the bracket. <code>grammar.CHAPTER_RE</code>
+  tolerates the bracket — a comment records it being widened for exactly that — but not the
+  marker ahead of it. So <strong>CHAPTER I never registered while <code>Chapter-II</code>
+  through <code>Chapter-X</code> did</strong>; sections 1 and 2 were left with no container,
+  and the pipeline refused the whole document rather than drop them:</p>
+  <pre><code>RuntimeError: TOC parse left 2 section(s) without a chapter container (1, 2...)</code></pre>
+  <p>That refusal is right — legal text must not silently vanish — so the document produced
+  nothing at all, and Phase 2 quarantined the JSON an older revision had written.</p>
+  <div class="decision"><p><strong>The fix is one expression, and the function was already
+  importing what it needed.</strong> <code>body_chapter_entries</code> calls
+  <code>is_structural_boundary</code> three lines below the match it was getting wrong, and
+  that helper reads its line through <code>_STRUCT_DECOR_RE</code> precisely because
+  <code>1[PART VA</code> is a real heading. The chapter match now reads the line the same
+  way. Both editions convert again — 10 chapters, 126 and 124 sections.</p></div>
+</section>
+
+<section>
+  <h2>2 · <code>CHAPTER 1</code> and <code>CHAPTER I</code> are the same chapter</h2>
+  <p>The Customs Act 1969 prints its first chapter heading with an <strong>Arabic 1</strong>
+  on page 23, and roman numerals everywhere else — including on its own contents page.
+  <code>insert_missing_body_chapters</code> matched numerals as strings, found nothing for
+  <code>1</code>, and built a chapter from scratch:</p>
+  <pre><code>tree chapter codes: ['CHAPTER 1', 'CHAPTER I', 'CHAPTER II', ...]
+                      ^^^^^^^^^ 'PRELIMINARY', 0 sections
+                                  duplicate of 'CHAPTER I' 'PRELIMINARY', 2 sections</code></pre>
+  <p>Nineteen editions, nineteen empty chapters — and the reason every Customs edition
+  reported 23 chapters against a contents page that says 22. They now report 22.</p>
+
+  <div class="finding blocker">
+    <div class="num">!</div>
+    <div>
+      <span class="chip blocker">Caught before shipping</span>
+      <h3>The obvious generalisation drops a real chapter</h3>
+      <p>Comparing <code>_roman_value</code>, which already reads both notations, is the
+      one-line version — and it is wrong. <code>XIVA</code> and <code>XIV-A</code> share a
+      value but are <strong>two different chapters</strong> of Sales Tax Rules 2006: the
+      first omitted, the second the monitoring chapter. <code>structure_counts</code>’ own
+      comment already says so — <em>“the dash is the only thing telling them apart”</em>.</p>
+      <p>Found by reading that comment, mid-run, with the first re-conversion already going;
+      it was stopped and restarted. The match now bridges <strong>only</strong> the notation
+      gap, guarded by <code>isdigit()</code> so same-notation numerals still compare as
+      strings, and the non-collapse has its own locking case. Verified on the document:
+      43 chapters, both present.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>3 · Two normalisers, one comparison, no agreement</h2>
+  <p><code>inv_body_chapters_in_tree</code> asks whether every chapter the body prints
+  exists in the tree. It normalised the two sides with different functions:</p>
+  <pre><code>_tree_chapter_numeral("CHAPTER VIA")  ->  'VI-A'
+_norm_body_numeral("VIA")             ->  'VIA'</code></pre>
+  <p>So a chapter whose code carries an unhyphenated suffix was reported missing while
+  sitting in the tree, and an Arabic numeral was dropped from the comparison set entirely.
+  Both helpers were used by nothing else; they are replaced by <strong>one</strong>
+  <code>_numeral_key</code> applied to both sides — 27 fewer lines, and the bug is no
+  longer expressible.</p>
+</section>
+
+<section>
+  <h2>The register, decomposed</h2>
+  <p>The total moved 210 → 193, and the parts do not net out the way that suggests. Measure
+  the invariant fix and the parser fix <em>separately</em> or the movement is unreadable:</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Step</th><th>Measured on</th><th class="n">total</th></tr></thead>
+    <tbody>
+      <tr><td class="was">Phase 2 close</td><td class="was">old invariant, old JSON</td><td class="n was">210</td></tr>
+      <tr><td class="is">invariant fix</td><td>new invariant, <strong>the same</strong> JSON</td><td class="n is">189</td></tr>
+      <tr><td class="is">parser fix</td><td>new invariant, re-converted</td><td class="n">193</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>The +4 is not a regression</strong>, and the per-document delta is the whole
+  argument:</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Document</th><th class="n">before</th><th class="n">after</th><th>why</th></tr></thead>
+    <tbody>
+      <tr><td>Sales Tax Act, 1990 (30.06.2020)</td><td class="n was">absent</td><td class="n">2</td><td>a document not in the corpus cannot fail an invariant</td></tr>
+      <tr><td>The Sales Tax Act, 1990 (31.12.2019)</td><td class="n was">absent</td><td class="n">2</td><td>same</td></tr>
+      <tr><td>Customs Act, 1969 (30th June 2008)</td><td class="n">5</td><td class="n is">4</td><td>lost a <code>section_codes_ordered</code> hit with the phantom chapter</td></tr>
+      <tr><td>Sales Tax Rules 2006 (30-06-2025)</td><td class="n">4</td><td class="n">5</td><td><code>CHAPTER XIV-AC</code>, newly visible, lands out of page order</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>That last one is the honest cost of seeing more: the decoration strip lets the parser
+  recognise <code>CHAPTER VIB</code> and <code>CHAPTER XIV-AC</code>, and XIV-AC sits out of
+  order exactly like the XIV-AB / XIV-AD pair already on the register — one more instance of
+  a recorded defect, not a new one. Customs Rules 2001 went <strong>15 → 41 chapters</strong>
+  the same way, with no change in its hit count at all.</p>
+
+  <div class="scroll">
+  <table>
+    <caption>193 hits across 38 of 103 converted editions</caption>
+    <thead><tr><th>Invariant</th><th class="n">acts</th><th class="n">rules</th><th class="n">ordinance</th><th class="n">total</th><th class="n">was</th></tr></thead>
+    <tbody>
+      <tr><td><code>section_carries_its_body</code></td><td class="n">27 (10)</td><td class="n">79 (6)</td><td class="n">5 (4)</td><td class="n">111</td><td class="n was">111</td></tr>
+      <tr><td><code>no_footnote_text_in_body</code></td><td class="n">45 (20)</td><td class="n">—</td><td class="n">—</td><td class="n">45</td><td class="n was">45</td></tr>
+      <tr><td><code>no_foreign_section_start_in_body</code></td><td class="n">10 (10)</td><td class="n">10 (4)</td><td class="n">—</td><td class="n">20</td><td class="n was">20</td></tr>
+      <tr><td><code>section_codes_ordered</code></td><td class="n">7 (6)</td><td class="n">—</td><td class="n">—</td><td class="n">7</td><td class="n was">6</td></tr>
+      <tr><td><code>structure_counts</code></td><td class="n">—</td><td class="n">5 (2)</td><td class="n">—</td><td class="n">5</td><td class="n was">4</td></tr>
+      <tr><td><code>no_chapter_caption_in_section_heading</code></td><td class="n">3 (3)</td><td class="n">1 (1)</td><td class="n">—</td><td class="n">4</td><td class="n was">2</td></tr>
+      <tr><td><code>clause_codes_plausible</code></td><td class="n">1 (1)</td><td class="n">—</td><td class="n">—</td><td class="n">1</td><td class="n was">1</td></tr>
+      <tr><td><code>body_chapters_in_tree</code></td><td class="n is">—</td><td class="n is">—</td><td class="n">—</td><td class="n is">0</td><td class="n was">21</td></tr>
+      <tr><td><strong>per lane</strong></td><td class="n"><strong>93 / 28</strong></td><td class="n"><strong>95 / 6</strong></td><td class="n"><strong>5 / 4</strong></td><td class="n"><strong>193</strong></td><td class="n was">210</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>Gates</h2>
+  <div class="scroll">
+  <table>
+    <tbody>
+      <tr><td>package self-checks</td><td class="is">11 pass, including the three new cases</td></tr>
+      <tr><td><code>pytest tools/tests</code></td><td class="is">53 passed, 1 skipped</td></tr>
+      <tr><td><code>discover_corpus.py --check</code></td><td class="is">no drift</td></tr>
+      <tr><td>acts corpus</td><td class="is">80 documents, up from 78</td></tr>
+      <tr><td>ordinance — the control</td><td class="is">5 / 4 of 12, unchanged (<code>fbr_ingest</code> shares no code with this)</td></tr>
+      <tr><td><code>data/ocr_cache</code></td><td class="is">0 B</td></tr>
+      <tr><td>lint</td><td class="is">clean across <code>packages/legal_ingest</code>, <code>tools</code>, <code>apps/api</code></td></tr>
+      <tr><td>rollback</td><td><code>output/_pre_phase3/</code> on both re-converted lanes</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>
+  <span>2 documents restored · 19 phantom chapters removed</span>
+  <span>register 210 → 193</span>
+  <span>branch <code>fix/chapter-numeral-recognition</code></span>
+</footer>
+
+</div>
