@@ -3130,6 +3130,28 @@ def _demo() -> None:
     assert _candidate_code(_L("42 G. I. Pipes and MS Pipes '000' Meters")) is None
     assert _candidate_code(_L("1 ITEM NAME 7.5 1 9.23 132.23")) is None
 
+    # A marker RUN separated by nothing but whitespace.  Customs 2022-2025 print
+    # s.202B as "42 53[202B. ..." -- two markers, one space, no comma -- so the
+    # run never closed and the section was a heading-only stub in four editions,
+    # its body left inside s.202A.  The branch is admitted only behind a lookahead
+    # for "[CODE. Capital", which over 153,736 corpus lines matches exactly this
+    # one line; allowing whitespace generally gains 17 penalty- and
+    # statistics-table rows with it.
+    # BOTH spellings: the parser's own line text carries a space before the
+    # bracket, while the rendered plain_text collapses it.  A lookahead anchored
+    # hard on "[" matched the JSON and missed the document.
+    assert _candidate_code(_L(
+        "42 53 [202B. Reward to officers and officials of Customs and law"
+    )) == "202B"
+    assert _candidate_code(_L(
+        "42 53[202B. Reward to officers and officials of Customs and law"
+    )) == "202B"
+    assert _candidate_code(_L("25, 38 1[38A or 40B].")) is None
+    assert _candidate_code(_L("1,314,273 1,482,319 12.8")) is None
+    # and the separators that already worked still do
+    assert _candidate_code(_L("6,71,76,[194. Appellate Tribunal.-")) == "194"
+    assert _candidate_code(_L("2 [99. Compost(non-commercial fertilizer)")) == "99"
+
     assert _gazette_block_class("AN") == "act-title"
     assert _gazette_block_class("ACT") == "act-title"
     assert _gazette_block_class("ORDINANCE") == "act-title"

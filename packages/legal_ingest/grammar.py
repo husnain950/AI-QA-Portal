@@ -170,7 +170,26 @@ _MARKER_PARTS_RE = re.compile(r"^(\d{1,4})([a-z]?)$")
 #: The optional trailing separator cannot weaken the closing guard: on
 #: ``10. Power to approve landing places`` there is no separator to consume, so
 #: the run still has to close on whitespace or ``[`` and still matches empty.
-MARKER_PREFIX = (r"(?:[\d*]{1,4}[a-z]?(?:\s*[,&]\s*[\d*]{1,4}[a-z]?)*"
+#: A run may also be separated by nothing but WHITESPACE.  The 2022-2025 Customs
+#: editions print s.202B as ``42 53[202B. Reward to officers and officials ...``
+#: -- two markers, one space, no comma -- so the run never closed and the section
+#: was a heading-only stub in four editions, with its body left inside s.202A.
+#:
+#: The space is on BOTH sides of the run's tail: the parser's own line text is
+#: ``42 53 [202B.`` while the rendered plain_text collapses it to ``42 53[202B.``,
+#: which is why a lookahead anchored hard on ``[`` matched the JSON and missed the
+#: document.  Measure against the parser's line text, not the rendered output.
+#:
+#: A bare space is a far weaker separator than ``,`` or ``&``, so this branch is
+#: admitted ONLY when the run ends at ``[`` and what follows is unmistakably a
+#: section heading: a code, a dot, and a capitalised word.  Measured over 153,736
+#: distinct corpus lines that lookahead matches exactly ONE line -- the one above.
+#: Without it, allowing whitespace generally gains 18 lines of which 17 are
+#: penalty-table rows ("25, 38 1[38A or 40B].") and statistics rows
+#: ("1,314,273 1,482,319 12.8").
+MARKER_PREFIX = (r"(?:[\d*]{1,4}[a-z]?(?:\s+[\d*]{1,4}[a-z]?)+\s*"
+                 rf"(?=\[\s*{CODE}\s*\.\s+[A-Z])"
+                 r"|[\d*]{1,4}[a-z]?(?:\s*[,&]\s*[\d*]{1,4}[a-z]?)*"
                  r"(?:\s*[,&])?(?:\s+|(?=\[)))?")
 
 

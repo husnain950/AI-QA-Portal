@@ -121,12 +121,12 @@ does not have that blind spot.
 up in `wip/phase3-chapter-numerals.md`; the Phase 2 run that produced the baseline is in
 `wip/phase2-run.md`.)*
 
-**70 invariant hits across 103 converted editions**, measured 2026-08-30 after round 6.
-210 → 193 → 148 → 92 → 78 → 75 → 70. The acts lane holds 80 documents.
+**64 invariant hits across 103 converted editions**, measured 2026-08-30 after round 7.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64. The acts lane holds 80 documents.
 
 | Lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 39 | 28 | **80** | 93 |
+| acts | 33 | 28 | **80** | 93 |
 | rules | 26 | 4 | **11** | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
@@ -137,9 +137,9 @@ editions carrying 2,065 image-backed pages.
 
 | Invariant | acts | rules | ordinance | total |
 |---|---|---|---|---|
-| `section_carries_its_body` | 19 (10) | 17 (4) | 5 (4) | **41** |
+| `section_carries_its_body` | 15 (8) | 17 (4) | 5 (4) | **37** |
 | `no_foreign_section_start_in_body` | 10 (10) | 9 (4) | — | **19** |
-| `section_codes_ordered` | 6 (5) | — | — | **6** |
+| `section_codes_ordered` | 4 (3) | — | — | **4** |
 | `structure_counts` | — | — | — | **0** |
 | `no_chapter_caption_in_section_heading` | 3 (3) | — | — | **3** |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 |
