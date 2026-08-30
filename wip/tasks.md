@@ -214,6 +214,8 @@ Round 6: [`wip/phase3-chapter-order.md`](./phase3-chapter-order.md) — a part i
 chapter, and a suffix is not a sum.
 Round 7: [`wip/phase3-parenting-and-marker-runs.md`](./phase3-parenting-and-marker-runs.md)
 — parented by where its code is printed, not by where it is.
+Interlude: [`wip/phase3-gate-the-register.md`](./phase3-gate-the-register.md) — the register
+is now committed and gated, and `make check` lints what CI lints.
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
@@ -385,6 +387,19 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       `consolidated`), so 27 rows had been dropped since PR #45. `report.md` had not been
       regenerated since Phase 0, so it kept printing the old 29 while its generator
       produced 2. `.profile` → `.parseable`, the field Phase 2 added for this question.
+
+- [x] **Gate the register itself.** `data/corpora/*/output/` is gitignored, so
+      `run_tests_smoke.py` SKIPs all three lane suites on CI and seven rounds of
+      210 → 64 were enforced by prose and a human reading it.
+      `tools/suite/register.json` now holds the measurement and
+      `tools/tests/test_register_snapshot.py` replays it — skip with no corpus, compare
+      with one, fail in **either** direction. An improvement failing it is the point: the
+      number then moves in the same PR that moved it. Verified by perturbing the snapshot
+      and by clearing the corpus paths.
+- [x] **`make check` now lints what CI lints.** It ran `ruff check apps/api tools`; CI runs
+      it bare, and `pyproject`'s `src` makes the bare form cover `packages/` too. Planting
+      a violation in `packages/legal_ingest/` proved it: the Makefile's form reported
+      "All checks passed", CI's found it.
 
 **Gate:** every remaining hit is fixed, or has an entry in
 `tools/suite/exemptions/<lane>.json` whose reason is traced to the source PDF

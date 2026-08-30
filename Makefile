@@ -78,8 +78,15 @@ test-web:
 
 # What CI gates on, minus the jobs that need a container: `npm audit` and the
 # Playwright review-page smoke (see AGENTS.md for running that one).
+#
+# `ruff check` is BARE, exactly as ci.yml runs it.  Naming paths here looked
+# equivalent and was not: pyproject sets `src = ["apps/api", "packages", "tools"]`,
+# so the bare form also lints `packages/` while `apps/api tools` does not.  A
+# violation in the parser passed `make check` and failed the PR -- verified by
+# planting one: the explicit form reported "All checks passed", the bare form
+# found it.
 check: test-api test-pipeline test-web
-	$(ROOT)/.venv/bin/ruff check apps/api tools 2>/dev/null || ruff check apps/api tools
+	$(ROOT)/.venv/bin/ruff check 2>/dev/null || ruff check
 
 shell-api:
 	docker compose exec api bash
