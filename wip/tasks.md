@@ -197,8 +197,8 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**44 hits across 103 converted editions**, re-measured 2026-08-30 after round 9.
-210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44. Documents held: acts 80, rules 11,
+**33 hits across 103 converted editions**, re-measured 2026-08-30 after round 10.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33. Documents held: acts 80, rules 11,
 ordinance 12.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
@@ -221,6 +221,8 @@ Round 8: [`wip/phase3-omission-mirror.md`](./phase3-omission-mirror.md) — a re
 has nothing left to steal.
 Round 9: [`wip/phase3-cursor-cascade.md`](./phase3-cursor-cascade.md) — one choice, seven
 starved sections.
+Round 10: [`wip/phase3-header-band.md`](./phase3-header-band.md) — a band measured from a
+header that does not exist.
 
 **Picking this up cold?** [`wip/HANDOVER.md`](./HANDOVER.md) has the full state: what
 landed, the 16 open items with their traced leads, and the working rules learned the hard
@@ -228,15 +230,15 @@ way (never edit `packages/` mid-conversion; measure invariant and parser separat
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 10 (7) | 17 (4) | 5 (4) | **32** | 37 |
-| `no_foreign_section_start_in_body` | 1 (1) | 3 (1) | — | **4** | 5 |
+| `section_carries_its_body` | 10 (7) | 8 (4) | 5 (4) | **23** | 32 |
+| `no_foreign_section_start_in_body` | 1 (1) | 1 (1) | — | **2** | 4 |
 | `section_codes_ordered` | 4 (3) | — | — | 4 | 4 |
 | `no_chapter_caption_in_section_heading` | 3 (3) | — | — | 3 | 3 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
 | `structure_counts` | — | — | — | **0** | 0 |
 | `no_footnote_text_in_body` | — | — | — | **0** | 0 |
 | `body_chapters_in_tree` | — | — | — | **0** | 0 |
-| **per lane** | **19** | **20** | **5** | **44** | 50 |
+| **per lane** | **19** | **9** | **5** | **33** | 44 |
 
 `no_chapter_caption_in_section_heading` gains one because round 4 made it visible: with
 rule 150ZQZA finally binding, its heading is readable, and it is a FALSE positive — the
@@ -293,10 +295,40 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       Honest caveat: the acts lane did **not** move. 32 of the 48 gained lines were
       hyphenated Customs sections already binding by another route — lines newly matched
       is not the same measurement as sections newly bound.
-- [ ] **`section_carries_its_body` — the remaining 32.** Round 9 took five of them with one
-      fix. The residue: 17 rules (12 of them in Sales Tax Rules 01-01-2025 alone), 5
-      ordinance (`fbr_ingest`, sequenced after the Phase 4 decision on that fork), and 10
-      acts spread over seven editions.
+- [ ] **`section_carries_its_body` — the remaining 23.** Rounds 9 and 10 took fourteen of
+      them. The residue: 8 rules, 5 ordinance (`fbr_ingest`, sequenced after the Phase 4
+      decision on that fork), and 10 acts spread over seven editions.
+- [x] **The header band — 11 hits, and a number with no measurement behind it.** Sales Tax
+      Rules 01-01-2025 held 16 of the register's 64; `why_unbuilt --lane rules` (usable for
+      the first time after round 9) reported 11 of its 12 stubs as "code never opens a body
+      line", and `pdftotext` found every one of them printing on exactly the page the
+      contents page predicts. They open at top 41.0–41.5 against `header_max_top = 43.6` —
+      a flat `page_h * 0.055` that `calibrate` falls back to when no running header clears
+      its 40% test, and `_is_header_line` dropped everything above it. That function is
+      ledger P37 and states the right principle ("what a line says, not where it sits"), but
+      its guard only applied where a header HAD been detected.
+      `_is_header_line` is now shorter: blank or bare folio is furniture, otherwise only a
+      measured key is. `calibrate` fills `header_keys` from RECURRENCE when nothing clears
+      40% — measured, because 5 of the 50 documents that reach that branch do have a header
+      the threshold missed (PFMA 2019's gazette masthead alternates recto/verso so neither
+      half clears; Finance Act 2023 prints NATIONAL ASSEMBLY SECRETARIAT).
+      **4 documents changed, +3,904 characters, 0 lost.** Locked by
+      `tools/tests/test_header_band.py`. That document's 12 stubs are now 3, each traced:
+      44A opens with a left double quote, 150ZQZI is printed `150ZQZl`, and 150W's code
+      appears only in a footnote. Its contents page also lists 39E where the body prints
+      `39K` with the same title.
+- [x] **`str_bracketed_chapters_classify` — the case was wrong, not the parser.** It
+      asserted `ELECTRONIC OR OTHER MEANS`; pdfplumber returns `OROTHER` as one token
+      (x0=238.8, x1=310.6), which is this document's documented `no_jammed_words` cause and
+      already exempted. The case was failing on a defect it does not test. Corrected to what
+      the source prints, with the measurement in its description.
+- [ ] **`convert_all.py` cannot resume a re-conversion.** Two runs were killed mid-flight
+      this round, leaving 49 of 80 acts documents at the new revision — the mixed-revision
+      hazard the working rules open with. `--skip-existing` does not help: after a
+      re-conversion every output exists. What worked was converting only outputs older than
+      the parser's mtime. Two source files need care in any such loop — Customs Rules 2001
+      and The Finance (Supplementary) Act 2022 are PDFs with **no `.pdf` extension**, so a
+      `**/*.pdf` glob misses them silently.
 - [x] **The cursor cascade — 6 hits, one choice.** The handover said Sales Tax 15.9.2021's
       pages "interleave" and to read the source first. They do not: `why_unbuilt.py` shows
       the whole block printing ~6 pages ahead of its own contents page, and s.3 is the one

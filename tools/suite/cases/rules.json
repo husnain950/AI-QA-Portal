@@ -45,13 +45,13 @@
     {
       "id": "str_bracketed_chapters_classify",
       "source": "rules-pipeline",
-      "description": "Chapter XIV-A is printed '[CHAPTER XIV-A' with the amendment-insertion bracket. 15 of the 40 chapters carry it; anchoring hard on the keyword left them unclassified, their rows glued into the previous section's heading and their rules parented to the wrong chapter.",
+      "description": "Chapter XIV-A is printed '[CHAPTER XIV-A' with the amendment-insertion bracket. 15 of the 40 chapters carry it; anchoring hard on the keyword left them unclassified, their rows glued into the previous section's heading and their rules parented to the wrong chapter. The expected heading reads OROTHER, not OR OTHER: the caption is set over three lines and pdfplumber returns the third as the single token 'OROTHER' (x0=238.8, x1=310.6, no space in the text layer). That is this document's documented no_jammed_words cause, which it carries an exemption for; asserting the de-jammed string made this case fail on a defect it does not test. What it tests is that the bracketed chapter row is CLASSIFIED, and it still fails if that regresses.",
       "target": {
         "kind": "chapter",
         "code": "CHAPTER XIV-A"
       },
       "check": "chapter_heading_equals",
-      "arg": "MONITORING OR TRACKING OF CERTAIN REGISTERED PERSONS BY ELECTRONIC OR OTHER MEANS",
+      "arg": "MONITORING OR TRACKING OF CERTAIN REGISTERED PERSONS BY ELECTRONIC OROTHER MEANS",
       "status": "active",
       "applies_to": "01-01-2025"
     },
