@@ -354,6 +354,19 @@
       },
       "arg": "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION",
       "description": "Customs TOC omits CHAPTER IV; the body prints it. Ungluing the caption without inserting a node would drop the title and leave ss.15+ parented to Chapter III."
+    },
+    {
+      "id": "sta300621_pageless_toc_binds_late_sections",
+      "source": "rounds/phase3-round11",
+      "description": "This edition's contents page prints dot leaders and NO folio ('2. Definitions.............'), so the TOC parse salvaged nine rows out of ~140 and gave every one printed_page 1990 -- the year, read off the running title. build_sections is page-anchored, so none could bind: the document converted to 9 section leaves against 110-151 for its eighteen sibling editions, with 34,864 characters of statute inside s.19, and no invariant saw it because section_carries_its_body only reports leaves that exist. The pipeline now hands a contents page whose page column lands nowhere to the same body-driven fallback that serves editions printing no contents page at all. s.73 is late in the Act and only exists if that fallback ran.",
+      "target": {
+        "kind": "section",
+        "code": "73"
+      },
+      "check": "plain_contains",
+      "arg": "Certain transactions not admissible",
+      "status": "active",
+      "applies_to": "as amended up to 30.06.2021"
     }
   ]
 }

@@ -646,7 +646,32 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
 
     # TOC-less edition (31.07.2025 prints no table of contents): reconstruct
     # the chapter tree and ordered section list from the body itself.
-    if not ordered_sections:
+    #
+    # An UNREADABLE contents page is the same problem.  Sales Tax Act 1990
+    # (30.06.2021) sets its contents with dot leaders and no folio at all --
+    #
+    #     2.     Definitions...........................................
+    #
+    # -- so the page column the TOC parse reads does not exist.  Nine rows
+    # survived out of ~140, and every one of them carried printed_page 1990,
+    # the YEAR, taken from the running title "The Sales Tax Act, 1990".
+    # ``build_sections`` is page-anchored, so entries expecting page 1995 of a
+    # 350-page document can never bind: the edition converted to NINE leaves
+    # against 110-151 for its eighteen sibling editions, with 34,864 characters
+    # of statute sitting inside s.19.  No invariant could see it --
+    # ``section_carries_its_body`` only reports leaves that exist, and 130 of
+    # them did not.
+    #
+    # The test is not "few entries" (a flat instrument legitimately has three)
+    # but "no entry lands in this document": a page column that points nowhere
+    # is not a page column, and the body-driven fallback is already what serves
+    # an edition whose contents page cannot be read.
+    usable_pages = [e for e in ordered_sections
+                    if e.printed_page and 1 <= e.printed_page + offset <= total_pages]
+    if ordered_sections and not usable_pages:
+        progress(f"contents page unusable: {len(ordered_sections)} row(s), none "
+                 f"landing inside {total_pages} pages -- using the body instead")
+    if not ordered_sections or not usable_pages:
         from .discover import discover_structure
         chapters, ordered_sections = discover_structure(
             body_refs, printed_by_page, page_footnotes, profile=profile)

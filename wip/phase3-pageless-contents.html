@@ -1,0 +1,330 @@
+<title>Sections the Register Cannot See</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:#f6f6f4; --paper-sunk:#ecedea; --ink:#171c24; --ink-soft:#3a434f;
+  --muted:#656e79; --rule:#d5d7d3; --rule-soft:#e4e5e2;
+  --accent:#1d5b63; --accent-bg:#e2edee;
+  --defect:#9c2f2a; --defect-bg:#f4e5e3;
+  --good:#2c6146; --good-bg:#e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+    --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+    --accent:#6fb2ba; --accent-bg:#163034;
+    --defect:#dd8880; --defect-bg:#331d1c;
+    --good:#74b795; --good-bg:#162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+  --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+  --accent:#6fb2ba; --accent-bg:#163034;
+  --defect:#dd8880; --defect-bg:#331d1c;
+  --good:#74b795; --good-bg:#162b22;
+}
+* { box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif; font-size:18px;
+  line-height:1.62; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+.sheet { max-width:1080px; margin:0 auto; padding:4rem 2rem 6rem; }
+.block { display:grid; grid-template-columns:12.5rem 1fr; gap:0 2.75rem; align-items:start; }
+.block + .block { margin-top:3.25rem; }
+.gutter { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.74rem; line-height:1.5;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right;
+  padding-top:.5rem; border-right:1px solid var(--rule-soft); padding-right:2.75rem;
+  margin-right:-2.75rem; min-height:2rem; }
+.gutter .note { display:block; text-transform:none; letter-spacing:0; font-size:.82rem;
+  font-style:italic; font-family:"Newsreader",Georgia,serif; color:var(--muted);
+  margin-top:.6rem; line-height:1.45; }
+.body { min-width:0; max-width:62ch; }
+@media (max-width:860px) {
+  .block { grid-template-columns:1fr; gap:0; }
+  .gutter { text-align:left; border-right:0; padding-right:0; margin-right:0;
+    border-left:2px solid var(--rule); padding-left:.85rem; margin-bottom:.9rem; padding-top:0; }
+  .body { max-width:none; } .sheet { padding:2.5rem 1.25rem 4rem; }
+}
+.masthead { border-bottom:2px solid var(--ink); padding-bottom:1.5rem; margin-bottom:3.5rem; }
+.eyebrow { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.72rem; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 1rem; }
+h1 { font-weight:300; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08;
+  letter-spacing:-.018em; margin:0 0 .7rem; text-wrap:balance; }
+h1 em { font-style:italic; color:var(--accent); }
+.standfirst { font-size:1.13rem; color:var(--ink-soft); margin:0; max-width:56ch; text-wrap:pretty; }
+h2 { font-weight:400; font-size:1.62rem; line-height:1.2; letter-spacing:-.012em; margin:0 0 1rem; text-wrap:balance; }
+h3 { font-family:"Source Sans 3",system-ui,sans-serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:2rem 0 .75rem; }
+p { margin:0 0 1.05rem; text-wrap:pretty; }
+.body > :last-child { margin-bottom:0; }
+strong { font-weight:600; }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible, .scroller:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:2px; }
+code { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.845em;
+  background:var(--paper-sunk); padding:.1em .34em; border-radius:3px; border:1px solid var(--rule-soft); }
+.scoreline { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin:0 0 3.5rem; }
+.score { background:var(--paper); padding:1.15rem; }
+.score dt { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.68rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem; }
+.score dd { margin:0; font-size:1.85rem; font-weight:300; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.score .was { font-size:.8rem; color:var(--muted); margin-left:.45rem; font-variant-numeric:tabular-nums; }
+.score .to { color:var(--good); } .score .flat { color:var(--ink-soft); }
+.scroller { overflow-x:auto; }
+pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem; line-height:1.75;
+  background:var(--paper-sunk); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:1rem 1.15rem; margin:0 0 1.05rem; white-space:pre; }
+pre code { background:none; padding:0; border:0; font-size:inherit; }
+pre .hl { color:var(--defect); font-weight:500; }
+pre .dim { color:var(--muted); }
+table { width:100%; border-collapse:collapse; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.875rem; margin:0 0 1.05rem; }
+caption { caption-side:top; text-align:left; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:.6rem; }
+th, td { text-align:left; padding:.62rem .75rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:.7rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--rule); }
+tbody tr:last-child td { border-bottom:0; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+tr.yes td:last-child { color:var(--defect); font-weight:600; }
+tr.no td:last-child { color:var(--good); font-weight:600; }
+tr.wrong td:first-child { box-shadow:inset 3px 0 0 var(--defect); }
+tr.right td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+.tag { display:inline-block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .42rem; border-radius:3px; white-space:nowrap; }
+.tag.ok { background:var(--good-bg); color:var(--good); }
+.tag.bad { background:var(--defect-bg); color:var(--defect); }
+.figcap { font-size:.82rem; color:var(--muted); font-style:italic; margin:0 0 1.05rem; }
+.pull { border-left:3px solid var(--accent); padding:.1rem 0 .1rem 1.15rem; margin:1.6rem 0;
+  font-size:1.12rem; color:var(--ink-soft); font-style:italic; }
+.pull strong { font-style:normal; color:var(--ink); }
+blockquote { margin:0 0 1.05rem; padding:.1rem 0 .1rem 1.15rem; border-left:2px solid var(--rule);
+  color:var(--muted); font-style:italic; font-size:.95rem; }
+footer { margin-top:4.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-family:"Source Sans 3",system-ui,sans-serif; font-size:.8rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">Phase 3 · Round 11 · Anomaly register</p>
+    <h1>118 sections the register <em>could not see</em></h1>
+    <p class="standfirst">
+      An edition of the Sales Tax Act converted to nine sections. Its eighteen siblings
+      convert to between 110 and 151. It has been that way since before Phase 3, and every
+      invariant passed it.
+    </p>
+  </header>
+
+  <dl class="scoreline">
+    <div class="score"><dt>Register</dt><dd><span class="to">30</span><span class="was">← 33</span></dd></div>
+    <div class="score"><dt>Sections in that edition</dt><dd><span class="to">127</span><span class="was">← 9</span></dd></div>
+    <div class="score"><dt><code>no_foreign…</code> acts</dt><dd><span class="to">0</span><span class="was">← 1</span></dd></div>
+    <div class="score"><dt>Conservation</dt><dd><span class="flat">100.000%</span></dd></div>
+  </dl>
+
+  <section class="block">
+    <div class="gutter">
+      Found by accident
+      <span class="note">The diagnostic returned nonsense, which was the clue.</span>
+    </div>
+    <div class="body">
+      <h2>Nine leaves, and one of them holding 34,864 characters</h2>
+      <div class="scroller" tabindex="0">
+<pre><code>leaves: <span class="warn">9</span>   chapters: 14
+  s.19  page=53    len= <span class="warn">34864</span>  '19. *** 20. ***] 4[21. De-registration, blacklisting and susp…'
+  s.33  page=<span class="warn">1995</span>  len=  1096  '33. Offences and penalties 33A. Proceedings against authority…'
+  s.30  page=<span class="warn">1995</span>  len=   492  '30. Appointment of Authorities 30A. Directorate General, (Inte…'</code></pre>
+      </div>
+      <p>Its eighteen sibling editions of the same Act:</p>
+      <div class="scroller" tabindex="0">
+<pre><code>     <span class="warn">9</span>  Sales Tax Act, 1990 as amended up to 30.06.2021        <span class="dim">&lt;-- this one</span>
+   110  Sales Tax Act, 1990 (As amended vide Finance (Amendment) Ordinance…
+   115  The Sales Tax Act 1990 (amended up to 1st July 2015)
+   …
+   145  Sales Tax Act 1990 amended upto 30-06-2025
+   151  Sales Tax Act, 1990 amended upto 30th June, 2024</code></pre>
+      </div>
+      <p>
+        The sections are in the PDF — <code>grep</code> finds
+        <code>30. Appointment of Authorities</code>,
+        <code>33. Offences and penalties</code> and
+        <code>73. Certain transactions not admissible</code> in its 14,381 lines of text.
+        And it is not new: the snapshots read 9 leaves at <code>_pre_phase3</code>,
+        <code>_pre_r4</code>, <code>_pre_r9</code> and <code>_pre_r10</code>, and 5 before
+        Phase 2.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The cause
+      <span class="note">A page column that reads the year off the title.</span>
+    </div>
+    <div class="body">
+      <h2>A contents page with leaders and no folio</h2>
+      <div class="scroller" tabindex="0">
+<pre><code>Contents
+Chapter I..............................................................................
+Preliminary............................................................................
+1.     Short title, extent and commencement. ..........................
+2.     Definitions.....................................................................</code></pre>
+      </div>
+      <p>Nothing after the leaders. The sibling that works, five weeks later:</p>
+      <div class="scroller" tabindex="0">
+<pre><code>3B.    Collection of excess sales tax etc. ..................................... ..……..<span class="chosen">34</span>
+4.     Zero rating. ........................................................................ ..……..<span class="chosen">34</span></code></pre>
+      </div>
+      <p class="pull warn">
+        With no folio to read, nine rows survived out of ~140 and every one carried
+        <code>printed_page = 1990</code> — the <strong>year</strong>, taken off the running
+        title <em>The Sales Tax Act, 1990</em>. <code>build_sections</code> is page-anchored,
+        so an entry expecting page 1995 of a 291-page document can never bind.
+      </p>
+      <p>
+        The salvaged codes are
+        <code>['1','19','33','45B','65','3','22','30','48']</code> — which is also where the
+        <code>section_codes_ordered</code> hit <code>'3' out of order after '65'</code> came
+        from.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The fix
+      <span class="note">Nine rows of garbage is not "nothing".</span>
+    </div>
+    <div class="body">
+      <h2>An unreadable contents page is a contents page you do not have</h2>
+      <p>
+        <code>discover.py</code> is, in the plan's own words, <em>"a body-driven fallback for
+        editions that print no table of contents"</em>. It was gated on the TOC producing
+        <strong>nothing</strong>:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>    if not ordered_sections:</code></pre>
+      </div>
+      <p>The gate now also fires when the page column points nowhere:</p>
+      <div class="scroller" tabindex="0">
+<pre><code>    usable_pages = [e for e in ordered_sections
+                    if e.printed_page and 1 &lt;= e.printed_page + offset &lt;= total_pages]
+    if not ordered_sections or <span class="hl">not usable_pages</span>:</code></pre>
+      </div>
+      <p class="figcap">
+        Deliberately not "too few entries" — a flat instrument legitimately has three. "No
+        entry lands inside this document" cannot be true of a contents page the parser read
+        correctly.
+      </p>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>Document</th><th class="num">section leaves</th><th class="num">all leaves</th><th class="num">chapters</th><th class="num">characters</th></tr></thead>
+          <tbody>
+            <tr><td>Sales Tax Act 1990 (30.06.2021)</td><td class="num"><span class="ok">9 → 127</span></td><td class="num">30 → 148</td><td class="num">14 → 10</td><td class="num">341,145 → 339,437</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="figcap">
+        Exactly one document changed across acts and rules. The four chapters that disappear
+        were anonymous; five of the fourteen held no leaf at all. The −1,708 characters are
+        placeholder strings those leaves no longer need — body and footnotes both conserve at
+        100.000%.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The part worth arguing about
+      <span class="note">The register is a floor, not a measure.</span>
+    </div>
+    <div class="body">
+      <h2>The register moved 3. The document gained 118 sections.</h2>
+      <p>
+        No invariant saw this, and the reason is structural.
+        <code>section_carries_its_body</code> reports leaves that <em>exist</em>, and 130 of
+        them did not. <code>structure_counts</code> compares the tree against the contents
+        page — and the contents page parse was itself the thing that failed, so both sides of
+        the comparison were wrong together.
+      </p>
+      <p>The obvious candidate check does not survive measurement. <strong>"No chapter may be empty" fires on 29 of 103 converted documents:</strong></p>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th class="num">empty chapters</th><th>documents</th></tr></thead>
+          <tbody>
+            <tr><td class="num">1</td><td>22 — twenty Customs editions all agree on <code>CHAPTER XIX-A</code>, two Sales Tax on <code>CHAPTER VIII-A</code></td></tr>
+            <tr><td class="num">2–5</td><td>6 — PFMA 2019, Sales Tax 2014, both Sales Tax Rules, and this edition at 5</td></tr>
+            <tr><td class="num">9 / 39</td><td>Finance Act 2019; Customs Rules 2001, already exempted</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="pull">
+        A twenty-edition agreement is evidence of a real omitted chapter, not of a defect. The
+        check would open a hundred-hit register to find one document.
+      </p>
+      <p>
+        What would have caught it is a <strong>cross-edition</strong> fact — nine leaves where
+        eighteen siblings have a hundred and forty — and the suite has no place for one:
+        invariants run per document. <code>signatures.json</code> already carries the group, so
+        the comparison exists in the corpus; it is the wiring that does not.
+        <strong>Logged, not built.</strong>
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The register
+      <span class="note">210 → … → 44 → 33 → 30</span>
+    </div>
+    <div class="body">
+      <h2>Where it stands</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>Invariant</th><th class="num">acts</th><th class="num">rules</th><th class="num">ordinance</th><th class="num">total</th><th class="num">was</th></tr></thead>
+          <tbody>
+            <tr><td><code>section_carries_its_body</code></td><td class="num"><span class="ok">8</span></td><td class="num">8</td><td class="num">5</td><td class="num">21</td><td class="num dim">23</td></tr>
+            <tr><td><code>no_foreign_section_start_in_body</code></td><td class="num"><span class="ok">—</span></td><td class="num">1</td><td class="num">—</td><td class="num">1</td><td class="num dim">2</td></tr>
+            <tr><td><code>section_codes_ordered</code></td><td class="num"><span class="ok">3</span></td><td class="num">—</td><td class="num">—</td><td class="num">3</td><td class="num dim">4</td></tr>
+            <tr><td><code>no_chapter_caption_in_section_heading</code></td><td class="num">4</td><td class="num">—</td><td class="num">—</td><td class="num">4</td><td class="num dim">3</td></tr>
+            <tr><td><code>clause_codes_plausible</code></td><td class="num">1</td><td class="num">—</td><td class="num">—</td><td class="num">1</td><td class="num dim">1</td></tr>
+            <tr><td><strong>per lane</strong></td><td class="num"><strong>16</strong></td><td class="num"><strong>9</strong></td><td class="num"><strong>5</strong></td><td class="num"><strong>30</strong></td><td class="num dim">33</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="figcap">
+        The one hit that class GAINED is new because s.32AA finally binds — the same real leak
+        already open on two sibling editions. A defect made visible is progress.
+      </p>
+      <h3>Gates</h3>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr><td><code>ruff check</code> (bare, as CI runs it)</td><td><span class="tag ok">clean</span></td></tr>
+            <tr><td><code>pytest tools/tests</code></td><td>62 passed, 1 skipped</td></tr>
+            <tr><td>The lock, with the gate reverted</td><td><span class="tag ok">fails</span> — the document returns to 9 sections</td></tr>
+            <tr><td>Conservation</td><td><span class="tag ok">56/56</span> within gate; this document 100.000% both sides</td></tr>
+            <tr><td><code>discover_corpus.py --check</code></td><td><span class="tag ok">no drift</span>, <code>signatures.json</code> unchanged</td></tr>
+            <tr><td>Documents</td><td>80 / 11 / 12, held</td></tr>
+            <tr><td><code>data/ocr_cache</code></td><td>0 B</td></tr>
+            <tr><td>Rollback</td><td><code>output/_pre_r11/</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Stacked on PR #57 — the header band</span>
+    <span>118 sections recovered, 3 register hits</span>
+    <span>Measured 2026-08-30</span>
+  </footer>
+
+</div>
