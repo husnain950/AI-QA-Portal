@@ -1255,6 +1255,27 @@ def _demo_section_attribution() -> None:
     assert _fold_code("221") != _fold_code("221-A")
     assert _code_key("4A") < _code_key("4AB") < _code_key("4B") < _code_key("5")
 
+    # The PAIR must agree on what "starved" means.  Customs s.2 prints the
+    # amendment marker of an inserted definition -- "such other 20[officers of
+    # Customs as may be notified by the Board;]" -- and s.20 is itself Omitted,
+    # so the loose start detector saw a section 20 start inside section 2 and
+    # the empty-victim test could not tell "eaten" from "repealed".  Measured:
+    # 10 of this invariant's 19 register hits, none of them real.
+    def _doc(victim_text):
+        return {"chapters": [{"sections": [
+            {"code": "2", "heading": "Definitions", "html": "",
+             "plain_text": "2. Definitions\n"
+                           "20 officers of Customs as may be notified by the Board;]"},
+            {"code": "20", "html": "",
+             "heading": "Board's power to grant exemption from duty",
+             "plain_text": victim_text},
+        ]}]}
+    assert not inv_no_foreign_section_start_in_body(_doc("15[20. 112[Omitted]"))
+    # ...and a victim that is merely heading-only is still reported: this guard
+    # narrows the check, it must not switch it off.
+    assert inv_no_foreign_section_start_in_body(
+        _doc("20. Board's power to grant exemption from duty"))
+
 
 def inv_no_foreign_section_start_in_body(doc):
     """No leaf may contain the START of another section in its body.
@@ -1271,6 +1292,14 @@ def inv_no_foreign_section_start_in_body(doc):
         only ever swallow the sections that follow it;
       * the victim leaf carries no body of its own, which is the signature of
         the binding failure (a cross-reference leaves the target intact);
+      * the victim is not an OMITTED section, which is legitimately empty and so
+        cannot have been eaten -- the same guard ``section_carries_its_body``
+        applies to the starved side.  Without it the pair disagreed about what
+        "starved" means and this half reported 10 hits its twin did not: seven
+        Customs editions whose s.2 prints the footnote marker in
+        ``such other 20[officers of Customs as may be notified by the Board;]``
+        while s.20 itself reads ``15[20. 112[Omitted]``, plus Sales Tax s.3A,
+        s.42 and Sales Tax Rules 14A;
       * the line is not table-cell content and does not sit after a quotation
         cue -- the same two exclusions ``no_structural_heading_in_body`` uses,
         for the same reasons (a narrow rate column wraps, and a repealed section
@@ -1305,6 +1334,8 @@ def inv_no_foreign_section_start_in_body(doc):
             victim = by_code[other]
             if _body_beyond_heading(victim):
                 continue          # the target kept its own text: a reference
+            if _is_omission(victim):
+                continue          # legitimately empty: nothing was there to eat
             bad.append(f"section {leaf.get('code')}: body contains the start of "
                        f"section {victim.get('code')}, which is itself "
                        f"heading-only: {t[:78]!r}")

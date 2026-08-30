@@ -197,8 +197,9 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**64 hits across 103 converted editions**, re-measured 2026-08-30 after round 7.
-210 → 193 → 148 → 92 → 78 → 75 → 70 → 64. Documents held: acts 80, rules 11, ordinance 12.
+**50 hits across 103 converted editions**, re-measured 2026-08-30 after round 8.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50. Documents held: acts 80, rules 11,
+ordinance 12.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
 numerals, read the same way in the body scan, the tree and the invariant.
@@ -216,6 +217,8 @@ Round 7: [`wip/phase3-parenting-and-marker-runs.md`](./phase3-parenting-and-mark
 — parented by where its code is printed, not by where it is.
 Interlude: [`wip/phase3-gate-the-register.md`](./phase3-gate-the-register.md) — the register
 is now committed and gated, and `make check` lints what CI lints.
+Round 8: [`wip/phase3-omission-mirror.md`](./phase3-omission-mirror.md) — a repealed section
+has nothing left to steal.
 
 **Picking this up cold?** [`wip/HANDOVER.md`](./HANDOVER.md) has the full state: what
 landed, the 16 open items with their traced leads, and the working rules learned the hard
@@ -223,15 +226,15 @@ way (never edit `packages/` mid-conversion; measure invariant and parser separat
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 15 (8) | 17 (4) | 5 (4) | **37** | 41 |
-| `no_foreign_section_start_in_body` | 10 (10) | 9 (4) | — | 19 | 19 |
-| `section_codes_ordered` | 4 (3) | — | — | **4** | 6 |
+| `section_carries_its_body` | 15 (8) | 17 (4) | 5 (4) | 37 | 37 |
+| `no_foreign_section_start_in_body` | 2 (2) | 3 (1) | — | **5** | 19 |
+| `section_codes_ordered` | 4 (3) | — | — | 4 | 4 |
 | `no_chapter_caption_in_section_heading` | 3 (3) | — | — | 3 | 3 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
-| `structure_counts` | — | — | — | **0** | 5 |
-| `no_footnote_text_in_body` | — | — | — | **0** | 45 |
-| `body_chapters_in_tree` | — | — | — | **0** | 21 |
-| **per lane** | **33** | **26** | **5** | **64** | 70 |
+| `structure_counts` | — | — | — | **0** | 0 |
+| `no_footnote_text_in_body` | — | — | — | **0** | 0 |
+| `body_chapters_in_tree` | — | — | — | **0** | 0 |
+| **per lane** | **25** | **20** | **5** | **50** | 64 |
 
 `no_chapter_caption_in_section_heading` gains one because round 4 made it visible: with
 rule 150ZQZA finally binding, its heading is readable, and it is a FALSE positive — the
@@ -310,10 +313,27 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       11.03.2019, Division XXI) — re-measured as **stale**, matching no branch of the
       invariant before or after. A skip buried in a function cannot report itself stale;
       an `exemptions/` entry does.
-- [ ] **`no_foreign_section_start_in_body` (19).** The amending hypothesis is falsified
-      for every document we can measure — the seven amending instruments are clean on it,
-      and all ten acts hits are in consolidated statutes (seven Customs editions, three
-      Sales Tax). It may still hold for the 18 amending instruments behind OCR.
+- [x] **`no_foreign_section_start_in_body` 19 → 5 — the pair disagreed with itself.**
+      Ten hits had a victim that is a REPEALED section: Customs s.20 reads
+      `15[20. 112[Omitted]` in seven editions while s.2 prints the amendment marker in
+      `such other 20[officers of Customs as may be notified by the Board;]`, plus Sales Tax
+      s.3A, s.42 and Sales Tax Rules 14A. `section_carries_its_body` has skipped omissions
+      since it was written; its documented mirror never asked, so one half of the pair
+      reported what the other half had already dismissed. One guard, reusing the same
+      `_is_omission` predicate — **64 → 54 on identical JSON, no re-conversion.**
+      Four more were the mirror of an exemption that was never written down: the same two
+      compilations round 3 exempted for `section_carries_its_body`, firing here from the
+      same index rows (`'7. Jurisdiction ______'`, `'15.06.2002.'`, and Federal Excise's
+      page-75 second instrument). Same traced evidence, same Phase 5 deletion condition —
+      **54 → 50.**
+      The amending hypothesis stays falsified for every document we can measure; it may
+      still hold for the 18 amending instruments behind OCR.
+      The five survivors are all real: Sales Tax 15.9.2021 s.3B (the cursor cascade), Sales
+      Tax 30.06.2021 s.30 (a TOC row bound as a body) and three in Sales Tax Rules
+      01-01-2025 (footnote text read as a section start).
+- [x] **`register.json` has a generator.** Seven rounds hand-copied the `FAIL (n)` counts.
+      `test_register_snapshot.py` already had `_measure()`; the generator is the test read
+      backwards — `python tools/tests/test_register_snapshot.py --write`.
 - [x] **`structure_counts` (5 → 0) — two fixes, and only the second moved the number.**
       *A part is not a chapter.* `PART_RE` required the numeral to end the line, so
       `PART-II ATTACHMENT AND SALE OF MOVABLE PROPERTY ..... 73` fell through to the caption
@@ -453,7 +473,9 @@ document-wide.
 - [ ] The portal renderer
 - [ ] Re-convert the compilations
 
-**Gate: the deletion of the four `tools/suite/exemptions/rules.json` entries that name
-this phase** — `section_carries_its_body` and `section_codes_ordered` on Customs Rules
-2001, and `section_carries_its_body` on Federal Excise Rules 2005. That is the honest test
-that it worked, and the suite will report them stale on its own once it has.
+**Gate: the deletion of the five `tools/suite/exemptions/rules.json` entries that name
+this phase** — `section_carries_its_body`, `section_codes_ordered` and
+`no_foreign_section_start_in_body` on Customs Rules 2001, and `section_carries_its_body`
+and `no_foreign_section_start_in_body` on Federal Excise Rules 2005. (It said "four" and
+then listed three; round 8 added the two mirror entries and counted them.) That is the
+honest test that it worked, and the suite will report them stale on its own once it has.
