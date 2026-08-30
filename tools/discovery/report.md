@@ -214,8 +214,35 @@ refuses it rather than forcing it into the nearest shape.
 
 | family | conf | lane | evidence | file |
 |---|---|---|---|---|
+| consolidated | 0.33 | ordinance | has_leaves; has_schedules | The Islamabad Capital Territory (Tax on Services) Or |
+| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | Foreign Assets (Declaration and Repatriation) Act, 2 |
+| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | The Federal Board of Revenue Act, 2007 (Amended up t |
+| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | The Pakistan Single Window Act, 2021.pdf |
+| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | Voluntary Declaration of Domestic Assets Act, 2018.p |
+| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | AML_CFT Sanction Rules, 2020.pdf |
+| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Counter-Measures for High Risk Jurisdiction Rules, 2 |
+| consolidated | 0.33 | rules | has_leaves; has_contents_page | Inland Revenue Uniform Rules, 2021.pdf |
+| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | PSW Evidence of Identity Regulations, 2023.pdf |
+| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Pakistan Single Window Evidence of Identity (EOI) Ru |
+| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Pakistan Single Window Integrated Risk Management Sy |
+| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Pakistan Single Window Trade Data Dissemination, Exc |
+| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | S.R.O406(I)_2023 - PSW Trade Data Dissemination, Exc |
+| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Sales Tax Special Procedure (Withholding) Rules, 200 |
+| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Sharing of Declaration of Assets of Civil Servants R |
+| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | The Pakistan Single Window (Deputation_Secondment of |
 | amending | 0.4 | acts | amending_language; gazette_masthead | Finance Act, 2019.pdf |
 | amending | 0.4 | acts | amending_language; names_its_targets | Finance Act, 2022.pdf |
+| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | Islamabad Capital Territory (Tax on Services) amende |
+| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
+| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
+| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
+| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
+| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
+| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
+| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
+| consolidated | 0.5 | acts | has_leaves; has_containers; names_its_leaf_kind | Public Finance Management Act, 2019.pdf |
+| consolidated | 0.5 | rules | has_leaves; has_containers; names_its_leaf_kind | FBR AML_CFT Regulations.pdf |
+| consolidated | 0.5 | rules | has_leaves; amendment_footnotes; names_its_leaf_kind | THE SALES TAX SPECIAL PROCEDURE (WITHHOLDING) RULES, |
 
 ## 6. Coverage
 

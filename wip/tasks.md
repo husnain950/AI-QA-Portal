@@ -197,8 +197,8 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**70 hits across 103 converted editions**, re-measured 2026-08-30 after round 6.
-210 → 193 → 148 → 92 → 78 → 75 → 70. Documents held: acts 80, rules 11, ordinance 12.
+**64 hits across 103 converted editions**, re-measured 2026-08-30 after round 7.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64. Documents held: acts 80, rules 11, ordinance 12.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
 numerals, read the same way in the body scan, the tree and the invariant.
@@ -212,18 +212,20 @@ Round 5: [`wip/phase3-toc-furniture.md`](./phase3-toc-furniture.md) — the cont
 own running title, read as a chapter.
 Round 6: [`wip/phase3-chapter-order.md`](./phase3-chapter-order.md) — a part is not a
 chapter, and a suffix is not a sum.
+Round 7: [`wip/phase3-parenting-and-marker-runs.md`](./phase3-parenting-and-marker-runs.md)
+— parented by where its code is printed, not by where it is.
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 19 (10) | 17 (4) | 5 (4) | 41 | 41 |
+| `section_carries_its_body` | 15 (8) | 17 (4) | 5 (4) | **37** | 41 |
 | `no_foreign_section_start_in_body` | 10 (10) | 9 (4) | — | 19 | 19 |
-| `section_codes_ordered` | 6 (5) | — | — | 6 | 6 |
+| `section_codes_ordered` | 4 (3) | — | — | **4** | 6 |
 | `no_chapter_caption_in_section_heading` | 3 (3) | — | — | 3 | 3 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
 | `structure_counts` | — | — | — | **0** | 5 |
 | `no_footnote_text_in_body` | — | — | — | **0** | 45 |
 | `body_chapters_in_tree` | — | — | — | **0** | 21 |
-| **per lane** | **39** | **26** | **5** | **70** | 75 |
+| **per lane** | **33** | **26** | **5** | **64** | 70 |
 
 `no_chapter_caption_in_section_heading` gains one because round 4 made it visible: with
 rule 150ZQZA finally binding, its heading is readable, and it is a FALSE positive — the
@@ -326,12 +328,28 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       so equal keys keep the TOC's order. Both facts locked.
       `signatures.json` moved deliberately: 11 documents, `part_lines` plus
       `container_order` `CP → PC`, **0 family changes**.
-- [ ] **`section_codes_ordered` (6) — a parenting error, not a body error.** Section 33A
-      binds its real body at page 75 but is parented to CHAPTER I, which holds
-      `['1', '2', '33A']` across pages 2–75. That edition reports `toc_pages_scanned: 0` —
-      it is TOC-less and rebuilt by `discover.py`, so the parenting comes from **body
-      discovery**, not `parse_toc`. The document also prints `[(33A) "supply chain" means …`
-      as a *definition clause* of section 2, inside CHAPTER I.
+- [x] **`section_codes_ordered` 6 → 4 — a definition clause is not a section.**
+      `discover_structure` returns **0 chapters and 126 parentless sections** on a TOC-less
+      edition, so `insert_missing_body_chapters` builds the whole tree and assigns sections
+      by which codes are *printed* in each chapter's span. The Sales Tax Act defines
+      "supply chain" as clause `[(33A)` inside section 2, so `33A` is in CHAPTER I's span;
+      CHAPTER I claims it and CHAPTER VII, 55 pages later, finds the parent already set.
+      An entry carrying an `anchor` is now placed by **position**, never by code
+      membership; TOC entries have no anchor and keep the old behaviour.
+      The lock needed strengthening first: with only two chapters the second pass
+      reassigns 33A anyway, so the fixture passed with the fix removed. A third chapter
+      reproduces the real document's shape.
+      Remaining 4: Customs 2025 `'9' after '119'`, Sales Tax 2021 `'3' after '65'`, and
+      Sales Tax 2014 `'3' after '32AA'` + `'22' after '75'` — different documents, not yet
+      traced.
+- [x] **`202B` — the marker run round 4 was right to refuse.** Round 4 measured the naive
+      `MARKER_PREFIX` widening at **1 fix : 17 false positives**. The narrow form admits a
+      whitespace-separated run **only** behind a lookahead for `[CODE. Capital`, which over
+      186,971 lines matches exactly one. **acts `section_carries_its_body` 19 → 15.**
+      A methodological correction came with it: every gained/lost measurement in this phase
+      has used `output/*.json` plain_text, and that is **not** what the parser sees — the
+      parser's line is `42 53 [202B.` while the rendering collapses it to `42 53[202B.`.
+      The first lookahead anchored hard on `[`, matched the JSON and missed the PDF.
 - [x] **The contents page's own title, read as a chapter — and the invariant's proxy.**
       Two fixes, measured separately.
       *Parser:* `82A out of order after 224` was a chapter-parsing problem, not an ordering
@@ -362,6 +380,11 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
 - [ ] Re-examine the 29 low-confidence documents in `tools/discovery/report.md` §5
       against their re-converted output. Low confidence is not a defect; it is a list
       of the documents whose output deserves a human read.
+      **§5 was listing 2, not 29** — round 7 fixed the generator. Its filter tested
+      `BY_LABEL[family].profile`, but Phase 2 made the profile an *override* (`None` for
+      `consolidated`), so 27 rows had been dropped since PR #45. `report.md` had not been
+      regenerated since Phase 0, so it kept printing the old 29 while its generator
+      produced 2. `.profile` → `.parseable`, the field Phase 2 added for this question.
 
 **Gate:** every remaining hit is fixed, or has an entry in
 `tools/suite/exemptions/<lane>.json` whose reason is traced to the source PDF

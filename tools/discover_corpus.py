@@ -238,8 +238,15 @@ def report(rows: list[dict]) -> str:
             "family. Unexplained means no family's required set held, and the pipeline",
             "refuses it rather than forcing it into the nearest shape.", ""]
     flagged = [r for r in rows if not r["assignment"].confident]
+    # ``.parseable``, not ``.profile``.  Phase 2 made the family's profile an
+    # OVERRIDE -- only ``amending`` names one, and ``consolidated`` is None
+    # because the lane's own profile is right for it -- so filtering on the
+    # profile silently dropped every low-confidence consolidated document from
+    # this section, 27 of the 29 it used to list.  ``Family.parseable`` is the
+    # field Phase 2 added for exactly this question.
     parseable = [r for r in flagged
-                 if r["assignment"].family and BY_LABEL[r["assignment"].family].profile]
+                 if r["assignment"].family
+                 and BY_LABEL[r["assignment"].family].parseable]
     out += _table(["family", "conf", "lane", "evidence", "file"],
                   [[r["assignment"].family or "**unexplained**",
                     round(r["assignment"].confidence, 2), r["lane"],

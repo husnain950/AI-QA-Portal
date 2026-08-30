@@ -1,0 +1,306 @@
+<title>Parented by the Wrong Chapter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:#f6f6f4; --paper-sunk:#ecedea; --ink:#171c24; --ink-soft:#3a434f;
+  --muted:#656e79; --rule:#d5d7d3; --rule-soft:#e4e5e2;
+  --accent:#1d5b63; --accent-bg:#e2edee;
+  --defect:#9c2f2a; --defect-bg:#f4e5e3;
+  --good:#2c6146; --good-bg:#e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+    --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+    --accent:#6fb2ba; --accent-bg:#163034;
+    --defect:#dd8880; --defect-bg:#331d1c;
+    --good:#74b795; --good-bg:#162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+  --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+  --accent:#6fb2ba; --accent-bg:#163034;
+  --defect:#dd8880; --defect-bg:#331d1c;
+  --good:#74b795; --good-bg:#162b22;
+}
+* { box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif; font-size:18px;
+  line-height:1.62; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+.sheet { max-width:1080px; margin:0 auto; padding:4rem 2rem 6rem; }
+.block { display:grid; grid-template-columns:12.5rem 1fr; gap:0 2.75rem; align-items:start; }
+.block + .block { margin-top:3.25rem; }
+.gutter { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.74rem; line-height:1.5;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right;
+  padding-top:.5rem; border-right:1px solid var(--rule-soft); padding-right:2.75rem;
+  margin-right:-2.75rem; min-height:2rem; }
+.gutter .note { display:block; text-transform:none; letter-spacing:0; font-size:.82rem;
+  font-style:italic; font-family:"Newsreader",Georgia,serif; color:var(--muted);
+  margin-top:.6rem; line-height:1.45; }
+.body { min-width:0; max-width:62ch; }
+@media (max-width:860px) {
+  .block { grid-template-columns:1fr; gap:0; }
+  .gutter { text-align:left; border-right:0; padding-right:0; margin-right:0;
+    border-left:2px solid var(--rule); padding-left:.85rem; margin-bottom:.9rem; padding-top:0; }
+  .body { max-width:none; } .sheet { padding:2.5rem 1.25rem 4rem; }
+}
+.masthead { border-bottom:2px solid var(--ink); padding-bottom:1.5rem; margin-bottom:3.5rem; }
+.eyebrow { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.72rem; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 1rem; }
+h1 { font-weight:300; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08;
+  letter-spacing:-.018em; margin:0 0 .7rem; text-wrap:balance; }
+h1 em { font-style:italic; color:var(--accent); }
+.standfirst { font-size:1.13rem; color:var(--ink-soft); margin:0; max-width:56ch; text-wrap:pretty; }
+h2 { font-weight:400; font-size:1.62rem; line-height:1.2; letter-spacing:-.012em; margin:0 0 1rem; text-wrap:balance; }
+h3 { font-family:"Source Sans 3",system-ui,sans-serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:2rem 0 .75rem; }
+p { margin:0 0 1.05rem; text-wrap:pretty; }
+.body > :last-child { margin-bottom:0; }
+strong { font-weight:600; }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible, .scroller:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:2px; }
+code { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.845em;
+  background:var(--paper-sunk); padding:.1em .34em; border-radius:3px; border:1px solid var(--rule-soft); }
+.scoreline { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin:0 0 3.5rem; }
+.score { background:var(--paper); padding:1.15rem; }
+.score dt { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.68rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem; }
+.score dd { margin:0; font-size:1.85rem; font-weight:300; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.score .was { font-size:.8rem; color:var(--muted); margin-left:.45rem; font-variant-numeric:tabular-nums; }
+.score .to { color:var(--good); } .score .flat { color:var(--ink-soft); }
+.scroller { overflow-x:auto; }
+pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem; line-height:1.75;
+  background:var(--paper-sunk); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:1rem 1.15rem; margin:0 0 1.05rem; white-space:pre; }
+pre code { background:none; padding:0; border:0; font-size:inherit; }
+pre .hl { color:var(--defect); font-weight:500; }
+pre .dim { color:var(--muted); }
+table { width:100%; border-collapse:collapse; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.875rem; margin:0 0 1.05rem; }
+caption { caption-side:top; text-align:left; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:.6rem; }
+th, td { text-align:left; padding:.62rem .75rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:.7rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--rule); }
+tbody tr:last-child td { border-bottom:0; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+tr.yes td:last-child { color:var(--defect); font-weight:600; }
+tr.no td:last-child { color:var(--good); font-weight:600; }
+tr.wrong td:first-child { box-shadow:inset 3px 0 0 var(--defect); }
+tr.right td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+.tag { display:inline-block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .42rem; border-radius:3px; white-space:nowrap; }
+.tag.ok { background:var(--good-bg); color:var(--good); }
+.tag.bad { background:var(--defect-bg); color:var(--defect); }
+.figcap { font-size:.82rem; color:var(--muted); font-style:italic; margin:0 0 1.05rem; }
+.pull { border-left:3px solid var(--accent); padding:.1rem 0 .1rem 1.15rem; margin:1.6rem 0;
+  font-size:1.12rem; color:var(--ink-soft); font-style:italic; }
+.pull strong { font-style:normal; color:var(--ink); }
+blockquote { margin:0 0 1.05rem; padding:.1rem 0 .1rem 1.15rem; border-left:2px solid var(--rule);
+  color:var(--muted); font-style:italic; font-size:.95rem; }
+footer { margin-top:4.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-family:"Source Sans 3",system-ui,sans-serif; font-size:.8rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">Phase 3 · Round 7 · Anomaly register</p>
+    <h1>Parented by where its code is <em>printed</em>, not by where it is</h1>
+    <p class="standfirst">
+      Two fixes, both found by disbelieving the message — and a third bug that surfaced
+      only because an artifact finally got regenerated.
+    </p>
+  </header>
+
+  <dl class="scoreline">
+    <div class="score"><dt>Register</dt><dd><span class="to">64</span><span class="was">← 70</span></dd></div>
+    <div class="score"><dt><code>section_carries_its_body</code> acts</dt><dd><span class="to">15</span><span class="was">← 19</span></dd></div>
+    <div class="score"><dt><code>section_codes_ordered</code></dt><dd><span class="to">4</span><span class="was">← 6</span></dd></div>
+    <div class="score"><dt>report §5 rows</dt><dd><span class="to">29</span><span class="was">← 2</span></dd></div>
+    <div class="score"><dt>Documents</dt><dd><span class="flat">80 / 11 / 12</span></dd></div>
+  </dl>
+
+  <section class="block">
+    <div class="gutter">
+      Fix one
+      <span class="note">The message said "out of order". It was in the wrong chapter.</span>
+    </div>
+    <div class="body">
+      <h2>A definition clause is not a section</h2>
+      <p>
+        Section 33A binds its <em>real</em> body — <code>2[33A. Proceedings against
+        authority and persons.–</code> at page 75, 911 characters — but sat under
+        <code>CHAPTER I PRELIMINARY</code>, which otherwise holds sections 1 and 2 at
+        page 2. Tracing discovery on that TOC-less edition:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>discover: <span class="hl">0 chapters</span>, 126 sections
+  parent=None &lt;- ['1', '2', '3', '3B', '4', '5', '6', '7', '7A', '8']</code></pre>
+      </div>
+      <p>
+        Every section comes back parentless, so <code>insert_missing_body_chapters</code>
+        builds the whole tree — assigning sections by <strong>which codes are printed in
+        each chapter's span</strong>. And the Act defines "supply chain" as clause
+        <code>[(33A)</code> <em>inside section 2</em>, which puts <code>33A</code> in
+        CHAPTER I's span. CHAPTER I is processed first and claims it; CHAPTER VII, 55 pages
+        later, finds the parent already set and skips it.
+      </p>
+      <div class="pull">
+        An entry carrying an <code>anchor</code> knows where it is. It is now placed by
+        <strong>position</strong>, never by code membership.
+      </div>
+
+      <h3>The lock passed with the fix removed</h3>
+      <p>
+        The first fixture had two chapters and passed either way — with only two, the
+        second pass reassigns 33A anyway, because its parent <em>is</em> the previous
+        chapter and the <code>entry.parent is prev</code> clause allows it. The real
+        document has ten chapters in between.
+      </p>
+      <p class="figcap">
+        Adding a CHAPTER II reproduces the defect, and the lock now fails when the anchor
+        branch is stubbed out. A lock that cannot fail is worth less than no lock, because
+        it gets believed.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      Fix two
+      <span class="note">Round 4 was right to refuse the wide version.</span>
+    </div>
+    <div class="body">
+      <h2>Two markers, one space</h2>
+      <p>
+        Customs s.202B was a heading-only stub in four editions, its body left inside
+        s.202A. Round 4 measured the naive <code>MARKER_PREFIX</code> widening at
+        <strong>1 fix : 17 false positives</strong> and declined it. The narrow form admits
+        the branch <em>only</em> behind a lookahead for <code>[CODE. Capital</code> — which
+        over 186,971 lines matches exactly one.
+      </p>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr class="chosen"><td><code>202B</code></td><td class="num">46 → <strong>1,256</strong> chars</td></tr>
+            <tr class="chosen"><td><code>33A</code></td><td>CHAPTER I → <strong>CHAPTER VII</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The first attempt matched the rendered output and missed the document</h3>
+      <p>
+        <code>why_unbuilt.py</code> said <code>202B … code never opens a body line</code>
+        while <code>_candidate_code</code> returned <code>202B</code> on the line I had
+        tested. They were not the same line:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre class="warn"><code>parser's line text   '42 53<span class="hl"> </span>[202B. Reward to officers ...'   <span class="dim">← space before the bracket</span>
+rendered plain_text  '42 53[202B. Reward to officers ...'    <span class="dim">← the rendering collapses it</span></code></pre>
+      </div>
+      <div class="pull">
+        Every gained/lost measurement in this phase has used <code>output/*.json</code>
+        plain_text as its corpus. That is a good approximation and it is
+        <strong>not what the parser sees.</strong>
+      </div>
+      <p class="figcap">
+        The corrected pattern allows whitespace on both sides of the run's tail, still
+        matches only that one line, and the lock pins both spellings.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      Fix three
+      <span class="note">Found while reading the task list, not the code.</span>
+    </div>
+    <div class="body">
+      <h2>A stale report hid a broken generator</h2>
+      <p>
+        <code>wip/tasks.md</code> asks to re-examine <strong>"the 29 low-confidence
+        documents in <code>report.md</code> §5"</strong>. That section listed
+        <strong>two</strong>.
+      </p>
+      <p>
+        Its filter tests <code>BY_LABEL[family].profile</code>. Phase 2 made a family's
+        profile an <strong>override</strong> — only <code>amending</code> names one, and
+        <code>consolidated</code> is <code>None</code> because the lane's own profile is
+        right for it. So since PR #45 the predicate has been truthy for
+        <code>amending</code> alone, dropping <strong>27 of the 29 rows</strong>.
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>consolidated   profile=<span class="hl">None</span>       parseable=<span class="ok">True</span>
+amending       profile=&lt;Profile&gt;  parseable=<span class="ok">True</span></code></pre>
+      </div>
+      <p>
+        Nobody saw it because <code>report.md</code> had not been regenerated since
+        Phase 0 — it kept printing the old 29 while its generator produced 2. Round 6's
+        <code>--write</code> surfaced the break, which means PR #51 shipped a report with
+        27 rows missing. The data in <code>signatures.json</code> was always complete;
+        only the view was wrong.
+      </p>
+      <p>
+        One word: <code>.profile</code> → <code>.parseable</code>, the field Phase 2 added
+        for exactly this question. §5 is back to 29 rows and
+        <code>signatures.json</code> is untouched.
+      </p>
+      <div class="pull warn">
+        Third instance of one pattern this phase, after the stale in-code skip in round 2
+        and the two stale exemptions in round 3: <strong>a cached artifact cannot tell you
+        its generator is wrong.</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">Gates &amp; what is left</div>
+    <div class="body">
+      <h2>Standing at 64</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>Invariant</th><th class="num">acts</th><th class="num">rules</th><th class="num">ord.</th><th class="num">total</th></tr></thead>
+          <tbody>
+            <tr><td><code>section_carries_its_body</code></td><td class="num">15</td><td class="num">17</td><td class="num">5</td><td class="num">37</td></tr>
+            <tr><td><code>no_foreign_section_start_in_body</code></td><td class="num">10</td><td class="num">9</td><td class="num">—</td><td class="num">19</td></tr>
+            <tr><td><code>section_codes_ordered</code></td><td class="num">4</td><td class="num">—</td><td class="num">—</td><td class="num">4</td></tr>
+            <tr><td><code>no_chapter_caption_in_section_heading</code></td><td class="num">3</td><td class="num">—</td><td class="num">—</td><td class="num">3</td></tr>
+            <tr><td><code>clause_codes_plausible</code></td><td class="num">1</td><td class="num">—</td><td class="num">—</td><td class="num">1</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Gates</h3>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr><td><code>ruff check</code> (bare, as CI runs it)</td><td><span class="tag ok">clean</span></td></tr>
+            <tr><td><code>pytest tools/tests</code></td><td>53 passed, 1 skipped</td></tr>
+            <tr><td>Package self-checks</td><td>13 pass, incl. the three new cases</td></tr>
+            <tr><td><code>signatures.json</code></td><td><strong>unchanged</strong> — §5 is a reporting filter, not a measurement</td></tr>
+            <tr><td><code>report.md</code></td><td>+27 rows in §5, nothing else</td></tr>
+            <tr><td>Stale exemptions, all three lanes</td><td><span class="tag ok">0</span></td></tr>
+            <tr><td>Documents</td><td>80 / 11 / 12, held</td></tr>
+            <tr><td><code>data/ocr_cache</code></td><td>0 B</td></tr>
+            <tr><td>Rollback</td><td><code>output/_pre_r7/</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Follows PR #51 — the chapter sort key</span>
+    <span>No OCR: 61 scanned documents untouched</span>
+    <span>Measured 2026-08-30</span>
+  </footer>
+
+</div>

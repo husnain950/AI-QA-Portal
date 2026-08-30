@@ -252,6 +252,38 @@ def _demo() -> None:
             x += len(tok) * 5 + 3
         return LineRef(page=page, line=Line(top=top, words=words))
 
+    # A body-discovered section is parented by WHERE IT IS, not by where its code
+    # happens to be printed.  Sales Tax Act 1990 defines "supply chain" as clause
+    # "[(33A)" inside section 2, so _codes_in_span puts 33A in CHAPTER I's span;
+    # CHAPTER I is processed first and claimed it, and CHAPTER VII -- where s.33A
+    # is actually printed, 55 pages later -- then found the parent already set.
+    # section_codes_ordered reported that as "3 out of order after 33A".
+    from .toc import SectionEntry as _SE
+
+    # CHAPTER II sits between them on purpose: with only two chapters the second
+    # pass reassigns 33A anyway (its parent IS the previous chapter), and the
+    # defect does not reproduce.  In the real document ten chapters intervene.
+    _refs = [_ln("CHAPTER I", page=2),
+             _ln("2. Definitions.- In this Act, unless there is anything", page=2),
+             _ln("3[(33A) supply chain means the series of transactions", page=3),
+             _ln("CHAPTER II", page=5),
+             _ln("5. Change in the rate of tax.- If there is a change in", page=5),
+             _ln("CHAPTER VII", page=9),
+             _ln("33A. Proceedings against authority.- Subject to section", page=9)]
+    _e2 = _SE(code="2", heading="Definitions", printed_page=2, anchor=_refs[1])
+    _e5 = _SE(code="5", heading="Change in the rate of tax", printed_page=5,
+              anchor=_refs[4])
+    _e33a = _SE(code="33A", heading="Proceedings against authority",
+                printed_page=9, anchor=_refs[6])
+    _chs: list = []
+    insert_missing_body_chapters(_chs, [_e2, _e5, _e33a], _refs)
+    _by = {c.code: c for c in _chs}
+    assert set(_by) == {"CHAPTER I", "CHAPTER II", "CHAPTER VII"}, \
+        [c.code for c in _chs]
+    assert _e2.parent is _by["CHAPTER I"], getattr(_e2.parent, "code", None)
+    assert _e5.parent is _by["CHAPTER II"], getattr(_e5.parent, "code", None)
+    assert _e33a.parent is _by["CHAPTER VII"], getattr(_e33a.parent, "code", None)
+
     toc_lines = [
         "        CHAPTER III",
         "        DECLARATION OF PORTS, AIRPORTS, LAND CUSTOMS STATIONS, ETC.",
@@ -1390,6 +1422,8 @@ def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
     for ch, num in zip(empties, unused):
         _fill(ch, num)
 
+    pos_of_anchor = {id(r): i for i, r in enumerate(body_refs)}
+
     def _codes_in_span(lo: int, hi: int) -> set:
         seen: set = set()
         for j in range(lo + 1, hi):
@@ -1415,6 +1449,27 @@ def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
         span = _codes_in_span(idx, next_idx)
         prev = _previous_chapter(chapters, num)
         for entry in ordered_sections:
+            # An entry that carries an ANCHOR knows where it actually is, so place
+            # it by position and never by code membership.  ``_codes_in_span``
+            # reads every candidate code printed in the span, and a section's code
+            # is printed in more places than its own heading: the Sales Tax Act
+            # 1990 defines "supply chain" as clause ``[(33A)`` inside section 2,
+            # which puts 33A in CHAPTER I's span.  CHAPTER I is processed first,
+            # claims it, and CHAPTER VII -- where s.33A is actually printed, 55
+            # pages later -- then finds its parent already set and skips it.
+            # ``section_codes_ordered`` reports the result as "3 out of order
+            # after 33A".
+            #
+            # Only body-discovered entries have an anchor; TOC entries have none
+            # and keep the code-span behaviour they have always had.
+            anchor = getattr(entry, "anchor", None)
+            if anchor is not None:
+                pos = pos_of_anchor.get(id(anchor))
+                if pos is not None:
+                    if (idx < pos < next_idx
+                            and (entry.parent is prev or entry.parent is None)):
+                        entry.parent = node
+                    continue
             if entry.code in span and (entry.parent is prev or entry.parent is None):
                 entry.parent = node
 
