@@ -1,0 +1,305 @@
+<title>Ingest Remediation Handover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:#f6f6f4; --paper-sunk:#ecedea; --ink:#171c24; --ink-soft:#3a434f;
+  --muted:#656e79; --rule:#d5d7d3; --rule-soft:#e4e5e2;
+  --accent:#1d5b63; --accent-bg:#e2edee;
+  --defect:#9c2f2a; --defect-bg:#f4e5e3;
+  --good:#2c6146; --good-bg:#e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+    --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+    --accent:#6fb2ba; --accent-bg:#163034;
+    --defect:#dd8880; --defect-bg:#331d1c;
+    --good:#74b795; --good-bg:#162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+  --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+  --accent:#6fb2ba; --accent-bg:#163034;
+  --defect:#dd8880; --defect-bg:#331d1c;
+  --good:#74b795; --good-bg:#162b22;
+}
+* { box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif; font-size:18px;
+  line-height:1.62; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+.sheet { max-width:1080px; margin:0 auto; padding:4rem 2rem 6rem; }
+.block { display:grid; grid-template-columns:12.5rem 1fr; gap:0 2.75rem; align-items:start; }
+.block + .block { margin-top:3.25rem; }
+.gutter { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.74rem; line-height:1.5;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right;
+  padding-top:.5rem; border-right:1px solid var(--rule-soft); padding-right:2.75rem;
+  margin-right:-2.75rem; min-height:2rem; }
+.gutter .note { display:block; text-transform:none; letter-spacing:0; font-size:.82rem;
+  font-style:italic; font-family:"Newsreader",Georgia,serif; color:var(--muted);
+  margin-top:.6rem; line-height:1.45; }
+.body { min-width:0; max-width:62ch; }
+@media (max-width:860px) {
+  .block { grid-template-columns:1fr; gap:0; }
+  .gutter { text-align:left; border-right:0; padding-right:0; margin-right:0;
+    border-left:2px solid var(--rule); padding-left:.85rem; margin-bottom:.9rem; padding-top:0; }
+  .body { max-width:none; } .sheet { padding:2.5rem 1.25rem 4rem; }
+}
+.masthead { border-bottom:2px solid var(--ink); padding-bottom:1.5rem; margin-bottom:3.5rem; }
+.eyebrow { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.72rem; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 1rem; }
+h1 { font-weight:300; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08;
+  letter-spacing:-.018em; margin:0 0 .7rem; text-wrap:balance; }
+h1 em { font-style:italic; color:var(--accent); }
+.standfirst { font-size:1.13rem; color:var(--ink-soft); margin:0; max-width:56ch; text-wrap:pretty; }
+h2 { font-weight:400; font-size:1.62rem; line-height:1.2; letter-spacing:-.012em; margin:0 0 1rem; text-wrap:balance; }
+h3 { font-family:"Source Sans 3",system-ui,sans-serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:2rem 0 .75rem; }
+p { margin:0 0 1.05rem; text-wrap:pretty; }
+.body > :last-child { margin-bottom:0; }
+strong { font-weight:600; }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible, .scroller:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:2px; }
+code { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.845em;
+  background:var(--paper-sunk); padding:.1em .34em; border-radius:3px; border:1px solid var(--rule-soft); }
+.scoreline { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin:0 0 3.5rem; }
+.score { background:var(--paper); padding:1.15rem; }
+.score dt { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.68rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem; }
+.score dd { margin:0; font-size:1.85rem; font-weight:300; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.score .was { font-size:.8rem; color:var(--muted); margin-left:.45rem; font-variant-numeric:tabular-nums; }
+.score .to { color:var(--good); } .score .flat { color:var(--ink-soft); }
+.scroller { overflow-x:auto; }
+pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem; line-height:1.75;
+  background:var(--paper-sunk); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:1rem 1.15rem; margin:0 0 1.05rem; white-space:pre; }
+pre code { background:none; padding:0; border:0; font-size:inherit; }
+pre .hl { color:var(--defect); font-weight:500; }
+pre .dim { color:var(--muted); }
+table { width:100%; border-collapse:collapse; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.875rem; margin:0 0 1.05rem; }
+caption { caption-side:top; text-align:left; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:.6rem; }
+th, td { text-align:left; padding:.62rem .75rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:.7rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--rule); }
+tbody tr:last-child td { border-bottom:0; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+tr.yes td:last-child { color:var(--defect); font-weight:600; }
+tr.no td:last-child { color:var(--good); font-weight:600; }
+tr.wrong td:first-child { box-shadow:inset 3px 0 0 var(--defect); }
+tr.right td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+.tag { display:inline-block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .42rem; border-radius:3px; white-space:nowrap; }
+.tag.ok { background:var(--good-bg); color:var(--good); }
+.tag.bad { background:var(--defect-bg); color:var(--defect); }
+.figcap { font-size:.82rem; color:var(--muted); font-style:italic; margin:0 0 1.05rem; }
+.pull { border-left:3px solid var(--accent); padding:.1rem 0 .1rem 1.15rem; margin:1.6rem 0;
+  font-size:1.12rem; color:var(--ink-soft); font-style:italic; }
+.pull strong { font-style:normal; color:var(--ink); }
+blockquote { margin:0 0 1.05rem; padding:.1rem 0 .1rem 1.15rem; border-left:2px solid var(--rule);
+  color:var(--muted); font-style:italic; font-size:.95rem; }
+footer { margin-top:4.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-family:"Source Sans 3",system-ui,sans-serif; font-size:.8rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">Handover · 2026-08-30 · after PRs #46–#53</p>
+    <h1>Where this stands, and how to <em>pick it up</em></h1>
+    <p class="standfirst">
+      The register is 64, down from 210, and now gated on CI. Sixteen of forty-eight
+      checklist items remain open — the hard residue of Phase 3, all of Phase 4 and
+      Phase 5, and the OCR work excluded by instruction.
+    </p>
+  </header>
+
+  <dl class="scoreline">
+    <div class="score"><dt>Register</dt><dd><span class="to">64</span><span class="was">← 210</span></dd></div>
+    <div class="score"><dt>Classes closed</dt><dd><span class="to">3</span><span class="was">of 8</span></dd></div>
+    <div class="score"><dt>Items done</dt><dd><span class="flat">32</span><span class="was">/ 48</span></dd></div>
+    <div class="score"><dt>Open</dt><dd><span class="flat">16</span></dd></div>
+    <div class="score"><dt>Documents</dt><dd><span class="flat">80 / 11 / 12</span></dd></div>
+  </dl>
+
+  <section class="block">
+    <div class="gutter">What landed
+      <span class="note">Eight PRs, each with a write-up and a review page.</span></div>
+    <div class="body">
+      <h2>210 → 64, in seven rounds and an interlude</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>PR</th><th class="num">register</th><th>what it actually was</th></tr></thead>
+          <tbody>
+            <tr><td>#46</td><td class="num">210 → 193</td><td>a chapter numeral read three different ways</td></tr>
+            <tr><td>#47</td><td class="num">→ 148</td><td>45 hits inside a <code>title=</code> attribute, hiding a 473-footnote splice</td></tr>
+            <tr><td>#48</td><td class="num">→ 92</td><td>an unreadable glyph; two compilations exempted on existing evidence</td></tr>
+            <tr><td>#49</td><td class="num">→ 78</td><td>a split section code, and a <code>ponytail:</code> measurement that had expired</td></tr>
+            <tr><td>#50</td><td class="num">→ 75</td><td>the contents page's own running title, parsed as a chapter</td></tr>
+            <tr><td>#51</td><td class="num">→ 70</td><td>a PART parsed as a chapter; a sort key that summed suffix letters</td></tr>
+            <tr class="chosen"><td>#52</td><td class="num">→ 64</td><td>a definition clause misparenting a section; a marker run behind a space; a stale report</td></tr>
+            <tr><td>#53</td><td class="num">64</td><td>no parser change — the register is committed and gated</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <strong>Three classes closed:</strong> <code>body_chapters_in_tree</code>,
+        <code>no_footnote_text_in_body</code>, <code>structure_counts</code>. Held constant
+        throughout: 80 / 11 / 12 documents, conservation <strong>100.000%</strong> on body
+        and footnotes, <code>data/ocr_cache</code> <strong>0 B</strong>.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">The residue
+      <span class="note">Expect a lower hits-per-round rate from here.</span></div>
+    <div class="body">
+      <h2>64 hits, and why they are harder</h2>
+      <p>
+        Rounds 1–7 each found <em>one cause explaining many hits</em>. What is left is
+        mostly <strong>one or two hits per document, with different causes</strong>.
+      </p>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>Invariant</th><th class="num">acts</th><th class="num">rules</th><th class="num">ord.</th><th class="num">total</th></tr></thead>
+          <tbody>
+            <tr><td><code>section_carries_its_body</code></td><td class="num">15</td><td class="num">17</td><td class="num">5</td><td class="num">37</td></tr>
+            <tr><td><code>no_foreign_section_start_in_body</code></td><td class="num">10</td><td class="num">9</td><td class="num">—</td><td class="num">19</td></tr>
+            <tr><td><code>section_codes_ordered</code></td><td class="num">4</td><td class="num">—</td><td class="num">—</td><td class="num">4</td></tr>
+            <tr><td><code>no_chapter_caption_in_section_heading</code></td><td class="num">3</td><td class="num">—</td><td class="num">—</td><td class="num">3</td></tr>
+            <tr><td><code>clause_codes_plausible</code></td><td class="num">1</td><td class="num">—</td><td class="num">—</td><td class="num">1</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        The first two <strong>move together</strong> — the second invariant only fires when
+        the victim leaf is itself heading-only, so each of its hits mirrors one of the
+        first's.
+      </p>
+      <h3>Traced leads, none landed</h3>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr><td><strong>The five-stub block</strong><br>Sales Tax 15.9.2021</td>
+                <td>Sections 3B–7 are stubs at pages 40–43 while 7A, 8, 8A, 8B at 39–42 carry real bodies — the pages <em>interleave</em>. Read the source pages before theorising</td></tr>
+            <tr><td><code>clause_codes_plausible</code></td>
+                <td><strong>Do not weaken this check.</strong> Its docstring says it detects a cause that is not fixed (ledger P06). <code>8517</code> is an HS tariff heading inside clause 7's <em>quoted amendment</em>, and it swallowed the real clause 8 — 54,667 characters</td></tr>
+            <tr><td>Ordinance (5)</td>
+                <td>Lives in <code>fbr_ingest</code>; two are a footnote's text bound as a section body. <strong>Sequence after Phase 4b</strong> or the work is done twice</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">Phase 4b
+      <span class="note">Decided and demonstrated. Nothing wired.</span></div>
+    <div class="body">
+      <h2>The ICT editions are a routing problem, not a parsing one</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>group</th><th class="num">n</th><th><code>container_order</code></th><th class="num">chapter_lines</th><th class="num">toc_rows</th></tr></thead>
+          <tbody>
+            <tr><td>Income Tax Ordinance 2001</td><td class="num">21</td><td><code>PCD</code>/<code>CPD</code></td><td class="num">13–513</td><td class="num">404</td></tr>
+            <tr class="chosen"><td><strong>ICT (Tax on Services)</strong></td><td class="num">9</td><td><code>''</code> flat</td><td class="num">0</td><td class="num">3</td></tr>
+            <tr><td>PSW / VDDA (acts + rules lanes)</td><td class="num">6</td><td><code>''</code> flat</td><td class="num">0</td><td class="num">0–2</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Proven on the document, not inferred — same file, same three sections:</p>
+      <div class="scroller" tabindex="0">
+<pre><code><span class="ok">legal_ingest</span>  assembled <span class="ok">3 / 3</span> sections; flat act -> synthetic root
+              s.1 235 chars, s.2 205, s.3 18,091 — real statutory text
+<span class="hl">fbr_ingest</span>    RuntimeError: TOC parse left 3 section(s) without a
+              chapter container (1, 2, 3...)</code></pre>
+      </div>
+      <div class="pull">
+        <strong>Both forks parse the same three sections.</strong> The only difference is
+        that <code>legal_ingest</code> has a flat-act fallback giving them a container.
+      </div>
+      <p class="figcap">
+        Decision: route by family, not by lane. <code>fbr_ingest</code> keeps only the 13
+        Income Tax Ordinance editions; merging the fork stays the v1 non-goal it already is.
+        Follow-through unblocks 9 documents.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">Working rules
+      <span class="note">Each of these cost real time.</span></div>
+    <div class="body">
+      <h2>What to do differently</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr><td><strong>Never edit <code>packages/</code> mid-conversion</strong></td>
+                <td>Each child imports the parser when it starts, so an edit gives early documents the old code and later ones the new. A mixed-revision corpus looks normal. Done <strong>twice</strong> in one session</td></tr>
+            <tr><td><strong>Clear <code>__pycache__</code> after mutate-and-restore</strong></td>
+                <td>The source is right while the module in memory is the version you rejected. A re-conversion had already run against it</td></tr>
+            <tr><td><strong>Measure invariant and parser separately</strong></td>
+                <td>Nearly every class is part wrong-invariant, part real defect. 45 hits were <em>all</em> an attribute, concealing a 473-footnote defect</td></tr>
+            <tr><td><strong>Know which corpus you measured</strong></td>
+                <td>Measurements use <code>output/*.json</code> plain_text — <strong>not what the parser sees</strong>. <code>42 53 [202B.</code> vs <code>42 53[202B.</code> is the difference between matching and missing</td></tr>
+            <tr><td><strong>Verify a lock by removing the fix</strong></td>
+                <td>A parenting lock passed with the fix stubbed out; its two-chapter fixture let a later pass repair the damage</td></tr>
+            <tr><td><strong>Report fixes that scored zero</strong></td>
+                <td>Round 4's acts lane and round 6's PART fix were both correct and moved nothing. Folding them into a total misattributes the rounds that did</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pull warn">
+        <strong>A cached artifact cannot tell you its generator is wrong.</strong> Three
+        instances this phase — and only the <code>exemptions/</code> format reported itself
+        stale, unprompted. That is the argument for the register snapshot.
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">Housekeeping</div>
+    <div class="body">
+      <h2>Two things about this session's output</h2>
+      <p>
+        <strong>PR #51 shipped a broken <code>report.md</code>.</strong> Its §5 lost 27 of
+        29 rows because the filter tested <code>.profile</code>, which Phase 2 had turned
+        into an override. Found and fixed in #52 — but it was live for one PR.
+      </p>
+      <p>
+        <strong>An exported transcript is untracked in the repo root</strong>
+        (<code>2026-08-30-125158-*.txt</code>) and is <strong>not gitignored</strong>. A
+        bare <code>git add -A</code> would commit it.
+      </p>
+      <h3>Verification</h3>
+      <div class="scroller" tabindex="0">
+<pre><code>.venv/bin/python tools/run_suite.py acts        <span class="dim"># and rules, ordinance</span>
+.venv/bin/pytest tools/tests -q                 <span class="dim"># 56 passed, 1 skipped</span>
+.venv/bin/python tools/run_tests_smoke.py       <span class="dim"># 13 self-checks + lane suites</span>
+.venv/bin/python tools/discover_corpus.py --check
+.venv/bin/ruff check                            <span class="dim"># BARE — matches ci.yml</span>
+du -sh data/ocr_cache                           <span class="dim"># must stay 0 B</span></code></pre>
+      </div>
+      <p class="figcap">
+        <code>run_tests_smoke.py</code> exits non-zero while the register is non-zero. That
+        is expected and pre-existing; it clears when Phase 3 reaches zero-or-exempted.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <span>wip/HANDOVER.md</span>
+    <span>Register 64 · 16 of 48 items open</span>
+    <span>No OCR: 61 scanned documents untouched</span>
+  </footer>
+
+</div>

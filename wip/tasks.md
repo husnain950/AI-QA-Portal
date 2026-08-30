@@ -217,6 +217,10 @@ Round 7: [`wip/phase3-parenting-and-marker-runs.md`](./phase3-parenting-and-mark
 Interlude: [`wip/phase3-gate-the-register.md`](./phase3-gate-the-register.md) — the register
 is now committed and gated, and `make check` lints what CI lints.
 
+**Picking this up cold?** [`wip/HANDOVER.md`](./HANDOVER.md) has the full state: what
+landed, the 16 open items with their traced leads, and the working rules learned the hard
+way (never edit `packages/` mid-conversion; measure invariant and parser separately).
+
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
 | `section_carries_its_body` | 15 (8) | 17 (4) | 5 (4) | **37** | 41 |
@@ -284,7 +288,7 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       Honest caveat: the acts lane did **not** move. 32 of the 48 gained lines were
       hyphenated Customs sections already binding by another route — lines newly matched
       is not the same measurement as sections newly bound.
-- [ ] **`section_carries_its_body` — the remaining 41.** ~24 real zoning misses scattered
+- [ ] **`section_carries_its_body` — the remaining 37.** ~24 real zoning misses scattered
       1–2 per edition; 3 a TOC row bound as body; 5 ordinance (`fbr_ingest`, sequenced
       after the Phase 4 decision on that fork); the rest untriaged.
 - [x] **`no_footnote_text_in_body` (45) — closed, and none of it was in a body.**
@@ -306,7 +310,7 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       11.03.2019, Division XXI) — re-measured as **stale**, matching no branch of the
       invariant before or after. A skip buried in a function cannot report itself stale;
       an `exemptions/` entry does.
-- [ ] **`no_foreign_section_start_in_body` (20).** The amending hypothesis is falsified
+- [ ] **`no_foreign_section_start_in_body` (19).** The amending hypothesis is falsified
       for every document we can measure — the seven amending instruments are clean on it,
       and all ten acts hits are in consolidated statutes (seven Customs editions, three
       Sales Tax). It may still hold for the 18 amending instruments behind OCR.
@@ -372,7 +376,7 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       no chapter with that caption, which cannot happen (`_open_caption_chapter` opens a
       node even when the contents omit the `CHAPTER N` row). It now contains the chapter,
       and still fails if that chapter is removed.
-- [ ] **`section_codes_ordered` (6) — a second, different misplacement.** Round 5 closed
+- [ ] **`section_codes_ordered` (4) — untraced.** Round 5 closed
       only the Customs 2008 hit. The five Sales Tax hits are `CHAPTER I PRELIMINARY`
       holding `['1', '2', '33A']` across pages 2–75: section 33A (page 75) is parented to
       CHAPTER I instead of CHAPTER VII.
