@@ -1,0 +1,33 @@
+{
+  "_comment": [
+    "The anomaly register, committed so CI can gate it.",
+    "",
+    "data/corpora/*/output/ is gitignored, so run_tests_smoke.py SKIPs all three lane",
+    "suites on CI and these numbers were enforced by nothing but prose in wip/tasks.md.",
+    "Seven rounds moved the register 210 -> 64; a silent regression would have been",
+    "invisible.  tools/tests/test_register_snapshot.py compares this file against a",
+    "live run when the corpus is staged, and skips when it is not -- the same shape as",
+    "the lane suites themselves.",
+    "",
+    "A round that IMPROVES the register fails this test until the file is updated.",
+    "That is the point: the number then moves deliberately, in the same PR that moved",
+    "it, which is the discipline wip/tasks.md asks for in prose today."
+  ],
+  "total": 64,
+  "lanes": {
+    "ordinance": {
+      "section_carries_its_body": 5
+    },
+    "acts": {
+      "clause_codes_plausible": 1,
+      "no_chapter_caption_in_section_heading": 3,
+      "no_foreign_section_start_in_body": 10,
+      "section_carries_its_body": 15,
+      "section_codes_ordered": 4
+    },
+    "rules": {
+      "no_foreign_section_start_in_body": 9,
+      "section_carries_its_body": 17
+    }
+  }
+}
