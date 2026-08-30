@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Conservation gate over many editions at once -- one table, one exit code.
 
-    python scripts/audit_all.py --family customs
+    python tools/acts/audit_all.py --family customs
 
 Pairs each output JSON with its source PDF by ``metadata.filename`` (not by
 guessing the name back), re-scans the PDF independently, and applies the gate:
@@ -23,10 +23,14 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from scripts.convert_all import ACTS, CONSOLIDATED, is_pdf  # noqa: E402
+# ``scripts/`` became ``tools/`` and this import was never repointed, so the
+# corpus-wide conservation gate the suite README names has been dying on
+# ModuleNotFoundError.  ``ACTS`` went with it: convert_all binds its lanes at
+# run time now, and the corpus root is what corpus_paths exists to answer.
+from convert_all import CONSOLIDATED, is_pdf  # noqa: E402
+from corpus_paths import output_dir, source_dir  # noqa: E402 (bootstrap above)
 
-from corpus_paths import output_dir  # noqa: E402 (sys.path bootstrap above)
-
+ACTS = pathlib.Path(source_dir("acts"))
 OUT = pathlib.Path(output_dir("acts"))
 BODY_GATE = 99.99
 FOOT_GATE = 100.0

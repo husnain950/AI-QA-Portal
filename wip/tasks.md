@@ -197,8 +197,8 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**50 hits across 103 converted editions**, re-measured 2026-08-30 after round 8.
-210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50. Documents held: acts 80, rules 11,
+**44 hits across 103 converted editions**, re-measured 2026-08-30 after round 9.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44. Documents held: acts 80, rules 11,
 ordinance 12.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
@@ -219,6 +219,8 @@ Interlude: [`wip/phase3-gate-the-register.md`](./phase3-gate-the-register.md) �
 is now committed and gated, and `make check` lints what CI lints.
 Round 8: [`wip/phase3-omission-mirror.md`](./phase3-omission-mirror.md) — a repealed section
 has nothing left to steal.
+Round 9: [`wip/phase3-cursor-cascade.md`](./phase3-cursor-cascade.md) — one choice, seven
+starved sections.
 
 **Picking this up cold?** [`wip/HANDOVER.md`](./HANDOVER.md) has the full state: what
 landed, the 16 open items with their traced leads, and the working rules learned the hard
@@ -226,15 +228,15 @@ way (never edit `packages/` mid-conversion; measure invariant and parser separat
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 15 (8) | 17 (4) | 5 (4) | 37 | 37 |
-| `no_foreign_section_start_in_body` | 2 (2) | 3 (1) | — | **5** | 19 |
+| `section_carries_its_body` | 10 (7) | 17 (4) | 5 (4) | **32** | 37 |
+| `no_foreign_section_start_in_body` | 1 (1) | 3 (1) | — | **4** | 5 |
 | `section_codes_ordered` | 4 (3) | — | — | 4 | 4 |
 | `no_chapter_caption_in_section_heading` | 3 (3) | — | — | 3 | 3 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
 | `structure_counts` | — | — | — | **0** | 0 |
 | `no_footnote_text_in_body` | — | — | — | **0** | 0 |
 | `body_chapters_in_tree` | — | — | — | **0** | 0 |
-| **per lane** | **25** | **20** | **5** | **50** | 64 |
+| **per lane** | **19** | **20** | **5** | **44** | 50 |
 
 `no_chapter_caption_in_section_heading` gains one because round 4 made it visible: with
 rule 150ZQZA finally binding, its heading is readable, and it is a FALSE positive — the
@@ -291,9 +293,29 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       Honest caveat: the acts lane did **not** move. 32 of the 48 gained lines were
       hyphenated Customs sections already binding by another route — lines newly matched
       is not the same measurement as sections newly bound.
-- [ ] **`section_carries_its_body` — the remaining 37.** ~24 real zoning misses scattered
-      1–2 per edition; 3 a TOC row bound as body; 5 ordinance (`fbr_ingest`, sequenced
-      after the Phase 4 decision on that fork); the rest untriaged.
+- [ ] **`section_carries_its_body` — the remaining 32.** Round 9 took five of them with one
+      fix. The residue: 17 rules (12 of them in Sales Tax Rules 01-01-2025 alone), 5
+      ordinance (`fbr_ingest`, sequenced after the Phase 4 decision on that fork), and 10
+      acts spread over seven editions.
+- [x] **The cursor cascade — 6 hits, one choice.** The handover said Sales Tax 15.9.2021's
+      pages "interleave" and to read the source first. They do not: `why_unbuilt.py` shows
+      the whole block printing ~6 pages ahead of its own contents page, and s.3 is the one
+      entry whose code opens two body lines (28, its real heading; 37, a cross-reference).
+      `|37-34|=3` beats `|28-34|=6`, the tolerance ladder breaks at the first tolerance that
+      hits, and the monotonic cursor jumps past ss.3A/3AA/3B/4/5/6/7. The ordering guard
+      below the ladder rejects a match past where the next entry is EXPECTED and cannot see
+      where it PRINTS. Fix: filter the candidates by a one-entry look-ahead before the
+      ladder runs — a tie-break between candidates, never a rejection, skipped entirely
+      with one candidate or where every candidate starves the next entry.
+      **Gained 6, lost 0**; exactly one document changed corpus-wide, conservation
+      100.000% on both sides. Locked by `tools/tests/test_build_sections_lookahead.py`,
+      which fails with the filter removed.
+- [x] **Two tools that could not do their job.** `why_unbuilt.py` called `calibrate` and
+      `parse_toc` with no profile, so every RULES document — the lane holding 20 of the 44
+      remaining hits — was diagnosed with Acts folio and leader settings; it now takes
+      `--lane`. `audit_all.py`, which `tools/suite/README.md` names as the conservation gate
+      to run after every regeneration, had been raising `ModuleNotFoundError` since
+      `scripts/` became `tools/`. Both fixed; the acts lane re-audits 56/56 within gate.
 - [x] **`no_footnote_text_in_body` (45) — closed, and none of it was in a body.**
       All 45 hits were the string `LEGAL REFERENCE` inside a citation tooltip's `title=`
       attribute; the invariant searched raw markup, so an attribute counted as body text.

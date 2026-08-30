@@ -1761,6 +1761,26 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
         drift = (int(_median(drift_window)) if len(drift_window) >= 3 else 0)
         expected = expected_page(entry) + drift
         positions = [p for p in code_positions.get(entry.code, []) if p > last]
+        nxt = next((e for e in ordered[k + 1:] if e.printed_page), None)
+        # Look ahead ONE entry before choosing, not after.  The ordering guard
+        # below rejects a match that sits past where the next entry is expected;
+        # it cannot see a match that sits past where the next entry actually
+        # PRINTS, and the tolerance ladder walks outward from the expected page,
+        # so a nearby wrong candidate is reached before a distant right one.
+        # Sales Tax 15.9.2021: s.3 is expected on page 34 and its code opens a
+        # body line on 28 and on 37.  The whole block runs about six pages ahead
+        # of its own TOC, so 28 is the real heading -- but tol=4 reaches 37
+        # first, the cursor jumps to it, and ss.3A/3AA/3B/4/5/6/7 all print
+        # BEFORE it and are blocked.  Seven entries starved by one choice, five
+        # of them register hits.
+        # Only ever a tie-break BETWEEN candidates: with one candidate, or where
+        # every candidate starves the next entry (its code may not open a body
+        # line at all), the filter is skipped and the ladder decides as before.
+        if nxt is not None and len(positions) > 1:
+            nxt_positions = code_positions.get(nxt.code, ())
+            viable = [p for p in positions if any(q > p for q in nxt_positions)]
+            if viable:
+                positions = viable
         pos = None
         for tol in (2, 4, 8):
             near = [p for p in positions
@@ -1776,7 +1796,6 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
             # subsequent section collapses to a placeholder -- the failure mode
             # that cost the 2007 edition 30 sections.  Rejecting the match leaves
             # this one entry as a placeholder instead of thirty.
-            nxt = next((e for e in ordered[k + 1:] if e.printed_page), None)
             if nxt is not None and body_refs[pos].page > expected_page(nxt) + drift + 8:
                 continue
             # The TOC can list the SAME code twice (a section omitted and later
