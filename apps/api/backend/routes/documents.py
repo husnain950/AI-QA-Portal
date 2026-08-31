@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -37,6 +38,7 @@ from backend.services.document_provenance import (
 from backend.services.document_store import ReviewConflict, document_status
 from backend.services.json_parser import parse_json_document
 from backend.services.pdf_service import get_pdf_page_count
+from backend.sync_acts import SOURCE_TYPE, deterministic_document_id
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +100,49 @@ def _metrics_response(row) -> Optional[VersionMetrics]:
         measured_at=row["measured_at"],
         failing_invariants=detail.get("failing_invariants", []),
     )
+
+
+def _source_hash(pdf_filename: str, json_bytes: bytes) -> str:
+    """The same content hash `sync_acts.validate_pair` computes.
+
+    `pdf_filename` is already `pdf/<sha256>.pdf`, so the digest is in the name; a
+    seeded document and a synced one must agree on "unchanged" or the sync would
+    rewrite everything the push had just sent.
+    """
+    pdf_hash = os.path.splitext(os.path.basename(pdf_filename))[0]
+    return hashlib.sha256(
+        f"{pdf_hash}:{blob_store.sha256_bytes(json_bytes)}".encode("ascii")
+    ).hexdigest()
+
+
+async def _upload_as_new_version(
+    db: DatabaseConnection,
+    document_id: str,
+    json_file: UploadFile,
+    corpus_lane: Optional[str],
+    corpus_origin: Optional[str],
+) -> DocumentResponse:
+    """An upload for a document that already exists: a version, not a second row.
+
+    The PDF is not re-read -- it is content-addressed and immutable, and a corpus
+    document's PDF never changes; the JSON is what the pipeline keeps correcting.
+    """
+    await _add_version(
+        db, document_id, json_file, "Corpus seed.", "push_corpus", expected_version_id=None
+    )
+    lane = normalize_lane(corpus_lane)
+    await db.execute(
+        """
+        UPDATE documents
+        SET corpus_lane = COALESCE(?, corpus_lane),
+            corpus_origin = COALESCE(?, corpus_origin),
+            withdrawn_at = NULL
+        WHERE id = ?
+        """,
+        (lane, corpus_origin, document_id),
+    )
+    await db.commit()
+    return await _document_response_by_id(db, document_id)
 
 
 async def _require_document(db: DatabaseConnection, document_id: str):
@@ -282,15 +327,66 @@ async def upload_document(
     json_file: UploadFile = File(...),
     name: str = Form(...),
     corpus_lane: Optional[str] = Form(None),
+    source_key: Optional[str] = Form(None),
+    corpus_origin: Optional[str] = Form(None),
     db: DatabaseConnection = Depends(get_db)
 ):
+    """Create or update a document from a PDF + JSON pair.
+
+    ``source_key`` is what makes this route usable for corpus seeding. A deployment
+    has no source PDFs of its own, so ``sync_acts`` cannot run there and
+    ``push_corpus`` re-uploads over HTTP instead -- and until now that produced a
+    DIFFERENT KIND OF ROW: ``source_type='upload'``, ``source_key=NULL``, a random
+    uuid4 for an id. Three consequences, all of them live in production today:
+
+    * ``acts_metrics.ingest`` matches on ``source_key``, so every pipeline-health row
+      was unmatched and the badges the UI already renders had nothing to feed them.
+    * Identity was ``documents.name``, a display string, so two documents sharing a
+      name silently became one.
+    * A re-push created a second row rather than a new version, which is why the
+      Makefile says re-uploading resets every section to pending and why a nightly
+      GitHub Action exists to back up the review state it destroys.
+
+    With a ``source_key`` the id is the same ``uuid5`` ``sync_acts`` mints, so a push
+    and a local sync converge on one row and a re-push is a new version carrying
+    review state -- the same path, the same guarantees.
+    """
     # Validate file formats
     if not (pdf.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="PDF file must have .pdf extension")
     if not (json_file.filename or "").lower().endswith(".json"):
         raise HTTPException(status_code=400, detail="JSON file must have .json extension")
 
-    doc_id = str(uuid.uuid4())
+    # Callers that invoke the route directly (the backend tests do) pass no Form
+    # defaults, so the unresolved `Form(None)` sentinel arrives here -- the same
+    # coercion `_add_version` already does for `note` and `created_by`.
+    source_key = (source_key.strip() or None) if isinstance(source_key, str) else None
+    corpus_origin = (
+        (corpus_origin.strip() or None) if isinstance(corpus_origin, str) else None
+    )
+    if corpus_origin and not source_key:
+        raise HTTPException(
+            status_code=400,
+            detail="corpus_origin needs a source_key: an origin with no key can never "
+                   "be reconciled, and would be withdrawn by the next sync",
+        )
+    source_type = SOURCE_TYPE if source_key else "upload"
+    doc_id = (
+        deterministic_document_id(source_key) if source_key else str(uuid.uuid4())
+    )
+
+    async with db.execute(
+        "SELECT id FROM documents WHERE source_type = ? AND source_key = ?",
+        (source_type, source_key),
+    ) as cursor:
+        existing = await cursor.fetchone() if source_key else None
+    if existing is not None:
+        # Already seeded. Adding a version is exactly what a re-sync does, and
+        # `create_version` is a no-op on unchanged bytes -- so `push-remote` twice in
+        # a row costs one hash comparison and changes nothing.
+        return await _upload_as_new_version(
+            db, existing["id"], json_file, corpus_lane, corpus_origin
+        )
 
     # Blobs are content-addressed: an identical PDF uploaded twice is stored once, and a
     # failed ingest leaves behind nothing but an unreferenced (and reusable) blob rather
@@ -328,8 +424,8 @@ async def upload_document(
             INSERT INTO documents (
                 id, name, pdf_filename, json_filename, total_sections,
                 total_pages, uploaded_at, status, source_type, source_key,
-                source_hash, corpus_lane
-            ) VALUES (?, ?, ?, '', 0, ?, ?, 'pending', 'upload', NULL, NULL, ?)
+                source_hash, corpus_lane, corpus_origin
+            ) VALUES (?, ?, ?, '', 0, ?, ?, 'pending', ?, ?, ?, ?, ?)
             """,
             (
                 doc_id,
@@ -337,7 +433,14 @@ async def upload_document(
                 pdf_filename,
                 total_pages,
                 uploaded_at,
-                normalize_lane(corpus_lane) or LANE_MANUAL,
+                source_type,
+                source_key,
+                # The same hash `sync_acts.validate_pair` computes, so a document
+                # seeded over HTTP and one synced from disk agree on "unchanged".
+                _source_hash(pdf_filename, json_content_bytes) if source_key else None,
+                normalize_lane(corpus_lane)
+                or (None if source_key else LANE_MANUAL),
+                corpus_origin,
             ),
         )
         # Version 1 writes the sections, footnotes and the active-version row, through
@@ -375,8 +478,8 @@ async def upload_document(
         total_pages=total_pages,
         uploaded_at=uploaded_at,
         status=doc_status,
-        source_type="upload",
-        source_key=None,
+        source_type=source_type,
+        source_key=source_key,
         stats=_document_stats(
             reviewed=stats["reviewed"],
             approved=stats["approved"],

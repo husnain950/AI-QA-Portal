@@ -99,27 +99,75 @@ def test_plan_refresh_splits_by_content_hash(tmp_path):
     fresh.write_text("{}", encoding="utf-8")
 
     local = [
-        (10, "Identical Act", "a.pdf", str(same), "customs"),
-        (20, "Stale Act", "b.pdf", str(drifted), "finance"),
-        (30, "New Act", "c.pdf", str(fresh), "sales_tax"),
+        push_corpus.LocalDoc(10, "Identical Act", "a.pdf", str(same), "customs",
+                             "Identical Act", "acts"),
+        push_corpus.LocalDoc(20, "Stale Act", "b.pdf", str(drifted), "finance",
+                             "Stale Act", "acts"),
+        push_corpus.LocalDoc(30, "New Act", "c.pdf", str(fresh), "sales_tax",
+                             "New Act", "acts"),
     ]
     remote = {
-        "Identical Act": {
+        "key:Identical Act": {
             "id": "id-1",
             "json_filename": f"json/{blob_store.sha256_file(same)}.json",
         },
         # Production still holds the parse from before the OCR metadata existed.
-        "Stale Act": {"id": "id-2", "json_filename": "json/" + "0" * 64 + ".json"},
+        "key:Stale Act": {"id": "id-2", "json_filename": "json/" + "0" * 64 + ".json"},
     }
 
     to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
-    assert [item[1] for item in to_upload] == ["New Act"], "absent -> upload"
+    assert [item.name for item in to_upload] == ["New Act"], "absent -> upload"
     assert to_refresh == [(  # id first, so the caller can address replace-json
         "id-2", 20, "Stale Act", "b.pdf", str(drifted), "finance",
+        "Stale Act", "acts",
     )]
     assert not any(item[2] == "Identical Act" for item in to_refresh), (
         "matching content hash must not cost a new version"
     )
+
+
+def test_plan_refresh_matches_on_source_key_not_name(tmp_path):
+    """Identity is the corpus key. The name is a display string.
+
+    Two editions can carry the same ``name`` -- the old matching collapsed them onto
+    one remote row and each push overwrote the other, silently.
+    """
+    body = tmp_path / "a.json"
+    body.write_text("{}", encoding="utf-8")
+    digest = f"json/{blob_store.sha256_file(body)}.json"
+
+    local = [
+        push_corpus.LocalDoc(10, "Customs Act", "a.pdf", str(body), "customs",
+                             "Customs Act 2024", "acts"),
+        push_corpus.LocalDoc(10, "Customs Act", "b.pdf", str(body), "customs",
+                             "Customs Act 2025", "acts"),
+    ]
+    remote = {"key:Customs Act 2024": {"id": "id-1", "json_filename": digest}}
+
+    to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
+    assert [item.source_key for item in to_upload] == ["Customs Act 2025"]
+    assert to_refresh == [], "identical content must not cost a version"
+
+
+def test_a_document_with_no_corpus_key_still_matches_by_name(tmp_path):
+    """The bridge for documents uploaded by hand, which have no corpus identity."""
+    body = tmp_path / "a.json"
+    body.write_text("{}", encoding="utf-8")
+
+    local = [push_corpus.LocalDoc(10, "Hand Upload", "a.pdf", str(body), "manual",
+                                  None, None)]
+    remote = {"name:Hand Upload": {"id": "id-1", "json_filename": "json/" + "0" * 64 + ".json"}}
+
+    to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
+    assert to_upload == []
+    assert to_refresh[0][0] == "id-1"
+
+
+def test_remote_key_prefers_the_corpus_key():
+    assert push_corpus.remote_key(
+        {"name": "Some Act", "source_key": "Some Act, 2024"}
+    ) == "key:Some Act, 2024"
+    assert push_corpus.remote_key({"name": "Some Act", "source_key": None}) == "name:Some Act"
 
 
 def test_libpq_url_strips_sqlalchemy_driver():

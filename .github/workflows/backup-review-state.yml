@@ -1,8 +1,11 @@
 name: Backup review state
 
-# Reviewer work is the one thing no other tool can rebuild: `make push-remote` re-uploads
-# documents but the upload route resets every section to `pending` and carries no
-# annotations. Northflank's volume backup API would cover this and more, but it returns
+# Reviewer work is the one thing no other tool can rebuild. `make push-remote` now
+# carries review state across a re-push -- a corpus document is seeded with its
+# `source_key`, so the deployment recognises it and adds a version instead of a second
+# row -- but annotations still do not travel with a push, and nothing else defends
+# against losing the volume. Northflank's volume backup API would cover this and more,
+# but it returns
 # `403 Feature disabled for your account` on the current plan -- so this snapshots the
 # review state over the portal's own export endpoint instead.
 #
