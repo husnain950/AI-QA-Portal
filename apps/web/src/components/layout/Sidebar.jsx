@@ -8,7 +8,7 @@ import { formatHierarchyLabel, formatSectionLabel } from '../../utils/tocLabels'
 import { hasCriticalQualityFlags, normalizeQualityFlags } from '../../utils/qualityFlags';
 import { sectionWasOcrd } from '../../utils/documentTags';
 import { documentLane, laneLabel } from '../../utils/corpusLanes';
-import { editionDateFromName } from '../../utils/editions';
+import { editionOf } from '../../utils/editions';
 import { isTypingTarget } from '../../utils/keyboard';
 
 const SearchSnippet = ({ result }) => {
@@ -285,9 +285,9 @@ const Sidebar = ({ documentId }) => {
                 {activeDocument && (
                     <div className="toc-lane-header">
                         {laneLabel(documentLane(activeDocument))}
-                        {editionDateFromName(activeDocument.name).unknown
+                        {editionOf(activeDocument).unknown
                             ? ''
-                            : ` · ${editionDateFromName(activeDocument.name).label}`}
+                            : ` · ${editionOf(activeDocument).label}`}
                     </div>
                 )}
                 <button

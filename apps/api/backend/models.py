@@ -55,6 +55,14 @@ class DocumentResponse(DocumentBase):
     health: Optional["VersionMetrics"] = None
     provenance: Optional[DocumentProvenance] = None
     corpus_lane: Optional[str] = None
+    # Derived server-side and SENT, not left for the client to guess at. `lane` is the
+    # value the Library filters on; `edition_year` the value it sorts on; `family_key`
+    # the canonicalised statute family it groups by. Each had a client-side copy that
+    # had drifted from the expression the server actually uses.
+    lane: Optional[str] = None
+    edition_year: Optional[int] = None
+    family_key: Optional[str] = None
+    family_title: Optional[str] = None
     # Set when the pipeline stopped producing this document. The rows are kept -- the
     # annotations and exported evidence pointing at them are the audit trail -- so the
     # reviewer is told rather than shown a parse that no longer exists.

@@ -107,14 +107,29 @@ LEFT JOIN LATERAL (
 ) vv ON TRUE
 LEFT JOIN document_versions v ON v.document_id = d.id AND v.is_active = TRUE
 LEFT JOIN version_metrics m ON m.version_id = v.id
+LEFT JOIN statute_families f ON f.id = d.statute_family_id
 """
 
 # Column list matching what _document_response reads (routes/documents.py).
-PAGE_SELECT = """
+#
+# `lane`, `edition_year`, `health_facet` and `review_facet` are the SAME expressions
+# the WHERE and ORDER BY clauses use, sent rather than withheld. Not sending them is
+# how a card came back badged "Other Acts" from a filter for "Customs": the server
+# classified the row by title for the WHERE clause and then returned the raw, NULL
+# `corpus_lane`, leaving the client to guess -- and its guess was a copy of this logic
+# that had drifted. Same for the year: the server sorted on one number and the client
+# displayed another.
+PAGE_SELECT = f"""
 SELECT
     d.id, d.name, d.pdf_filename, d.json_filename, d.total_sections,
     d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
     d.provenance, d.corpus_lane, d.withdrawn_at,
+    {LANE_SQL} AS lane,
+    {YEAR_SQL} AS edition_year,
+    {HEALTH_SQL} AS health_facet,
+    {REVIEW_SQL} AS review_facet,
+    f.canonical_slug AS family_key,
+    f.canonical_title AS family_title,
     stats.reviewed, stats.approved, stats.has_issues, stats.pending,
     stats.open_annotations,
     vv.version_count, vv.last_version_at,

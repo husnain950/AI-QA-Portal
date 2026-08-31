@@ -22,6 +22,7 @@ import { queryClient } from '../queryClient';
 import {
     DEFAULT_SORT,
     SORT_VALUES,
+    groupDocumentsByFamily,
     buildApiParams,
     countActiveFilters,
 } from '../utils/libraryQuery';
@@ -33,7 +34,6 @@ import {
     parseLibrarySearchParams,
     serializeLibrarySearchParams,
 } from '../utils/libraryState';
-import { groupDocumentsByFamily } from '../utils/documentFilters';
 import { exportDocumentsCsv } from '../utils/csvExport';
 import { CORPUS_MOUNT_HINT, describeCorpusSync } from '../utils/corpusStatus';
 import { isTypingTarget } from '../utils/keyboard';

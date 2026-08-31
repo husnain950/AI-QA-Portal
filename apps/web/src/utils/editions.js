@@ -82,10 +82,28 @@ export function editionDateFromName(name) {
     return { year: null, sortKey: 9999, label: 'year unknown', unknown: true };
 }
 
+/**
+ * The edition of a whole document, preferring the year the SERVER sorted by.
+ *
+ * `editionDateFromName` reads the name and prefers the year next to
+ * "amended upto"; `YEAR_SQL` prefers `edition_date`, else the FIRST 19xx/20xx in
+ * the name. For "Customs Act, 1969 as amended up to 30.06.2025" the server sorted
+ * on 1969 and the badge read 2025 -- so "Edition — newest" produced an order that
+ * contradicted the labels on the cards. Reading the server's value is what makes
+ * them agree; the name is the fallback for a payload that carries no year.
+ */
+export function editionOf(doc) {
+    const year = doc?.edition_year;
+    if (typeof year === 'number' && Number.isFinite(year)) {
+        return { year, sortKey: year, label: String(year), unknown: false };
+    }
+    return editionDateFromName(doc?.name || doc?.document_name || '');
+}
+
 export function sortEditions(docs) {
     return [...docs].sort((a, b) => {
-        const da = editionDateFromName(a.name || a.document_name || '');
-        const db = editionDateFromName(b.name || b.document_name || '');
+        const da = editionOf(a);
+        const db = editionOf(b);
         if (da.sortKey !== db.sortKey) return da.sortKey - db.sortKey;
         return String(a.name || '').localeCompare(String(b.name || ''));
     });

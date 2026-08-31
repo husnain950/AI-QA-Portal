@@ -4,6 +4,14 @@
  * Every value here must have a server counterpart in
  * apps/api/backend/services/library_query.py — the page never filters locally.
  */
+import { healthFacet } from './documentTags';
+import {
+    editionOf,
+    familyKeyFromName,
+    familyTitleFromKey,
+    sortEditions,
+} from './editions';
+
 import { isoDateDaysAgo } from './time';
 
 export const DEFAULT_SORT = 'name';
@@ -52,6 +60,11 @@ export const SORT_GROUPS = [
 
 export const SORT_OPTIONS = SORT_GROUPS.flatMap((group) => group.options);
 export const SORT_VALUES = new Set(SORT_OPTIONS.map((option) => option.value));
+
+/** Name sorts group editions alphabetically; every other sort keeps server order. */
+export function isNameSort(sort) {
+    return sort === 'name' || sort === 'name_desc';
+}
 
 export function sortLabel(sort, { searching = false } = {}) {
     if (sort === 'relevance' && !searching) return sortLabel(DEFAULT_SORT);
@@ -182,4 +195,58 @@ export function docCompletion(doc) {
     const total = doc.total_sections || 0;
     if (total <= 0) return 0;
     return Math.round(((doc.stats?.reviewed || 0) / total) * 100);
+}
+
+/**
+ * Group filtered documents by statute family.
+ * ``documents`` should already be sorted by ``filterDocuments``; that order is
+ * preserved across and within groups for non-name sorts. Name sorts keep the
+ * friendlier year-within-family ordering (Z→A only reverses family titles).
+ *
+ * @returns {{ familyKey: string, title: string, editions: Array, outsideGate: boolean }[]}
+ */
+export function groupDocumentsByFamily(documents, sort = DEFAULT_SORT) {
+    const orderIndex = new Map(documents.map((doc, index) => [doc.id, index]));
+    const map = new Map();
+    for (const doc of documents) {
+        // The server's canonical family, not a second guess at it. Measured on the
+        // real corpus, `familyKeyFromName` splits 5 of 29 server families into 34
+        // groups -- the 21-edition Income Tax Ordinance among them -- because its
+        // unanchored `dated` pattern eats the "UP" of "UPDATED UPTO". The backend
+        // fixed and documented that; this copy never got it.
+        const key = doc.family_key || familyKeyFromName(doc.name);
+        if (!map.has(key)) {
+            map.set(key, []);
+        }
+        map.get(key).push(doc);
+    }
+    const groups = [];
+    const nameSort = isNameSort(sort);
+    for (const [familyKey, docs] of map.entries()) {
+        const editions = nameSort
+            ? sortEditions(docs)
+            : [...docs].sort(
+                (a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0),
+            );
+        const outsideGate = editions.some((doc) => healthFacet(doc.health) === 'outside_gate');
+        groups.push({
+            familyKey,
+            title: docs[0]?.family_title || familyTitleFromKey(familyKey),
+            editions,
+            outsideGate,
+            latestYear: editionOf(
+                nameSort ? editions[editions.length - 1] : editions[0],
+            ).label,
+            _order: Math.min(...docs.map((doc) => orderIndex.get(doc.id) ?? 0)),
+        });
+    }
+
+    const sorted = nameSort
+        ? groups.sort((a, b) => {
+            const cmp = a.title.localeCompare(b.title);
+            return sort === 'name_desc' ? -cmp : cmp;
+        })
+        : groups.sort((a, b) => a._order - b._order);
+
+    return sorted.map(({ _order, ...group }) => group);
 }

@@ -37,6 +37,7 @@ from backend.services.document_provenance import (
 )
 from backend.services.document_store import ReviewConflict, document_status
 from backend.services.json_parser import parse_json_document
+from backend.services.library_query import LANE_SQL, YEAR_SQL
 from backend.services.pdf_service import get_pdf_page_count
 from backend.sync_acts import SOURCE_TYPE, deterministic_document_id
 
@@ -183,16 +184,31 @@ async def _resolve_provenance(
 
 
 async def _resolve_corpus_lane(db: DatabaseConnection, row) -> Optional[str]:
+    """The document's browse lane, preferring the one the query already computed.
+
+    There were four implementations of this: `LANE_SQL` (what the Library filters
+    and counts on), `classify_lane` (Python, used at write time and re-run here on
+    every read), `corpusLanes.js` (the client's own copy), and the stored column.
+    Four things that must agree, kept in step by comments saying so -- and they did
+    not: a NULL `corpus_lane` was classified by title for the WHERE clause and sent
+    raw in the payload, so a filter for Customs returned a card badged "Other Acts".
+
+    Now the SELECT computes it once and this reads it. `classify_lane` keeps the job
+    it should have: deciding the lane when a row is WRITTEN.
+    """
     del db
     keys = row.keys() if hasattr(row, "keys") else []
+    derived = normalize_lane(row["lane"] if "lane" in keys else None)
+    if derived:
+        return derived
     existing = normalize_lane(row["corpus_lane"] if "corpus_lane" in keys else None)
     if existing:
         return existing
-    lane = classify_lane(
+    # Only for a row that came from a query without the derived column.
+    return classify_lane(
         row["name"],
         source_type=row["source_type"] if "source_type" in keys else "upload",
     )
-    return lane
 
 
 async def _document_response(
@@ -224,6 +240,10 @@ async def _document_response(
         active_version_id=(
             r["active_version_id"] if "active_version_id" in r.keys() else None
         ),
+        lane=r["lane"] if "lane" in r.keys() else None,
+        edition_year=r["edition_year"] if "edition_year" in r.keys() else None,
+        family_key=r["family_key"] if "family_key" in r.keys() else None,
+        family_title=r["family_title"] if "family_title" in r.keys() else None,
         last_version_at=r["last_version_at"] if "last_version_at" in r.keys() else None,
         health=_metrics_response(r if r["measured_at"] else None),
         provenance=provenance,
@@ -241,6 +261,23 @@ _DOC_VERSION_SELECT = """
     m.invariants_passed, m.invariants_total, m.cases_passed, m.cases_total,
     m.body_conserved, m.body_missing, m.footnote_conserved, m.footnote_missing,
     m.gate_ok, m.measured_at, m.detail_json
+"""
+
+# The values the server computes and used to withhold. `lane` is the same expression
+# the Library's WHERE clause filters on -- returning the raw `corpus_lane` instead left
+# a card badged "Other Acts" by a filter for "Customs". `edition_year` is the same one
+# it sorts on. `family_key` is the canonicalised statute family; the client's copy of
+# that logic splits 5 of 29 families on this corpus, the 21-edition Income Tax
+# Ordinance among them, because its `dated` regex eats the "UP" of "UPDATED UPTO".
+_DOC_DERIVED_SELECT = f"""
+    {LANE_SQL} AS lane,
+    {YEAR_SQL} AS edition_year,
+    f.canonical_slug AS family_key,
+    f.canonical_title AS family_title
+"""
+
+_DOC_FAMILY_JOIN = """
+    LEFT JOIN statute_families f ON f.id = d.statute_family_id
 """
 
 _DOC_VERSION_JOIN = """
@@ -503,11 +540,13 @@ async def list_documents(db: DatabaseConnection = Depends(get_db)):
             d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
             d.provenance, d.corpus_lane, d.withdrawn_at,
             {_DOC_STATS_SELECT},
-            {_DOC_VERSION_SELECT}
+            {_DOC_VERSION_SELECT},
+            {_DOC_DERIVED_SELECT}
         FROM documents d
         LEFT JOIN sections s ON s.document_id = d.id
         {_DOC_VERSION_JOIN}
-        GROUP BY d.id, v.id, m.version_id
+        {_DOC_FAMILY_JOIN}
+        GROUP BY d.id, v.id, m.version_id, f.canonical_slug, f.canonical_title
         ORDER BY d.uploaded_at DESC
     """
     async with db.execute(query) as cursor:
@@ -527,12 +566,14 @@ async def get_document(document_id: str, db: DatabaseConnection = Depends(get_db
             d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
             d.provenance, d.corpus_lane, d.withdrawn_at,
             {_DOC_STATS_SELECT},
-            {_DOC_VERSION_SELECT}
+            {_DOC_VERSION_SELECT},
+            {_DOC_DERIVED_SELECT}
         FROM documents d
         LEFT JOIN sections s ON s.document_id = d.id
         {_DOC_VERSION_JOIN}
+        {_DOC_FAMILY_JOIN}
         WHERE d.id = ?
-        GROUP BY d.id, v.id, m.version_id
+        GROUP BY d.id, v.id, m.version_id, f.canonical_slug, f.canonical_title
     """
     async with db.execute(query, (document_id,)) as cursor:
         r = await cursor.fetchone()
@@ -653,12 +694,14 @@ async def _document_response_by_id(
             d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
             d.provenance, d.corpus_lane, d.withdrawn_at,
             {_DOC_STATS_SELECT},
-            {_DOC_VERSION_SELECT}
+            {_DOC_VERSION_SELECT},
+            {_DOC_DERIVED_SELECT}
         FROM documents d
         LEFT JOIN sections s ON s.document_id = d.id
         {_DOC_VERSION_JOIN}
+        {_DOC_FAMILY_JOIN}
         WHERE d.id = ?
-        GROUP BY d.id, v.id, m.version_id
+        GROUP BY d.id, v.id, m.version_id, f.canonical_slug, f.canonical_title
     """
     async with db.execute(query, (document_id,)) as cursor:
         r = await cursor.fetchone()

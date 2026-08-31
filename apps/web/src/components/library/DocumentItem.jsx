@@ -7,7 +7,7 @@ import NewVersionButton from '../review/NewVersionButton';
 import DocumentHealth from '../dashboard/DocumentHealth';
 import DocumentTags from '../dashboard/DocumentTags';
 import { documentLane, laneLabel } from '../../utils/corpusLanes';
-import { editionDateFromName } from '../../utils/editions';
+import { editionOf } from '../../utils/editions';
 import { docCompletion } from '../../utils/libraryQuery';
 import { fullDateTime, timeAgo } from '../../utils/time';
 import { api } from '../../utils/api';
@@ -157,7 +157,7 @@ function MetaLine({ doc, compact = false }) {
 
 function useDocDerived(doc) {
     const lane = documentLane(doc);
-    const edition = editionDateFromName(doc.name);
+    const edition = editionOf(doc);
     const compPercent = docCompletion(doc);
     return { lane, edition, compPercent };
 }
