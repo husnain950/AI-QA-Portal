@@ -824,6 +824,64 @@ async def replace_json(
     return await _document_response_by_id(db, document_id)
 
 
+@router.post("/{document_id}/metrics", response_model=VersionMetrics)
+async def put_version_metrics(
+    document_id: str,
+    metrics: VersionMetrics,
+    db: DatabaseConnection = Depends(get_db),
+    actor: str = Depends(require_reviewer),
+):
+    """Record the pipeline's own measurements for this document's active version.
+
+    `acts_metrics.ingest` reads them off a reports DIRECTORY, which a deployment does
+    not have -- the pipeline repositories are not on the server. So production has
+    never had a single `version_metrics` row, and the health badges the Library
+    already renders had nothing behind them. PR #37 put it exactly: "The UI already
+    exists... Nothing feeds it."
+
+    This is the wire. The numbers are already parsed on the machine that ran the
+    suite; it posts them rather than shipping the reports and re-parsing.
+
+    Keyed on the ACTIVE version, because a measurement describes a parse. Re-posting
+    replaces -- the same measurement re-run must not accumulate rows.
+    """
+    del actor
+    await _require_document(db, document_id)
+    active = await versions.active_version(db, document_id)
+    if active is None:
+        raise HTTPException(status_code=409, detail="document has no active version")
+    detail = json.dumps({"failing_invariants": metrics.failing_invariants})
+    await db.execute(
+        """
+        INSERT INTO version_metrics (
+            version_id, invariants_passed, invariants_total, cases_passed,
+            cases_total, body_conserved, body_missing, footnote_conserved,
+            footnote_missing, gate_ok, measured_at, detail_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (version_id) DO UPDATE SET
+            invariants_passed = EXCLUDED.invariants_passed,
+            invariants_total = EXCLUDED.invariants_total,
+            cases_passed = EXCLUDED.cases_passed,
+            cases_total = EXCLUDED.cases_total,
+            body_conserved = EXCLUDED.body_conserved,
+            body_missing = EXCLUDED.body_missing,
+            footnote_conserved = EXCLUDED.footnote_conserved,
+            footnote_missing = EXCLUDED.footnote_missing,
+            gate_ok = EXCLUDED.gate_ok,
+            measured_at = EXCLUDED.measured_at,
+            detail_json = EXCLUDED.detail_json
+        """,
+        (
+            active["id"], metrics.invariants_passed, metrics.invariants_total,
+            metrics.cases_passed, metrics.cases_total, metrics.body_conserved,
+            metrics.body_missing, metrics.footnote_conserved,
+            metrics.footnote_missing, metrics.gate_ok, metrics.measured_at, detail,
+        ),
+    )
+    await db.commit()
+    return metrics
+
+
 @router.get("/{document_id}/versions", response_model=list[VersionResponse])
 async def list_document_versions(
     document_id: str, db: DatabaseConnection = Depends(get_db)

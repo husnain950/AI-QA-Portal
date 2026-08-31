@@ -82,6 +82,8 @@ _ADMIN_SUBSTRINGS = (
     "/versions",
     "/replace-json",
     "/corpus/sync",
+    # Pipeline health is a claim about the corpus, so writing it is the admin's.
+    "/metrics",
     "/api/v2/jobs",
     "/api/v2/detectors/run",
     "/api/v2/operator",

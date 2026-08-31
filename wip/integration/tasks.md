@@ -221,7 +221,8 @@ Closes **P3**. Confirmed authorised to deploy.
 - [x] `push_corpus` sends the identity it holds locally, matches remote documents on
       `source_key` rather than on `documents.name` (a display string), and skips
       withdrawn documents
-- [x] `acts_metrics` matches in production — the health UI exists and nothing fed it
+- [x] `acts_metrics` matches in production — identity was half of it; the numbers
+      themselves had no wire, which PR-I added
 - [x] PR-C reconciliation applies to the push path
 - [x] 8 + 3 tests, including that the seeded `source_hash` equals what a local sync
       computes (if they disagreed, the first local sync would rewrite every pushed
@@ -253,6 +254,20 @@ alone reported all 106 adoptable documents as "no local match". True of the key,
 completely misleading about the document -- and that line is the only warning an
 operator gets, because this tool never deletes. `plan_orphans` now matches under
 either identity, and is tested.
+
+### PR-I — the two things the push exposed
+
+- [x] **`version_metrics` had no transport.** `acts_metrics.ingest` reads a reports
+      *directory*, which a deployment does not have, so production held **zero** rows
+      and the health badges the Library already renders had nothing behind them —
+      PR #37's *"The UI already exists… Nothing feeds it."* Fixing the identity made
+      them matchable; `POST /documents/{id}/metrics` is the wire, and `push_corpus`
+      sends the numbers it has already parsed. Admin-gated: health is a claim about
+      the corpus, not a review action.
+- [x] **The mirror of the adoption case.** A *local* row with no `source_key` sharing
+      a corpus document's name missed the remote `key:` entry and would have been
+      uploaded as a duplicate. Both directions are matched now.
+- [x] 7 + 2 tests
 
 ### What changes in production
 
