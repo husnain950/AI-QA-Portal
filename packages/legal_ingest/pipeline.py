@@ -7,6 +7,8 @@ import re as _re
 
 import pdfplumber
 
+from legal_contract import stamp_document
+
 from .builder import LineRef, build_sections
 from .calibrate import calibrate
 from .discover import _omission_codes
@@ -380,24 +382,6 @@ def _demo() -> None:
     # A consolidated act's own section titles must name nothing.
     assert amended_instruments([_N([{"code": "2", "heading": "Definitions"},
                                     {"code": "9", "heading": "Repeal"}])]) == []
-
-    # ---- node identity ---------------------------------------------------
-    tree = [{"code": "CHAPTER VII", "parts": [
-        {"code": "PART I", "divisions": [], "parts": [],
-         "sections": [{"code": "114"}, {"code": "114"}]}],
-        "divisions": [], "sections": []}]
-    stamp_identity(tree, "chapter")
-    assert tree[0]["type"] == "chapter" and tree[0]["node_key"] == "ch:vii"
-    assert tree[0]["parts"][0]["node_key"] == "ch:vii/pt:i"
-    # by CODE, not by array index -- and a repeated sibling code still resolves
-    assert [s["node_key"] for s in tree[0]["parts"][0]["sections"]] == \
-           ["ch:vii/pt:i/s:114", "ch:vii/pt:i/s:114~2"]
-    # the synthetic root a flat act gets is named as synthetic, not positioned
-    root = [{"code": "", "parts": [], "divisions": [], "sections": [{"code": "1"}]}]
-    stamp_identity(root, "chapter")
-    assert root[0]["node_key"] == "ch:~root"
-    assert _slug("CHAPTER XIV-A", "chapter") == "xiv-a"
-    assert _slug("114A", "section") == "114a"
 
     print("pipeline self-check passed")
 
@@ -984,8 +968,7 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         "chapters": [_node_to_dict(c) for c in chapters],
         "schedules": schedules_out,
     }
-    stamp_identity(result["chapters"], "chapter")
-    stamp_identity(result["schedules"], "schedule")
+    stamp_document(result)
     # the enacting preamble (text before section 1: "AN ORDINANCE ... WHEREAS ...")
     from .builder import _build_preamble_html, preamble_refs
     pre = preamble_refs(body_refs, ordered_sections, containers)
@@ -1647,15 +1630,6 @@ def _page_starts_schedules(pm) -> bool:
     return any(_opens_schedules(ln.text().strip()) for ln in pm.body_lines)
 
 
-#: Node type -> the abbreviation used in ``node_key``.
-_KEY_ABBREV = {"chapter": "ch", "part": "pt", "division": "dv",
-               "schedule": "sch", "section": "s"}
-
-#: Where a child list sits in the tree, and what a node in it IS. This is the
-#: convention the output has always followed positionally; stamping it makes a
-#: consumer stop having to infer a node's kind from which keys happen to exist.
-_CHILD_KINDS = (("parts", "part"), ("divisions", "division"), ("sections", "section"))
-
 #: An amending clause's heading. Measured over every clause heading in the 30
 #: amending documents on disk, the grammar is
 #:
@@ -1731,51 +1705,6 @@ def amended_instruments(chapters) -> list[dict]:
 
     walk(chapters)
     return found
-
-
-def stamp_identity(nodes, kind: str, prefix: str = "") -> None:
-    """Give every node its ``type`` and its ``node_key``, in place.
-
-    Two additive keys, on containers and leaves alike:
-
-    ``type``      what the node IS. ``toc.Node.kind`` has always computed this
-                  and ``_node_to_dict`` has always thrown it away, so the output
-                  used one dict shape for a chapter, a schedule part and a
-                  section leaf and left a consumer to tell them apart by which
-                  keys happened to be present.
-
-    ``node_key``  the ancestor chain BY CODE -- ``ch:vii/pt:i/s:114`` -- not by
-                  array index. It sits beside the ``source_key`` that
-                  ``json_parser._stable_id`` mints (``/chapters/0/sections/3``),
-                  changes no id, and costs nothing now; what it buys is that a
-                  later leaf-level diff has a handle that survives a node being
-                  inserted above it. Sibling codes that repeat get an ordinal, so
-                  the key is unique within its parent.
-    """
-    seen: dict[str, int] = {}
-    for node in nodes:
-        code = _slug(node.get("code") or "", kind)
-        seen[code] = seen.get(code, 0) + 1
-        if seen[code] > 1:
-            code = f"{code}~{seen[code]}"
-        node["type"] = kind
-        node["node_key"] = f"{prefix}{_KEY_ABBREV.get(kind, kind)}:{code}"
-        for key, child_kind in _CHILD_KINDS:
-            if node.get(key):
-                stamp_identity(node[key], child_kind, node["node_key"] + "/")
-
-
-def _slug(code: str, kind: str) -> str:
-    """``"CHAPTER XIV-A"`` -> ``"xiv-a"``; ``"114A"`` -> ``"114a"``.
-
-    An empty code is the synthetic root a flat act gets (the 20 Finance Acts and
-    the single gazette Acts have no containers at all, so ``run`` makes one to
-    parent their clauses). It is named as synthetic rather than given a position,
-    because a position is exactly the kind of identity ``node_key`` exists to
-    avoid depending on.
-    """
-    text = re.sub(rf"^\s*{kind}\b[\s\-]*", "", code.strip(), flags=re.IGNORECASE)
-    return re.sub(r"\s+", "-", text.strip()).lower() or "~root"
 
 
 def _node_to_dict(node: Node) -> dict:

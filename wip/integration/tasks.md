@@ -32,27 +32,30 @@ Architecture: [`wip/integration/plan.md`](plan.md). Pipeline state (out of scope
 | leaves with **no** stable identity | **5,047 — 30% of the corpus** |
 | duplicate `node_key` | **0** across all 11,504 |
 | false "changed" leaves, one insert per document | **386** by `source_key`, **0** by `node_key`; 16 documents churn 100% |
-| API + tools tests | **1 failed, 500 passed, 1 skipped** — see the known failure below |
+| API + tools tests | **507 passed, 1 skipped, 0 failed** |
 | web tests | 134 vitest |
-| anomaly register | committed **64**, measured **44** — see the known failure below |
+| anomaly register | **30** (16 acts / 9 rules / 5 ordinance) — must not move except deliberately |
 
 Reproduce the corpus numbers: `python3 wip/integration/measure/{census,churn}.py`.
 
-### Known baseline failure — do not "fix" it here
+### The baseline failure, and how it was closed
 
-`tools/tests/test_register_snapshot.py` fails at `4825a82`, before any change in this
-work. Committed 64, measured 44. Cause, measured: **85 of 103 documents were re-converted
-on 2026-08-30 19:54–21:54, after PR #54 merged at 12:58**, and `register.json` was never
-regenerated.
+At `4825a82` the suite was **1 failed, 500 passed**: `test_register_snapshot` measured 44
+against a committed 64. Traced to its cause rather than regenerated away — **PRs #55–#58
+(Phase 3 rounds 8–11, 64 → 50 → 44 → 33 → 30) were open, CI-green and unmerged, and the
+corpus on disk was their output.** `main` was four rounds behind its own data.
 
-It stays red. Nothing here moved it, and regenerating a snapshot for a movement no PR
-caused is precisely what it exists to prevent. **Every PR below must show this one failure
-and no other.** It belongs to the pipeline half — logged for `wip/HANDOVER.md`, not fixed
-here.
+Merged in order on 2026-08-31: #55, **#60** (a re-open of #56, which GitHub auto-closed
+when its base branch was deleted on merge of #55), #57, #58. Each needed `main` merging in
+first; conflicts were `register.json` / `wip/plan.md` / `wip/tasks.md` (take the newer
+round, which is built on the older) and `.gitignore` (take `main`'s root-anchored
+transcript pattern). Suite now **507 passed, 0 failed**, register **30**.
 
-That it is red only on a machine with the corpus staged — CI skips all three lane suites
-because `data/corpora/` is gitignored — is P10 restated from the other side, and is what
-PR-H fixes.
+Two things it leaves behind, both of which PR-A and PR-H answer:
+
+- nothing on disk said which parser wrote it → `pipeline_revision`, `converted_at`
+- the gate is green on CI and red only where the corpus exists, so a four-round
+  divergence was invisible to every automated check → PR-H
 
 ---
 
@@ -66,31 +69,50 @@ PR-H fixes.
       named document is still tracked
 - [x] `wip/integration/measure/{census,churn}.py` — every headline number reproducible
 - [x] baseline measured on this host: Docker started, Postgres 17 up, full suite run
-- [ ] PR opened and merged
+- [x] PR opened and merged — #59
 
 ---
 
 ## PR-A — Write the contract and stamp it  *(no portal change)*
 
-Closes **P2** (two output schemas) and **P10**'s provenance half.
+Closes **P2** (two output schemas) and **P10**'s provenance half. Merged as #61.
 
-- [ ] `docs/pipeline-contract.md` — plan.md §4.1 in full
-- [ ] `metadata.contract_version` / `pipeline_revision` / `converted_at` / `lane` in
-      `legal_ingest.pipeline` **and** `fbr_ingest.pipeline`
-- [ ] move `stamp_identity` (pipeline.py:1712, 20 lines, already correct) to a module both
-      packages import; call it from `fbr_ingest._node_to_dict`
-- [ ] `order` on every leaf, minted where the pipeline still holds sub-page position
-- [ ] atomic write in `tools/convert.py:114` (tmp + `os.replace`)
-- [ ] `contract_complete` invariant in `tools/suite/invariants/_common.py`
-- [ ] **verify the gate fails on purpose** — strip a `node_key`, confirm red
-- [ ] regenerate `tools/suite/register.json` in the same PR; the 14 stale acts documents
-      register as hits until re-converted. Record the new total here and in `plan.md`.
-- [ ] no re-conversion (confirmed decoupled)
+- [x] `docs/pipeline-contract.md` — structure, metadata, identity with its guarantees
+      *and its non-guarantees*, reprocessing, deletion, partial failure, versioning
+- [x] `packages/legal_contract.py` — the contract's code half, imported by both
+      pipelines. `stamp_identity` + `slug` MOVED here from `legal_ingest.pipeline`, not
+      copied; `legal_ingest`'s own `_demo` lost the identity block that now lives with
+      its owner and asserts more than it did.
+- [x] `metadata.contract_version` from the parser; `lane` / `pipeline_revision` /
+      `converted_at` from `tools/convert.py`, which is the only thing that knows them
+- [x] `fbr_ingest` calls `stamp_document` at the same point `legal_ingest` does
+- [x] atomic write in `tools/convert.py` (tmp + `os.replace`, cleaned up on any
+      `BaseException` so an interrupted run leaves no scratch file in the corpus)
+- [x] `contract_complete` invariant, bound in all three lanes
+- [x] **verified the gate fails on purpose** — 4 ways: duplicate `node_key` on a legacy
+      document, a stripped `type`/`node_key` on one that claims v1, missing metadata,
+      and passing where it should pass
+- [x] `EXPECTED_COUNTS` in `test_suite_invariants.py`: 58/58/45 → 59/59/46
+- [x] register regenerated: **30, unchanged.** The invariant adds 0 hits by design —
+      see the note below.
+- [x] no re-conversion (confirmed decoupled)
 
-Open question, to answer with measurement, not argument: does `fbr_ingest` produce any
-duplicate `node_key`? Never measured — the invariant is what will tell us.
+**Measured, end to end.** One document per lane converted with the new code and compared
+against what is already in the corpus: strip `type`, `node_key` and the four metadata
+keys and the files are **byte-identical**. The change adds; it does not parse differently.
 
----
+**The open question is answered.** `fbr_ingest` had never been measured for `node_key`
+collisions because it never emitted any. Income Tax Ordinance 2001 (30-06-2018) now
+converts to **525 nodes, 525 node_keys, 525 distinct, 0 duplicates**, and passes the full
+contract check.
+
+**Why the invariant scores zero today, deliberately.** Stamping the contract does not
+re-convert the corpus, so no document on disk claims v1. Requiring the keys of every
+document anyway scored **139 hits all saying one thing** — "not re-converted yet" — and
+buried the 30 real ones. So a document that *claims* the contract is held to all of it,
+and one that does not is held only to what is checkable without it: that the `node_key`s
+it does carry are unique. The gate starts failing on the first document converted with
+this code, which is when it has something to say.
 
 ## PR-B — Identity: match on `node_key`   ← highest value
 
@@ -205,7 +227,8 @@ is the one harness CI can run end to end.
 | re-conversion onto the contract (14 stale acts docs, ordinance lane) | multi-hour, freezes parser work; confirmed decoupled. Own PR, established protocol: `output/_pre_<round>/` snapshot, three lanes re-measured, register regenerated in the same PR. |
 | deleting `_legacy_section_key` and the `source_key` bridge | only when a query shows zero rows relying on them |
 | deleting `is_junk_leaf` / `normalize_heading` from the API | they compensate for real pipeline defects. Make them **counted** first; delete per-cause as the pipeline closes each. Deleting blind regresses QA's view. |
-| 64-hit register residue, Phase 4a/4b/5, OCR | out of scope, confirmed. See `wip/HANDOVER.md`. |
+| an explicit `order` field on every leaf | measured before building it: tree-walk order and the API's page-sort order disagree on **21 of 103 documents**, and heavily — 222 of 327 positions in Sales Tax Rules 2006, 62 of 62 in Customs Rules 2001. Which is *right* cannot be settled from the JSON; it needs the source pages. So `docs/pipeline-contract.md` states the rule actually in force (sort by `start_page`, stably) rather than minting a field nobody has validated. Own PR, with its own measurement. |
+| register residue (30), Phase 4a/4b/5, OCR | out of scope, confirmed. See `wip/HANDOVER.md`. |
 
 ## Discovered during the work
 
@@ -226,3 +249,18 @@ conversion.
 **2026-08-31 — Docker was down on this host** (as `wip/HANDOVER.md` Phase 1 recorded).
 Started it and brought up `docker compose up -d postgres`, so `make test-api` runs locally
 now. Phase 1's unchecked box — rebuild the api/worker images — is still unchecked.
+
+**2026-08-31 — the register discrepancy was four unmerged PRs, not drift.** Written up in
+the baseline section above. The lesson worth carrying: the first explanation that fit the
+evidence ("re-converted after #54 without regenerating") was true and useless. `git
+reflog` named the actual branches in one command, and `gh pr list` showed all four still
+open. Read the history before theorising about the artifact.
+
+**2026-08-31 — `order` was scoped out of PR-A on measurement.** See Deferred. The plan
+asserted the pipeline "knows the reading order and throws it away"; that is probably
+true, but 21 documents disagree between the two candidate orders and picking one blind
+would change what reviewers see. Stating the rule in force beat inventing a field.
+
+**2026-08-31 — `is_junk_leaf` and `normalize_heading` stay for now.** They are P5 and the
+plan says to make them counted before deleting them. Nothing in PR-A touches them; PR-E
+is where they get measured.

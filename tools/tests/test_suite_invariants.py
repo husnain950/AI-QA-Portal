@@ -19,9 +19,11 @@ sys.path.insert(0, os.path.join(
 from suite import runner  # noqa: E402
 from suite.invariants import _common  # noqa: E402
 
-#: The Acts and the Rules run the same 58 checks; the Ordinance pipeline has no OCR
-#: stage and no provisional/text-density concepts, so it runs 45.
-EXPECTED_COUNTS = {"acts": 58, "rules": 58, "ordinance": 45}
+#: The Acts and the Rules run the same 59 checks; the Ordinance pipeline has no OCR
+#: stage and no provisional/text-density concepts, so it runs 46.
+#: 58/45 + `contract_complete`, which every lane runs because the output contract is
+#: the one thing all three must agree on.
+EXPECTED_COUNTS = {"acts": 59, "rules": 59, "ordinance": 46}
 
 
 def test_section_attribution_helpers():

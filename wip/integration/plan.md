@@ -152,9 +152,9 @@ deletion or versioning guarantee. On disk:
 The 6 acts documents without one also have `family: null` — **pre-Phase-0 artifacts still
 in the live corpus.** Nothing in `metadata` records which parser revision produced a file,
 so a mixed-revision corpus is undetectable and every sync ingests it silently. That is not
-hypothetical here: **85 of 103 documents were re-converted after PR #54 merged** and the
-committed register was never regenerated (see §3, P11). `wip/HANDOVER.md` §4 names this
-hazard for *measurement*; it applies identically to *ingest*.
+hypothetical here: on the day this work started **the corpus on disk was four parser
+rounds ahead of `main`** and nothing on disk said so — see §3, P11. `wip/HANDOVER.md` §4
+names this hazard for *measurement*; it applies identically to *ingest*.
 
 Reproduce: `python3 wip/integration/measure/census.py`.
 
@@ -274,31 +274,30 @@ Also: sync polling has no idempotency key, no abort signal, no re-attachment aft
 reload, and `sync_running` is a mount-time snapshot — so a second concurrent corpus sync
 is one click away, and the toast silently drops the Rules counts.
 
-### P11 — The register gate is red on `main`, and only where a corpus exists
+### P11 — ~~The register gate is red on `main`~~ — CLOSED 2026-08-31
 
-`pytest apps/api/backend/tests tools/tests -q` on a machine with the corpus staged:
-**1 failed, 500 passed, 1 skipped** at `4825a82`, before any change here.
-`test_register_snapshot` measures **44** against a committed **64**:
+At `4825a82` the full suite was **1 failed, 500 passed**: `test_register_snapshot`
+measured 44 against a committed 64. The corpus and the code did not describe each other.
 
-```
-committed  acts 33 / rules 26 / ordinance  5   = 64
-measured   acts 24 / rules 15 / ordinance  5   = 44
-```
+Traced, not guessed: **PRs #55–#58 — Phase 3 rounds 8 to 11, register 64 → 50 → 44 → 33
+→ 30 — were open, CI-green and unmerged**, and the corpus on disk was their output
+(converted 2026-08-30 19:54–21:54; round 11 committed at 21:57). `main` was four rounds
+behind its own data. The measured 44 was not any round's number: it was `main`'s
+invariants read over a round-10 corpus.
 
-Cause, measured: **85 of 103 documents (74 acts, 11 rules) were re-converted on
-2026-08-30 at 19:54–21:54, after PR #54 merged at 12:58**, and `register.json` was not
-regenerated. The register on `main` describes a corpus that no longer exists.
+Merged in order — #55, #60 (a re-open of #56, which GitHub auto-closed when its base
+branch was deleted), #57, #58. The suite is now **507 passed, 1 skipped, 0 failed** and
+the register is **30**.
 
-Two things follow, and both belong to this work even though the register itself does not:
+Two things this leaves behind, both of which the contract answers:
 
-1. **The gate is doing its job.** It caught an unexplained movement that no other check
-   would have seen — CI skips all three lane suites because `data/corpora/` is gitignored,
-   so this is green on CI and red on every machine that actually has the data. That is
-   P10's missing gate stated from the other side.
-2. **It must not be regenerated here.** Nothing in this work moved it. Adopting a
-   64 → 44 drop with no PR that caused it is exactly what the snapshot exists to prevent —
-   *"fixed, or exempted with evidence. There is no third state."* It is recorded as the
-   known baseline failure, and every PR below must show **that one failure and no other**.
+1. **Nothing on disk said which parser wrote it.** That is precisely what
+   `metadata.pipeline_revision` and `converted_at` are for, and it is why they are in
+   the contract rather than being nice-to-have.
+2. **The gate did its job and no one saw it.** It is green on CI, because
+   `data/corpora/` is gitignored and all three lane suites SKIP there — so a
+   four-round divergence between code and corpus was invisible to every automated
+   check the project runs. That is P10 restated, and PR-H is what closes it.
 
 ---
 

@@ -14,6 +14,11 @@ RUN groupadd --system crx && useradd --system --gid crx --home-dir /app crx
 # Keep the `backend` package name so imports stay stable.
 COPY apps/api/backend /app/backend
 COPY packages/legal_ingest /app/legal_ingest
+# `legal_ingest/__init__` imports `.pipeline`, which imports the output contract, so
+# any `from legal_ingest...` in the API (document_provenance reads `_page_is_scan`)
+# fails on ModuleNotFoundError without this. Verified by importing from a tree holding
+# only what this stage copies.
+COPY packages/legal_contract.py /app/legal_contract.py
 
 RUN mkdir -p /app/data/uploads \
       /data/corpus/ordinance /data/corpus/acts /data/corpus/rules \

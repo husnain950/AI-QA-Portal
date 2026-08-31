@@ -6,6 +6,8 @@ import re
 
 import pdfplumber
 
+from legal_contract import stamp_document
+
 from .builder import LineRef, build_sections
 from .discover import _omission_codes
 from .footnotes import (
@@ -278,6 +280,13 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         "chapters": [_node_to_dict(c) for c in chapters],
         "schedules": schedules_out,
     }
+    # Same point in the run as legal_ingest stamps it: the tree is assembled, and
+    # nothing after this adds or removes a node -- the preamble is a sibling of
+    # `chapters`, and footnote adoption and text normalisation only rewrite leaves
+    # that already exist. Until now this lane emitted neither `type` nor
+    # `node_key`, so 4,958 of the corpus's 16,551 leaves had no identity a
+    # re-parse could carry.
+    stamp_document(result)
     # the enacting preamble (text before section 1: "AN ORDINANCE ... WHEREAS ...")
     from .builder import _build_preamble_html, preamble_refs
     pre = preamble_refs(body_refs, ordered_sections)

@@ -99,7 +99,11 @@ def main() -> int:
 
     # The path resolver every pipeline tool now depends on, and the registry behind
     # it. Checked first because a wrong repo root makes every result below meaningless.
-    for module_name in ("corpus_paths", "backend.services.corpus_registry"):
+    # `legal_contract` joins them for the same reason: it is what every lane
+    # stamps its output with, so a break there makes every JSON below wrong in a
+    # way no lane suite would attribute to it.
+    for module_name in ("corpus_paths", "backend.services.corpus_registry",
+                        "legal_contract"):
         try:
             importlib.import_module(module_name)._demo()
         except Exception as err:
