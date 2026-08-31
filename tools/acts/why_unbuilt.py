@@ -38,6 +38,7 @@ from legal_ingest.builder import (  # noqa: E402
 from legal_ingest.calibrate import calibrate  # noqa: E402
 from legal_ingest.pagemodel import build_page_model  # noqa: E402
 from legal_ingest.pipeline import _page_starts_schedules, _toc_lines  # noqa: E402
+from legal_ingest.profiles import BY_LABEL  # noqa: E402
 from legal_ingest.toc import parse_toc  # noqa: E402
 
 
@@ -47,11 +48,20 @@ def main() -> int:
     ap.add_argument("--first", type=int, default=40,
                     help="report only the first N entries (default 40)")
     ap.add_argument("--code", help="report just this code, verbosely")
+    ap.add_argument("--lane", default="acts", choices=sorted(BY_LABEL),
+                    help="which printer profile to read the document with "
+                         "(default acts). Both calibrate() and parse_toc() take "
+                         "one and the pipeline always passes it; this script did "
+                         "not, so every RULES document was measured with the Acts "
+                         "folio, leader and ordinal settings -- wrong page offset, "
+                         "wrong TOC row count, and a stub cascade reported at the "
+                         "wrong entry. The rules lane holds a third of the register.")
     args = ap.parse_args()
 
+    profile = BY_LABEL[args.lane]
     pdf = pdfplumber.open(args.pdf)
-    cal = calibrate(pdf)
-    chapters, schedules, ordered = parse_toc(_toc_lines(pdf, cal.toc_pages))
+    cal = calibrate(pdf, profile=profile)
+    chapters, schedules, ordered = parse_toc(_toc_lines(pdf, cal.toc_pages), profile)
     offset = cal.page_offset
     print(f"toc_pages={cal.toc_pages} offset={offset} zone={cal.zone_mode} "
           f"sections={len(ordered)}")
