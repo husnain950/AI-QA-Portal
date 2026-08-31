@@ -37,6 +37,19 @@ export function laneLabel(lane) {
     return LANE_LABELS[lane] || lane;
 }
 
+/**
+ * The lane the SERVER resolved, which is the one the Library filters on.
+ *
+ * This used to re-derive it, and the derivation was a fraction of `LANE_SQL`: for a
+ * row whose stored `corpus_lane` is NULL the server classifies by title while this
+ * collapsed every one of them to `other_acts`. Filtering by Source = Customs
+ * therefore returned a card badged "Other Acts" -- the filter and the label
+ * disagreeing about the same row. The server now sends `lane`; the remaining
+ * fallback is only for payloads that carry no lane at all (edition siblings,
+ * findings rows), and it never contradicts a value that IS present.
+ */
 export function documentLane(doc) {
-    return doc?.corpus_lane || (doc?.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
+    return doc?.lane
+        || doc?.corpus_lane
+        || (doc?.source_type === 'acts_corpus' ? 'other_acts' : 'manual');
 }

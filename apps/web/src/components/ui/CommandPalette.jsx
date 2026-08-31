@@ -8,7 +8,7 @@ import { authApi } from '../../utils/auth';
 import { hasRole } from '../../utils/reviewer';
 import { useDocumentStore } from '../../stores/documentStore';
 import { corpusApi } from '../../utils/api';
-import { editionDateFromName } from '../../utils/editions';
+import { editionOf } from '../../utils/editions';
 import { documentLane, laneLabel } from '../../utils/corpusLanes';
 
 function matches(query, ...haystacks) {
@@ -112,7 +112,7 @@ export default function CommandPalette() {
             },
         ];
         const docs = documents.map((doc) => {
-            const edition = editionDateFromName(doc.name);
+            const edition = editionOf(doc);
             const lane = documentLane(doc);
             return {
                 key: `doc-${doc.id}`,

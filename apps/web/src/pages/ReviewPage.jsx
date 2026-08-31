@@ -29,7 +29,7 @@ import CopyButton from '../components/ui/CopyButton';
 import { TAG_NEEDS_REVIEW, TAG_PROVISIONAL } from '../utils/documentTags';
 import { recordDocumentView } from '../utils/recents';
 import { documentLane, laneLabel } from '../utils/corpusLanes';
-import { editionDateFromName } from '../utils/editions';
+import { editionOf } from '../utils/editions';
 import { fullDateTime } from '../utils/time';
 import { timelinePath } from '../utils/timeline';
 
@@ -344,7 +344,7 @@ const ReviewPage = () => {
     const provenanceTags = activeDocument.provenance?.tags || [];
     const showOcrLink = provenanceTags.includes(TAG_PROVISIONAL)
         || provenanceTags.includes(TAG_NEEDS_REVIEW);
-    const edition = editionDateFromName(activeDocument.name);
+    const edition = editionOf(activeDocument);
     const lane = documentLane(activeDocument);
     return (
         <AppShell

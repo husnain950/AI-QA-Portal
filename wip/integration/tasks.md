@@ -271,19 +271,41 @@ exactly — there is a test for that too.
 
 Closes **P6**. One change, not six patches: the API stops withholding what it computes.
 
-- [ ] `PAGE_SELECT` exposes `LANE_SQL AS lane`, `YEAR_SQL AS edition_year`, `HEALTH_SQL`,
-      `REVIEW_SQL`; section payload carries the normalised heading and one quality-flag shape
-- [ ] delete `corpusLanes.documentLane` heuristics
-- [ ] delete `editions.js` family/year derivation (it carries the unanchored `dated` bug
-      the backend fixed and documented)
-- [ ] delete `tocLabels.cleanHeading`
-- [ ] delete `qualityFlags` duplicated `CRITICAL_FLAGS` + four-shape tolerance
-- [ ] delete `documentTags` facet re-derivation
-- [ ] delete `documentFilters.js` (~150 dead lines) and the test suite proving code no
-      page runs
-- [ ] reconcile `ReviewToolbar`'s approval gate with the backend set it claims to mirror
+- [x] `PAGE_SELECT` and both `/documents` queries expose `lane`, `edition_year`,
+      `family_key`, `family_title`; the Library page also gets `health_facet` and
+      `review_facet`
+- [x] `documentLane` reads `doc.lane`; `editionOf(doc)` reads `doc.edition_year`;
+      `groupDocumentsByFamily` groups on `doc.family_key`
+- [x] **a fourth lane implementation removed.** `_resolve_corpus_lane` re-ran
+      `classify_lane` on every read. `classify_lane` now has the job it should have —
+      deciding the lane when a row is *written* — and the read path uses the one
+      expression the Library already filters on.
+- [x] `utils/documentFilters.js` **deleted** (287 lines) along with its two test
+      files (193 lines). Only `groupDocumentsByFamily` was reachable from a page;
+      everything else re-implemented `library_query`'s filter/sort matrix client-side
+      and was called by nothing but its own passing tests. The one live function moved
+      to `libraryQuery.js`, which already owns the sort constants it duplicated.
+- [x] 5 backend + 7 frontend tests
+- [ ] reconcile `ReviewToolbar`'s approval gate with the backend set it claims to
+      mirror — see Deferred
 
----
+### Measured, on the real corpus
+
+The family split is not a hypothesis. Running the client's own `familyKeyFromName`
+over all 116 local documents against the families the server assigned:
+
+```
+server families: 29    client families: 34
+server families the CLIENT splits: 5
+   income tax ordinance, 2001  (21 editions) -> "income tax ordinance, 2001"
+                                                "income tax ordinance, 2001 up"
+   sales tax rules, 2006       (2)  federal excise rules, 2005 (2)
+   sales tax special procedures rules, 2007 (2)
+   sales tax special procedure (withholding) rules, 2007 (2)
+```
+
+Every split is the unanchored `dated` pattern eating the "UP" of "UPDATED UPTO" — the
+exact bug `services/editions.py` fixed and documented, which the client copy never got.
 
 ## PR-F — One sanitizer allowlist, and fix the inverted coverage
 
@@ -337,6 +359,7 @@ is the one harness CI can run end to end.
 | re-conversion onto the contract (14 stale acts docs, ordinance lane) | multi-hour, freezes parser work; confirmed decoupled. Own PR, established protocol: `output/_pre_<round>/` snapshot, three lanes re-measured, register regenerated in the same PR. |
 | deleting `_legacy_section_key` and the `source_key` bridge | only when a query shows zero rows relying on them. Today 19 of 103 documents (the whole ordinance lane + 6 pre-Phase-0 acts) still have no `node_key`, so the bridge is load-bearing until the re-conversion runs. |
 | `footnotes.node_key` | the plan called for it; measurement says no. Footnotes are already matched by `(section_id, marker)`, which is structural — a positional index was never used. Nothing to fix. |
+| `ReviewToolbar`'s approval gate | it gates on *any* quality flag while claiming to mirror `CRITICAL_FLAGS`, which is narrower. Which is right is a product question — a broader confirm prompt may well be deliberate — so it is not something to silently "fix" into agreement. Needs a decision, then one line. |
 | exposing `node_key` on the API | no consumer yet. The column exists; whichever PR needs it (a stable React key, the overlay re-key) adds the three lines. |
 | re-keying `section_overlays` off `section_source_key` | same positional flaw as P1, and an approved AI fix could land on the wrong leaf after an insertion — **but it degrades safely**: `original_leaf_fingerprint` is compared on every sync, so a shifted overlay goes `stale` and re-flags the section rather than silently applying. Its own table, its own migration, its own PR. |
 | deleting `is_junk_leaf` / `normalize_heading` from the API | they compensate for real pipeline defects. Make them **counted** first; delete per-cause as the pipeline closes each. Deleting blind regresses QA's view. |
@@ -411,3 +434,8 @@ caller cannot forget it.
 
 Nothing was written: a 428 is refused before any write. Production verified unchanged
 at 106 documents / 17,859 sections / 21 approved leaves after the aborted run.
+
+**2026-08-31 — `oxlint --deny-warnings` does not catch an undefined identifier.**
+Moving `groupDocumentsByFamily` between modules left `isNameSort` unresolved; lint
+passed, `npm run build` passed, and only vitest caught it. Worth knowing before
+trusting the web lint gate for a refactor: it is a linter, not a type checker.
