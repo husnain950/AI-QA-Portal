@@ -44,6 +44,15 @@ KNOWN_CLASSES = frozenset(
         # prose -- measured at 11,349 occurrences across the two corpora.
         "fn-table", "omitted-bracket", "explanation", "defn", "formula", "frac",
         "legend",
+        # The gazette block kinds -- `fbr_ingest.builder.GAZETTE_KINDS`, which names
+        # exactly these five and nothing else. Each has a rule in
+        # styles/08-html-panel-styles.css, and each was being dropped here: measured
+        # at 965 occurrences across the corpus (act-title 589, recital 203,
+        # act-long-title 111, enacting-formula 60, enacting-clause 2). Nothing
+        # noticed, because the one pane that renders them injected stored HTML
+        # without sanitizing and so never saw the loss.
+        "act-title", "act-long-title", "recital", "enacting-formula",
+        "enacting-clause",
         "crx-align-center", "crx-align-right",
         "crx-align-justify", "crx-bold", "crx-italic", "crx-underline",
         "crx-list-unstyled", "crx-pad-zero", "crx-indent-1", "crx-indent-2",
@@ -273,3 +282,78 @@ def sanitize_html(value: str) -> SanitizedHtml:
         text_fidelity=visible_text(source) == visible_text(cleaned),
         structure_fidelity=structure_signature(source) == structure_signature(cleaned),
     )
+
+
+# --- one policy, two enforcers ------------------------------------------------
+#
+# The stored HTML is sanitized here, at ingest. The browser sanitizes it again --
+# stored HTML is a trust boundary and defence in depth is worth having -- but it was
+# doing so against a SEPARATE, NARROWER allowlist maintained by hand in
+# `apps/web/src/utils/sanitizeHtml.js`, and the two had drifted:
+#
+#   * the client dropped `fn-table`, `omitted-bracket`, `explanation`, `defn`,
+#     `formula`, `frac` and `legend` -- 11,349 occurrences across the two corpora,
+#     every one with a live stylesheet rule;
+#   * and it dropped the `flex: 0 0 N%` widths this module was written to preserve,
+#     in `FootnotePanel`, the only place `.fn-table` renders.
+#
+# So the second line of defence was quietly deleting what the first had carefully
+# kept. Now one policy is exported and the client imports it, in the same shape the
+# anomaly register uses: a committed artifact with a test that fails when it drifts.
+
+_POLICY_PATH = ("apps", "web", "src", "utils", "sanitizerPolicy.json")
+
+
+def policy() -> dict:
+    """The allowlist, as data, for any enforcer that is not this module."""
+    return {
+        "version": SANITIZER_VERSION,
+        "allowedTags": sorted(ALLOWED_TAGS),
+        "forbidTags": sorted(DANGEROUS_TAGS),
+        "allowedAttrs": sorted(
+            GLOBAL_ATTRS.union(*TAG_ATTRS.values()) if TAG_ATTRS else GLOBAL_ATTRS
+        ),
+        "knownClasses": sorted(KNOWN_CLASSES),
+        # The one style declaration that survives, as a pattern the client can apply
+        # verbatim. Keeping it here means the exactness argument above is made once.
+        "flexBasisPattern": _FLEX_BASIS_RE.pattern,
+    }
+
+
+def _policy_json() -> str:
+    import json
+
+    return json.dumps(policy(), indent=2, sort_keys=True) + "\n"
+
+
+def _demo() -> None:
+    """Self-check: the policy is complete and the exception still round-trips."""
+    p = policy()
+    assert p["version"] == SANITIZER_VERSION
+    for name in ("fn-table", "omitted-bracket", "explanation", "defn", "formula",
+                 "frac", "legend"):
+        assert name in p["knownClasses"], name
+    assert "script" in p["forbidTags"] and "script" not in p["allowedTags"]
+    assert "data-ref" in p["allowedAttrs"], "cite -> footnote linkage travels on it"
+
+    # The narrow exception, both directions.
+    kept = sanitize_html('<div class="fn-table"><div style="flex: 0 0 42%">x</div></div>')
+    # Re-emitted canonically, without the space after the colon.
+    assert "flex:0 0 42%" in kept.html, kept.html
+    assert "fn-table" in kept.html
+    dropped = sanitize_html('<div style="position: fixed; top: 0">x</div>')
+    assert "position" not in dropped.html, dropped.html
+    print("html_sanitizer: ok")
+
+
+if __name__ == "__main__":
+    import pathlib
+    import sys
+
+    root = pathlib.Path(__file__).resolve().parents[4]
+    target = root.joinpath(*_POLICY_PATH)
+    if "--write" in sys.argv:
+        target.write_text(_policy_json(), encoding="utf-8")
+        print(f"wrote {target}")
+    else:
+        _demo()
