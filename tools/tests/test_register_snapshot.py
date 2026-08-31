@@ -89,3 +89,30 @@ def test_snapshot_names_only_real_invariants():
         bound = {name for name, _ in runner.invariants_for(lane).ALL_INVARIANTS}
         unknown = set(invariants) - bound
         assert not unknown, f"{lane}: register.json names {unknown}, not in ALL_INVARIANTS"
+
+
+def _rewrite() -> int:
+    """``python tools/tests/test_register_snapshot.py --write`` -- regenerate.
+
+    Every round so far has hand-copied the ``FAIL (n)`` counts into
+    ``register.json``, and a mis-copy would have gated the wrong number in the very
+    PR that moved it.  ``_measure`` already produces exactly the committed shape,
+    so the generator is the test read backwards.  ``_comment`` is preserved: it is
+    the file's rationale, not data.
+    """
+    if not _staged():
+        print("corpus not staged -- nothing to measure", file=sys.stderr)
+        return 2
+    payload = json.loads(_SNAPSHOT.read_text())
+    payload["lanes"] = {lane: dict(sorted(_measure(lane).items())) for lane in LABELS}
+    payload["total"] = sum(sum(inv.values()) for inv in payload["lanes"].values())
+    _SNAPSHOT.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+    print(f"register.json: total {payload['total']}")
+    for lane, inv in payload["lanes"].items():
+        print(f"  {lane:10s} {sum(inv.values()):3d}  {inv}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_rewrite() if "--write" in sys.argv else
+                     print("usage: test_register_snapshot.py --write") or 2)

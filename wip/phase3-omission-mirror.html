@@ -1,0 +1,323 @@
+<title>Nothing Left to Steal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:#f6f6f4; --paper-sunk:#ecedea; --ink:#171c24; --ink-soft:#3a434f;
+  --muted:#656e79; --rule:#d5d7d3; --rule-soft:#e4e5e2;
+  --accent:#1d5b63; --accent-bg:#e2edee;
+  --defect:#9c2f2a; --defect-bg:#f4e5e3;
+  --good:#2c6146; --good-bg:#e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+    --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+    --accent:#6fb2ba; --accent-bg:#163034;
+    --defect:#dd8880; --defect-bg:#331d1c;
+    --good:#74b795; --good-bg:#162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+  --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+  --accent:#6fb2ba; --accent-bg:#163034;
+  --defect:#dd8880; --defect-bg:#331d1c;
+  --good:#74b795; --good-bg:#162b22;
+}
+* { box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif; font-size:18px;
+  line-height:1.62; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+.sheet { max-width:1080px; margin:0 auto; padding:4rem 2rem 6rem; }
+.block { display:grid; grid-template-columns:12.5rem 1fr; gap:0 2.75rem; align-items:start; }
+.block + .block { margin-top:3.25rem; }
+.gutter { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.74rem; line-height:1.5;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right;
+  padding-top:.5rem; border-right:1px solid var(--rule-soft); padding-right:2.75rem;
+  margin-right:-2.75rem; min-height:2rem; }
+.gutter .note { display:block; text-transform:none; letter-spacing:0; font-size:.82rem;
+  font-style:italic; font-family:"Newsreader",Georgia,serif; color:var(--muted);
+  margin-top:.6rem; line-height:1.45; }
+.body { min-width:0; max-width:62ch; }
+@media (max-width:860px) {
+  .block { grid-template-columns:1fr; gap:0; }
+  .gutter { text-align:left; border-right:0; padding-right:0; margin-right:0;
+    border-left:2px solid var(--rule); padding-left:.85rem; margin-bottom:.9rem; padding-top:0; }
+  .body { max-width:none; } .sheet { padding:2.5rem 1.25rem 4rem; }
+}
+.masthead { border-bottom:2px solid var(--ink); padding-bottom:1.5rem; margin-bottom:3.5rem; }
+.eyebrow { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.72rem; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 1rem; }
+h1 { font-weight:300; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08;
+  letter-spacing:-.018em; margin:0 0 .7rem; text-wrap:balance; }
+h1 em { font-style:italic; color:var(--accent); }
+.standfirst { font-size:1.13rem; color:var(--ink-soft); margin:0; max-width:56ch; text-wrap:pretty; }
+h2 { font-weight:400; font-size:1.62rem; line-height:1.2; letter-spacing:-.012em; margin:0 0 1rem; text-wrap:balance; }
+h3 { font-family:"Source Sans 3",system-ui,sans-serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:2rem 0 .75rem; }
+p { margin:0 0 1.05rem; text-wrap:pretty; }
+.body > :last-child { margin-bottom:0; }
+strong { font-weight:600; }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible, .scroller:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:2px; }
+code { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.845em;
+  background:var(--paper-sunk); padding:.1em .34em; border-radius:3px; border:1px solid var(--rule-soft); }
+.scoreline { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin:0 0 3.5rem; }
+.score { background:var(--paper); padding:1.15rem; }
+.score dt { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.68rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem; }
+.score dd { margin:0; font-size:1.85rem; font-weight:300; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.score .was { font-size:.8rem; color:var(--muted); margin-left:.45rem; font-variant-numeric:tabular-nums; }
+.score .to { color:var(--good); } .score .flat { color:var(--ink-soft); }
+.scroller { overflow-x:auto; }
+pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem; line-height:1.75;
+  background:var(--paper-sunk); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:1rem 1.15rem; margin:0 0 1.05rem; white-space:pre; }
+pre code { background:none; padding:0; border:0; font-size:inherit; }
+pre .hl { color:var(--defect); font-weight:500; }
+pre .dim { color:var(--muted); }
+table { width:100%; border-collapse:collapse; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.875rem; margin:0 0 1.05rem; }
+caption { caption-side:top; text-align:left; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:.6rem; }
+th, td { text-align:left; padding:.62rem .75rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:.7rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--rule); }
+tbody tr:last-child td { border-bottom:0; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+tr.yes td:last-child { color:var(--defect); font-weight:600; }
+tr.no td:last-child { color:var(--good); font-weight:600; }
+tr.wrong td:first-child { box-shadow:inset 3px 0 0 var(--defect); }
+tr.right td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+.tag { display:inline-block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .42rem; border-radius:3px; white-space:nowrap; }
+.tag.ok { background:var(--good-bg); color:var(--good); }
+.tag.bad { background:var(--defect-bg); color:var(--defect); }
+.figcap { font-size:.82rem; color:var(--muted); font-style:italic; margin:0 0 1.05rem; }
+.pull { border-left:3px solid var(--accent); padding:.1rem 0 .1rem 1.15rem; margin:1.6rem 0;
+  font-size:1.12rem; color:var(--ink-soft); font-style:italic; }
+.pull strong { font-style:normal; color:var(--ink); }
+blockquote { margin:0 0 1.05rem; padding:.1rem 0 .1rem 1.15rem; border-left:2px solid var(--rule);
+  color:var(--muted); font-style:italic; font-size:.95rem; }
+footer { margin-top:4.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-family:"Source Sans 3",system-ui,sans-serif; font-size:.8rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">Phase 3 · Round 8 · Anomaly register</p>
+    <h1>A repealed section has <em>nothing left</em> to steal</h1>
+    <p class="standfirst">
+      Two invariants are documented as halves of one report. One of them skipped omitted
+      sections; the other never asked. Ten of its nineteen hits were what its own twin had
+      already dismissed.
+    </p>
+  </header>
+
+  <dl class="scoreline">
+    <div class="score"><dt>Register</dt><dd><span class="to">50</span><span class="was">← 64</span></dd></div>
+    <div class="score"><dt><code>no_foreign_section_start_in_body</code></dt><dd><span class="to">5</span><span class="was">← 19</span></dd></div>
+    <div class="score"><dt>Documents re-converted</dt><dd><span class="to">0</span><span class="was">JSON byte-identical</span></dd></div>
+    <div class="score"><dt>Documents</dt><dd><span class="flat">80 / 11 / 12</span></dd></div>
+  </dl>
+
+  <section class="block">
+    <div class="gutter">
+      Fix one
+      <span class="note">The pair disagreed about what "starved" means.</span>
+    </div>
+    <div class="body">
+      <h2>One half reported what the other half had dismissed</h2>
+      <p>
+        <code>section_carries_its_body</code> names the starved section;
+        <code>no_foreign_section_start_in_body</code> names the leaf that ate it. The first
+        has skipped repealed sections since it was written, and its docstring says why: an
+        omitted section is <em>legitimately</em> empty, so an empty one is not evidence of
+        anything.
+      </p>
+      <p>
+        The second one never asked. It tested the victim with
+        <code>_body_beyond_heading(victim)</code> alone — which returns <code>""</code> for
+        a repealed section for exactly the same reason it returns <code>""</code> for a
+        starved one.
+      </p>
+      <p>
+        What that looks like on the Customs Act, in seven consecutive editions:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>section  2: ... such other <span class="hl">20[</span>officers of Customs as may be notified by the Board;]
+section 20: <span class="chosen">15[20. 112[Omitted]</span></code></pre>
+      </div>
+      <p>
+        The <code>20</code> inside section 2 is an <strong>amendment marker</strong>, not a
+        section code. The permissive start detector is meant to see it — its looseness is
+        deliberate, and the five surrounding conditions are what filter it out. Condition
+        four is the one that should have: <em>"the victim leaf carries no body of its own,
+        which is the signature of the binding failure."</em> Section 20 carries no body
+        because Parliament omitted it. Nothing was eaten.
+      </p>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>Document</th><th>Victim</th><th>Its whole <code>plain_text</code></th></tr></thead>
+          <tbody>
+            <tr><td>Customs Act ×7 editions, 2019 → 2025</td><td><code>s.20</code></td><td><code>15[20. 112[Omitted]</code></td></tr>
+            <tr><td>Sales Tax Act 15.9.2021</td><td><code>s.3A</code></td><td><code>Omitted</code></td></tr>
+            <tr><td>Sales Tax Act 2014</td><td><code>s.42</code></td><td><code>10[ 42. *** ]</code></td></tr>
+            <tr><td>Sales Tax Rules 30-06-2025</td><td><code>s.14A</code></td><td><code>14A. [omitted]</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The fix is the guard the twin already has, reusing the same predicate:</p>
+      <div class="scroller" tabindex="0">
+<pre><code>            <span class="hl">if _is_omission(victim):</span>
+                continue          <span class="dim"># legitimately empty: nothing was there to eat</span></code></pre>
+      </div>
+      <p class="pull">
+        Measured on identical JSON — no document was re-converted — <strong>64 → 54</strong>.
+      </p>
+      <p>
+        The check is narrowed, not switched off. The lock asserts both directions: the
+        omitted victim is skipped, <em>and</em> a victim that is merely heading-only is
+        still reported. With the guard removed the self-check fails.
+      </p>
+
+      <h3>It made one hit more honest rather than fewer</h3>
+      <p>
+        The invariant reports at most one hit per leaf, then breaks. On Sales Tax 15.9.2021
+        the first match inside section 2 was the omitted <code>3A</code>; with that skipped
+        the scan continues and finds <code>189[3B. Collection of ex…</code> — section 3B,
+        a <strong>real</strong> starved leaf and one of the five in that document's stub
+        block. The count for that document did not change. What it points at did.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      Fix two
+      <span class="note">An exemption that covered one invariant and not its mirror.</span>
+    </div>
+    <div class="body">
+      <h2>Same document, same cause, only half written down</h2>
+      <p>
+        Round 3 exempted <code>section_carries_its_body</code> on the two compilations —
+        Customs Rules 2001, whose contents page is an index of 44 separately-notified
+        S.R.O. rule sets, and Federal Excise Rules 2005, which starts a second instrument
+        at PDF page 75 with its own contents page. Both were traced to the source PDF, with
+        the deletion of those entries as the Phase 5 gate.
+      </p>
+      <p>The mirror invariant fires on the same two documents from the same cause:</p>
+      <div class="scroller" tabindex="0">
+<pre><code>Customs Rules 2001   rule 3  body holds  '7. Jurisdiction _____________________'
+                     rule 5  body holds  '6 Annexure-E.2 Legal Compliance YES YES YES'
+                     rule 1  body holds  '15.06.2002.'
+Federal Excise 2005  rule 1  body holds  '2. Definitions.--1n these Rules, unless ...'</code></pre>
+      </div>
+      <p>
+        An index row with its leaders, an annexure table row, an S.R.O. date read as rule
+        15, and the real opening of the second instrument. Every victim is one of the
+        index-row or contents-row leaves already covered above — so the two invariants were
+        reporting the two halves of one defect and only one half had an entry.
+      </p>
+      <p class="pull">
+        Two entries, the same traced evidence, the same deletion condition —
+        <strong>54 → 50</strong>. The exempted hits still run and are still printed with
+        their counts: an exemption documents a failure, it does not hide its size.
+      </p>
+      <p>
+        <code>wip/tasks.md</code>'s Phase 5 gate said "four entries" and then enumerated
+        three. It is now <strong>five</strong>, and counted.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      Tooling
+      <span class="note">Seven rounds hand-copied the number they were gating on.</span>
+    </div>
+    <div class="body">
+      <h2><code>register.json</code> has a generator</h2>
+      <p>
+        The register is committed so CI can gate it, but nothing wrote it — every round
+        copied the <code>FAIL (n)</code> counts by hand, and a mis-copy would have gated the
+        wrong number in the very PR that moved it.
+        <code>test_register_snapshot.py</code> already had <code>_measure()</code> producing
+        exactly that shape, so the generator is the test read backwards.
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>$ python tools/tests/test_register_snapshot.py --write
+register.json: total <span class="chosen">50</span>
+  ordinance    5  {'section_carries_its_body': 5}
+  acts        25  {'clause_codes_plausible': 1, 'no_chapter_caption_in_section_heading': 3,
+                   'no_foreign_section_start_in_body': 2, 'section_carries_its_body': 15,
+                   'section_codes_ordered': 4}
+  rules       20  {'no_foreign_section_start_in_body': 3, 'section_carries_its_body': 17}</code></pre>
+      </div>
+      <p class="figcap"><code>_comment</code> is preserved — it is the file's rationale, not data.</p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The register
+      <span class="note">210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50</span>
+    </div>
+    <div class="body">
+      <h2>Where it stands</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>Invariant</th><th class="num">acts</th><th class="num">rules</th><th class="num">ordinance</th><th class="num">total</th><th class="num">was</th></tr></thead>
+          <tbody>
+            <tr><td><code>section_carries_its_body</code></td><td class="num">15</td><td class="num">17</td><td class="num">5</td><td class="num">37</td><td class="num dim">37</td></tr>
+            <tr><td><code>no_foreign_section_start_in_body</code></td><td class="num">2</td><td class="num">3</td><td class="num">—</td><td class="num"><span class="ok">5</span></td><td class="num dim">19</td></tr>
+            <tr><td><code>section_codes_ordered</code></td><td class="num">4</td><td class="num">—</td><td class="num">—</td><td class="num">4</td><td class="num dim">4</td></tr>
+            <tr><td><code>no_chapter_caption_in_section_heading</code></td><td class="num">3</td><td class="num">—</td><td class="num">—</td><td class="num">3</td><td class="num dim">3</td></tr>
+            <tr><td><code>clause_codes_plausible</code></td><td class="num">1</td><td class="num">—</td><td class="num">—</td><td class="num">1</td><td class="num dim">1</td></tr>
+            <tr><td><strong>per lane</strong></td><td class="num"><strong>25</strong></td><td class="num"><strong>20</strong></td><td class="num"><strong>5</strong></td><td class="num"><strong>50</strong></td><td class="num dim">64</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>The five survivors are all real, and all already have a round</h3>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr><td>Sales Tax 15.9.2021 <code>s.3B</code></td><td>the monotonic cursor cascade — round 9</td></tr>
+            <tr><td>Sales Tax 30.06.2021 <code>s.30</code></td><td>a TOC row bound as a body — round 11</td></tr>
+            <tr><td>Sales Tax Rules 01-01-2025 ×3</td><td>footnote text read as a section start — round 10</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Gates</h3>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr><td><code>ruff check</code> (bare, as CI runs it)</td><td><span class="tag ok">clean</span></td></tr>
+            <tr><td><code>pytest tools/tests</code></td><td>56 passed, 1 skipped</td></tr>
+            <tr><td><code>discover_corpus.py --check</code></td><td><span class="tag ok">no drift</span></td></tr>
+            <tr><td>The lock, with the guard removed</td><td><span class="tag ok">fails</span> — and <code>__pycache__</code> cleared after</td></tr>
+            <tr><td><code>git status data/</code></td><td>empty — conservation unchanged by construction</td></tr>
+            <tr><td>Documents</td><td>80 / 11 / 12, held</td></tr>
+            <tr><td><code>data/ocr_cache</code></td><td>0 B</td></tr>
+            <tr><td><code>run_tests_smoke.py</code></td><td>still non-zero — the register is 50, not 0. Expected.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Follows PR #54 — the handover</span>
+    <span>No parser change, no re-conversion</span>
+    <span>Measured 2026-08-30</span>
+  </footer>
+
+</div>
