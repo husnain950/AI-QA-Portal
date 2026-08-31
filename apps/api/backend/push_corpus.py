@@ -207,7 +207,14 @@ def existing_docs():
     )
     with open_url(request, timeout=120) as response:
         return {
-            remote_key(doc): {"id": doc["id"], "json_filename": doc["json_filename"]}
+            remote_key(doc): {
+                "id": doc["id"],
+                "json_filename": doc["json_filename"],
+                # Every write against a document must name the active version in
+                # `If-Match`. Without it `/replace-json` answers 428, which is what
+                # every refresh this tool ever attempted got.
+                "version": doc.get("active_version_id"),
+            }
             for doc in json.loads(response.read().decode())
         }
 
@@ -254,7 +261,7 @@ def plan_refresh(local, remote):
         if match is None:
             to_upload.append(item)
         elif adopting or match["json_filename"] != f"json/{sha256_file(item.json)}.json":
-            to_refresh.append((match["id"], *item))
+            to_refresh.append((match["id"], match.get("version"), *item))
     return to_upload, to_refresh
 
 
@@ -300,7 +307,7 @@ def main(argv: list[str] | None = None):
     to_upload, to_refresh = plan_refresh(todo, present)
 
     upload_bytes = sum(item.size for item in to_upload)
-    refresh_bytes = sum(os.path.getsize(item[4]) for item in to_refresh)
+    refresh_bytes = sum(os.path.getsize(item[5]) for item in to_refresh)
     orphans = plan_orphans(todo, present)
     print(
         f"{len(todo)} local documents, {len(present)} on production: "
@@ -318,7 +325,7 @@ def main(argv: list[str] | None = None):
         )
 
     if args.dry_run:
-        for _id, size, name, _pdf, js, lane, _key, _origin in to_refresh:
+        for _id, _version, size, name, _pdf, js, lane, _key, _origin in to_refresh:
             print(
                 f"  would refresh {os.path.getsize(js) / 1048576:6.1f} MB  "
                 f"[{lane or '-'}]  {name}"
@@ -334,12 +341,14 @@ def main(argv: list[str] | None = None):
     started = time.time()
     total = len(to_refresh) + len(to_upload)
 
-    def send(label, url, fields, files, name, size):
+    def send(label, url, fields, files, name, size, if_match=None):
         """POST one document. Returns True on success; reports and skips on failure."""
         nonlocal done, failed, sent
         body, ctype = multipart(fields, files)
         request = urllib.request.Request(url, data=body, method="POST")
         request.add_header("Content-Type", ctype)
+        if if_match:
+            request.add_header("If-Match", if_match)
         for attempt in (1, 2):
             try:
                 with open_url(request, timeout=900) as response:
@@ -367,7 +376,7 @@ def main(argv: list[str] | None = None):
 
     # Refresh first: it is JSON only, and it is what makes an already-visible library
     # tell the truth about its OCR provenance. Uploads can take their time afterwards.
-    for doc_id, _size, name, _pdf, js, lane, source_key, origin in to_refresh:
+    for doc_id, version, _size, name, _pdf, js, lane, source_key, origin in to_refresh:
         fields = {"note": "Corpus refresh from push_corpus."}
         if lane:
             fields["corpus_lane"] = lane
@@ -385,6 +394,7 @@ def main(argv: list[str] | None = None):
             {"json_file": (os.path.basename(js), js)},
             name,
             os.path.getsize(js),
+            if_match=version,
         )
 
     risky, rest = plan_order(to_upload, args.risky_above_mb * 1048576)

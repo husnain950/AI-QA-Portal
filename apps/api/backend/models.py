@@ -44,6 +44,11 @@ class DocumentResponse(DocumentBase):
     stats: Optional[DocumentStats] = None
     version_count: int = 1
     active_version_no: int = 1
+    # The active version's id, which every write against a document has to name in
+    # `If-Match`. Sent here so a client does not have to fetch the version list just
+    # to learn it -- `push_corpus` never did, and so every refresh it attempted has
+    # been answered with 428 since optimistic concurrency landed.
+    active_version_id: Optional[str] = None
     # created_at of the newest JSON version — the document's "last updated" signal.
     last_version_at: Optional[str] = None
     # The pipeline's own measurements for the active parse, when they were ingested.

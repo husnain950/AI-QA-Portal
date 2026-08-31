@@ -119,6 +119,7 @@ SELECT
     stats.open_annotations,
     vv.version_count, vv.last_version_at,
     v.version_no AS active_version_no,
+    v.id AS active_version_id,
     m.invariants_passed, m.invariants_total, m.cases_passed, m.cases_total,
     m.body_conserved, m.body_missing, m.footnote_conserved, m.footnote_missing,
     m.gate_ok, m.measured_at, m.detail_json
