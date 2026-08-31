@@ -132,6 +132,12 @@ sections = Table(
     Column("reviewer_verdict", Text, nullable=False, server_default="pending"),
     Column("effective_status", Text, nullable=False, server_default="pending"),
     Column("source_key", Text),
+    # The pipeline's structural identity for this leaf -- `ch:vii/pt:i/s:114`, the
+    # ancestor chain by CODE. `source_key` beside it is the POSITIONAL path
+    # (`/chapters/0/sections/3`), which renames every later sibling when one leaf is
+    # inserted. Nullable while documents converted before the contract are still in
+    # the corpus; see docs/pipeline-contract.md.
+    Column("node_key", Text),
     Column("quality_flags", Text),
     Column("hierarchy_kind", Text),
     Column("sanitizer_version", Text),
@@ -164,6 +170,16 @@ Index(
     sections.c.source_key,
     unique=True,
     postgresql_where=sections.c.source_key.is_not(None),
+)
+# Unique for the same reason `source_key` is: it is what a re-parse matches a leaf by,
+# so two rows sharing one would merge two leaves' review state into whichever the walk
+# reached last. Partial, because a document converted before the contract has none.
+Index(
+    "uq_sections_node_key",
+    sections.c.document_id,
+    sections.c.node_key,
+    unique=True,
+    postgresql_where=sections.c.node_key.is_not(None),
 )
 
 footnotes = Table(
