@@ -314,6 +314,56 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       by case `sta300621_pageless_toc_binds_late_sections`, which fails with the gate
       reverted. `no_chapter_caption_in_section_heading` gains one: s.32AA finally binds, so
       the same real leak already open on two sibling editions is now visible here too.
+- [x] **31 headings carrying their own code tail — and two gates that could not fail.**
+      `builder._body_heading_title(h4_inner, code)` **never referenced its `code`
+      argument**: the strip ran off `_HEAD_CODE_PREFIX_RE`, whose `grammar.CODE`
+      (`\d{1,4}-?[A-Z]{0,4}`) tolerates a hyphen but never a space. Where the text layer
+      splits the code — `150 ZQR.` for 150ZQR, `156 A.` for 156A — it matched the digits
+      and stopped, and the letters stayed in the title. `builder.py` already knew the
+      shape: `_DOTSUFFIX_RE`'s own comment says the separator "may be a HYPHEN or a SPACE",
+      and `_candidate_code` folds `150 ZQR` → `150ZQR` so the two sides agree on one
+      spelling. The detector handled it; the heading stripper did not — the same
+      two-normalisers disagreement as round 1's chapter numeral.
+      **31 leaves, 15 documents, 2 lanes, one cause** (rules 17, acts 14, ordinance 0 —
+      a separate fork). Every one `heading_source="body"`; a TOC-sourced heading is clean,
+      which is why a section only shows it once it HAS a body to be read from — and why
+      round 10 looked like the culprit when it had only given two stubs their bodies.
+      Fixed by driving the strip from the code already passed, the way
+      `discover._heading_from_words` already does for this exact disagreement, taking the
+      LONGER of the code-driven and positional matches: the code-driven one alone strips
+      *less* where the body prints a suffix the TOC's code lacks (`15A.` against code 15).
+      Two measurements forced that shape, both caught by re-converting and diffing rather
+      than by reasoning. The second: the separator run must not swallow the code's OWN
+      terminator. The first attempt regressed Customs `193A`, whose body prints
+      `193. Appeals to Collector` — `3` + `. ` + `A` matched and the heading came out
+      `ppeals to Collector`. `discover._heading_from_words` carries the same construction
+      and a comment claiming its len(code)-1 bound makes that impossible; the bound limits
+      how MANY separator runs there are, not how far one reaches, so it does not hold for a
+      code whose letter suffix also begins the title word. **That comment is now wrong in
+      `discover.py` too** — same latent shape, not triggered there by this corpus.
+      Conservation: **zero `plain_text` delta**, identical leaf sets; in rules exactly 17
+      headings changed against 1,087 unchanged. Locked by
+      `tools/tests/test_body_heading_code_strip.py` (fails two ways with the fix reverted)
+      and invariant `no_code_fragment_in_section_heading`, which tests that the leftover is
+      a PROPER SUFFIX of the leaf's own code rather than merely code-shaped — measured
+      alone on unchanged JSON at 31, then 0.
+- [x] **The register could not see a failing regression case.**
+      `tools/tests/test_register_snapshot.py` is what gates the pipeline on CI, since the
+      corpora are gitignored and the lane suites SKIP there. Its regex
+      `\[ *FAIL \((\d+)\)\] +([a-z_]+)` matches an INVARIANT line, which carries a
+      count, and never `[FAIL] <case_id>`, which is pass/fail. Cases are this project's
+      locking mechanism — every fix ships pinned by one in the same PR — so the mechanism
+      protecting every fix already made was gated by nothing, and **two cases were failing**
+      when this round opened. A case's only correct value is zero, so it gets an assertion,
+      not a snapshot; both readings now come from one suite run per lane.
+- [x] **A case scoped by date matched the wrong document.** Round 11's lock carried
+      `applies_to: "as amended up to 30.06.2021"`, and `runner.py` treats `applies_to` as a
+      substring of `metadata.filename` — which the **Customs** Act 30.06.2021 also matches,
+      and it has no s.73. The round-11 lock had been reporting a failure on a document it
+      was never about. Now scoped to `Sales Tax Act, 1990 as amended up to 30.06.2021`,
+      selecting exactly one. Every other scoped case swept: two match multiple documents
+      and both are deliberate (`o05_sec9_interior_endash_not_a_terminator` over 20 Customs
+      editions, `fe_r78_double_hyphen_heading_keeps_body` over 2), none matches zero.
 - [ ] **No invariant can see a document that lost 93% of its sections.** The register moved
       3 while the document gained 118. `section_carries_its_body` reports leaves that exist;
       `structure_counts` compares the tree against a contents page that was itself the thing

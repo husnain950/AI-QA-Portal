@@ -23,7 +23,7 @@ from suite.invariants import _common  # noqa: E402
 #: stage and no provisional/text-density concepts, so it runs 46.
 #: 58/45 + `contract_complete`, which every lane runs because the output contract is
 #: the one thing all three must agree on.
-EXPECTED_COUNTS = {"acts": 59, "rules": 59, "ordinance": 46}
+EXPECTED_COUNTS = {"acts": 60, "rules": 60, "ordinance": 46}
 
 
 def test_section_attribution_helpers():
@@ -37,6 +37,12 @@ def test_section_attribution_helpers():
 def test_heading_leak_class_helpers():
     """The O02/O03 detectors (caption-in-heading, LEGAL REFERENCE, body chapters)."""
     _common._demo_heading_leak_class()
+
+
+def test_code_fragment_in_heading_helpers():
+    """``no_code_fragment_in_section_heading``: the leftover must be the leaf's
+    OWN code tail, so a title that merely looks code-shaped is not reported."""
+    _common._demo_code_fragment_in_heading()
 
 
 def test_toc_omitted_chapter_caption_not_glued():

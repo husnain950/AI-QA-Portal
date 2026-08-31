@@ -1,0 +1,286 @@
+<title>The Unused Argument</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:#f6f6f4; --paper-sunk:#ecedea; --ink:#171c24; --ink-soft:#3a434f;
+  --muted:#656e79; --rule:#d5d7d3; --rule-soft:#e4e5e2;
+  --accent:#1d5b63; --accent-bg:#e2edee;
+  --defect:#9c2f2a; --defect-bg:#f4e5e3;
+  --good:#2c6146; --good-bg:#e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+    --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+    --accent:#6fb2ba; --accent-bg:#163034;
+    --defect:#dd8880; --defect-bg:#331d1c;
+    --good:#74b795; --good-bg:#162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+  --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+  --accent:#6fb2ba; --accent-bg:#163034;
+  --defect:#dd8880; --defect-bg:#331d1c;
+  --good:#74b795; --good-bg:#162b22;
+}
+* { box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif; font-size:18px;
+  line-height:1.62; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+.sheet { max-width:1080px; margin:0 auto; padding:4rem 2rem 6rem; }
+.block { display:grid; grid-template-columns:12.5rem 1fr; gap:0 2.75rem; align-items:start; }
+.block + .block { margin-top:3.25rem; }
+.gutter { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.74rem; line-height:1.5;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right;
+  padding-top:.5rem; border-right:1px solid var(--rule-soft); padding-right:2.75rem;
+  margin-right:-2.75rem; min-height:2rem; }
+.gutter .note { display:block; text-transform:none; letter-spacing:0; font-size:.82rem;
+  font-style:italic; font-family:"Newsreader",Georgia,serif; color:var(--muted);
+  margin-top:.6rem; line-height:1.45; }
+.body { min-width:0; max-width:62ch; }
+@media (max-width:860px) {
+  .block { grid-template-columns:1fr; gap:0; }
+  .gutter { text-align:left; border-right:0; padding-right:0; margin-right:0;
+    border-left:2px solid var(--rule); padding-left:.85rem; margin-bottom:.9rem; padding-top:0; }
+  .body { max-width:none; } .sheet { padding:2.5rem 1.25rem 4rem; }
+}
+.masthead { border-bottom:2px solid var(--ink); padding-bottom:1.5rem; margin-bottom:3.5rem; }
+.eyebrow { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.72rem; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 1rem; }
+h1 { font-weight:300; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08;
+  letter-spacing:-.018em; margin:0 0 .7rem; text-wrap:balance; }
+h1 em { font-style:italic; color:var(--accent); }
+.standfirst { font-size:1.13rem; color:var(--ink-soft); margin:0; max-width:56ch; text-wrap:pretty; }
+h2 { font-weight:400; font-size:1.62rem; line-height:1.2; letter-spacing:-.012em; margin:0 0 1rem; text-wrap:balance; }
+h3 { font-family:"Source Sans 3",system-ui,sans-serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:2rem 0 .75rem; }
+p { margin:0 0 1.05rem; text-wrap:pretty; }
+.body > :last-child { margin-bottom:0; }
+strong { font-weight:600; }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible, .scroller:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:2px; }
+code { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.845em;
+  background:var(--paper-sunk); padding:.1em .34em; border-radius:3px; border:1px solid var(--rule-soft); }
+.scoreline { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin:0 0 3.5rem; }
+.score { background:var(--paper); padding:1.15rem; }
+.score dt { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.68rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem; }
+.score dd { margin:0; font-size:1.85rem; font-weight:300; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.score .was { font-size:.8rem; color:var(--muted); margin-left:.45rem; font-variant-numeric:tabular-nums; }
+.score .to { color:var(--good); } .score .flat { color:var(--ink-soft); }
+.scroller { overflow-x:auto; }
+pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem; line-height:1.75;
+  background:var(--paper-sunk); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:1rem 1.15rem; margin:0 0 1.05rem; white-space:pre; }
+pre code { background:none; padding:0; border:0; font-size:inherit; }
+pre .hl { color:var(--defect); font-weight:500; }
+pre .dim { color:var(--muted); }
+table { width:100%; border-collapse:collapse; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.875rem; margin:0 0 1.05rem; }
+caption { caption-side:top; text-align:left; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:.6rem; }
+th, td { text-align:left; padding:.62rem .75rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:.7rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--rule); }
+tbody tr:last-child td { border-bottom:0; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+tr.yes td:last-child { color:var(--defect); font-weight:600; }
+tr.no td:last-child { color:var(--good); font-weight:600; }
+tr.wrong td:first-child { box-shadow:inset 3px 0 0 var(--defect); }
+tr.right td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+.tag { display:inline-block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .42rem; border-radius:3px; white-space:nowrap; }
+.tag.ok { background:var(--good-bg); color:var(--good); }
+.tag.bad { background:var(--defect-bg); color:var(--defect); }
+.figcap { font-size:.82rem; color:var(--muted); font-style:italic; margin:0 0 1.05rem; }
+.pull { border-left:3px solid var(--accent); padding:.1rem 0 .1rem 1.15rem; margin:1.6rem 0;
+  font-size:1.12rem; color:var(--ink-soft); font-style:italic; }
+.pull strong { font-style:normal; color:var(--ink); }
+blockquote { margin:0 0 1.05rem; padding:.1rem 0 .1rem 1.15rem; border-left:2px solid var(--rule);
+  color:var(--muted); font-style:italic; font-size:.95rem; }
+footer { margin-top:4.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-family:"Source Sans 3",system-ui,sans-serif; font-size:.8rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; }
+</style>
+
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Phase 3 · Round 12</p>
+  <h1>The argument the function <em>never read</em></h1>
+  <p class="standfirst">A heading stripper was handed the section's code and ignored it, stripping by position instead. Thirty-one headings across fifteen documents kept a piece of their own code — and every gate that should have caught it was looking somewhere else.</p>
+</header>
+
+<dl class="scoreline">
+  <div class="score"><dt>Anomaly register</dt><dd class="flat">30<span class="was">unchanged</span></dd></div>
+  <div class="score"><dt>Headings repaired</dt><dd>31 <span class="to">→ 0</span></dd></div>
+  <div class="score"><dt>Documents</dt><dd>15<span class="was">of 91</span></dd></div>
+  <div class="score"><dt>Body text moved</dt><dd class="to">0<span class="was">chars</span></dd></div>
+</dl>
+
+<section class="block">
+  <div class="gutter">The defect
+    <span class="note">One line, in a function that already had everything it needed.</span>
+  </div>
+  <div class="body">
+    <h2>A parameter that was never referenced</h2>
+    <div class="scroller"><pre><code>def _body_heading_title(h4_inner: str, <span class="hl">code: str</span>) -> str:
+    ...
+    m = _HEAD_CODE_PREFIX_RE.match(s)   <span class="dim"># positional. `code` unused.</span></code></pre></div>
+    <p>The strip ran off a positional pattern built on <code>grammar.CODE</code>:</p>
+    <div class="scroller"><pre><code>CODE = r"\d{1,4}-?[A-Z]{0,4}"   <span class="dim"># a HYPHEN, never a SPACE</span></code></pre></div>
+    <p>Two real families print the code with a space in the text layer. The match ended after the digits and the letters stayed in the title.</p>
+    <div class="scroller">
+    <table>
+      <caption>What the page prints, and what the heading became</caption>
+      <thead><tr><th>Printed body line</th><th>Code</th><th>Heading emitted</th></tr></thead>
+      <tbody>
+        <tr class="wrong"><td><code>150 ZQT. Goods to be monitored…</code></td><td>150ZQT</td><td>ZQT. Goods to be monitored…</td></tr>
+        <tr class="wrong"><td><code>156 A. Proceedings against authority…</code></td><td>156A</td><td>A. Proceedings against authority…</td></tr>
+        <tr class="wrong"><td><code>25 AA. Transactions between associates</code></td><td>25AA</td><td>AA. Transactions between associates</td></tr>
+        <tr class="wrong"><td><code>18 A Special customs duty…</code></td><td>18A</td><td>A Special customs duty…</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="pull">The <strong>detector</strong> already handled the split code — <code>_candidate_code</code> folds <code>150 ZQR</code> to <code>150ZQR</code> so the TOC and body agree on one spelling. The <strong>heading stripper</strong> did not. Two normalisers disagreeing about one spelling, which is round 1's chapter numeral wearing different clothes.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Why nothing caught it
+    <span class="note">Two gates, both looking past the thing they exist to hold.</span>
+  </div>
+  <div class="body">
+    <h2>The register could not see a failing case</h2>
+    <p><code>test_register_snapshot.py</code> is what gates the pipeline on CI, because the corpora are gitignored and the lane suites skip there. It read the suite's output with one regex:</p>
+    <div class="scroller"><pre><code>_FAIL = re.compile(r"\[ *FAIL \(<span class="hl">(\d+)</span>\)\] +([a-z_]+)")</code></pre></div>
+    <p>That matches <code>[ FAIL (3)] section_carries_its_body</code> — an <strong>invariant</strong>, which carries a count. It never matched <code>[FAIL] &lt;case_id&gt;</code>, which is pass/fail. Cases are this project's locking mechanism: every fix ships pinned by one in the same PR. So the mechanism protecting every fix already made was gated by nothing — and <strong>two cases were already failing</strong> when the round opened.</p>
+    <h3>And a case scoped to the wrong document</h3>
+    <p>Round 11's lock carried <code>applies_to: "as amended up to 30.06.2021"</code>, matched as a substring of the filename. The acts lane holds two documents with that date:</p>
+    <div class="scroller">
+    <table>
+      <thead><tr><th>Document</th><th>Has s.73?</th></tr></thead>
+      <tbody>
+        <tr class="no"><td>Sales Tax Act, 1990 — 30.06.2021 <span class="tag ok">intended</span></td><td>yes</td></tr>
+        <tr class="yes"><td>Customs Act, 1969 — 30.06.2021 <span class="tag bad">collateral</span></td><td>no</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>The round-11 lock had been reporting a failure on a document it was never about. Every other scoped case was swept: two match multiple documents and both are deliberate, none matches zero.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">The fix
+    <span class="note">Already written, one file over.</span>
+  </div>
+  <div class="body">
+    <h2>Drive the strip from the code you were handed</h2>
+    <p><code>discover._heading_from_words</code> solves this exact disagreement, and its comment says why: the code arrives folded while the words carry the printed spelling. The same construction now backs <code>_body_heading_title</code> — but <strong>the longest match wins</strong>, and neither pattern could be dropped.</p>
+    <div class="scroller"><pre><code>cands = [m for m in (_head_code_prefix_re(code).match(s) if code else None,
+                     _HEAD_CODE_PREFIX_RE.match(s)) if m]
+m = max(cands, key=lambda c: c.end())</code></pre></div>
+    <p>Two measurements forced that shape, and both were found by re-converting and diffing — not by reasoning.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">What it cost
+    <span class="note">The first attempt shipped a regression. The diff caught it.</span>
+  </div>
+  <div class="body">
+    <h2>Two ways to get this wrong</h2>
+    <h3>The code-driven pattern alone strips too little</h3>
+    <p>Where the body prints a suffix the TOC's code lacks — <code>15A. Title</code> under code <code>15</code> — it matches the digits and leaves <code>A.</code> behind, reintroducing the very shape being removed. The positional pattern spans it.</p>
+    <h3>The separator run swallowed the code's own terminator</h3>
+    <p>Customs 193A prints <code>193. Appeals to Collector</code>. The first attempt matched <code>3</code> + <code>". "</code> + <code>A</code> and took the title's first letter with it:</p>
+    <div class="scroller"><pre><code>193A  'Appeals to Collector (Appeals)'
+   →  '<span class="hl">ppeals</span> to Collector (Appeals)'</code></pre></div>
+    <p><code>discover._heading_from_words</code> carries the same construction and a comment claiming its <code>len(code)-1</code> bound makes this impossible. The bound limits how <em>many</em> separator runs there are, not how far one reaches, so it does not hold for a code whose letter suffix also begins the title word. <strong>That comment is still wrong in <code>discover.py</code></strong> — same latent shape, not triggered there by this corpus, and logged rather than changed without a measurement to justify it.</p>
+    <p>The code token now has to end on a boundary, which makes that case fall through to positional — the right answer there.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Measured
+    <span class="note">Invariant alone first, then the parser. A single total hides which half did the work.</span>
+  </div>
+  <div class="body">
+    <h2>31 leaves, 15 documents, two lanes, one cause</h2>
+    <div class="scroller">
+    <table>
+      <caption>Before → after, by lane</caption>
+      <thead><tr><th>Lane</th><th class="num">Before</th><th class="num">After</th><th>Codes</th></tr></thead>
+      <tbody>
+        <tr class="right"><td>rules</td><td class="num">17</td><td class="num">0</td><td>the 16-rule <code>150ZQ*</code> run; <code>14A</code></td></tr>
+        <tr class="right"><td>acts</td><td class="num">14</td><td class="num">0</td><td><code>156A</code> ×7, <code>18A</code> ×5, <code>25AA</code>, <code>37D</code></td></tr>
+        <tr><td>ordinance</td><td class="num">0</td><td class="num">0</td><td>separate <code>fbr_ingest</code> fork</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Every one had <code>heading_source="body"</code>. A TOC-sourced heading is clean — which is why a section only shows the defect once it <em>has</em> a body to be read from, and why round 10 looked like the culprit when it had merely given two stubs their bodies.</p>
+    <p>The count opened at 26 and closed at 31: the first census required the code tail to carry a dot, and Customs <code>18A</code> prints it without one. Widening the invariant was measured before it was adopted — it finds those five and reports <strong>0 across both lanes on the fixed corpus</strong>.</p>
+    <h3>Conservation</h3>
+    <div class="scroller">
+    <table>
+      <thead><tr><th>Check</th><th class="num">acts</th><th class="num">rules</th></tr></thead>
+      <tbody>
+        <tr><td>headings changed</td><td class="num">14</td><td class="num">17</td></tr>
+        <tr><td>headings unchanged</td><td class="num">10,076</td><td class="num">1,087</td></tr>
+        <tr class="right"><td><code>plain_text</code> delta</td><td class="num">0</td><td class="num">0</td></tr>
+        <tr class="right"><td>leaf-set changes</td><td class="num">0</td><td class="num">0</td></tr>
+        <tr class="right"><td>truncated headings introduced</td><td class="num">0</td><td class="num">0</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="figcap">Not one character of statutory text moved. The fix takes characters out of a navigational field and touches nothing else — which is the whole claim, and the thing worth checking, since a strip reaching one character too far eats a title word.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">The register
+    <span class="note">Zero movement, deliberately.</span>
+  </div>
+  <div class="body">
+    <h2>Still 30, and <code>register.json</code> is byte-identical</h2>
+    <p>The 31 were invisible to every invariant the suite had, and the invariant that can see them ships closed at zero in the same PR. This round's number is 31 headings repaired and two gates that could not fail — reported rather than folded into a total, per the rule the project already follows for changes that move the register by zero.</p>
+    <blockquote>Report fixes that moved the register by zero. Folding them into a total would have misattributed the rounds that did move it.<br>— <code>wip/HANDOVER.md</code> §4</blockquote>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Locked by
+    <span class="note">A gate that cannot fail is a no-op.</span>
+  </div>
+  <div class="body">
+    <h2>Each check verified by breaking it</h2>
+    <div class="scroller">
+    <table>
+      <thead><tr><th>Lock</th><th>Proven by</th></tr></thead>
+      <tbody>
+        <tr><td><code>test_no_active_regression_case_fails</code></td><td>fails on the tree that opened the round, naming both cases and their documents</td></tr>
+        <tr><td><code>test_body_heading_code_strip.py</code></td><td>fails two ways with the fix reverted; covers the <code>193A</code> terminator and the <code>15A</code> under-strip</td></tr>
+        <tr><td><code>no_code_fragment_in_section_heading</code></td><td>measured alone on unchanged JSON at 31, then 0</td></tr>
+        <tr><td><code>_demo_code_fragment_in_heading</code></td><td>both directions, including titles that merely look code-shaped</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>The invariant tests that the leftover is a <strong>proper suffix of the leaf's own code</strong>, not merely that it looks code-shaped — which would report a rule genuinely titled <code>A. Preliminary</code>. Self-validating, and it needs nothing from outside the leaf.</p>
+  </div>
+</section>
+
+<footer>
+  <span>Phase 3 · Round 12</span>
+  <span>register 30 → 30</span>
+  <span>31 headings repaired across 15 documents</span>
+  <span>0 characters of body text moved</span>
+</footer>
+
+</div>
