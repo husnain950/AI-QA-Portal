@@ -16,7 +16,7 @@ from backend.services.corpus_registry import (  # noqa: F401  (re-exported)
     get,
     selected,
 )
-from backend.sync_acts import run_sync
+from backend.sync_acts import SOURCE_TYPE, run_sync
 
 
 async def _record_sync(summary: Dict[str, Any], status: str) -> None:
@@ -81,6 +81,56 @@ def source_key_collisions() -> Dict[str, list[str]]:
     return {
         stem: labels for stem, labels in claimed.items() if len(set(labels)) > 1
     }
+
+
+async def reconcile_corpus(label: str, source_keys: Iterable[str]) -> Dict[str, Any]:
+    """Withdraw documents this corpus no longer holds; restore any that came back.
+
+    `output/*.json` IS the corpus, so a stem that is no longer in it is no longer part
+    of it. Nothing used to say so: a document the parser started refusing kept its
+    rows, its stale parse and its "approved" badges forever, and a reviewer could not
+    tell a current document from an abandoned one.
+
+    Withdrawal is a timestamp, never a delete. The annotations, findings and exported
+    evidence pointing at the document are the audit trail for a legally binding
+    corpus, and losing them to a conversion rerun with the wrong flag would be far
+    worse than showing a document marked withdrawn.
+
+    Scoped by `corpus_origin`, so `--only rules` cannot withdraw an acts document.
+    Rows with no origin are never candidates: they predate the column, and the next
+    sync gives them one (`sync_validated_pair`'s skip condition refuses to skip them).
+    """
+    present = set(source_keys)
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    withdrawn: list[str] = []
+    restored: list[str] = []
+    async with database_connection() as db:
+        async with db.execute(
+            "SELECT id, source_key, withdrawn_at FROM documents "
+            "WHERE source_type = ? AND corpus_origin = ?",
+            (SOURCE_TYPE, label),
+        ) as cursor:
+            rows = [dict(row) for row in await cursor.fetchall()]
+        for row in rows:
+            gone = row["source_key"] not in present
+            if gone and not row["withdrawn_at"]:
+                await db.execute(
+                    "UPDATE documents SET withdrawn_at = ?, row_revision = row_revision + 1 "
+                    "WHERE id = ?",
+                    (now, row["id"]),
+                )
+                withdrawn.append(row["source_key"])
+            elif not gone and row["withdrawn_at"]:
+                # `sync_validated_pair` already clears this for a document it wrote;
+                # this covers one it skipped.
+                await db.execute(
+                    "UPDATE documents SET withdrawn_at = NULL, "
+                    "row_revision = row_revision + 1 WHERE id = ?",
+                    (row["id"],),
+                )
+                restored.append(row["source_key"])
+        await db.commit()
+    return {"withdrawn": sorted(withdrawn), "restored": sorted(restored)}
 
 
 async def sync_one(
@@ -167,7 +217,9 @@ async def run_corpus_sync(
             )
         )
 
-    combined: Dict[str, Any] = {"failed": 0, "unmatched": 0}
+    combined: Dict[str, Any] = {
+        "failed": 0, "unmatched": 0, "withdrawn": 0, "restored": 0,
+    }
     # Every registered corpus gets a key, selected or not, so a reader of the summary
     # can tell "synced nothing" from "was not asked to".
     for label in LABELS:
@@ -218,6 +270,16 @@ async def run_corpus_sync(
         failures = int(part.get("failed", 0) or 0)
         combined["failed"] += failures or (1 if part.get("error") else 0)
         combined["unmatched"] += int(part.get("unmatched", 0) or 0)
+
+        # Reconcile only a corpus that was actually read. An unreadable root yields
+        # no stems, and withdrawing on the strength of a listing that never happened
+        # would empty the portal.
+        if not dry_run and not part.get("error") and "source_keys" in part:
+            part["reconciled"] = await reconcile_corpus(
+                corpus.label, part["source_keys"]
+            )
+            combined["withdrawn"] += len(part["reconciled"]["withdrawn"])
+            combined["restored"] += len(part["reconciled"]["restored"])
 
     status = "ok" if combined["failed"] == 0 else "failed"
     if not dry_run:

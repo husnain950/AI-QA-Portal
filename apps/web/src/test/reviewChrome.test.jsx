@@ -127,6 +127,44 @@ describe('issues chrome wording', () => {
         expect(screen.queryByText(/\d+ issues\)/)).not.toBeInTheDocument();
     });
 
+    it('says so when the pipeline no longer produces the document', async () => {
+        // Nothing used to remove a document whose JSON left `output/`, so a retired
+        // parse sat in the Library beside current ones with its approvals intact.
+        // The rows are deliberately kept (they are the audit trail); the reviewer is
+        // told instead.
+        useDocumentStore.setState({
+            activeDocument: {
+                ...useDocumentStore.getState().activeDocument,
+                withdrawn_at: '2026-08-31T09:15:00Z',
+            },
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/review/doc-1/sec-1']}>
+                <Routes>
+                    <Route path="/review/:documentId/:sectionId" element={<ReviewPage />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+
+        const banner = await screen.findByTestId('withdrawn-banner');
+        expect(banner).toHaveTextContent(/no longer in the corpus/i);
+        expect(banner).toHaveTextContent(/last parse/i);
+    });
+
+    it('shows no withdrawal banner for a current document', async () => {
+        render(
+            <MemoryRouter initialEntries={['/review/doc-1/sec-1']}>
+                <Routes>
+                    <Route path="/review/:documentId/:sectionId" element={<ReviewPage />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+
+        await screen.findByTestId('split-pane');
+        expect(screen.queryByTestId('withdrawn-banner')).not.toBeInTheDocument();
+    });
+
     it('sidebar tab is Notes with annotation count, not Issues', () => {
         useReviewStore.setState({
             globalAnnotations: [

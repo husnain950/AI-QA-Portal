@@ -114,7 +114,7 @@ PAGE_SELECT = """
 SELECT
     d.id, d.name, d.pdf_filename, d.json_filename, d.total_sections,
     d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
-    d.provenance, d.corpus_lane,
+    d.provenance, d.corpus_lane, d.withdrawn_at,
     stats.reviewed, stats.approved, stats.has_issues, stats.pending,
     stats.open_annotations,
     vv.version_count, vv.last_version_at,
@@ -155,6 +155,11 @@ class LibraryFilters:
     pages_max: Optional[int] = None
     tags: tuple = ()
     ids: tuple = ()
+    # Withdrawn documents are out of the Library by default: the pipeline no longer
+    # produces them, so listing them beside current ones invites a reviewer to
+    # approve a parse that has been retired. They are never deleted, so this is a
+    # filter and not a fact about the row -- set it to see them.
+    include_withdrawn: bool = False
 
     def fingerprint_parts(self) -> tuple:
         return (
@@ -163,6 +168,7 @@ class LibraryFilters:
             self.years, self.year_from, self.year_to,
             self.added_after, self.added_before,
             self.pages_min, self.pages_max, self.tags, self.ids,
+            self.include_withdrawn,
         )
 
 
@@ -242,6 +248,10 @@ def build_where(filters: LibraryFilters, exclude: Optional[str] = None):
     if filters.ids and not skipped("ids"):
         clauses.append(f"d.id IN {_in_clause(filters.ids)}")
         params.extend(filters.ids)
+    # Deliberately NOT skippable by `exclude`: a facet count that includes withdrawn
+    # documents would not match the page it labels.
+    if not filters.include_withdrawn:
+        clauses.append("d.withdrawn_at IS NULL")
 
     where = " WHERE " + " AND ".join(clauses) if clauses else ""
     return where, params

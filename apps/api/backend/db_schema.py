@@ -43,6 +43,15 @@ documents = Table(
     Column("source_hash", Text),
     Column("provenance", Text),
     Column("corpus_lane", Text),
+    # Which corpus root this row was synced from -- `acts`, `rules`, `ordinance`.
+    # NOT `corpus_lane`, which is the Library's browse facet (Customs, Sales Tax...)
+    # and says nothing about where the file came from. Reconciliation needs the
+    # origin, because syncing one corpus must never withdraw another's documents.
+    Column("corpus_origin", Text),
+    # Set when a document's JSON left `output/`; never a delete, because the
+    # annotations, findings and exported evidence that point at it are the audit
+    # trail for a legally binding corpus. Cleared automatically if it reappears.
+    Column("withdrawn_at", Text),
     Column("statute_family_id", Text),
     Column("display_title", Text),
     Column("edition_date", Text),
