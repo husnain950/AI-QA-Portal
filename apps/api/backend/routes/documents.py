@@ -166,6 +166,7 @@ async def _document_response(
         status=r["status"],
         source_type=r["source_type"],
         source_key=r["source_key"],
+        withdrawn_at=r["withdrawn_at"] if "withdrawn_at" in r.keys() else None,
         stats=_document_stats(
             reviewed=r["reviewed"],
             approved=r["approved"],
@@ -393,7 +394,7 @@ async def list_documents(db: DatabaseConnection = Depends(get_db)):
         SELECT 
             d.id, d.name, d.pdf_filename, d.json_filename, d.total_sections,
             d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
-            d.provenance, d.corpus_lane,
+            d.provenance, d.corpus_lane, d.withdrawn_at,
             {_DOC_STATS_SELECT},
             {_DOC_VERSION_SELECT}
         FROM documents d
@@ -417,7 +418,7 @@ async def get_document(document_id: str, db: DatabaseConnection = Depends(get_db
         SELECT 
             d.id, d.name, d.pdf_filename, d.json_filename, d.total_sections,
             d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
-            d.provenance, d.corpus_lane,
+            d.provenance, d.corpus_lane, d.withdrawn_at,
             {_DOC_STATS_SELECT},
             {_DOC_VERSION_SELECT}
         FROM documents d
@@ -543,7 +544,7 @@ async def _document_response_by_id(
         SELECT
             d.id, d.name, d.pdf_filename, d.json_filename, d.total_sections,
             d.total_pages, d.uploaded_at, d.status, d.source_type, d.source_key,
-            d.provenance, d.corpus_lane,
+            d.provenance, d.corpus_lane, d.withdrawn_at,
             {_DOC_STATS_SELECT},
             {_DOC_VERSION_SELECT}
         FROM documents d

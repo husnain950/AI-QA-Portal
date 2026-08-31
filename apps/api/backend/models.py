@@ -50,6 +50,10 @@ class DocumentResponse(DocumentBase):
     health: Optional["VersionMetrics"] = None
     provenance: Optional[DocumentProvenance] = None
     corpus_lane: Optional[str] = None
+    # Set when the pipeline stopped producing this document. The rows are kept -- the
+    # annotations and exported evidence pointing at them are the audit trail -- so the
+    # reviewer is told rather than shown a parse that no longer exists.
+    withdrawn_at: Optional[str] = None
 
 
 class EditionSibling(BaseModel):

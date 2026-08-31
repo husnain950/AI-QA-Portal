@@ -300,6 +300,11 @@ async def sync_validated_pair(
         and blob_store.usable(blob_store.blob_path(existing["json_filename"]))
         and not force
         and existing.get("corpus_lane")
+        # ...and `corpus_origin`, for the same reason `corpus_lane` is here: a row
+        # that predates the column has to be reprocessed once to acquire it, or it
+        # would stay invisible to reconciliation forever.
+        and existing.get("corpus_origin")
+        and not existing.get("withdrawn_at")
     ):
         return "skipped"
 
@@ -344,7 +349,7 @@ async def sync_validated_pair(
                 """
                 UPDATE documents
                 SET name = ?, pdf_filename = ?, total_pages = ?, source_hash = ?,
-                    corpus_lane = ?
+                    corpus_lane = ?, corpus_origin = ?, withdrawn_at = NULL
                 WHERE id = ?
                 """,
                 (
@@ -353,6 +358,10 @@ async def sync_validated_pair(
                     validated.total_pages,
                     validated.source_hash,
                     corpus_lane,
+                    corpus_origin,
+                    # A document that comes back is not withdrawn. Clearing it here
+                    # rather than in reconciliation means a re-sync of one document
+                    # restores it without waiting for a whole-corpus pass.
                     document_id,
                 ),
             )
@@ -362,8 +371,8 @@ async def sync_validated_pair(
                 INSERT INTO documents (
                     id, name, pdf_filename, json_filename, total_sections,
                     total_pages, uploaded_at, status, source_type, source_key,
-                    source_hash, corpus_lane
-                ) VALUES (?, ?, ?, '', 0, ?, ?, 'pending', ?, ?, ?, ?)
+                    source_hash, corpus_lane, corpus_origin
+                ) VALUES (?, ?, ?, '', 0, ?, ?, 'pending', ?, ?, ?, ?, ?)
                 """,
                 (
                     document_id,
@@ -375,6 +384,7 @@ async def sync_validated_pair(
                     pair.source_key,
                     validated.source_hash,
                     corpus_lane,
+                    corpus_origin,
                 ),
             )
 
@@ -420,6 +430,10 @@ async def run_sync(
         pairs, unmatched = discover_pairs(source), []
 
     summary: Dict[str, object] = {
+        # Every stem `output/` holds, whether or not it validated. Reconciliation
+        # compares against PRESENCE, never against success: a document that failed to
+        # parse is still in the corpus and must not be withdrawn for it.
+        "source_keys": sorted(pair.source_key for pair in pairs),
         "discovered": len(pairs),
         "validated": 0,
         "added": 0,

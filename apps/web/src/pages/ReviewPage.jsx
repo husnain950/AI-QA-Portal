@@ -30,6 +30,7 @@ import { TAG_NEEDS_REVIEW, TAG_PROVISIONAL } from '../utils/documentTags';
 import { recordDocumentView } from '../utils/recents';
 import { documentLane, laneLabel } from '../utils/corpusLanes';
 import { editionDateFromName } from '../utils/editions';
+import { fullDateTime } from '../utils/time';
 import { timelinePath } from '../utils/timeline';
 
 const ReviewPage = () => {
@@ -357,6 +358,19 @@ const ReviewPage = () => {
                 onClose={() => setVersionsOpen(false)}
                 onChanged={() => refreshReviewData()}
             />
+
+            {activeDocument.withdrawn_at ? (
+                <div className="withdrawn-banner" role="status" data-testid="withdrawn-banner">
+                    <AlertCircle size={16} />
+                    <div className="withdrawn-banner-body">
+                        <strong>This document is no longer in the corpus.</strong>
+                        The pipeline stopped producing it on{' '}
+                        {fullDateTime(activeDocument.withdrawn_at)}. What you see below
+                        is the last parse it made. Review here is recorded but will not
+                        describe anything the pipeline currently outputs.
+                    </div>
+                </div>
+            ) : null}
 
             {reviewSessionId && queueFinding ? (
                 <div className="review-session-strip" aria-label="Finding review session">

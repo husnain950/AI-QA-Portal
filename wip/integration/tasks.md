@@ -169,14 +169,45 @@ A second sync of an unchanged corpus is `skipped 3, added 0, updated 0`.
 
 Closes **P4**.
 
-- [ ] `documents.withdrawn_at` (nullable timestamp, never a delete)
-- [ ] sync computes the corpus stem set **per synced lane** and withdraws the difference,
-      scoped by `--only` so a one-lane sync never touches another lane
-- [ ] a reappearing stem clears it — idempotent, reversible
-- [ ] library query excludes withdrawn by default; API exposes the flag
-- [ ] review page shows a withdrawn banner instead of a silently stale parse
+- [x] `documents.withdrawn_at` (nullable timestamp, never a delete) and
+      `documents.corpus_origin` — Alembic `0005_document_withdrawal`
+- [x] `corpus_sync.reconcile_corpus` withdraws what a corpus no longer holds,
+      **scoped by `corpus_origin`**, and restores what came back
+- [x] `sync_validated_pair` clears `withdrawn_at` for a document it wrote, and its
+      `skipped` fast path refuses to skip a row that is withdrawn or has no origin —
+      the same idiom `corpus_lane` already used
+- [x] only reconciles a corpus that was actually read; an unreadable root yields no
+      stems, and withdrawing on a listing that never happened would empty the portal
+- [x] library query excludes withdrawn by default, and the clause is **not**
+      skippable by facet exclusion — a facet that counted them would not match the
+      page it labels
+- [x] API exposes `withdrawn_at`; the review page shows a banner instead of a
+      silently stale parse
+- [x] 9 backend tests + 2 frontend tests
 
----
+### Why `corpus_origin` and not `corpus_lane`
+
+`corpus_lane` looks like it would do the job. It does not: it is the Library's browse
+facet (Customs, Sales Tax, Income Tax Rules...) and a row's lane says nothing about
+which corpus root the file was synced from. Without a real origin,
+`sync_corpus.py --only rules` would compute "everything not in the rules corpus" and
+**withdraw all 80 acts documents**. There is a test named after exactly that.
+
+### Measured end to end, through the real sync
+
+```
+sync 1   added 3, withdrawn 0
+         (move one JSON to output/_refused/, as the pipeline does)
+sync 2   added 0, skipped 2, withdrawn 1
+         library shows 2 of 3 documents; 7 sections STILL STORED
+         (move it back)
+sync 3   library shows 3 documents again
+```
+
+Nothing is deleted at any point. The annotations, findings and exported evidence that
+point at a withdrawn document are the audit trail for a legally binding corpus; losing
+them to a conversion rerun with the wrong flag would be far worse than showing a
+document marked withdrawn.
 
 ## PR-D — One production identity, and deploy it
 
@@ -315,3 +346,11 @@ two are separable is why PR-A made them separate functions.
 `docker build -f apps/api/Dockerfile` completes clean with the `legal_contract` copy
 added. Docker had been down on this host since `wip/HANDOVER.md` Phase 1; it is up now,
 which also clears that phase's one unchecked box.
+
+**2026-08-31 — the web test suite cannot be run as a gate on this host.** 17 of 191
+vitest tests fail identically on clean `main`: `window.localStorage` is undefined
+because this machine runs Node 26 and Node 26 needs `--localstorage-file`. CI pins
+Node 22 and is green. Environment only, pre-existing, and **not worked around** —
+changing the project's vitest config to suit one machine's Node version is how a real
+signal gets hidden later. Individual test files run fine
+(`npx vitest run src/test/<file>`), which is what PR-C used; the suite is CI's job.
