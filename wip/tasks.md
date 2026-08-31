@@ -197,9 +197,9 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**33 hits across 103 converted editions**, re-measured 2026-08-30 after round 10.
-210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33. Documents held: acts 80, rules 11,
-ordinance 12.
+**30 hits across 103 converted editions**, re-measured 2026-08-30 after round 11.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30. Documents held: acts 80,
+rules 11, ordinance 12.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
 numerals, read the same way in the body scan, the tree and the invariant.
@@ -223,6 +223,8 @@ Round 9: [`wip/phase3-cursor-cascade.md`](./phase3-cursor-cascade.md) — one ch
 starved sections.
 Round 10: [`wip/phase3-header-band.md`](./phase3-header-band.md) — a band measured from a
 header that does not exist.
+Round 11: [`wip/phase3-pageless-contents.md`](./phase3-pageless-contents.md) — 118 sections
+the register could not see.
 
 **Picking this up cold?** [`wip/HANDOVER.md`](./HANDOVER.md) has the full state: what
 landed, the 16 open items with their traced leads, and the working rules learned the hard
@@ -230,15 +232,15 @@ way (never edit `packages/` mid-conversion; measure invariant and parser separat
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 10 (7) | 8 (4) | 5 (4) | **23** | 32 |
-| `no_foreign_section_start_in_body` | 1 (1) | 1 (1) | — | **2** | 4 |
-| `section_codes_ordered` | 4 (3) | — | — | 4 | 4 |
-| `no_chapter_caption_in_section_heading` | 3 (3) | — | — | 3 | 3 |
+| `section_carries_its_body` | 8 (6) | 8 (4) | 5 (4) | **21** | 23 |
+| `no_foreign_section_start_in_body` | — | 1 (1) | — | **1** | 2 |
+| `section_codes_ordered` | 3 (2) | — | — | **3** | 4 |
+| `no_chapter_caption_in_section_heading` | 4 (4) | — | — | **4** | 3 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
 | `structure_counts` | — | — | — | **0** | 0 |
 | `no_footnote_text_in_body` | — | — | — | **0** | 0 |
 | `body_chapters_in_tree` | — | — | — | **0** | 0 |
-| **per lane** | **19** | **9** | **5** | **33** | 44 |
+| **per lane** | **16** | **9** | **5** | **30** | 33 |
 
 `no_chapter_caption_in_section_heading` gains one because round 4 made it visible: with
 rule 150ZQZA finally binding, its heading is readable, and it is a FALSE positive — the
@@ -295,9 +297,32 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       Honest caveat: the acts lane did **not** move. 32 of the 48 gained lines were
       hyphenated Customs sections already binding by another route — lines newly matched
       is not the same measurement as sections newly bound.
-- [ ] **`section_carries_its_body` — the remaining 23.** Rounds 9 and 10 took fourteen of
-      them. The residue: 8 rules, 5 ordinance (`fbr_ingest`, sequenced after the Phase 4
-      decision on that fork), and 10 acts spread over seven editions.
+- [ ] **`section_carries_its_body` — the remaining 21.** The residue: 8 rules, 5 ordinance
+      (`fbr_ingest`, sequenced after the Phase 4 decision on that fork), and 8 acts.
+- [x] **A contents page with no page numbers — 118 sections, and 3 register hits.**
+      `Sales Tax Act 1990 (30.06.2021)` parsed **9** section leaves; its eighteen sibling
+      editions parse 110–151, and the sections are in the PDF. It has read 9 since before
+      Phase 3 (5 before Phase 2). Its contents page prints dot leaders and NO folio, so nine
+      rows survived out of ~140 and every one carried `printed_page = 1990` — the year, off
+      the running title. `build_sections` is page-anchored, so entries expecting page 1995 of
+      a 291-page document could never bind and 34,864 characters folded into s.19.
+      `discover.py` is the body-driven fallback for editions that print no contents page; it
+      was gated on the TOC producing *nothing*, and nine rows of garbage is not nothing. The
+      gate now also fires when **no entry lands inside the document** — not "too few
+      entries", because a flat instrument legitimately has three.
+      **9 → 127 sections, one document changed corpus-wide, conservation 100.000%.** Locked
+      by case `sta300621_pageless_toc_binds_late_sections`, which fails with the gate
+      reverted. `no_chapter_caption_in_section_heading` gains one: s.32AA finally binds, so
+      the same real leak already open on two sibling editions is now visible here too.
+- [ ] **No invariant can see a document that lost 93% of its sections.** The register moved
+      3 while the document gained 118. `section_carries_its_body` reports leaves that exist;
+      `structure_counts` compares the tree against a contents page that was itself the thing
+      that failed. The obvious check does not survive measurement — "no chapter may be empty"
+      fires on **29 of 103** documents, and twenty Customs editions agreeing on an empty
+      `CHAPTER XIX-A` is evidence of a real omitted chapter, not a defect. What would catch
+      it is a CROSS-EDITION fact (9 leaves where 18 siblings have ~140) and the suite has no
+      place for one: invariants run per document. `signatures.json` already carries the
+      group, so the comparison exists in the corpus and only the wiring does not.
 - [x] **The header band — 11 hits, and a number with no measurement behind it.** Sales Tax
       Rules 01-01-2025 held 16 of the register's 64; `why_unbuilt --lane rules` (usable for
       the first time after round 9) reported 11 of its 12 stubs as "code never opens a body
