@@ -23,7 +23,7 @@ from pypdf import PdfWriter
 
 from backend.routes.documents import upload_document
 from backend.sync_acts import deterministic_document_id
-from backend.tests.conftest import sample_document
+from backend.tests.conftest import active_version_id, sample_document
 
 
 def _pdf_bytes() -> bytes:
@@ -199,3 +199,38 @@ async def test_the_seeded_source_hash_matches_what_a_local_sync_computes(db, run
         f"{blob_store.sha256_bytes(PDF_BYTES)}:{blob_store.sha256_bytes(body)}".encode("ascii")
     ).hexdigest()
     assert row["source_hash"] == expected, json.dumps(row, indent=2)
+
+
+async def test_replace_json_adopts_a_row_that_predates_corpus_identity(db, runtime_sandbox):
+    """Production's rows: `source_type='upload'`, `source_key=NULL`, a uuid4 id.
+
+    The identity is written onto the row that is already there. The id is
+    deliberately NOT changed -- production ids are inside exported evidence.
+    """
+    from backend.routes.documents import replace_json
+
+    created = await upload_document(**_upload(name="Legacy Seeded Act"), db=db)
+    assert created.source_type == "upload" and created.source_key is None
+    version = await active_version_id(db, created.id)
+
+    await replace_json(
+        document_id=created.id,
+        json_file=UploadFile(
+            filename="act.json",
+            file=io.BytesIO(sample_document(second_text="Refreshed").encode()),
+        ),
+        note="Corpus refresh from push_corpus.",
+        reviewer_name=None,
+        corpus_lane="customs",
+        source_key="Legacy Seeded Act",
+        corpus_origin="acts",
+        db=db,
+        actor="push_corpus",
+        if_match=version,
+    )
+
+    row = await _row(db, created.id)
+    assert row["id"] == created.id, "adoption must not re-mint the id"
+    assert row["source_type"] == "acts_corpus"
+    assert row["source_key"] == "Legacy Seeded Act"
+    assert row["corpus_origin"] == "acts"

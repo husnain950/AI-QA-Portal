@@ -727,6 +727,8 @@ async def replace_json(
     note: Optional[str] = Form(None),
     reviewer_name: Optional[str] = Form(None),
     corpus_lane: Optional[str] = Form(None),
+    source_key: Optional[str] = Form(None),
+    corpus_origin: Optional[str] = Form(None),
     db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
     if_match: Optional[str] = Header(None, alias="If-Match"),
@@ -740,14 +742,36 @@ async def replace_json(
     ``corpus_lane`` is optional and only ever set, never cleared: ``push_corpus`` knows
     the lane of the corpus it is re-seeding from, and a document that arrived over
     ``/upload`` has no other way to leave the Manual bucket.
+
+    ``source_key`` and ``corpus_origin`` are there for the same reason and are the
+    ADOPTION path. A deployment seeded before corpus identity existed holds its
+    documents with no key at all; re-uploading them would create a second row beside
+    each, so ``push_corpus`` refreshes them instead and this is the call that writes
+    the identity onto the row that is already there. The id is deliberately left
+    alone -- production ids are already inside exported evidence bundles.
     """
     del reviewer_name
     expected = _required_if_match(if_match)
     await _add_version(db, document_id, json_file, note, actor, expected)
     lane = normalize_lane(corpus_lane)
-    if lane:
+    key = (source_key.strip() or None) if isinstance(source_key, str) else None
+    origin = (
+        (corpus_origin.strip() or None) if isinstance(corpus_origin, str) else None
+    )
+    if key or lane or origin:
         await db.execute(
-            "UPDATE documents SET corpus_lane = ? WHERE id = ?", (lane, document_id)
+            """
+            UPDATE documents
+            SET corpus_lane = COALESCE(?, corpus_lane),
+                source_key = COALESCE(?, source_key),
+                source_type = COALESCE(?, source_type),
+                corpus_origin = COALESCE(?, corpus_origin),
+                withdrawn_at = NULL
+            WHERE id = ?
+            """,
+            # `source_type` moves only when a key arrives with it -- computed here
+            # rather than as a CASE, which Postgres could not type-infer.
+            (lane, key, SOURCE_TYPE if key else None, origin, document_id),
         )
         await db.commit()
     return await _document_response_by_id(db, document_id)

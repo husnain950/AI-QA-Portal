@@ -214,3 +214,57 @@ def test_main_requires_credentials_for_live_push(monkeypatch):
         assert False, "expected SystemExit"
     except SystemExit as exc:
         assert "ADMIN_EMAIL" in str(exc)
+
+
+def test_a_deployment_seeded_before_identity_is_adopted_not_duplicated(tmp_path):
+    """The live portal's 106 documents, which have no `source_key` at all.
+
+    Uploading them again would create a second row beside each. They are matched by
+    name and REFRESHED instead -- the call that writes the identity onto the row that
+    is already there -- even when the content is byte-identical, because it is the
+    identity that needs writing, not the JSON.
+    """
+    body = tmp_path / "a.json"
+    body.write_text("{}", encoding="utf-8")
+    identical = f"json/{blob_store.sha256_file(body)}.json"
+
+    local = [push_corpus.LocalDoc(10, "Customs Act 2024", "a.pdf", str(body),
+                                  "customs", "Customs Act 2024", "acts")]
+    remote = {"name:Customs Act 2024": {"id": "prod-uuid4", "json_filename": identical}}
+
+    to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
+    assert to_upload == [], "adoption must never create a second row"
+    assert to_refresh[0][0] == "prod-uuid4", "and must keep the id production already has"
+
+
+def test_adoption_does_not_fire_once_the_key_is_written(tmp_path):
+    """The second push must be a no-op, or every run would manufacture a version."""
+    body = tmp_path / "a.json"
+    body.write_text("{}", encoding="utf-8")
+    identical = f"json/{blob_store.sha256_file(body)}.json"
+
+    local = [push_corpus.LocalDoc(10, "Customs Act 2024", "a.pdf", str(body),
+                                  "customs", "Customs Act 2024", "acts")]
+    remote = {"key:Customs Act 2024": {"id": "prod-uuid4", "json_filename": identical}}
+
+    assert push_corpus.plan_refresh(local, remote) == ([], [])
+
+
+def test_plan_orphans_counts_a_document_once_under_either_identity(tmp_path):
+    """The operator-facing "no local match" line. This tool never deletes, so that
+    line is the only warning -- and it must not cry wolf over documents that are
+    about to be adopted."""
+    body = tmp_path / "a.json"
+    body.write_text("{}", encoding="utf-8")
+    local = [
+        push_corpus.LocalDoc(10, "Adopted Act", "a.pdf", str(body), "customs",
+                             "Adopted Act", "acts"),
+        push_corpus.LocalDoc(10, "Keyed Act", "b.pdf", str(body), "customs",
+                             "Keyed Act", "acts"),
+    ]
+    remote = {
+        "name:Adopted Act": {"id": "1", "json_filename": "x"},   # pre-identity
+        "key:Keyed Act": {"id": "2", "json_filename": "x"},      # already adopted
+        "name:Really Gone": {"id": "3", "json_filename": "x"},   # genuinely absent
+    }
+    assert push_corpus.plan_orphans(local, remote) == {"name:Really Gone"}

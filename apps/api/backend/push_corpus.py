@@ -212,6 +212,19 @@ def existing_docs():
         }
 
 
+def plan_orphans(local, remote) -> set[str]:
+    """Remote documents with no local counterpart, under EITHER identity.
+
+    Operator-facing: the line it prints is the only warning that a deployment holds
+    something the corpus does not, and this tool never deletes. Matching on the corpus
+    key alone reported all 106 adoptable documents as orphans -- true of the key, and
+    completely misleading about the document.
+    """
+    known = {f"name:{item.name}" for item in local}
+    known |= {f"key:{item.source_key}" for item in local if item.source_key}
+    return set(remote) - known
+
+
 def plan_refresh(local, remote):
     """Split local documents into ``(to_upload, to_refresh)``.
 
@@ -226,12 +239,21 @@ def plan_refresh(local, remote):
     """
     to_upload, to_refresh = [], []
     for item in local:
-        match = remote.get(
-            f"key:{item.source_key}" if item.source_key else f"name:{item.name}"
-        )
+        by_key = f"key:{item.source_key}" if item.source_key else None
+        match = remote.get(by_key) if by_key else None
+        # Adoption. A deployment seeded before corpus identity existed holds the
+        # document under `name:` with no `source_key` at all -- 106 of them on the
+        # live portal at the time of writing. Uploading it again would create a
+        # SECOND row beside it, so it is matched by name and refreshed instead, which
+        # is the call that writes the key onto the row it already has. Its id stays
+        # what it is: production ids are already inside exported evidence.
+        adopting = False
+        if match is None:
+            match = remote.get(f"name:{item.name}")
+            adopting = match is not None and by_key is not None
         if match is None:
             to_upload.append(item)
-        elif match["json_filename"] != f"json/{sha256_file(item.json)}.json":
+        elif adopting or match["json_filename"] != f"json/{sha256_file(item.json)}.json":
             to_refresh.append((match["id"], *item))
     return to_upload, to_refresh
 
@@ -279,11 +301,7 @@ def main(argv: list[str] | None = None):
 
     upload_bytes = sum(item.size for item in to_upload)
     refresh_bytes = sum(os.path.getsize(item[4]) for item in to_refresh)
-    local_keys = {
-        f"key:{item.source_key}" if item.source_key else f"name:{item.name}"
-        for item in todo
-    }
-    orphans = set(present) - local_keys
+    orphans = plan_orphans(todo, present)
     print(
         f"{len(todo)} local documents, {len(present)} on production: "
         f"{len(to_refresh)} to refresh ({refresh_bytes / 1048576:.0f} MB of JSON), "
@@ -349,10 +367,17 @@ def main(argv: list[str] | None = None):
 
     # Refresh first: it is JSON only, and it is what makes an already-visible library
     # tell the truth about its OCR provenance. Uploads can take their time afterwards.
-    for doc_id, _size, name, _pdf, js, lane, _key, _origin in to_refresh:
+    for doc_id, _size, name, _pdf, js, lane, source_key, origin in to_refresh:
         fields = {"note": "Corpus refresh from push_corpus."}
         if lane:
             fields["corpus_lane"] = lane
+        # Sent on every refresh, not just an adoption: it is idempotent, and it is
+        # what turns a row seeded before corpus identity into one the pipeline-health
+        # ingest and reconciliation can both see.
+        if source_key:
+            fields["source_key"] = source_key
+        if origin:
+            fields["corpus_origin"] = origin
         send(
             "refresh",
             f"{BASE}/api/documents/{doc_id}/replace-json",
