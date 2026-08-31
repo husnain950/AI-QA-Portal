@@ -403,7 +403,36 @@ def calibrate(pdf, sample: int = 36, profile: Profile = ACTS) -> Calibration:
         # cut just below the header line; the first body line sits lower still
         header_max_top = statistics.median(htops) + 6.0
     else:
+        # Nothing clears 40%, so there is no ONE header to measure a band from.
+        # The band therefore stays positional -- 5.5% is the only figure
+        # available -- but "no header was DETECTED" is not "there is no header",
+        # and what the band DROPS is decided by recurrence instead of by
+        # position alone.  Measured over the 50 documents in this corpus that
+        # reach this branch, five of them do have a header the 40% test missed:
+        #
+        #   Public Finance Management Act 2019   '#(cid:#) THE GAZETTE OF
+        #                                         PAKISTAN, EXTRA., JU...' and
+        #                                        'PART I](cid:#) THE GAZETTE...'
+        #                                        -- a gazette alternating recto
+        #                                        and verso, so each variant sits
+        #                                        near half and neither clears
+        #   Finance Act 2023                     'NATIONAL ASSEMBLY SECRETARIAT'
+        #   Income Tax Rules 2002                per-CHAPTER headers, six of them
+        #   Sales Tax Act 15.9.2021              repeated table column headers
+        #
+        # and the other 45 have none.  Sales Tax Rules 2006 (01-01-2025) is what
+        # that buys: every one of its top lines is unique, because the document
+        # prints no header and the top of a page is simply where the next rule
+        # begins.  Rule 35 opens at top=41.1, rule 76 at 41.0, rule 101 at 41.1
+        # and rule 150X at 41.5, against a flat 43.6pt band -- all four were
+        # discarded as furniture and reported as heading-only stubs.
+        #
+        # This is the principle ``pagemodel._is_header_line`` already states for
+        # the detected case: decide what a line is from what it says, not from
+        # where it sits.
         running_header, header_max_top = "", page_h * 0.055
+        keys = {k for k, cnt in header_texts.items()
+                if cnt >= 2 and sum(c.isalpha() for c in k) >= 8}
 
     # ---- footer --------------------------------------------------------
     footer_min_top = (statistics.median(foot_tops) - 8.0 if foot_tops

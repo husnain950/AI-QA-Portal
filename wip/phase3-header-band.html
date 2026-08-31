@@ -1,0 +1,386 @@
+<title>A Band With No Evidence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:#f6f6f4; --paper-sunk:#ecedea; --ink:#171c24; --ink-soft:#3a434f;
+  --muted:#656e79; --rule:#d5d7d3; --rule-soft:#e4e5e2;
+  --accent:#1d5b63; --accent-bg:#e2edee;
+  --defect:#9c2f2a; --defect-bg:#f4e5e3;
+  --good:#2c6146; --good-bg:#e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+    --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+    --accent:#6fb2ba; --accent-bg:#163034;
+    --defect:#dd8880; --defect-bg:#331d1c;
+    --good:#74b795; --good-bg:#162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+  --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+  --accent:#6fb2ba; --accent-bg:#163034;
+  --defect:#dd8880; --defect-bg:#331d1c;
+  --good:#74b795; --good-bg:#162b22;
+}
+* { box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif; font-size:18px;
+  line-height:1.62; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+.sheet { max-width:1080px; margin:0 auto; padding:4rem 2rem 6rem; }
+.block { display:grid; grid-template-columns:12.5rem 1fr; gap:0 2.75rem; align-items:start; }
+.block + .block { margin-top:3.25rem; }
+.gutter { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.74rem; line-height:1.5;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right;
+  padding-top:.5rem; border-right:1px solid var(--rule-soft); padding-right:2.75rem;
+  margin-right:-2.75rem; min-height:2rem; }
+.gutter .note { display:block; text-transform:none; letter-spacing:0; font-size:.82rem;
+  font-style:italic; font-family:"Newsreader",Georgia,serif; color:var(--muted);
+  margin-top:.6rem; line-height:1.45; }
+.body { min-width:0; max-width:62ch; }
+@media (max-width:860px) {
+  .block { grid-template-columns:1fr; gap:0; }
+  .gutter { text-align:left; border-right:0; padding-right:0; margin-right:0;
+    border-left:2px solid var(--rule); padding-left:.85rem; margin-bottom:.9rem; padding-top:0; }
+  .body { max-width:none; } .sheet { padding:2.5rem 1.25rem 4rem; }
+}
+.masthead { border-bottom:2px solid var(--ink); padding-bottom:1.5rem; margin-bottom:3.5rem; }
+.eyebrow { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.72rem; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 1rem; }
+h1 { font-weight:300; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08;
+  letter-spacing:-.018em; margin:0 0 .7rem; text-wrap:balance; }
+h1 em { font-style:italic; color:var(--accent); }
+.standfirst { font-size:1.13rem; color:var(--ink-soft); margin:0; max-width:56ch; text-wrap:pretty; }
+h2 { font-weight:400; font-size:1.62rem; line-height:1.2; letter-spacing:-.012em; margin:0 0 1rem; text-wrap:balance; }
+h3 { font-family:"Source Sans 3",system-ui,sans-serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:2rem 0 .75rem; }
+p { margin:0 0 1.05rem; text-wrap:pretty; }
+.body > :last-child { margin-bottom:0; }
+strong { font-weight:600; }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible, .scroller:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:2px; }
+code { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.845em;
+  background:var(--paper-sunk); padding:.1em .34em; border-radius:3px; border:1px solid var(--rule-soft); }
+.scoreline { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin:0 0 3.5rem; }
+.score { background:var(--paper); padding:1.15rem; }
+.score dt { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.68rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem; }
+.score dd { margin:0; font-size:1.85rem; font-weight:300; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.score .was { font-size:.8rem; color:var(--muted); margin-left:.45rem; font-variant-numeric:tabular-nums; }
+.score .to { color:var(--good); } .score .flat { color:var(--ink-soft); }
+.scroller { overflow-x:auto; }
+pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem; line-height:1.75;
+  background:var(--paper-sunk); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:1rem 1.15rem; margin:0 0 1.05rem; white-space:pre; }
+pre code { background:none; padding:0; border:0; font-size:inherit; }
+pre .hl { color:var(--defect); font-weight:500; }
+pre .dim { color:var(--muted); }
+table { width:100%; border-collapse:collapse; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.875rem; margin:0 0 1.05rem; }
+caption { caption-side:top; text-align:left; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:.6rem; }
+th, td { text-align:left; padding:.62rem .75rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:.7rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--rule); }
+tbody tr:last-child td { border-bottom:0; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+tr.yes td:last-child { color:var(--defect); font-weight:600; }
+tr.no td:last-child { color:var(--good); font-weight:600; }
+tr.wrong td:first-child { box-shadow:inset 3px 0 0 var(--defect); }
+tr.right td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+.tag { display:inline-block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .42rem; border-radius:3px; white-space:nowrap; }
+.tag.ok { background:var(--good-bg); color:var(--good); }
+.tag.bad { background:var(--defect-bg); color:var(--defect); }
+.figcap { font-size:.82rem; color:var(--muted); font-style:italic; margin:0 0 1.05rem; }
+.pull { border-left:3px solid var(--accent); padding:.1rem 0 .1rem 1.15rem; margin:1.6rem 0;
+  font-size:1.12rem; color:var(--ink-soft); font-style:italic; }
+.pull strong { font-style:normal; color:var(--ink); }
+blockquote { margin:0 0 1.05rem; padding:.1rem 0 .1rem 1.15rem; border-left:2px solid var(--rule);
+  color:var(--muted); font-style:italic; font-size:.95rem; }
+footer { margin-top:4.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-family:"Source Sans 3",system-ui,sans-serif; font-size:.8rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">Phase 3 · Round 10 · Anomaly register</p>
+    <h1>A band measured from a header that <em>does not exist</em></h1>
+    <p class="standfirst">
+      Four rules of the Sales Tax Rules print their heading at the very top of a page. A
+      flat 5.5% margin — a number with no measurement behind it — threw all four away and
+      called them heading-only stubs.
+    </p>
+  </header>
+
+  <dl class="scoreline">
+    <div class="score"><dt>Register</dt><dd><span class="to">33</span><span class="was">← 44</span></dd></div>
+    <div class="score"><dt>rules lane</dt><dd><span class="to">9</span><span class="was">← 20</span></dd></div>
+    <div class="score"><dt>Characters</dt><dd><span class="to">+3,904</span><span class="was">0 lost</span></dd></div>
+    <div class="score"><dt>Conservation</dt><dd><span class="flat">56/56 within gate</span></dd></div>
+  </dl>
+
+  <section class="block">
+    <div class="gutter">
+      The cluster
+      <span class="note">A quarter of the register, in one document.</span>
+    </div>
+    <div class="body">
+      <h2>Not a cascade — the grammar never saw them</h2>
+      <p>
+        Sales Tax Rules 2006 (01-01-2025) held <strong>16 of the 64 hits</strong> this
+        session opened with, against 2 in its own sibling edition. Round 9's fix to
+        <code>why_unbuilt.py</code> made the rules lane diagnosable for the first time, and
+        the answer looks nothing like round 9:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>code       exp found pages   branch   cursor  note
+2           20 [116, 169, …] NONE          9  nearest available occurrence is 96 page(s) away
+35          59 <span class="warn">[]</span>            NONE       1138  <span class="warn">code never opens a body line</span>
+76          88 <span class="warn">[]</span>            NONE       2061  <span class="warn">code never opens a body line</span>
+101         93 <span class="warn">[]</span>            NONE       2215  <span class="warn">code never opens a body line</span>
+150X       110 <span class="warn">[]</span>            NONE       2714  <span class="warn">code never opens a body line</span>
+150ZQT     144 <span class="warn">[]</span>            NONE       3759  <span class="warn">code never opens a body line</span></code></pre>
+      </div>
+      <p>And <code>pdftotext</code> says the bodies are certainly there, on exactly the pages the contents page predicts:</p>
+      <div class="scroller" tabindex="0">
+<pre><code>2547:   35. Responsibility of the claimant.—The automated processing of refund claims shall be
+3804:   76. Power to require information to be furnished.--The referring authority or the
+4028:  101. Attachment of property in partnership.-- (l) Where the property be attached consists
+4771:  150X. Same conditions to apply in respect of buyer for receiving electronic invoices.--</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The cause
+      <span class="note">5.5% of the page is not a measurement of anything.</span>
+    </div>
+    <div class="body">
+      <h2>They all sit at top ≈ 41, against a band of 43.6</h2>
+      <div class="scroller" tabindex="0">
+<pre><code>p 59  '35. Responsibility of the claimant.—…'   top = <span class="chosen">41.1</span>
+p 88  '76. Power to require information…'        top = <span class="chosen">41.0</span>    header_max_top = <span class="warn">43.6</span>
+p 93  '101. Attachment of property…'             top = <span class="chosen">41.1</span>
+p110  '150X. Same conditions to apply…'          top = <span class="chosen">41.5</span></code></pre>
+      </div>
+      <p>
+        <code>calibrate</code> finds no running header here — <code>running_header=''</code>,
+        <code>header_keys=[]</code> — so the band falls back to
+        <code>page_h * 0.055</code>, and <code>_is_header_line</code> dropped everything
+        above it.
+      </p>
+      <p>
+        That function exists for exactly this. Its docstring is ledger <strong>P37</strong>,
+        where Federal Excise 01.07.2017's whole THIRD SCHEDULE title block was discarded and
+        its content appended to the SECOND SCHEDULE, and it states the principle plainly —
+        <em>"deciding what a line is from where it sits instead of from what it says."</em>
+        But its guard only applied where a header had been <strong>detected</strong>:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>    keys = getattr(cal, "header_keys", ()) or ()
+    if not keys:
+        <span class="warn">return True</span>                       # no header detected: positional band</code></pre>
+      </div>
+      <p class="pull warn">
+        The 5.5% band is conservative about keeping headers <strong>out</strong>, and the
+        exact opposite about keeping law <strong>in</strong>. This document prints no header,
+        so the top of a page is simply where the next rule begins.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The fix
+      <span class="note">Shorter than what it replaces.</span>
+    </div>
+    <div class="body">
+      <h2>Drop what repeats; keep what does not</h2>
+      <div class="scroller" tabindex="0">
+<pre><code>    if ln.top &gt;= cal.header_max_top:
+        return False
+    txt = ln.text().strip()
+    if not txt or not any(c.isalpha() for c in txt):
+        return True                       <span class="dim"># blank, or a bare folio</span>
+    return _FOLIO_RE.sub("#", txt) in (getattr(cal, "header_keys", ()) or ())</code></pre>
+      </div>
+      <p>
+        For a document with a detected header this is the same decision, byte for byte.
+        What changes is that "no keys" now means keep the text — and
+        <code>calibrate</code> fills <code>header_keys</code> from <strong>recurrence</strong>
+        when nothing clears its 40% threshold.
+      </p>
+      <p>That rule was measured before it was kept. Of the <strong>50</strong> documents that reach this branch, <strong>five</strong> do have a header the 40% test missed:</p>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>Document</th><th>What recurs at the top of its pages</th></tr></thead>
+          <tbody>
+            <tr><td>Public Finance Management Act 2019</td><td>a gazette masthead alternating recto and verso, so each half sits near 50% and neither clears 40%</td></tr>
+            <tr><td>Finance Act 2023</td><td><code>NATIONAL ASSEMBLY SECRETARIAT</code></td></tr>
+            <tr><td>Income Tax Rules 2002</td><td>a per-CHAPTER header, six variants</td></tr>
+            <tr><td>Sales Tax Act 15.9.2021</td><td>repeated table column headers</td></tr>
+            <tr><td>Customs Act 11.03.2019 (Urdu)</td><td>its Urdu masthead</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="figcap">The other 45 have none — Sales Tax Rules 01-01-2025 among them, where every top line is unique.</p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      A wrong turn
+      <span class="note">Measure the before, not just the after.</span>
+    </div>
+    <div class="body">
+      <h2>189 leaked lines that were already leaking</h2>
+      <p>
+        I measured Income Tax Rules 2002 as leaking <strong>189</strong> header lines under
+        the new rule, and started building a full-document band census to stop it — cropping
+        every page to the 44pt strip, ~15s on a 318-page document. Then I ran the
+        <strong>old</strong> code on the same document and got the identical 189.
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>running_header='CHAPTER - XIX MISCELLANEOUS'  keys=1  band=46.3
+  OLD: dropped=144 kept=<span class="chosen">189</span>
+  NEW: dropped=144 kept=<span class="chosen">189</span></code></pre>
+      </div>
+      <p class="pull">
+        That document has a <em>detected</em> header, so it never reaches the fallback branch
+        at all. The leak is pre-existing and untouched; the census was 17s per document
+        buying nothing. Reverted. A number that looks like a regression is not one until the
+        old code has been asked the same question.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      Measured
+      <span class="note">Four documents changed. Every change a gain.</span>
+    </div>
+    <div class="body">
+      <h2>+3,904 characters, 0 lost</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>Document</th><th class="num">leaves</th><th class="num">bound</th><th class="num">characters</th></tr></thead>
+          <tbody>
+            <tr><td>Sales Tax Rules 2006 (01-01-2025)</td><td class="num">339 → 339</td><td class="num">338 → 339</td><td class="num">445,377 → <span class="ok">448,927</span></td></tr>
+            <tr><td>AML_CFT Sanction Rules, 2020</td><td class="num">8 → 8</td><td class="num">8 → 8</td><td class="num">8,931 → <span class="ok">9,263</span></td></tr>
+            <tr><td>The Tax Laws (Amendment) Act, 2020</td><td class="num">5 → 5</td><td class="num">5 → 5</td><td class="num">40,423 → <span class="ok">40,442</span></td></tr>
+            <tr><td>The Pakistan Single Window Act, 2021</td><td class="num">23 → 23</td><td class="num">21 → 21</td><td class="num">30,227 → <span class="ok">30,230</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        The conservation audit cannot see text that is <em>added</em>, so the additions were
+        read instead:
+      </p>
+      <div class="scroller" tabindex="0">
+<pre><code>AML_CFT s.2  + 'c) “AML/CFT Regulations” means any regulations, directives,'
+        s.4  + 'vii) the extent to which the contravention was negligent or willful; or'
+        s.6  + '2) Where a monetary penalty has been imposed and if the person'
+Tax Laws (Amendment) 2020 s.2 + 't'   s.3 + 'y'   s.4 + 'on'</code></pre>
+      </div>
+      <p class="figcap">
+        Every one is statute. The single characters are the calibration comment coming true
+        from the other side — that edition prints bare folios at the top of successive pages,
+        and the band had been shaving the first glyphs off its real first line.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      What is left there
+      <span class="note">Three stubs, three different causes, all traced.</span>
+    </div>
+    <div class="body">
+      <h2>Sales Tax Rules 01-01-2025: 12 stubs → 3</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr><td><code>44A</code></td><td>the body prints <code>“44A. -Selection and conduct of audit.-(1)</code> — a left double quotation mark opens the line, so <code>_candidate_code</code> never reaches the code</td></tr>
+            <tr><td><code>150ZQZI</code></td><td>the contents page says <code>150ZQZI</code> (capital i); the body prints <code>150ZQZl</code> (lowercase L)</td></tr>
+            <tr><td><code>150W</code></td><td>its code appears only inside a footnote — <code>'228 The rule 150W is substituted by SRO 1525(I)/2023'</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="figcap">
+        And one from the same document that is not a band problem: the contents page lists
+        rule <code>39E</code>, the body prints <code>39K. Risk management in refund
+        processing</code>. Same title, different code — a renumbering the contents page did
+        not follow.
+      </p>
+      <h2>The failing case, traced to the source</h2>
+      <div class="scroller" tabindex="0">
+<pre><code>'OR'       x0=255.9  x1=276.9   (line above)
+<span class="chosen">'OROTHER'</span>  x0=238.8  x1=310.6   <span class="dim">&lt;- one word, no space in the text layer</span></code></pre>
+      </div>
+      <p>
+        <code>str_bracketed_chapters_classify</code> was asserting <code>ELECTRONIC OR OTHER
+        MEANS</code>, a de-jammed string the parser could never produce — this document's
+        documented <code>no_jammed_words</code> cause, which it already carries an exemption
+        for. The case was failing on a defect it does not test. Its <code>arg</code> now
+        matches the source and it still fails if bracketed-chapter classification regresses.
+        <span class="tag ok">cases 2/2</span>
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="gutter">
+      The register
+      <span class="note">210 → … → 50 → 44 → 33</span>
+    </div>
+    <div class="body">
+      <h2>Where it stands</h2>
+      <div class="scroller" tabindex="0">
+        <table>
+          <thead><tr><th>Invariant</th><th class="num">acts</th><th class="num">rules</th><th class="num">ordinance</th><th class="num">total</th><th class="num">was</th></tr></thead>
+          <tbody>
+            <tr><td><code>section_carries_its_body</code></td><td class="num">10</td><td class="num"><span class="ok">8</span></td><td class="num">5</td><td class="num">23</td><td class="num dim">32</td></tr>
+            <tr><td><code>no_foreign_section_start_in_body</code></td><td class="num">1</td><td class="num"><span class="ok">1</span></td><td class="num">—</td><td class="num">2</td><td class="num dim">4</td></tr>
+            <tr><td><code>section_codes_ordered</code></td><td class="num">4</td><td class="num">—</td><td class="num">—</td><td class="num">4</td><td class="num dim">4</td></tr>
+            <tr><td><code>no_chapter_caption_in_section_heading</code></td><td class="num">3</td><td class="num">—</td><td class="num">—</td><td class="num">3</td><td class="num dim">3</td></tr>
+            <tr><td><code>clause_codes_plausible</code></td><td class="num">1</td><td class="num">—</td><td class="num">—</td><td class="num">1</td><td class="num dim">1</td></tr>
+            <tr><td><strong>per lane</strong></td><td class="num"><strong>19</strong></td><td class="num"><strong>9</strong></td><td class="num"><strong>5</strong></td><td class="num"><strong>33</strong></td><td class="num dim">44</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Gates</h3>
+      <div class="scroller" tabindex="0">
+        <table>
+          <tbody>
+            <tr><td><code>ruff check</code> (bare, as CI runs it)</td><td><span class="tag ok">clean</span></td></tr>
+            <tr><td><code>pytest tools/tests</code></td><td>58 passed, 1 skipped</td></tr>
+            <tr><td>The lock, with the positional fallback restored</td><td><span class="tag ok">fails</span>; <code>__pycache__</code> cleared after</td></tr>
+            <tr><td>Conservation</td><td><span class="tag ok">56/56</span> within gate — customs 20, salestax 19, excise 17</td></tr>
+            <tr><td><code>discover_corpus.py --check</code></td><td><span class="tag ok">no drift</span>, <code>signatures.json</code> unchanged</td></tr>
+            <tr><td>Documents</td><td>80 / 11 / 12, held</td></tr>
+            <tr><td><code>data/ocr_cache</code></td><td>0 B</td></tr>
+            <tr><td>Rollback</td><td><code>output/_pre_r10/</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Stacked on PR #56 — the cursor cascade</span>
+    <span>+3,904 characters, 0 lost</span>
+    <span>Measured 2026-08-30</span>
+  </footer>
+
+</div>

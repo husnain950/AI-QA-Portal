@@ -936,20 +936,34 @@ def _is_header_line(ln, cal) -> bool:
     from where it sits instead of from what it says.
 
     So a band line is dropped only when it IS the header: its folio-normalised
-    text is one of the recurring header strings the calibration measured, or it
-    is a bare folio.  When no header was detected at all, ``header_keys`` is
-    empty and the positional fallback stands unchanged -- there is nothing to
-    match against, and that path is already the conservative 5.5% band.
+    text is one of the recurring top-of-page strings the calibration measured,
+    or it is a bare folio.
+
+    That used to hold only where a header was DETECTED; with ``header_keys``
+    empty the positional fallback stood, on the reasoning that there is nothing
+    to match against and the flat 5.5% band is conservative.  It is conservative
+    about keeping headers out, and the opposite about keeping law in: Sales Tax
+    Rules 2006 (01-01-2025) prints no header at all, so the top of a page is
+    simply where the next rule begins, and rules 35, 76, 101 and 150X print
+    their headings at top 41.0-41.5 against a 43.6pt band.  All four were
+    discarded here and reported as heading-only stubs -- P37 again, in the one
+    case the P37 fix did not cover.
+
+    ``calibrate`` now fills ``header_keys`` from RECURRENCE when nothing clears
+    its 40% threshold, so "empty" means "no top line in this document repeats"
+    -- and a document with no repeating top line has no header to protect
+    against.  Five of the corpus's 50 header-less documents do repeat one and
+    are why that is not the same as an unconditional keep: Public Finance
+    Management Act 2019 alternates two halves of a gazette masthead so neither
+    reaches 40%, Finance Act 2023 prints NATIONAL ASSEMBLY SECRETARIAT, and
+    Income Tax Rules 2002 prints a per-chapter header in six variants.
     """
     if ln.top >= cal.header_max_top:
         return False
-    keys = getattr(cal, "header_keys", ()) or ()
-    if not keys:
-        return True                       # no header detected: positional band
     txt = ln.text().strip()
-    if not txt:
-        return True
-    return _FOLIO_RE.sub("#", txt) in keys or not any(c.isalpha() for c in txt)
+    if not txt or not any(c.isalpha() for c in txt):
+        return True                       # blank, or a bare folio
+    return _FOLIO_RE.sub("#", txt) in (getattr(cal, "header_keys", ()) or ())
 
 
 def build_page_model(page, index: int, cal, pdf_path: str | None = None,
