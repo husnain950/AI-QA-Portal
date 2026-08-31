@@ -2271,8 +2271,93 @@ _ORDER = [
     "bold_gate_unchanged_on_text_layer",
     "document_carries_its_text",
     "clause_codes_plausible",
+    "contract_complete",
 ]
 
+
+# --- the output contract -----------------------------------------------------
+#
+# `docs/pipeline-contract.md` states what every document must carry; this is the
+# gate. Two decisions about its shape, both measured rather than assumed:
+#
+# DOCUMENT-grained, not node-grained. A file written by a parser that predates
+# the contract is one fact about that file, not one fact per node. Counting per
+# node put 5,047 hits in a register whose whole value is that a human reads it.
+#
+# `contract_version` is the gate on the gate. Stamping the contract does not
+# re-convert the corpus, so on the day this lands no document on disk claims v1.
+# Requiring the keys anyway scored 139 hits saying one thing -- "not re-converted
+# yet" -- and buried the 44 real ones. So a document that CLAIMS the contract is
+# held to all of it, and one that does not is held only to what is checkable
+# without it: that the `node_key`s it does carry are unique. The gate therefore
+# starts failing on the first document converted with this code, which is when it
+# has something to say.
+#
+# It checks only what the PARSER owns. `lane`, `pipeline_revision` and
+# `converted_at` describe a CONVERSION -- the suites, the fixtures and any direct
+# `run()` call legitimately have none. `tools/convert.py` stamps those, and the
+# sync is where their absence matters.
+
+_CONTRACT_METADATA = (
+    "contract_version", "filename", "total_pages",
+    "chapters_count", "schedules_count", "sections_count",
+)
+
+
+def _iter_contract_nodes(doc):
+    """Every node the contract covers -- containers and leaves alike."""
+    def walk(node, trail):
+        if not isinstance(node, dict):
+            return
+        yield trail, node
+        for key in ("parts", "divisions", "sections"):
+            for child in node.get(key, []):
+                yield from walk(child, f"{trail}/{child.get('code') or '?'}")
+    for root in ("chapters", "schedules"):
+        for node in doc.get(root, []):
+            yield from walk(node, f"{root}:{node.get('code') or '?'}")
+
+
+def inv_contract_complete(doc):
+    """Required metadata, `type` and `node_key` everywhere, and keys unique.
+
+    Uniqueness is the load-bearing half, and it is checked on every document
+    whether or not it claims the contract. `node_key` is what a re-parse matches
+    a leaf by, so two nodes sharing one is not cosmetic: it merges two leaves'
+    review state into whichever the walk reaches last. Measured at 0 across the
+    11,504 keys on disk, so this is a lock on a property that holds, not a
+    description of one that does not.
+    """
+    bad = []
+    nodes = list(_iter_contract_nodes(doc))
+
+    seen = {}
+    for trail, node in nodes:
+        key = node.get("node_key")
+        if key:
+            seen.setdefault(key, []).append(trail)
+    for key, trails in sorted(seen.items()):
+        if len(trails) > 1:
+            bad.append(f"identity: node_key {key!r} is on {len(trails)} nodes "
+                       f"({', '.join(trails[:3])})")
+
+    if (doc.get("metadata") or {}).get("contract_version") is None:
+        # Predates the contract. One fact, already known and dated; re-converting
+        # is what closes it, and then everything below starts being checked.
+        return bad
+
+    missing = [k for k in _CONTRACT_METADATA if (doc.get("metadata") or {}).get(k) is None]
+    if missing:
+        bad.append(f"metadata: missing {', '.join(missing)}")
+    untyped = [trail for trail, node in nodes if not node.get("type")]
+    keyless = [trail for trail, node in nodes if not node.get("node_key")]
+    if untyped:
+        bad.append(f"identity: {len(untyped)} of {len(nodes)} nodes have no `type`"
+                   f" (first: {untyped[0]})")
+    if keyless:
+        bad.append(f"identity: {len(keyless)} of {len(nodes)} nodes have no `node_key`"
+                   f" (first: {keyless[0]})")
+    return bad
 
 def all_invariants(ns, order=None):
     """Bind each invariant by name from the lane module, falling back to this one.

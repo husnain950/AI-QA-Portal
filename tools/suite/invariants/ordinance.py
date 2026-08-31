@@ -476,6 +476,7 @@ _ORDER = [
     "section_codes_ordered",
     "toc_first_chapter_parse",
     "toc_schedule_regexes",
+    "contract_complete",
 ]
 
 ALL_INVARIANTS = _common.all_invariants(globals(), _ORDER)

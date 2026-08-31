@@ -37,6 +37,7 @@ if os.path.join(_ROOT, "tools") not in sys.path:
 
 # Relies on the sys.path bootstrap above; also puts packages/ on the path.
 from corpus_paths import LABELS, get  # noqa: E402
+from legal_contract import stamp_run_provenance  # noqa: E402
 
 
 def main(argv=None) -> int:
@@ -99,6 +100,12 @@ def main(argv=None) -> int:
 
     result = run(args.pdf, progress=progress, **kwargs)
 
+    # Which conversion produced this file. The pipeline cannot know: `run()` is not
+    # told its lane and has no opinion about revisions. This is the only writer, so
+    # it is the only place that does know, and a file without these keys is one no
+    # conversion wrote -- a suite fixture, or a direct `run()` call.
+    stamp_run_provenance(result, args.lane)
+
     out = args.output or os.path.splitext(args.pdf)[0] + ".json"
     # A provisional document must not be able to reach the corpus, and this is
     # the ONLY writer, so the redirect belongs here rather than in every caller.
@@ -111,8 +118,22 @@ def main(argv=None) -> int:
         out = os.path.join(d, "_provisional", base)
         os.makedirs(os.path.dirname(out), exist_ok=True)
         progress(f"PROVISIONAL -- not part of the corpus; writing to {out}")
-    with open(out, "w", encoding="utf-8") as fh:
-        json.dump(result, fh, ensure_ascii=False, indent=2)
+    # Written through a temporary file in the same directory and renamed, because
+    # `output/*.json` IS the corpus: a plain `open(out, "w")` truncates the previous
+    # conversion the instant it opens, so a killed converter leaves a half-file in
+    # the corpus and a sync running alongside reads it. `os.replace` is atomic
+    # within a filesystem, so a reader sees the old file or the new one.
+    tmp = f"{out}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(result, fh, ensure_ascii=False, indent=2)
+        os.replace(tmp, out)
+    except BaseException:
+        # Includes KeyboardInterrupt: an interrupted conversion must not leave its
+        # scratch file behind for the next `output/*` glob to trip over.
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
 
     m = result["metadata"]
     progress(f"wrote {out}")
