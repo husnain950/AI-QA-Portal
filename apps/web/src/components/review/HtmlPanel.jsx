@@ -9,6 +9,7 @@ import SegmentedControl from '../ui/SegmentedControl';
 import CopyButton from '../ui/CopyButton';
 import EmptyState from '../ui/EmptyState';
 import { Code, Eye, AlignLeft, AlertTriangle, Braces, FileQuestion } from 'lucide-react';
+import { sanitizeLegalHtml } from '../../utils/sanitizeHtml';
 import { findFootnoteForCite } from '../../utils/footnoteCite';
 
 const MODE_TITLES = {
@@ -65,8 +66,11 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
         const container = containerRef.current;
         if (!container || !htmlContent) return;
 
-        // Reset DOM to clean state
-        container.innerHTML = htmlContent;
+        // Reset DOM to clean state. Sanitized like every other pane: this is the
+        // LARGEST surface -- the whole section body -- and it was the one injecting
+        // stored HTML raw while the two small panes sanitized. The coverage was
+        // inverted.
+        container.innerHTML = sanitizeLegalHtml(htmlContent);
 
         const cites = container.querySelectorAll('.cite');
         cites.forEach((cite) => {

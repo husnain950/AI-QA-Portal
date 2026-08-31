@@ -311,13 +311,36 @@ exact bug `services/editions.py` fixed and documented, which the client copy nev
 
 Closes **P7**.
 
-- [ ] `html_sanitizer.py` owns the allowlist, emits it as JSON; `sanitizeHtml.js` imports it
-- [ ] test asserts the two agree (both sanitizers stay — stored HTML is a trust boundary)
-- [ ] `fn-table` `flex: 0 0 N%` widths survive the client sanitizer (data, not decoration)
-- [ ] `HtmlPanel.jsx:69` uses `sanitizeLegalHtml` like every other pane
-- [ ] `footnoteCite` reads `data-ref` instead of fuzzy `textContent` matching
+- [x] `html_sanitizer.policy()` exports the allowlist as data;
+      `python -m backend.services.html_sanitizer --write` generates
+      `apps/web/src/utils/sanitizerPolicy.json`; a pytest fails when the committed
+      file drifts — the same shape as `tools/suite/register.json`
+- [x] `sanitizeHtml.js` imports it. Its hand-maintained, narrower copy is gone.
+- [x] `fn-table`'s `flex: 0 0 N%` widths survive the client sanitizer, matched with
+      the backend's own pattern shipped in the policy
+- [x] `HtmlPanel.jsx` sanitizes like every other pane — it was the **largest**
+      surface and the one injecting stored HTML raw
+- [x] `footnoteCite` resolves by `data-ref` first, falling back to text for the
+      pre-`data-ref` corpus
+- [x] 7 backend + 18 frontend tests
 
----
+### What the inversion was hiding
+
+Making `HtmlPanel` sanitize broke a test, and the test was right. Measured over the
+real corpus, the **backend** sanitizer silently drops five classes the pipeline emits:
+
+```
+  589  act-title            111  act-long-title
+  203  recital               60  enacting-formula
+    2  enacting-clause      ---> 965 occurrences
+```
+
+All five are `fbr_ingest.builder.GAZETTE_KINDS`; all five have rules in
+`styles/08-html-panel-styles.css`. Nobody noticed because the one pane that renders
+them injected stored HTML **without sanitizing**, so the loss was invisible — the
+inverted coverage was concealing a defect in the layer it was supposed to back up.
+The test binds to the pipeline's own tuple, so a sixth kind cannot be added there and
+silently discarded here.
 
 ## PR-G — Stale review state and sync observability
 
