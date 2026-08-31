@@ -110,15 +110,17 @@ def test_plan_refresh_splits_by_content_hash(tmp_path):
         "key:Identical Act": {
             "id": "id-1",
             "json_filename": f"json/{blob_store.sha256_file(same)}.json",
+            "version": "v-1",
         },
         # Production still holds the parse from before the OCR metadata existed.
-        "key:Stale Act": {"id": "id-2", "json_filename": "json/" + "0" * 64 + ".json"},
+        "key:Stale Act": {"id": "id-2", "version": "v-2",
+                          "json_filename": "json/" + "0" * 64 + ".json"},
     }
 
     to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
     assert [item.name for item in to_upload] == ["New Act"], "absent -> upload"
-    assert to_refresh == [(  # id first, so the caller can address replace-json
-        "id-2", 20, "Stale Act", "b.pdf", str(drifted), "finance",
+    assert to_refresh == [(  # id and active version first: replace-json needs both
+        "id-2", "v-2", 20, "Stale Act", "b.pdf", str(drifted), "finance",
         "Stale Act", "acts",
     )]
     assert not any(item[2] == "Identical Act" for item in to_refresh), (
@@ -142,7 +144,8 @@ def test_plan_refresh_matches_on_source_key_not_name(tmp_path):
         push_corpus.LocalDoc(10, "Customs Act", "b.pdf", str(body), "customs",
                              "Customs Act 2025", "acts"),
     ]
-    remote = {"key:Customs Act 2024": {"id": "id-1", "json_filename": digest}}
+    remote = {"key:Customs Act 2024": {"id": "id-1", "version": "v-1",
+                                       "json_filename": digest}}
 
     to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
     assert [item.source_key for item in to_upload] == ["Customs Act 2025"]
@@ -156,7 +159,8 @@ def test_a_document_with_no_corpus_key_still_matches_by_name(tmp_path):
 
     local = [push_corpus.LocalDoc(10, "Hand Upload", "a.pdf", str(body), "manual",
                                   None, None)]
-    remote = {"name:Hand Upload": {"id": "id-1", "json_filename": "json/" + "0" * 64 + ".json"}}
+    remote = {"name:Hand Upload": {"id": "id-1", "version": "v-1",
+                                   "json_filename": "json/" + "0" * 64 + ".json"}}
 
     to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
     assert to_upload == []
@@ -230,7 +234,8 @@ def test_a_deployment_seeded_before_identity_is_adopted_not_duplicated(tmp_path)
 
     local = [push_corpus.LocalDoc(10, "Customs Act 2024", "a.pdf", str(body),
                                   "customs", "Customs Act 2024", "acts")]
-    remote = {"name:Customs Act 2024": {"id": "prod-uuid4", "json_filename": identical}}
+    remote = {"name:Customs Act 2024": {"id": "prod-uuid4", "version": "v-9",
+                                        "json_filename": identical}}
 
     to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
     assert to_upload == [], "adoption must never create a second row"
@@ -245,7 +250,8 @@ def test_adoption_does_not_fire_once_the_key_is_written(tmp_path):
 
     local = [push_corpus.LocalDoc(10, "Customs Act 2024", "a.pdf", str(body),
                                   "customs", "Customs Act 2024", "acts")]
-    remote = {"key:Customs Act 2024": {"id": "prod-uuid4", "json_filename": identical}}
+    remote = {"key:Customs Act 2024": {"id": "prod-uuid4", "version": "v-9",
+                                       "json_filename": identical}}
 
     assert push_corpus.plan_refresh(local, remote) == ([], [])
 
@@ -268,3 +274,24 @@ def test_plan_orphans_counts_a_document_once_under_either_identity(tmp_path):
         "name:Really Gone": {"id": "3", "json_filename": "x"},   # genuinely absent
     }
     assert push_corpus.plan_orphans(local, remote) == {"name:Really Gone"}
+
+
+def test_a_refresh_carries_the_active_version_for_if_match(tmp_path):
+    """Every write against a document must name the active version in `If-Match`.
+
+    `push_corpus` never sent one, so every refresh it ever attempted was answered
+    with `428 Precondition Required` -- which is a large part of why the deployment
+    was eleven parser rounds behind the corpus. The id is now carried through
+    `plan_refresh` so the caller cannot forget it.
+    """
+    body = tmp_path / "a.json"
+    body.write_text("{}", encoding="utf-8")
+
+    local = [push_corpus.LocalDoc(10, "Drifted Act", "a.pdf", str(body), "customs",
+                                  "Drifted Act", "acts")]
+    remote = {"key:Drifted Act": {"id": "id-1", "version": "version-7",
+                                  "json_filename": "json/" + "0" * 64 + ".json"}}
+
+    _to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
+    assert to_refresh[0][0] == "id-1"
+    assert to_refresh[0][1] == "version-7", "the active version must reach the caller"

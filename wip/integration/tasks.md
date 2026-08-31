@@ -398,3 +398,16 @@ Node 22 and is green. Environment only, pre-existing, and **not worked around** 
 changing the project's vitest config to suit one machine's Node version is how a real
 signal gets hidden later. Individual test files run fine
 (`npx vitest run src/test/<file>`), which is what PR-C used; the suite is CI's job.
+
+**2026-08-31 — `make push-remote`'s refresh path has never worked.** The first real
+push failed on every document with `428 Precondition Required`: `/replace-json`
+requires `If-Match` naming the active version and `push_corpus` has never sent one.
+So the tool could only ever *upload new* documents, never refresh an existing one --
+which is a large part of why the deployment sat eleven parser rounds behind the
+corpus while the tool reported success. Found by running it, not by reading it. Fixed
+by putting `active_version_id` on `DocumentResponse` (the frontend was fetching the
+whole version list for the same value) and carrying it through `plan_refresh`, so a
+caller cannot forget it.
+
+Nothing was written: a 428 is refused before any write. Production verified unchanged
+at 106 documents / 17,859 sections / 21 approved leaves after the aborted run.
