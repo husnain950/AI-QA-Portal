@@ -310,19 +310,32 @@ def put_metrics(document_id: str, metrics: dict) -> bool:
     A failure here loses a badge, not a document, so it is reported and stepped over.
     """
     payload = json.dumps(metrics).encode()
-    request = urllib.request.Request(
-        f"{BASE}/api/documents/{document_id}/metrics",
-        data=payload,
-        method="POST",
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with open_url(request, timeout=60) as response:
-            response.read()
-        return True
-    except Exception as error:
-        print(f"  metrics failed for {document_id}: {error}", file=sys.stderr, flush=True)
-        return False
+    for attempt in range(4):
+        request = urllib.request.Request(
+            f"{BASE}/api/documents/{document_id}/metrics",
+            data=payload,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with open_url(request, timeout=60) as response:
+                response.read()
+            return True
+        except urllib.error.HTTPError as error:
+            # A hundred small POSTs in a row is exactly what the write-tier bucket is
+            # there to stop, and the server says how long to wait. Measured on the
+            # live portal: without this, 60 of 92 measurements landed and the rest
+            # were dropped on the floor.
+            if error.code == 429 and attempt < 3:
+                delay = int(error.headers.get("Retry-After") or 0) or 5 * (attempt + 1)
+                time.sleep(delay)
+                continue
+            print(f"  metrics failed for {document_id}: {error}", file=sys.stderr, flush=True)
+            return False
+        except Exception as error:
+            print(f"  metrics failed for {document_id}: {error}", file=sys.stderr, flush=True)
+            return False
+    return False
 
 
 def main(argv: list[str] | None = None):

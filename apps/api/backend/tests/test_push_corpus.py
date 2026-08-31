@@ -326,3 +326,54 @@ def test_metrics_travel_with_the_document(tmp_path):
     unmeasured = push_corpus.LocalDoc(10, "B", "b.pdf", "b.json", "customs", "B", "acts")
     assert measured.metrics["invariants_passed"] == 58
     assert unmeasured.metrics is None
+
+
+def test_put_metrics_waits_out_a_rate_limit(monkeypatch):
+    """A hundred small POSTs in a row is exactly what the write-tier bucket stops.
+
+    Measured on the live portal before this: 60 of 92 measurements landed and the
+    rest were dropped. The server says how long to wait; the client now listens.
+    """
+    import io
+    import urllib.error
+
+    calls = []
+    slept = []
+
+    def fake_open(request, timeout=None):
+        calls.append(request)
+        if len(calls) < 3:
+            raise urllib.error.HTTPError(
+                request.full_url, 429, "Too Many Requests",
+                {"Retry-After": "2"}, io.BytesIO(b"{}"),
+            )
+        return io.BytesIO(b"{}")
+
+    monkeypatch.setattr(push_corpus, "open_url", fake_open)
+    monkeypatch.setattr(push_corpus.time, "sleep", lambda s: slept.append(s))
+    monkeypatch.setattr(push_corpus, "BASE", "https://portal.example")
+
+    assert push_corpus.put_metrics("doc-1", {"invariants_passed": 58}) is True
+    assert len(calls) == 3
+    assert slept == [2, 2], "the server's Retry-After is what it waits"
+
+
+def test_put_metrics_gives_up_rather_than_hanging(monkeypatch):
+    """A badge is not worth an unbounded retry loop."""
+    import io
+    import urllib.error
+
+    attempts = []
+
+    def always_limited(request, timeout=None):
+        attempts.append(request)
+        raise urllib.error.HTTPError(
+            request.full_url, 429, "Too Many Requests", {}, io.BytesIO(b"{}")
+        )
+
+    monkeypatch.setattr(push_corpus, "open_url", always_limited)
+    monkeypatch.setattr(push_corpus.time, "sleep", lambda s: None)
+    monkeypatch.setattr(push_corpus, "BASE", "https://portal.example")
+
+    assert push_corpus.put_metrics("doc-1", {}) is False
+    assert len(attempts) == 4
