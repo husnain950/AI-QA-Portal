@@ -75,5 +75,6 @@ apps/web/probe*.mjs
 apps/web/repro.mjs
 apps/web/sweep.mjs
 
-# Exported session transcripts, which land in the repo root
-20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.txt
+# Exported chat transcripts dropped in the repo root by the CLI. Dated-prefix only, so a
+# deliberately named document is still tracked. `git add -A` would otherwise commit them.
+/20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.txt
