@@ -207,6 +207,14 @@ async def apply_parsed_document(
     ) as cursor:
         existing_sections = [dict(row) for row in await cursor.fetchall()]
 
+    # Identity, most structural first. `node_key` survives a leaf being inserted
+    # above it; `source_key` is positional and does not; the legacy tuple is the
+    # one-time backfill for rows that predate `source_key` entirely.
+    by_node_key = {
+        row["node_key"]: row
+        for row in existing_sections
+        if row.get("node_key")
+    }
     by_source_key = {
         row["source_key"]: row
         for row in existing_sections
@@ -224,10 +232,35 @@ async def apply_parsed_document(
     reset_sections = 0
     inheritance_revoke_ids: List[str] = []
 
+    # One identity scheme per document, never a mix.
+    #
+    # The positional fallback is a MIGRATION affordance, not a second chance: while no
+    # stored row carries a `node_key` yet, matching by `source_key` is what lets the
+    # first ingest after the column landed recognise its own rows and backfill them
+    # without re-minting a single id. The moment any row has one, falling back is
+    # actively wrong -- a genuinely new leaf inserted at position 0 would match the
+    # row of the leaf that used to be there and inherit its approval, while that leaf
+    # was written as new. Measured on a three-leaf fixture: the inserted leaf took
+    # section 2's row, section 2 became a fresh row, and one approval moved to the
+    # wrong provision.
+    migrating = not by_node_key
     for section in sections:
-        existing = by_source_key.get(section["source_key"])
-        if existing is None:
-            existing = by_legacy_key.get(_legacy_section_key(section))
+        existing = None
+        node_key = section.get("node_key")
+        if node_key:
+            existing = by_node_key.get(node_key)
+        if existing is None and (migrating or not node_key):
+            # A leaf with no `node_key` is either the synthesised preamble or a
+            # document converted before the contract; `source_key` is all it has.
+            existing = by_source_key.get(section["source_key"])
+            if existing is None:
+                existing = by_legacy_key.get(_legacy_section_key(section))
+        # Two lookups can still land on one row -- during the migration ingest a
+        # leaf can match by node_key while another matches the same row by
+        # source_key. The second claimant is new, or both would be written to one id
+        # and the first would simply vanish.
+        if existing is not None and existing["id"] in used_section_ids:
+            existing = None
 
         final_id = existing["id"] if existing else section["id"]
         review_status = existing["review_status"] if existing else "pending"
@@ -409,6 +442,23 @@ async def apply_parsed_document(
             report,
         )
 
+    # Release both identity keys before rewriting any of them.
+    #
+    # `uq_sections_source` and `uq_sections_node_key` are unique per document, and the
+    # rows are updated one at a time. Once leaves are matched STRUCTURALLY, a leaf that
+    # kept its identity can still move position, so its new `source_key` is one that
+    # the row beside it is still holding -- the update collides with an index entry
+    # that is about to be rewritten anyway. Inserting a single leaf at the top of a
+    # chapter reproduced it (IntegrityError on `uq_sections_source`).
+    #
+    # A Postgres unique INDEX cannot be deferred and a partial unique CONSTRAINT does
+    # not exist, so the keys are cleared first and written back below, inside the same
+    # transaction. A rollback restores them with everything else.
+    await db.execute(
+        "UPDATE sections SET source_key = NULL, node_key = NULL WHERE document_id = ?",
+        (document_id,),
+    )
+
     for section, final_id, review_status, changed in resolved_sections:
         quality_flags_json = serialize_quality_flags(section.get("quality_flags"))
         effective_status = "blocked" if review_status == "has_issues" else review_status
@@ -430,6 +480,7 @@ async def apply_parsed_document(
                     start_page = ?, end_page = ?,
                     html_content = ?, plain_text = ?,
                     sort_order = ?, review_status = ?, source_key = ?,
+                    node_key = ?,
                     quality_flags = ?, hierarchy_kind = ?, reviewer_verdict = ?,
                     effective_status = ?, sanitizer_version = ?, sanitized_changed = ?,
                     sanitizer_diagnostics = CAST(? AS jsonb)
@@ -451,6 +502,10 @@ async def apply_parsed_document(
                     section["sort_order"],
                     review_status,
                     section["source_key"],
+                    # Backfilled here on the first ingest after the column landed:
+                    # the row was matched by source_key and now carries the key the
+                    # NEXT ingest will match it by.
+                    section.get("node_key"),
                     quality_flags_json,
                     section.get("hierarchy_kind"),
                     reviewer_verdict,
@@ -469,11 +524,12 @@ async def apply_parsed_document(
                     part_code, part_heading, division_code, division_heading,
                     section_code, section_heading, start_page, end_page,
                     html_content, plain_text, sort_order, review_status,
-                    source_key, quality_flags, hierarchy_kind, reviewer_verdict,
+                    source_key, node_key, quality_flags, hierarchy_kind,
+                    reviewer_verdict,
                     effective_status, sanitizer_version, sanitized_changed,
                     sanitizer_diagnostics
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                          ?, ?, ?, ?, CAST(? AS jsonb))
+                          ?, ?, ?, ?, ?, CAST(? AS jsonb))
                 """,
                 (
                     final_id,
@@ -493,6 +549,7 @@ async def apply_parsed_document(
                     section["sort_order"],
                     review_status,
                     section["source_key"],
+                    section.get("node_key"),
                     quality_flags_json,
                     section.get("hierarchy_kind"),
                     reviewer_verdict,

@@ -28,10 +28,19 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import sys
 from pathlib import Path
 from typing import Dict, List
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# The same bootstrap `corpus_paths` does, and for the same reason: this script is run
+# as `make seed-fixtures` from a shell that has not set PYTHONPATH.
+if str(ROOT / "tools") not in sys.path:
+    sys.path.insert(0, str(ROOT / "tools"))
+import corpus_paths  # noqa: E402,F401  (puts packages/ on the path)
+from legal_contract import stamp_document  # noqa: E402
+
 DEFAULT_DEST = ROOT / "data" / "fixtures" / "acts"
 
 PAGE_WIDTH, PAGE_HEIGHT = 612, 792
@@ -281,10 +290,24 @@ def build(dest: Path) -> Dict:
                 "filename": pdf_name,
                 "total_pages": total_pages,
                 "title": fixture["name"],
+                "chapters_count": len(fixture["chapters"]),
+                "schedules_count": 0,
+                "sections_count": sum(
+                    len(chapter["sections"]) for chapter in fixture["chapters"]
+                ),
             },
             "chapters": fixture["chapters"],
             "schedules": [],
         }
+        # Stamped by the contract's own code, not by a copy of it -- a fixture that
+        # drifts from the contract is a fixture that stops testing the real path, and
+        # this is the only corpus CI can run.
+        #
+        # `stamp_document` only, never `stamp_run_provenance`: `converted_at` and
+        # `pipeline_revision` describe a conversion, and this is a generator whose
+        # output has to stay byte-identical on every machine (see .gitignore). That
+        # the two are separable is why they are separate functions.
+        stamp_document(document)
         # The JSON stem becomes the document name, which is what the smoke targets match.
         (output_dir / f"{fixture['name']}.json").write_text(
             json.dumps(document, indent=2) + "\n", encoding="utf-8"

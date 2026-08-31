@@ -10,13 +10,27 @@ from backend.services.parse_quality import (
 )
 
 
-def _stable_id(document_id: Optional[str], source_key: str) -> str:
+def _stable_id(
+    document_id: Optional[str],
+    source_key: str,
+    node_key: Optional[str] = None,
+) -> str:
+    """The id a leaf gets when it is FIRST seen.
+
+    Minted from ``node_key`` when the pipeline supplied one, because that is the
+    identity a re-parse matches on -- minting from ``source_key`` would hand a newly
+    inserted leaf the id its right-hand neighbour already holds. The two namespaces
+    are kept distinct (``node:``) so the shapes can never collide, and an existing
+    row keeps whatever id it was minted with: ``apply_parsed_document`` matches
+    first, and only mints for a leaf it could not match.
+    """
     if not document_id:
         return str(uuid.uuid4())
+    tail = f"node:{node_key}" if node_key else source_key
     return str(
         uuid.uuid5(
             uuid.NAMESPACE_URL,
-            f"pdf-qa-portal:{document_id}:{source_key}",
+            f"pdf-qa-portal:{document_id}:{tail}",
         )
     )
 
@@ -130,9 +144,21 @@ def parse_json_document(
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Flatten the enriched legal JSON into page-addressable review units.
 
-    ``source_key`` is a stable JSON-pointer-style path. It deliberately does not
-    use legal section codes because those codes repeat heavily in schedules and
-    amendment Acts.
+    Two identities per leaf, and they are not interchangeable:
+
+    ``source_key``  the POSITIONAL JSON-pointer path (``/chapters/0/sections/3``).
+                    Always present, so it is what a pre-contract document is matched
+                    by -- but inserting one leaf renames every later sibling.
+
+    ``node_key``    the pipeline's ancestor chain BY CODE (``ch:vii/pt:i/s:114``),
+                    present from ``contract_version`` 1. Survives an insertion above
+                    it, which is the whole reason it exists. ``None`` for the
+                    synthesised preamble leaf, which has no node in the tree.
+
+    The old note here said codes were avoided because they "repeat heavily in
+    schedules and amendment Acts". They do, and ``stamp_identity`` is what answers
+    it: a repeated sibling code gets an ordinal (``s:114~2``), so the chain is unique
+    within its document -- measured at 0 collisions across all 11,504 keys on disk.
     """
 
     data = json.loads(json_content)
@@ -156,7 +182,8 @@ def parse_json_document(
         if is_junk_leaf(sec_data):
             return
 
-        section_id = _stable_id(document_id, source_key)
+        node_key = _blank_to_none(sec_data.get("node_key"))
+        section_id = _stable_id(document_id, source_key, node_key)
         start_page = sec_data.get("start_page") or sec_data.get("page_number")
         end_page = sec_data.get("end_page") or start_page
         raw_html = sec_data.get("html", "") or ""
@@ -179,6 +206,7 @@ def parse_json_document(
         sec_row = {
             "id": section_id,
             "source_key": source_key,
+            "node_key": node_key,
             "chapter_code": context.get("chapter_code"),
             "chapter_heading": context.get("chapter_heading"),
             "part_code": context.get("part_code"),

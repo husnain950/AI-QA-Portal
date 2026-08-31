@@ -325,9 +325,22 @@ async def activate_version(
     }
 
 
+def _leaf_key(section: Dict[str, Any]) -> str:
+    """The identity two versions of a document are compared on.
+
+    The same order ``apply_parsed_document`` matches by, so the diff shown to a
+    reviewer and the upsert that moved their review state cannot disagree about what
+    "the same leaf" means. ``source_key`` remains the fallback for a document
+    converted before the contract, and the ``node:`` prefix keeps the two namespaces
+    from ever colliding.
+    """
+    node_key = section.get("node_key")
+    return f"node:{node_key}" if node_key else section["source_key"]
+
+
 def _leaves(content: str) -> Dict[str, Dict[str, Any]]:
     sections, _ = parse_json_document(content, document_id="diff")
-    return {section["source_key"]: section for section in sections}
+    return {_leaf_key(section): section for section in sections}
 
 
 def _text_diff(before: str, after: str) -> List[str]:
@@ -345,9 +358,13 @@ def _text_diff(before: str, after: str) -> List[str]:
 def diff_documents(before_content: str, after_content: str) -> Dict[str, Any]:
     """Leaf-level difference between two versions of the same document.
 
-    Matching is by ``source_key`` -- the JSON-pointer path the parser mints -- which is
-    the same identity the upsert uses, so the diff and the ingest agree on what "the
-    same leaf" means.
+    Matching is by ``node_key`` where the pipeline supplied one and ``source_key``
+    otherwise -- the same identity the upsert uses, so the diff and the ingest agree
+    on what "the same leaf" means.
+
+    On ``source_key`` alone they agreed on something false: inserting one leaf
+    reported every later sibling as "changed", measured at 386 leaves across 84
+    documents with 16 of them churning 100%.
     """
     before, after = _leaves(before_content), _leaves(after_content)
     added, removed, changed, unchanged = [], [], [], 0
@@ -357,7 +374,8 @@ def diff_documents(before_content: str, after_content: str) -> Dict[str, Any]:
         if previous is None:
             added.append(
                 {
-                    "source_key": key,
+                    "source_key": section["source_key"],
+                    "node_key": section.get("node_key"),
                     "change": "added",
                     "section_code": section.get("section_code"),
                     "section_heading": section.get("section_heading"),
@@ -373,7 +391,8 @@ def diff_documents(before_content: str, after_content: str) -> Dict[str, Any]:
             continue
         changed.append(
             {
-                "source_key": key,
+                "source_key": section["source_key"],
+                "node_key": section.get("node_key"),
                 "change": "changed",
                 "section_code": section.get("section_code"),
                 "section_heading": section.get("section_heading"),
@@ -388,7 +407,8 @@ def diff_documents(before_content: str, after_content: str) -> Dict[str, Any]:
         if key not in after:
             removed.append(
                 {
-                    "source_key": key,
+                    "source_key": section["source_key"],
+                    "node_key": section.get("node_key"),
                     "change": "removed",
                     "section_code": section.get("section_code"),
                     "section_heading": section.get("section_heading"),
@@ -479,6 +499,53 @@ def demo() -> None:
 
     dropped = diff_documents(base, json.dumps({**json.loads(base), "chapters": []}))
     assert dropped["summary"]["removed"] == 2, dropped["summary"]
+
+    # ---- the property `node_key` exists for -------------------------------
+    # Everything above appends at the END, which is the one insertion a positional
+    # key survives. Inserting at the FRONT is what the corpus actually does when a
+    # parser fix recovers a section, and on `source_key` it reported every later
+    # sibling as changed -- 386 leaves across 84 documents, 16 of them churning 100%.
+    def _doc(codes):
+        return json.dumps({
+            "metadata": {"total_pages": 3, "contract_version": 1},
+            "chapters": [{
+                "code": "I", "heading": "General", "type": "chapter",
+                "node_key": "ch:i", "parts": [], "divisions": [],
+                "sections": [
+                    {"code": c, "heading": f"S{c}", "start_page": 1, "end_page": 1,
+                     "type": "section", "node_key": f"ch:i/s:{c.lower()}",
+                     "html": f"<p>body {c}</p>", "plain_text": f"body {c}",
+                     "footnotes": []}
+                    for c in codes
+                ],
+            }],
+            "schedules": [],
+        })
+
+    inserted = diff_documents(_doc(["2", "3", "4"]), _doc(["1", "2", "3", "4"]))
+    assert inserted["summary"] == {
+        "added": 1, "removed": 0, "changed": 0, "unchanged": 3
+    }, inserted["summary"]
+    assert inserted["sections"][0]["node_key"] == "ch:i/s:1", inserted["sections"]
+
+    # ...and a leaf really changing is still reported as changed, so the key narrows
+    # the report rather than switching it off.
+    edited = json.loads(_doc(["1", "2", "3"]))
+    edited["chapters"][0]["sections"][1]["plain_text"] = "body 2 corrected"
+    edited["chapters"][0]["sections"][1]["html"] = "<p>body 2 corrected</p>"
+    result = diff_documents(_doc(["1", "2", "3"]), json.dumps(edited))
+    assert result["summary"] == {
+        "added": 0, "removed": 0, "changed": 1, "unchanged": 2
+    }, result["summary"]
+    assert result["sections"][0]["node_key"] == "ch:i/s:2", result["sections"]
+
+    # A removal is a removal, not a rename of its neighbour.
+    removed = diff_documents(_doc(["1", "2", "3"]), _doc(["1", "3"]))
+    assert removed["summary"] == {
+        "added": 0, "removed": 1, "changed": 0, "unchanged": 2
+    }, removed["summary"]
+    assert removed["sections"][0]["node_key"] == "ch:i/s:2", removed["sections"]
+
     print("versions: ok")
 
 

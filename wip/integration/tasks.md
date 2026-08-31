@@ -118,17 +118,52 @@ this code, which is when it has something to say.
 
 Closes **P1**.
 
-- [ ] Alembic migration: `sections.node_key`, `footnotes.node_key`, indexed per document
-- [ ] `json_parser` carries `node_key`; `_stable_id` keys on it when present, `source_key`
-      otherwise. **Existing rows keep their ids — nothing is re-minted.**
-- [ ] `apply_parsed_document` match order `node_key` → `source_key` → `_legacy_section_key`
-- [ ] `versions.diff_documents` uses the same key, so diff and ingest keep agreeing
-- [ ] regression tests on `data/fixtures/acts`: insert / delete / move / reorder at
-      chapter, part, division and section level
-- [ ] the Finance Act 2022 shape as a named fixture: 12-of-15 churn today → 0 changed,
-      1 added. **This test must fail on `main`.**
+- [x] Alembic `0004_section_node_key` + `sections.node_key`, unique per document
+      (partial, so pre-contract rows do not collide on NULL)
+- [x] `json_parser` carries `node_key`; `_stable_id` mints from it when present, under
+      a distinct `node:` namespace so the two can never collide. **Existing rows keep
+      their ids — nothing is re-minted.**
+- [x] `apply_parsed_document`: **one identity scheme per document**, not a fallback
+      chain. See the two bugs below.
+- [x] `versions.diff_documents` keys the same way, so diff and ingest agree
+- [x] `tools/fixture_corpus.py` builds its documents with `stamp_document` — the
+      contract's own code, so the one corpus CI can run cannot drift from it
+- [x] 9 regression tests in `test_node_key_identity.py`: insert, delete, reorder,
+      real edit, identical reprocess, the pre-contract fallback, and the migration
+      ingest. **4 of them fail with the fix stubbed out** (verified, `__pycache__`
+      cleared); the other 5 pass either way, which is right — they are the guards
+      that nothing existing broke.
+- [ ] delete `_legacy_section_key` and the `source_key` fallback — not yet; see Deferred
 
----
+### Two bugs the tests caught before merge
+
+**A unique-index collision the change itself introduced.** Once leaves are matched
+structurally, a leaf that kept its identity can still move position, so its new
+`source_key` is one the row beside it is still holding — and rows are updated one at a
+time, so `uq_sections_source` fires mid-transaction. Inserting a single leaf at the top
+of a chapter reproduced it (`IntegrityError`). A Postgres unique INDEX cannot be
+deferred and a partial unique CONSTRAINT does not exist, so both keys are released in
+one statement before the rewrite and written back inside the same transaction.
+
+**A positional fallback that let a new leaf steal its neighbour's row.** With the chain
+`node_key` → `source_key` → legacy, a genuinely new leaf inserted at position 0 missed
+on `node_key` and then *matched the row of the leaf that used to be there*, inheriting
+its approval, while that leaf was written as new. The fix is not a better fallback, it
+is not having one: **the positional match is a migration affordance, live only while no
+stored row carries a `node_key` at all.**
+
+### Measured end to end, through the real sync
+
+Three fixture documents synced into a scratch database, every section approved, then a
+section inserted at the top of a chapter and re-synced:
+
+```
+before: 7 sections, all approved
+sync:   added 0, updated 1, skipped 2, failed 0
+after:  8 sections -- 7 of 7 kept BOTH their id and their approval, 1 added as pending
+```
+
+A second sync of an unchanged corpus is `skipped 3, added 0, updated 0`.
 
 ## PR-C — Withdrawal, so absence propagates
 
@@ -225,7 +260,10 @@ is the one harness CI can run end to end.
 | item | why not now |
 |---|---|
 | re-conversion onto the contract (14 stale acts docs, ordinance lane) | multi-hour, freezes parser work; confirmed decoupled. Own PR, established protocol: `output/_pre_<round>/` snapshot, three lanes re-measured, register regenerated in the same PR. |
-| deleting `_legacy_section_key` and the `source_key` bridge | only when a query shows zero rows relying on them |
+| deleting `_legacy_section_key` and the `source_key` bridge | only when a query shows zero rows relying on them. Today 19 of 103 documents (the whole ordinance lane + 6 pre-Phase-0 acts) still have no `node_key`, so the bridge is load-bearing until the re-conversion runs. |
+| `footnotes.node_key` | the plan called for it; measurement says no. Footnotes are already matched by `(section_id, marker)`, which is structural — a positional index was never used. Nothing to fix. |
+| exposing `node_key` on the API | no consumer yet. The column exists; whichever PR needs it (a stable React key, the overlay re-key) adds the three lines. |
+| re-keying `section_overlays` off `section_source_key` | same positional flaw as P1, and an approved AI fix could land on the wrong leaf after an insertion — **but it degrades safely**: `original_leaf_fingerprint` is compared on every sync, so a shifted overlay goes `stale` and re-flags the section rather than silently applying. Its own table, its own migration, its own PR. |
 | deleting `is_junk_leaf` / `normalize_heading` from the API | they compensate for real pipeline defects. Make them **counted** first; delete per-cause as the pipeline closes each. Deleting blind regresses QA's view. |
 | an explicit `order` field on every leaf | measured before building it: tree-walk order and the API's page-sort order disagree on **21 of 103 documents**, and heavily — 222 of 327 positions in Sales Tax Rules 2006, 62 of 62 in Customs Rules 2001. Which is *right* cannot be settled from the JSON; it needs the source pages. So `docs/pipeline-contract.md` states the rule actually in force (sort by `start_page`, stably) rather than minting a field nobody has validated. Own PR, with its own measurement. |
 | register residue (30), Phase 4a/4b/5, OCR | out of scope, confirmed. See `wip/HANDOVER.md`. |
@@ -264,3 +302,16 @@ would change what reviewers see. Stating the rule in force beat inventing a fiel
 **2026-08-31 — `is_junk_leaf` and `normalize_heading` stay for now.** They are P5 and the
 plan says to make them counted before deleting them. Nothing in PR-A touches them; PR-E
 is where they get measured.
+
+**2026-08-31 — the fixture corpus was pre-contract, which made CI test only the
+fallback.** `tools/fixture_corpus.py` wrote its JSON by hand, so the one corpus CI can
+run carried no `node_key` and exercised the `source_key` path exclusively. It now calls
+`stamp_document` — the contract's own code — so it cannot drift. It deliberately does
+NOT call `stamp_run_provenance`: `converted_at` and `pipeline_revision` would break the
+byte-identical-on-every-machine promise `.gitignore` makes about the generator. That the
+two are separable is why PR-A made them separate functions.
+
+**2026-08-31 — the API Docker image was verified, not just reasoned about.**
+`docker build -f apps/api/Dockerfile` completes clean with the `legal_contract` copy
+added. Docker had been down on this host since `wip/HANDOVER.md` Phase 1; it is up now,
+which also clears that phase's one unchecked box.
