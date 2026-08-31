@@ -18,7 +18,11 @@
 Source PDFs + pipeline JSON live under `data/corpora/` (`CORPUS_ORDINANCE` / `CORPUS_ACTS`, gitignored). Conversion may also write under `data/output/`. Sync content-addresses PDF/JSON into the blob store (`UPLOAD_DIR` for the filesystem
 backend, an S3 bucket otherwise) and indexes sections in PostgreSQL. Optional `make vendor-corpora` refreshes from a sibling CC-FBR tree.
 
-The Library header's Ordinance/Acts line is that mount check (`output/*.json` on disk), not the document list. Remote seed via `push_corpus` creates `source_type=upload` rows and leaves `corpus_sync_state.last_sync_at` null.
+The Library header's Ordinance/Acts line is that mount check (`output/*.json` on disk), not the document list.
+
+Remote seed via `push_corpus` sends each document's `source_key` and `corpus_origin`, so the deployment mints the same deterministic id `sync_acts` does: a pushed row and a synced row are the same row. Pipeline health metrics (which match on `source_key`) therefore resolve in production, a re-push is a new version rather than a second document, and reconciliation can withdraw a document the pipeline has retired. `corpus_sync_state.last_sync_at` stays null on a deployment, because no sync ran there.
+
+A document uploaded by hand has no corpus identity and keeps the old shape: a uuid4 id and `source_type=upload`.
 
 ## Version workflow
 

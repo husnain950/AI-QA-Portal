@@ -127,13 +127,17 @@ seed-archive:
 
 # Re-seed a deployed portal from the local Postgres corpus. Needs ADMIN_EMAIL /
 # ADMIN_PASSWORD in .env (admin role) and a prior `make sync` so local blobs exist.
+# Safe to re-run: a corpus document is sent with its source_key, so the deployment
+# mints the same id `sync_acts` does and a repeat push is a no-op on unchanged bytes
+# and a new VERSION otherwise -- review state is carried, not reset.
 push-remote:
 	@test -n "$(BASE_URL)" || (echo "Usage: make push-remote BASE_URL=https://your-portal.code.run"; exit 1)
 	$(PYTHON) -m backend.push_corpus --base-url "$(BASE_URL)"
 
-# Backs up review state, which push-remote cannot rebuild -- re-uploading resets every
-# section to pending. Volume snapshots would be better but Northflank gates that API.
-# Needs ADMIN_EMAIL / ADMIN_PASSWORD (reader role is enough).
+# Backs up review state. This is no longer what makes `push-remote` safe -- a re-push
+# carries review state now -- but it is still the only defence against losing the
+# volume, and annotations do not travel with a push. Volume snapshots would be better
+# but Northflank gates that API. Needs ADMIN_EMAIL / ADMIN_PASSWORD (reader is enough).
 backup-remote:
 	@test -n "$(BASE_URL)" || (echo "Usage: make backup-remote BASE_URL=https://your-portal.code.run"; exit 1)
 	$(PYTHON) tools/snapshot_review.py --base-url "$(BASE_URL)" $(if $(OUT),--out "$(OUT)",)

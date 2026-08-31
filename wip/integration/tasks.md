@@ -213,15 +213,59 @@ document marked withdrawn.
 
 Closes **P3**. Confirmed authorised to deploy.
 
-- [ ] `/documents/upload` and `/replace-json` accept `source_type` + `source_key`
-- [ ] `push_corpus` sends the deterministic identity
-- [ ] `acts_metrics` matches in production — the health UI exists and nothing feeds it
-- [ ] PR-C reconciliation applies to the push path
-- [ ] `make backup-remote` **before** anything else
-- [ ] `--dry-run` diff reviewed
-- [ ] CI green on `main`, then deploy, then re-verify counts + health badges live
+- [x] `/documents/upload` accepts `source_key` + `corpus_origin`; with them it mints
+      the same `uuid5` `sync_acts` does, computes the same `source_hash`, and an
+      upload for a document that already exists becomes a **version**, not a row
+- [x] an origin with no key is refused — it would be a row reconciliation counts but
+      can never match, so the next sync of that corpus would withdraw it immediately
+- [x] `push_corpus` sends the identity it holds locally, matches remote documents on
+      `source_key` rather than on `documents.name` (a display string), and skips
+      withdrawn documents
+- [x] `acts_metrics` matches in production — the health UI exists and nothing fed it
+- [x] PR-C reconciliation applies to the push path
+- [x] 8 + 3 tests, including that the seeded `source_hash` equals what a local sync
+      computes (if they disagreed, the first local sync would rewrite every pushed
+      document and manufacture a version for each)
+- [x] the three places that documented the old behaviour corrected: the Makefile,
+      `docs/architecture.md`, and the backup workflow's own rationale
+- [x] **adoption path** — the live portal's 106 documents have no `source_key` at
+      all; uploading them again would create a second row beside each. They are
+      matched by name and *refreshed* instead, which is the call that writes the
+      identity onto the row that already exists. Their ids are deliberately left
+      alone: production ids are inside exported evidence bundles.
+- [x] `make backup-remote` — 106 documents, 30.8 MB, before anything else
+- [x] `--dry-run` diff against the live portal: **106 to refresh, 0 to upload,
+      0 orphans**. 0-to-upload is the whole point: nothing is duplicated.
+- [ ] merge (deploy is automatic on green CI on `main`), then re-verify live
 
----
+### Production, measured before the change
+
+```
+106 documents live
+  with source_key : 0
+  source_type     : {'upload': 106}
+  health populated: 0        <- PR #37: "The UI already exists... Nothing feeds it."
+  sections total  : 17,859
+```
+
+A reporting bug caught in the dry-run and fixed: computing orphans from the corpus key
+alone reported all 106 adoptable documents as "no local match". True of the key, and
+completely misleading about the document -- and that line is the only warning an
+operator gets, because this tool never deletes. `plan_orphans` now matches under
+either identity, and is tested.
+
+### What changes in production
+
+| | before | after |
+|---|---|---|
+| id | `uuid4()` | `uuid5("acts_corpus:<stem>")` — the same one a local sync mints |
+| `source_type` / `source_key` | `upload` / NULL | `acts_corpus` / the stem |
+| pipeline health | never matched | matches |
+| re-push | a second row; review state reset | a version; review state carried |
+| withdrawal | invisible to it | reconcilable |
+
+A document uploaded by hand still has no corpus identity and keeps the old shape
+exactly — there is a test for that too.
 
 ## PR-E — Send the derived values; delete the client forks
 

@@ -24,9 +24,13 @@ Credentials: ``ADMIN_EMAIL`` / ``ADMIN_PASSWORD`` (or ``--email`` / ``--password
 Every API path needs a session after the auth migration; replace-json and the v2 upload
 commit path need an admin role.
 
-Note this creates ``source_type='upload'`` documents: deterministic corpus ids and
-pipeline health metrics come from ``sync_acts``, which needs the pipeline repositories.
-Where the server can see them, prefer that.
+Documents keep the identity they have locally. A corpus document is sent with its
+``source_key`` and ``corpus_origin``, so the deployment mints the same ``uuid5``
+``sync_acts`` does and a pushed row is indistinguishable from a synced one: pipeline
+health metrics match on ``source_key`` and light up, a re-push is a new *version*
+carrying review state rather than a second row, and reconciliation can see the
+document. Only a document that has no corpus identity locally is still sent as an
+``upload``.
 """
 
 from __future__ import annotations
@@ -41,7 +45,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from typing import Any
+from typing import Any, NamedTuple
 
 import psycopg
 
@@ -50,6 +54,18 @@ from backend.services.auth import SESSION_COOKIE
 from backend.services.blob_store import sha256_file, upload_root
 
 UPLOADS = upload_root()
+
+
+class LocalDoc(NamedTuple):
+    """One document to send, ordered by size (``plan_order`` sorts these directly)."""
+
+    size: int
+    name: str
+    pdf: str
+    json: str
+    lane: str | None
+    source_key: str | None
+    corpus_origin: str | None
 BASE = ""
 _OPENER: urllib.request.OpenerDirector | None = None
 
@@ -95,22 +111,28 @@ def libpq_url(url: str | None = None) -> str:
     return raw
 
 
-def local_documents(uploads: str | None = None) -> list[tuple[int, str, str, str, str | None]]:
-    """``(size, name, pdf_path, json_path, corpus_lane)`` from the local Postgres DB."""
+def local_documents(uploads: str | None = None) -> list[LocalDoc]:
+    """Every locally stored document, with the identity it will keep on the remote.
+
+    Withdrawn documents are skipped: the local pipeline stopped producing them, so
+    pushing them would re-seed a deployment with parses that have been retired.
+    """
     root = uploads if uploads is not None else UPLOADS
-    todo: list[tuple[int, str, str, str, str | None]] = []
+    todo: list[LocalDoc] = []
     with psycopg.connect(libpq_url()) as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT name, pdf_filename, json_filename, corpus_lane FROM documents"
+                "SELECT name, pdf_filename, json_filename, corpus_lane, "
+                "       source_key, corpus_origin "
+                "FROM documents WHERE withdrawn_at IS NULL"
             )
             rows = cursor.fetchall()
-    for name, pdf_filename, json_filename, lane in rows:
+    for name, pdf_filename, json_filename, lane, source_key, origin in rows:
         pdf = os.path.join(root, pdf_filename)
         js = os.path.join(root, json_filename)
         if os.path.exists(pdf) and os.path.exists(js):
             size = os.path.getsize(pdf) + os.path.getsize(js)
-            todo.append((size, name, pdf, js, lane))
+            todo.append(LocalDoc(size, name, pdf, js, lane, source_key, origin))
     todo.sort()
     return todo
 
@@ -168,16 +190,39 @@ def open_url(request: urllib.request.Request, timeout: float = 120):
     return _OPENER.open(request, timeout=timeout)
 
 
+def remote_key(doc) -> str:
+    """How a remote document is recognised.
+
+    Its ``source_key`` when it has one, and only then its name. Matching on the name
+    alone was the old behaviour and it is a display string: two editions sharing one
+    would silently become a single document.
+    """
+    return f"key:{doc['source_key']}" if doc.get("source_key") else f"name:{doc['name']}"
+
+
 def existing_docs():
-    """``{name: {"id", "json_filename"}}`` for everything already on the deployment."""
+    """``{key: {"id", "json_filename"}}`` for everything already on the deployment."""
     request = urllib.request.Request(
         f"{BASE}/api/documents", headers={"Accept": "application/json"}
     )
     with open_url(request, timeout=120) as response:
         return {
-            doc["name"]: {"id": doc["id"], "json_filename": doc["json_filename"]}
+            remote_key(doc): {"id": doc["id"], "json_filename": doc["json_filename"]}
             for doc in json.loads(response.read().decode())
         }
+
+
+def plan_orphans(local, remote) -> set[str]:
+    """Remote documents with no local counterpart, under EITHER identity.
+
+    Operator-facing: the line it prints is the only warning that a deployment holds
+    something the corpus does not, and this tool never deletes. Matching on the corpus
+    key alone reported all 106 adoptable documents as orphans -- true of the key, and
+    completely misleading about the document.
+    """
+    known = {f"name:{item.name}" for item in local}
+    known |= {f"key:{item.source_key}" for item in local if item.source_key}
+    return set(remote) - known
 
 
 def plan_refresh(local, remote):
@@ -189,16 +234,26 @@ def plan_refresh(local, remote):
     -> skipped entirely; present and different -> a new version of the JSON only, since
     the PDF is content-addressed too and has not moved.
 
-    ``local`` is a list of ``(size, name, pdf, js, lane)``. Network-free, so the part
-    that decides what gets overwritten is testable.
+    ``local`` is a list of :class:`LocalDoc`. Network-free, so the part that decides
+    what gets overwritten is testable.
     """
     to_upload, to_refresh = [], []
     for item in local:
-        name, js = item[1], item[3]
-        match = remote.get(name)
+        by_key = f"key:{item.source_key}" if item.source_key else None
+        match = remote.get(by_key) if by_key else None
+        # Adoption. A deployment seeded before corpus identity existed holds the
+        # document under `name:` with no `source_key` at all -- 106 of them on the
+        # live portal at the time of writing. Uploading it again would create a
+        # SECOND row beside it, so it is matched by name and refreshed instead, which
+        # is the call that writes the key onto the row it already has. Its id stays
+        # what it is: production ids are already inside exported evidence.
+        adopting = False
+        if match is None:
+            match = remote.get(f"name:{item.name}")
+            adopting = match is not None and by_key is not None
         if match is None:
             to_upload.append(item)
-        elif match["json_filename"] != f"json/{sha256_file(js)}.json":
+        elif adopting or match["json_filename"] != f"json/{sha256_file(item.json)}.json":
             to_refresh.append((match["id"], *item))
     return to_upload, to_refresh
 
@@ -244,9 +299,9 @@ def main(argv: list[str] | None = None):
     present = existing_docs() if need_remote else {}
     to_upload, to_refresh = plan_refresh(todo, present)
 
-    upload_bytes = sum(item[0] for item in to_upload)
+    upload_bytes = sum(item.size for item in to_upload)
     refresh_bytes = sum(os.path.getsize(item[4]) for item in to_refresh)
-    orphans = set(present) - {item[1] for item in todo}
+    orphans = plan_orphans(todo, present)
     print(
         f"{len(todo)} local documents, {len(present)} on production: "
         f"{len(to_refresh)} to refresh ({refresh_bytes / 1048576:.0f} MB of JSON), "
@@ -263,13 +318,15 @@ def main(argv: list[str] | None = None):
         )
 
     if args.dry_run:
-        for _id, size, name, _pdf, js, lane in to_refresh:
+        for _id, size, name, _pdf, js, lane, _key, _origin in to_refresh:
             print(
                 f"  would refresh {os.path.getsize(js) / 1048576:6.1f} MB  "
                 f"[{lane or '-'}]  {name}"
             )
-        for size, name, _pdf, _js, lane in to_upload:
-            print(f"  would send    {size / 1048576:6.1f} MB  [{lane or '-'}]  {name}")
+        for item in to_upload:
+            seeded = "corpus" if item.source_key else "upload"
+            print(f"  would send    {item.size / 1048576:6.1f} MB  "
+                  f"[{item.lane or '-'}/{seeded}]  {item.name}")
         return 0
 
     done = failed = 0
@@ -310,10 +367,17 @@ def main(argv: list[str] | None = None):
 
     # Refresh first: it is JSON only, and it is what makes an already-visible library
     # tell the truth about its OCR provenance. Uploads can take their time afterwards.
-    for doc_id, _size, name, _pdf, js, lane in to_refresh:
+    for doc_id, _size, name, _pdf, js, lane, source_key, origin in to_refresh:
         fields = {"note": "Corpus refresh from push_corpus."}
         if lane:
             fields["corpus_lane"] = lane
+        # Sent on every refresh, not just an adoption: it is idempotent, and it is
+        # what turns a row seeded before corpus identity into one the pipeline-health
+        # ingest and reconciliation can both see.
+        if source_key:
+            fields["source_key"] = source_key
+        if origin:
+            fields["corpus_origin"] = origin
         send(
             "refresh",
             f"{BASE}/api/documents/{doc_id}/replace-json",
@@ -330,10 +394,17 @@ def main(argv: list[str] | None = None):
             f"{args.risky_above_mb:.0f} MB, sent first while a crash costs nothing",
             flush=True,
         )
-    for size, name, pdf, js, lane in risky + rest:
+    for size, name, pdf, js, lane, source_key, origin in risky + rest:
         fields = {"name": name}
         if lane:
             fields["corpus_lane"] = lane
+        # The identity this document already has locally. Without it the deployment
+        # mints a uuid4 and a `source_type='upload'` row, which is what made pipeline
+        # health unmatchable and a re-push destructive.
+        if source_key:
+            fields["source_key"] = source_key
+        if origin:
+            fields["corpus_origin"] = origin
         send(
             "upload ",
             f"{BASE}/api/documents/upload",
