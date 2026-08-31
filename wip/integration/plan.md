@@ -1,6 +1,7 @@
 # Pipeline → Web-App Integration: the architecture
 
-**Status:** living document. It describes the architecture this work is building toward;
+**Status:** the architecture that now exists. Every problem in §3 is marked closed or
+carried, with the PR that did it. `wip/integration/tasks.md` is the execution ledger;
 `wip/integration/tasks.md` is the execution ledger and is the one to trust for *what is
 done*. When an assumption here is disproven by measurement, this file changes — it is not
 a historical record. (The frozen record is the per-PR artifact beside it.)
@@ -102,7 +103,7 @@ None of this should be undone:
 
 ## 3. Architectural problems
 
-### P1 — Leaf identity is positional, so a structural fix churns the whole document
+### P1 — ~~Leaf identity is positional~~ — CLOSED (#62)
 
 `json_parser._stable_id(document_id, source_key)`, where `source_key` is a JSON-pointer
 path: `/chapters/0/sections/3`. Insert one leaf and every later key names a *different*
@@ -132,7 +133,7 @@ packages/legal_ingest/pipeline.py   ← 9 hits, all inside the emitter
 
 Verified unique across all 16,430 leaves in the two lanes that emit it. Zero duplicates.
 
-### P2 — There is no canonical contract; there are two output schemas
+### P2 — ~~No canonical contract; two output schemas~~ — CLOSED (#61)
 
 `docs/pipeline-readme.md` documents the *ordinance* schema and says so ("written for the
 standalone ordinance repository… `legal_ingest` has since diverged"). It omits `type`,
@@ -158,7 +159,7 @@ names this hazard for *measurement*; it applies identically to *ingest*.
 
 Reproduce: `python3 wip/integration/measure/census.py`.
 
-### P3 — Two ingest paths with different contracts, and production runs the weaker one
+### P3 — ~~Two ingest paths; production runs the weaker~~ — CLOSED (#64, #65, #70, #71)
 
 | | `make sync` (`sync_acts`) | `make push-remote` (`push_corpus`) |
 |---|---|---|
@@ -172,14 +173,14 @@ Reproduce: `python3 wip/integration/measure/census.py`.
 A backup job load-bearing for correctness is the clearest possible signal that the ingest
 path is wrong. PR #37's finding, still open.
 
-### P4 — Nothing is ever withdrawn
+### P4 — ~~Nothing is ever withdrawn~~ — CLOSED (#63)
 
 No code path removes a `documents` row when its JSON leaves `output/`. Phase 2 moved two
 acts documents to `output/_refused/` (80 → 78) and holds 9 in `_provisional/`. Any
 document refused, renamed or quarantined keeps its rows, its stale parse and its
 "approved" badges forever. A reviewer cannot tell a current document from an abandoned one.
 
-### P5 — Parsing decisions live in the presentation layer, unmeasured
+### P5 — Parsing decisions in the presentation layer — CARRIED, see Deferred
 
 `apps/api/backend/services/json_parser.py` makes three pipeline-grade judgements the
 pipeline's invariants and register cannot see:
@@ -191,7 +192,7 @@ pipeline's invariants and register cannot see:
   docstring: *"sub-page position is not recoverable from the export."* **The pipeline
   knows the reading order and throws it away; the API guesses it back.**
 
-### P6 — The frontend re-derives six backend answers, from copies that have drifted
+### P6 — ~~The frontend re-derives six backend answers~~ — CLOSED (#66)
 
 Every one of these files carries a *"mirrors / keep in sync with"* comment. **The comment
 is the diagnosis, not the fix.** Verified:
@@ -212,7 +213,7 @@ test suite; no page calls it.
 The shape is consistent: **the backend computes the right answer, then either declines to
 put it on the wire or the client recomputes it from a fork that has since drifted.**
 
-### P7 — The sanitizer coverage is inverted, and it destroys pipeline data
+### P7 — ~~Inverted sanitizer coverage destroying pipeline data~~ — CLOSED (#67)
 
 - `HtmlPanel.jsx:69` — the **main section body** — does `container.innerHTML = htmlContent`
   with **no client sanitizer at all**.
@@ -229,7 +230,7 @@ put it on the wire or the client recomputes it from a fork that has since drifte
   cite→footnote linkage by fuzzy `textContent` matching, which mis-links whenever markers
   repeat in a leaf.
 
-### P8 — Stale review state in the workspace, from a half-finished consolidation
+### P8 — ~~Stale review state in the workspace~~ — CLOSED (#68)
 
 `documentStore.refreshReviewData` **invalidates 2 query keys and then refetches 4**:
 
@@ -248,7 +249,7 @@ status — precisely the failure the consolidation comment claims to have fixed.
 fields (`effective_status`, `reviewer_verdict`, `annotation_count`, quality-flag elevation)
 never reach the UI at all until the cache ages out.
 
-### P9 — A dead section id renders the previous leaf, silently
+### P9 — ~~A dead section id renders the previous leaf~~ — CLOSED (#68)
 
 Sections are hard-deleted (`document_store.py:557`) and ids are minted from `source_key`,
 so any structural change retires ids. When the URL names a retired id: `fetchSection` 404s,
@@ -262,7 +263,7 @@ The backend already models this case for annotations (`anchor_status='orphaned'`
 `orphan_context`, rendered as *"Sec {code} (removed)"*). The section-level equivalent was
 never wired up.
 
-### P10 — The corpus interface has no atomicity, provenance, or CI gate
+### P10 — ~~No atomicity, provenance, or CI gate at the corpus interface~~ — CLOSED (#61, #69)
 
 `tools/convert.py:114` writes `open(out, "w")` straight into `output/`; `sync_acts` globs
 the same directory. A sync concurrent with `convert_all` reads a half-written corpus. There
@@ -481,6 +482,47 @@ document · interrupted sync then retry · rollback via `activate_version` · wi
 reappearance · request for a withdrawn document · **web-app URL naming a deleted section**.
 
 Wired into `.github/workflows/ci.yml` beside the existing `smoke` job.
+
+---
+
+## 5b. What this actually left behind
+
+Measured on the live portal, before and after:
+
+| | before | after |
+|---|---|---|
+| documents | 106 | **115** |
+| `source_type` | all `upload` | all **`acts_corpus`** |
+| documents with `source_key` | **0** | **115** |
+| pipeline health populated | **0** | **92** (79 within gate, 13 outside, 23 unmeasured) |
+| `lane` / `edition_year` on the wire | — | **115** |
+| documents with more than one version | 0 | **85** |
+| sections | 17,859 | **22,171** |
+| approvals | 21 | 18 — the three whose text genuinely changed reset, which is correct |
+
+The 85 new versions are eleven rounds of parser fixes arriving in production. That is
+PR #37's sentence answered: *"The fix is not broken — it never travelled."* It
+travelled.
+
+`health populated: 92` is the other half of the same sentence. The badges the Library
+already rendered had nothing behind them because `acts_metrics` reads a reports
+directory a deployment does not have; #70 gave the numbers a wire and #71 made it
+survive the rate limiter.
+
+### The gates that now exist
+
+| gate | what it catches |
+|---|---|
+| `contract_complete` (all 3 lanes) | a document claiming the contract that does not meet it; a duplicate `node_key` on any document |
+| `test_register_snapshot` | the anomaly register moving without a PR that moved it |
+| `test_sanitizer_policy` | the client allowlist drifting from the backend's |
+| `test_integration_matrix` | 18 seam states, **on CI**, with no private data |
+| `test_node_key_identity` | a structural change churning leaves that did not change |
+| `test_withdrawal` | one corpus's sync withdrawing another's documents |
+
+The last of those is the one that was missing entirely: `data/corpora/` is gitignored,
+so every lane suite SKIPs on CI and nothing between "a parser fix merged" and "a
+reviewer sees it" was checked. The matrix builds its own corpus, so it runs anywhere.
 
 ---
 
