@@ -121,7 +121,7 @@ def test_plan_refresh_splits_by_content_hash(tmp_path):
     assert [item.name for item in to_upload] == ["New Act"], "absent -> upload"
     assert to_refresh == [(  # id and active version first: replace-json needs both
         "id-2", "v-2", 20, "Stale Act", "b.pdf", str(drifted), "finance",
-        "Stale Act", "acts",
+        "Stale Act", "acts", None,
     )]
     assert not any(item[2] == "Identical Act" for item in to_refresh), (
         "matching content hash must not cost a new version"
@@ -295,3 +295,34 @@ def test_a_refresh_carries_the_active_version_for_if_match(tmp_path):
     _to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
     assert to_refresh[0][0] == "id-1"
     assert to_refresh[0][1] == "version-7", "the active version must reach the caller"
+
+
+def test_a_local_row_predating_corpus_identity_is_not_uploaded_twice(tmp_path):
+    """The mirror of the adoption case.
+
+    A hand upload can share a corpus document's name and carry no `source_key`, while
+    the remote row -- already adopted -- is filed under `key:`. Matching only on
+    `name:` missed it and would have created a duplicate on the deployment.
+    """
+    body = tmp_path / "a.json"
+    body.write_text("{}", encoding="utf-8")
+    identical = f"json/{blob_store.sha256_file(body)}.json"
+
+    local = [push_corpus.LocalDoc(10, "Fixture Finance Act 2024", "a.pdf", str(body),
+                                  "manual", None, None)]
+    remote = {"key:Fixture Finance Act 2024": {"id": "prod-1", "version": "v-1",
+                                               "json_filename": identical}}
+
+    to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
+    assert to_upload == [], "a keyless local row was uploaded beside its remote twin"
+    assert to_refresh == [], "identical content must not cost a version either"
+
+
+def test_metrics_travel_with_the_document(tmp_path):
+    """`local_documents` carries the measurements so `put_metrics` has something to
+    send; a document the suite has not measured carries None."""
+    measured = push_corpus.LocalDoc(10, "A", "a.pdf", "a.json", "customs", "A", "acts",
+                                    {"invariants_passed": 58, "failing_invariants": []})
+    unmeasured = push_corpus.LocalDoc(10, "B", "b.pdf", "b.json", "customs", "B", "acts")
+    assert measured.metrics["invariants_passed"] == 58
+    assert unmeasured.metrics is None

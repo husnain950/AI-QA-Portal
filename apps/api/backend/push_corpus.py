@@ -66,6 +66,10 @@ class LocalDoc(NamedTuple):
     lane: str | None
     source_key: str | None
     corpus_origin: str | None
+    #: The pipeline's own measurements for the active parse, or None when the suite
+    #: has not measured this document. Carried so a deployment -- which has no
+    #: reports directory and so has never held a single row -- can show them.
+    metrics: dict | None = None
 BASE = ""
 _OPENER: urllib.request.OpenerDirector | None = None
 
@@ -122,17 +126,43 @@ def local_documents(uploads: str | None = None) -> list[LocalDoc]:
     with psycopg.connect(libpq_url()) as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT name, pdf_filename, json_filename, corpus_lane, "
-                "       source_key, corpus_origin "
-                "FROM documents WHERE withdrawn_at IS NULL"
+                """
+                SELECT d.name, d.pdf_filename, d.json_filename, d.corpus_lane,
+                       d.source_key, d.corpus_origin,
+                       m.invariants_passed, m.invariants_total, m.cases_passed,
+                       m.cases_total, m.body_conserved, m.body_missing,
+                       m.footnote_conserved, m.footnote_missing, m.gate_ok,
+                       m.measured_at, m.detail_json
+                FROM documents d
+                LEFT JOIN document_versions v
+                       ON v.document_id = d.id AND v.is_active = TRUE
+                LEFT JOIN version_metrics m ON m.version_id = v.id
+                WHERE d.withdrawn_at IS NULL
+                """
             )
             rows = cursor.fetchall()
-    for name, pdf_filename, json_filename, lane, source_key, origin in rows:
+    for row in rows:
+        (name, pdf_filename, json_filename, lane, source_key, origin,
+         *measured, detail_json) = row
         pdf = os.path.join(root, pdf_filename)
         js = os.path.join(root, json_filename)
-        if os.path.exists(pdf) and os.path.exists(js):
-            size = os.path.getsize(pdf) + os.path.getsize(js)
-            todo.append(LocalDoc(size, name, pdf, js, lane, source_key, origin))
+        if not (os.path.exists(pdf) and os.path.exists(js)):
+            continue
+        metrics = None
+        if any(value is not None for value in measured):
+            keys = ("invariants_passed", "invariants_total", "cases_passed",
+                    "cases_total", "body_conserved", "body_missing",
+                    "footnote_conserved", "footnote_missing", "gate_ok",
+                    "measured_at")
+            metrics = dict(zip(keys, measured))
+            metrics["failing_invariants"] = (
+                json.loads(detail_json).get("failing_invariants", [])
+                if detail_json else []
+            )
+        size = os.path.getsize(pdf) + os.path.getsize(js)
+        todo.append(
+            LocalDoc(size, name, pdf, js, lane, source_key, origin, metrics)
+        )
     todo.sort()
     return todo
 
@@ -256,13 +286,43 @@ def plan_refresh(local, remote):
         # what it is: production ids are already inside exported evidence.
         adopting = False
         if match is None:
-            match = remote.get(f"name:{item.name}")
+            # Both directions of the identity mismatch. A remote row that predates
+            # corpus identity is found by name; a LOCAL row that predates it (a hand
+            # upload sharing a corpus document's name) would otherwise miss the
+            # remote `key:` entry and be uploaded as a duplicate.
+            match = remote.get(f"name:{item.name}") or remote.get(f"key:{item.name}")
             adopting = match is not None and by_key is not None
         if match is None:
             to_upload.append(item)
         elif adopting or match["json_filename"] != f"json/{sha256_file(item.json)}.json":
             to_refresh.append((match["id"], match.get("version"), *item))
     return to_upload, to_refresh
+
+
+def put_metrics(document_id: str, metrics: dict) -> bool:
+    """POST one document's pipeline measurements. Never fatal.
+
+    A deployment has no reports directory, so `acts_metrics.ingest` cannot run there
+    and production has never held a single `version_metrics` row -- the health badges
+    the Library already renders had nothing behind them. The numbers are parsed on the
+    machine that ran the suite; this posts them rather than shipping the reports.
+
+    A failure here loses a badge, not a document, so it is reported and stepped over.
+    """
+    payload = json.dumps(metrics).encode()
+    request = urllib.request.Request(
+        f"{BASE}/api/documents/{document_id}/metrics",
+        data=payload,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with open_url(request, timeout=60) as response:
+            response.read()
+        return True
+    except Exception as error:
+        print(f"  metrics failed for {document_id}: {error}", file=sys.stderr, flush=True)
+        return False
 
 
 def main(argv: list[str] | None = None):
@@ -426,6 +486,24 @@ def main(argv: list[str] | None = None):
             name,
             size,
         )
+
+    # Health last, and only for what is actually there: a measurement is about a
+    # version, so it has to follow the version it describes.
+    remote_now = existing_docs()
+    measured = sent_metrics = 0
+    for item in todo:
+        if not item.metrics:
+            continue
+        measured += 1
+        match = remote_now.get(
+            f"key:{item.source_key}" if item.source_key else f"name:{item.name}"
+        )
+        if match is None:
+            continue
+        if put_metrics(match["id"], item.metrics):
+            sent_metrics += 1
+    if measured:
+        print(f"pipeline health: {sent_metrics}/{measured} measurements sent", flush=True)
 
     print(
         f"\ndone: {done} sent, {failed} failed, "
