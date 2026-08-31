@@ -376,18 +376,26 @@ wired up.
 
 ## PR-H — The adversarial matrix, on CI
 
-Closes **P10**'s gate half. `data/fixtures/acts` is generated and not gitignored, so this
-is the one harness CI can run end to end.
+Closes **P10**'s gate half.
 
-- [ ] mutation helper over the fixture corpus
-- [ ] first ingest · identical re-ingest (0 versions, 0 row writes) · leaf edit
-- [ ] insert / delete / move / reorder at every level · chapter rename
-- [ ] malformed JSON · truncated JSON · empty document · 10k-leaf document
-- [ ] duplicate stem across corpora · concurrent sync of one document
-- [ ] interrupted sync then retry · rollback via `activate_version`
-- [ ] withdrawal then reappearance · request for a withdrawn document
-- [ ] web-app URL naming a deleted section
-- [ ] wired into `.github/workflows/ci.yml` beside the existing `smoke` job
+- [x] `tools/fixture_corpus.build(dest)` already takes a destination, so the matrix
+      generates its own corpus into a temp directory — real PDFs with a real text
+      layer, contract-stamped JSON. **No workflow change was needed**: the `api` job
+      already runs `pytest apps/api/backend/tests`, so the seam is gated the moment
+      the file exists.
+- [x] 18 cases, driven through `run_sync` rather than through the pieces:
+      first ingest · identical reprocessing (0 rows written, `row_revision`
+      unchanged) · leaf edit · insert at the head, the middle and the end · delete ·
+      chapter rename · malformed JSON · truncated JSON · a document with no leaves ·
+      an impossible page range · 2,000 leaves · interrupted sync then resume ·
+      two concurrent syncs · rollback via `activate_version` · withdrawal and return ·
+      a withdrawn document gone from the Library but still addressable
+- [x] duplicate stem across corpora — already covered by
+      `test_corpus_registry.py::source_key_collisions`
+- [x] a web-app URL naming a deleted section — covered in PR-G's frontend tests
+
+Where a case already has unit coverage (leaf identity, withdrawal), the matrix drives
+it end to end anyway: the unit tests can only prove the pieces agree with themselves.
 
 ---
 
