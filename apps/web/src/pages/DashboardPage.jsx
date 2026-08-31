@@ -233,13 +233,32 @@ const DashboardPage = () => {
     const handleCorpusSync = async () => {
         try {
             setSyncing(true);
-            const summary = await corpusApi.sync({ metrics: true });
-            const ord = summary.ordinance || {};
-            const acts = summary.acts || {};
+            // An idempotency key, because the only thing stopping a second
+            // concurrent sync was local React state: `sync_running` is fetched once
+            // on mount and never re-polled, so a sync started in another tab left
+            // this button enabled. `TriagePage` already passes one for its job.
+            const summary = await corpusApi.sync(
+                { metrics: true },
+                { idempotencyKey: `corpus-sync-${Date.now()}` },
+            );
+            // Every corpus the server reports, read off the summary itself. This
+            // named `ordinance` and `acts` and nothing else, so the Rules corpus --
+            // which has existed since #19 -- was silently dropped from the message.
+            // `corpus_sync.run_corpus_sync` gives EVERY registered corpus a key for
+            // exactly this reason ("so a reader of the summary can tell 'synced
+            // nothing' from 'was not asked to'"); reading them means a fourth corpus
+            // needs no change here.
+            const counts = Object.entries(summary)
+                .filter(([, part]) => part && typeof part === 'object' && 'imported' in part)
+                .map(([label, part]) => `${part.skipped_corpus
+                    ? `${label} not mounted`
+                    : `${label} ${part.imported ?? 0} imported / ${part.skipped ?? 0} skipped`}`)
+                .join('; ');
+            const withdrawn = summary.withdrawn
+                ? ` ${summary.withdrawn} withdrawn.` : '';
             pushToast({
                 type: 'success',
-                message: `Corpus sync finished — Ordinance imported ${ord.imported ?? 0} / skipped ${ord.skipped ?? 0}; `
-                    + `Acts imported ${acts.imported ?? 0} / skipped ${acts.skipped ?? 0}.`,
+                message: `Corpus sync finished — ${counts || 'nothing to sync'}.${withdrawn}`,
             });
             await reload();
             await refreshCorpusStatus();
@@ -247,6 +266,10 @@ const DashboardPage = () => {
             pushToast({ type: 'error', message: 'Corpus sync failed: ' + (err.message || 'Unknown error') });
         } finally {
             setSyncing(false);
+            // Whatever happened, re-read whether a sync is still running: this
+            // component's `syncing` flag is local, the server's `sync_running` is
+            // the truth, and a reload mid-sync loses the local one entirely.
+            await refreshCorpusStatus();
         }
     };
 

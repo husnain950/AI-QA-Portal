@@ -52,6 +52,7 @@ const ReviewPage = () => {
         activeDocument,
         sections,
         activeSection,
+        activeSectionError,
         pageSections,
         fetchDocument,
         fetchSections,
@@ -291,6 +292,44 @@ const ReviewPage = () => {
                             htmlContent={activeSection.html_content}
                             footnotes={activeSection.footnotes}
                         />
+                    ) : activeSectionError === 'removed' ? (
+                        // Sections are hard-deleted, so a URL naming a retired id
+                        // 404s. This used to leave the PREVIOUS leaf mounted -- its
+                        // HTML, its footnotes, its toolbar -- while the URL and
+                        // "Leaf N of M" referred to the dead one, so a reviewer could
+                        // approve or annotate the wrong provision after a resync.
+                        // The backend already models this for annotations
+                        // (`anchor_status='orphaned'` with a snapshot); this is the
+                        // section-level equivalent, which was never wired up.
+                        <div className="review-panel-empty" data-testid="section-removed">
+                            <strong>This leaf is no longer in the document.</strong>
+                            <p>
+                                A newer parse removed it, so the id in this link no
+                                longer resolves. Pick a section from the Table of
+                                Contents to carry on.
+                            </p>
+                            {sections.length > 0 ? (
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={() => navigate(`/review/${documentId}/${sections[0].id}`)}
+                                >
+                                    Go to the first section
+                                </button>
+                            ) : null}
+                        </div>
+                    ) : activeSectionError === 'failed' ? (
+                        <div className="review-panel-empty" data-testid="section-failed">
+                            <strong>This section could not be loaded.</strong>
+                            <p>That is a request failure, not an empty section.</p>
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-secondary"
+                                onClick={() => fetchSection(documentId, sectionId)}
+                            >
+                                Retry
+                            </button>
+                        </div>
                     ) : (
                         <div className="review-panel-empty">
                             Select a section from the Table of Contents to begin review

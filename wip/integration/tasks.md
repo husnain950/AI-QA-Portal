@@ -346,17 +346,33 @@ silently discarded here.
 
 Closes **P8** and **P9**.
 
-- [ ] `refreshReviewData` — prefer deleting the Zustand mirror over patching the
-      invalidation; the mirror is the cause, not the victim
-- [ ] a 404 on `fetchSection` clears `activeSection` and renders an explicit removed-leaf
-      state, mirroring the `orphan_context` treatment annotations already get
-- [ ] surface the ~12 swallowed errors; `documentsError` exists for this and has no reader
-- [ ] distinguish "empty" from "failed" on TOC, section pane, page view, notes, corpus status
-- [ ] corpus sync: idempotency key, abort signal, `onProgress`, live `sync_running`,
-      re-attachment after reload, Rules counts in the toast
-- [ ] drop one of the two stacked retry layers (~90 s to first error today)
+- [x] `refreshReviewData` invalidates every key it refetches. It invalidated two and
+      refetched four; `invalidateQueries` prefix-matches on array elements and
+      `'sections' !== 'section'`, so `['section', …]` and `['sections-by-page', …]`
+      were never touched — and `fetchQuery` honours `staleTime: 30_000`, so those two
+      "refetches" returned the **pre-write** value and wrote it back, reverting the
+      optimistic patch.
+- [x] a 404 on `fetchSection` clears `activeSection` and records **why** — `removed`
+      (a resync retired the id) or `failed` — and the review page renders each
+      explicitly, with a link to a live section
+- [x] `sectionsError` and `activeSectionError` written down instead of swallowed;
+      `documentsError` was added for exactly this and had no reader
+- [x] the corpus-sync toast reads its corpora **off the summary**, so the Rules
+      counts stop being dropped and a fourth corpus needs no change here
+- [x] an idempotency key on the corpus sync, and `sync_running` re-read in `finally`
+- [x] one retry layer, not two — an unreachable API took ~90 s to surface an error
+- [x] 8 frontend tests
+- [ ] the Zustand mirror itself — see Deferred
 
----
+### The one that could act on the wrong provision
+
+Sections are hard-deleted, so a resync retires ids. A URL naming a retired id 404'd,
+`documentStore` logged to the console and returned `null`, and **`activeSection` was
+never cleared** — so the pane went on rendering the *previous* leaf's HTML, footnotes
+and toolbar while the URL and "Leaf N of M" referred to the dead one. The backend
+already models this for annotations (`anchor_status='orphaned'` with a content
+snapshot, rendered as "Sec {code} (removed)"); the section-level equivalent was never
+wired up.
 
 ## PR-H — The adversarial matrix, on CI
 
@@ -382,6 +398,7 @@ is the one harness CI can run end to end.
 | re-conversion onto the contract (14 stale acts docs, ordinance lane) | multi-hour, freezes parser work; confirmed decoupled. Own PR, established protocol: `output/_pre_<round>/` snapshot, three lanes re-measured, register regenerated in the same PR. |
 | deleting `_legacy_section_key` and the `source_key` bridge | only when a query shows zero rows relying on them. Today 19 of 103 documents (the whole ordinance lane + 6 pre-Phase-0 acts) still have no `node_key`, so the bridge is load-bearing until the re-conversion runs. |
 | `footnotes.node_key` | the plan called for it; measurement says no. Footnotes are already matched by `(section_id, marker)`, which is structural — a positional index was never used. Nothing to fix. |
+| deleting the Zustand mirror in `documentStore` | the plan preferred deleting it over patching the invalidation, and that is still the right end state — every entity lives in two caches with independent lifetimes. But it means rewriting five pages onto React Query hooks, and the bug it caused is fixed and tested now. A separate PR, on its own evidence. |
 | `ReviewToolbar`'s approval gate | it gates on *any* quality flag while claiming to mirror `CRITICAL_FLAGS`, which is narrower. Which is right is a product question — a broader confirm prompt may well be deliberate — so it is not something to silently "fix" into agreement. Needs a decision, then one line. |
 | exposing `node_key` on the API | no consumer yet. The column exists; whichever PR needs it (a stable React key, the overlay re-key) adds the three lines. |
 | re-keying `section_overlays` off `section_source_key` | same positional flaw as P1, and an approved AI fix could land on the wrong leaf after an insertion — **but it degrades safely**: `original_leaf_fingerprint` is compared on every sync, so a shifted overlay goes `stale` and re-flags the section rather than silently applying. Its own table, its own migration, its own PR. |

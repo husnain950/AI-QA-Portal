@@ -62,8 +62,16 @@ export const useDocumentStore = create((set, get) => ({
     pageSections: [], // Used in Page View mode
     searchResults: [],
     searchQuery: '',
-    // Set when /documents fails, so an empty list can be told apart from a failed load.
+    // Set when a fetch fails, so an empty result can be told apart from a failed load.
+    // Every one of these used to be a bare `console.error`, and the UI rendered the
+    // failure as a fact: "No sections found.", "No open notes.", "Select a section
+    // from the Table of Contents". `documentsError` was added for exactly this and
+    // had no reader.
     documentsError: null,
+    sectionsError: null,
+    // 'removed' when the section 404s (a resync retired the id) and 'failed' for
+    // anything else. The two must not render as the same thing.
+    activeSectionError: null,
     
     loading: {
         documents: false,
@@ -104,9 +112,13 @@ export const useDocumentStore = create((set, get) => ({
         set((state) => ({ loading: { ...state.loading, sections: true } }));
         try {
             const data = await query(['sections', docId], `/documents/${docId}/sections`);
-            set({ sections: data });
+            set({ sections: data, sectionsError: null });
         } catch (e) {
+            // Written down rather than swallowed: with nothing recorded, the TOC
+            // rendered "No sections found." for a failed request, which reads as a
+            // fact about the document.
             console.error('Failed to fetch sections', e);
+            set({ sectionsError: e?.message || 'Request failed' });
         } finally {
             set((state) => ({ loading: { ...state.loading, sections: false } }));
         }
@@ -116,10 +128,21 @@ export const useDocumentStore = create((set, get) => ({
         set((state) => ({ loading: { ...state.loading, activeSection: true } }));
         try {
             const data = await query(['section', docId, sectionId], `/documents/${docId}/sections/${sectionId}`);
-            set({ activeSection: data });
+            set({ activeSection: data, activeSectionError: null });
             return data;
         } catch (e) {
             console.error('Failed to fetch section', e);
+            // Clearing it is the whole point. Leaving the previous leaf mounted is
+            // how a reviewer could approve or annotate the WRONG provision after a
+            // resync: sections are hard-deleted, so a URL naming a retired id 404s,
+            // and the pane went on rendering the last leaf's HTML, footnotes and
+            // toolbar while the URL and "Leaf N of M" referred to the dead one.
+            // A 404 is "this leaf is gone"; anything else is "the request failed",
+            // and the two must not render as the same empty state.
+            set({
+                activeSection: null,
+                activeSectionError: e?.status === 404 ? 'removed' : 'failed',
+            });
             return null;
         } finally {
             set((state) => ({ loading: { ...state.loading, activeSection: false } }));
@@ -156,11 +179,32 @@ export const useDocumentStore = create((set, get) => ({
     refreshReviewData: async ({ sectionId = null, page = null } = {}) => {
         const docId = get().activeDocument?.id;
         if (!docId) return;
+        const target = sectionId ?? get().activeSection?.id;
+        // Invalidate exactly what is about to be refetched.
+        //
+        // This used to invalidate two keys and refetch four. `invalidateQueries`
+        // prefix-matches on array elements and `'sections' !== 'section'`, so
+        // `['section', docId, id]` and `['sections-by-page', docId, page]` were
+        // never touched -- and `fetchQuery` honours `staleTime: 30_000`, so those
+        // two "refetches" returned the PRE-WRITE cached value and wrote it back into
+        // the store, reverting the optimistic patch. Acting on a leaf within 30s of
+        // opening it left the TOC saying `approved` and the section pane saying the
+        // old status: precisely the split the consolidation comment claims to have
+        // fixed. Server-derived fields (`effective_status`, `reviewer_verdict`,
+        // `annotation_count`, quality-flag elevation) never arrived at all until the
+        // cache aged out.
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: ['document', docId] }),
             queryClient.invalidateQueries({ queryKey: ['sections', docId] }),
+            ...(target
+                ? [queryClient.invalidateQueries({ queryKey: ['section', docId, target] })]
+                : []),
+            ...(page != null
+                ? [queryClient.invalidateQueries({
+                    queryKey: ['sections-by-page', docId, page],
+                })]
+                : []),
         ]);
-        const target = sectionId ?? get().activeSection?.id;
         await Promise.all([
             get().fetchDocument(docId),
             get().fetchSections(docId),
