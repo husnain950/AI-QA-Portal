@@ -1,7 +1,10 @@
 # Integration tasks — the execution ledger
 
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
-merged on `main`. If an assumption is disproven, the row changes and `plan.md` changes
+merged on `main`.
+
+**State: the nine planned PRs are merged (#61–#71) and deployed.** What remains is in
+Deferred, each with the reason it is not done rather than a note that it isn't. If an assumption is disproven, the row changes and `plan.md` changes
 with it.
 
 Architecture: [`wip/integration/plan.md`](plan.md). Pipeline state (out of scope here):
@@ -133,7 +136,7 @@ Closes **P1**.
       ingest. **4 of them fail with the fix stubbed out** (verified, `__pycache__`
       cleared); the other 5 pass either way, which is right — they are the guards
       that nothing existing broke.
-- [ ] delete `_legacy_section_key` and the `source_key` fallback — not yet; see Deferred
+- [ ] delete `_legacy_section_key` and the `source_key` fallback — see Deferred
 
 ### Two bugs the tests caught before merge
 
@@ -237,7 +240,8 @@ Closes **P3**. Confirmed authorised to deploy.
 - [x] `make backup-remote` — 106 documents, 30.8 MB, before anything else
 - [x] `--dry-run` diff against the live portal: **106 to refresh, 0 to upload,
       0 orphans**. 0-to-upload is the whole point: nothing is duplicated.
-- [ ] merge (deploy is automatic on green CI on `main`), then re-verify live
+- [x] merged, deployed, and **pushed**: 111 of 115 sent in 49 min (the 4 errors had
+      committed server-side; a follow-up dry-run showed 0 to refresh, 0 orphans)
 
 ### Production, measured before the change
 
@@ -301,8 +305,7 @@ Closes **P6**. One change, not six patches: the API stops withholding what it co
       and was called by nothing but its own passing tests. The one live function moved
       to `libraryQuery.js`, which already owns the sort constants it duplicated.
 - [x] 5 backend + 7 frontend tests
-- [ ] reconcile `ReviewToolbar`'s approval gate with the backend set it claims to
-      mirror — see Deferred
+- [ ] reconcile `ReviewToolbar`'s approval gate — see Deferred (a product question)
 
 ### Measured, on the real corpus
 
@@ -377,7 +380,7 @@ Closes **P8** and **P9**.
 - [x] an idempotency key on the corpus sync, and `sync_running` re-read in `finally`
 - [x] one retry layer, not two — an unreachable API took ~90 s to surface an error
 - [x] 8 frontend tests
-- [ ] the Zustand mirror itself — see Deferred
+- [ ] delete the Zustand mirror itself — see Deferred
 
 ### The one that could act on the wrong provision
 
@@ -502,3 +505,34 @@ at 106 documents / 17,859 sections / 21 approved leaves after the aborted run.
 Moving `groupDocumentsByFamily` between modules left `isNameSort` unresolved; lint
 passed, `npm run build` passed, and only vitest caught it. Worth knowing before
 trusting the web lint gate for a refactor: it is a linter, not a type checker.
+
+---
+
+## Where this ended
+
+Merged: **#61** contract · **#62** identity · **#63** withdrawal · **#64** production
+identity · **#65** If-Match · **#66** derived values · **#67** sanitizer · **#68**
+review state · **#69** the matrix · **#70** health transport · **#71** rate-limit
+backoff. Plus **#55, #60, #57, #58** — the four Phase 3 rounds that were open when this
+started, which took the register 64 → 30 and made the corpus and the code describe each
+other again.
+
+Production, measured: 106 → **115 documents**, all with corpus identity, **92 with
+pipeline health** (0 before), **85 carrying a new version** — eleven rounds of parser
+fixes that had never travelled.
+
+**Three things that only running it could find**, all of them invisible to a dry-run
+because a dry-run sends nothing:
+
+1. `push-remote`'s refresh path had **never worked** — no `If-Match`, so every refresh
+   it ever attempted was answered 428 while the run reported success. That is a large
+   part of why production sat eleven rounds behind.
+2. Pipeline health had no wire at all. Fixing the identity made the rows *matchable*;
+   it did not make them exist.
+3. The rate limiter dropped 32 of 92 measurements on the floor.
+
+**And three the tests found before merge:** a unique-index collision the identity
+change introduced; a positional fallback that let a new leaf inherit its neighbour's
+approval; and 965 occurrences of five pipeline-emitted classes the *backend* sanitizer
+had been silently discarding, which surfaced only because making the client sanitize
+broke a test that turned out to be right.
