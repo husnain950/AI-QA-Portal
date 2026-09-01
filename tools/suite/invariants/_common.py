@@ -1034,6 +1034,42 @@ def inv_no_toc_row_in_heading(doc):
     return bad
 
 
+# The Contents page's column header.  It is the one unambiguous signature of a
+# table of contents: statute prose never prints "Section  Page  No.".
+_CONTENTS_COLUMN_HEADER = re.compile(r"Section\s+Page\s+No\.?", re.IGNORECASE)
+
+
+def inv_preamble_carries_no_toc_tail(doc):
+    """The preamble must not carry the tail of the Contents page.
+
+    The preamble is where the enacting formula lives -- ``[Act No. IV of 1969]``,
+    the long title, ``It is hereby enacted as follows:-``.  When the Contents
+    parse overruns, the last rows of the contents listing are glued in FRONT of
+    it, so one node holds a table of contents and the enacting formula.
+
+    This is reported here because the portal's answer to it is worse than the
+    defect.  ``json_parser.is_junk_leaf`` matches the same column header and
+    *drops the whole leaf*, so the preamble and the enacting formula of four
+    Customs Act editions never reach a reviewer at all -- silently, invisibly to
+    the register, to the conservation audits and to the reviewer.  That deletion
+    is P5 in ``wip/integration/plan.md`` and is fixed on the API side separately;
+    the cause belongs to the pipeline, so the pipeline is where it is counted.
+
+    Measured at 4 hits, all in the acts lane (Customs Act 1969, the 2013-2016
+    editions), 0 in rules and 0 in ordinance.
+    """
+    preamble = doc.get("preamble")
+    if not isinstance(preamble, dict):
+        return []
+    blob = "\n".join(str(preamble.get(k) or "")
+                     for k in ("heading", "plain_text", "html"))
+    m = _CONTENTS_COLUMN_HEADER.search(blob)
+    if not m:
+        return []
+    return [f"preamble carries a Contents tail ({m.group(0)!r}); "
+            f"the enacting formula shares a node with the contents listing"]
+
+
 _SCHED_ORD_WORDS = ("FIRST SECOND THIRD FOURTH FIFTH SIXTH SEVENTH EIGHTH NINTH "
                     "TENTH ELEVENTH TWELFTH THIRTEENTH FOURTEENTH FIFTEENTH "
                     "SIXTEENTH SEVENTEENTH").split()
@@ -2325,6 +2361,7 @@ _ORDER = [
     "no_control_chars",
     "preamble_present",
     "no_toc_row_in_heading",
+    "preamble_carries_no_toc_tail",
     "no_chapter_caption_in_section_heading",
     "no_code_fragment_in_section_heading",
     "structure_counts",

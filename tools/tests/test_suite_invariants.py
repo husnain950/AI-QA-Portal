@@ -23,7 +23,7 @@ from suite.invariants import _common  # noqa: E402
 #: stage and no provisional/text-density concepts, so it runs 46.
 #: 58/45 + `contract_complete`, which every lane runs because the output contract is
 #: the one thing all three must agree on.
-EXPECTED_COUNTS = {"acts": 60, "rules": 60, "ordinance": 46}
+EXPECTED_COUNTS = {"acts": 61, "rules": 61, "ordinance": 47}
 
 
 def test_section_attribution_helpers():

@@ -144,11 +144,13 @@ deletion or versioning guarantee. On disk:
 |---|---|---|---|---|---|---|
 | acts | 80 | 10,474 | 10,385 (74/80 docs) | 11,843 | 11,733 | 0 |
 | rules | 11 | 1,119 | 1,119 (11/11) | 1,325 | 1,325 | 0 |
-| **ordinance** | 12 | **4,958** | **0** (0/12) | 6,941 | **0** | 0 |
-| **total** | **103** | **16,551** | **11,504** | | | **0** |
+| **ordinance** | 12 | 4,958 | **4,958 (12/12)** — PR-J | 6,941 | **6,941** | 0 |
+| **total** | **103** | **16,551** | **16,462** | | | **0** |
 
-**5,047 leaves — 30% of the corpus — have no stable identity at all.** Zero duplicate
-`node_key` across the 11,504 that do, so the key is sound where it exists.
+At the time this was written, **5,047 leaves — 30% of the corpus — had no stable identity
+at all**, the whole ordinance lane among them. PR-J re-converted that lane; **89 leaves in
+6 documents remain**, all of them pre-Phase-0 acts documents that OCR blocks. Zero
+duplicate `node_key` across all 16,462, so the key is sound where it exists.
 
 The 6 acts documents without one also have `family: null` — **pre-Phase-0 artifacts still
 in the live corpus.** Nothing in `metadata` records which parser revision produced a file,
@@ -180,14 +182,22 @@ acts documents to `output/_refused/` (80 → 78) and holds 9 in `_provisional/`.
 document refused, renamed or quarantined keeps its rows, its stale parse and its
 "approved" badges forever. A reviewer cannot tell a current document from an abandoned one.
 
-### P5 — Parsing decisions in the presentation layer — CARRIED, see Deferred
+### P5 — Parsing decisions in the presentation layer — pipeline half GATED (PR-J); API half CARRIED
 
 `apps/api/backend/services/json_parser.py` makes three pipeline-grade judgements the
 pipeline's invariants and register cannot see:
 
 - **`is_junk_leaf`** *silently drops* leaves. Invisible to the register, to the
-  conservation audits, and to the reviewer.
-- **`normalize_heading`** strips TOC chrome the pipeline should not have emitted.
+  conservation audits, and to the reviewer. Measured: it fires **4 times** on the whole
+  corpus, and all four are the *preamble* of a Customs Act edition, dropped with its
+  enacting formula because a Contents tail is glued to its front. PR-J's
+  `preamble_carries_no_toc_tail` counts that cause in the register, where it belongs; the
+  deletion itself is still here.
+- **`normalize_heading`** strips TOC chrome the pipeline should not have emitted — and
+  measured over the corpus it rewrites **44 headings in 21 documents, 36 of which are the
+  `[...]` omission marker** being eaten by the dot-leader pattern (`Directorate General
+  [...] Internal Audit` -> `[ ] Internal Audit`). The client's `tocLabels.cleanHeading`
+  is a live second copy that runs the same regex again on the already-cleaned string.
 - **`_apply_reading_order`** re-derives document order by sorting on `start_page`. Its own
   docstring: *"sub-page position is not recoverable from the export."* **The pipeline
   knows the reading order and throws it away; the API guesses it back.**
@@ -519,6 +529,7 @@ survive the rate limiter.
 | `test_integration_matrix` | 18 seam states, **on CI**, with no private data |
 | `test_node_key_identity` | a structural change churning leaves that did not change |
 | `test_withdrawal` | one corpus's sync withdrawing another's documents |
+| `preamble_carries_no_toc_tail` (all 3 lanes) | a Contents tail glued in front of the enacting formula — the cause the portal answers by deleting the leaf |
 
 The last of those is the one that was missing entirely: `data/corpora/` is gitignored,
 so every lane suite SKIPs on CI and nothing between "a parser fix merged" and "a
