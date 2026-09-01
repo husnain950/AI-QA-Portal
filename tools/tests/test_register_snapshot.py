@@ -16,6 +16,7 @@ updated.  That is intended -- the number then moves in the same PR that moved it
 from __future__ import annotations
 
 import collections
+import functools
 import json
 import pathlib
 import re
@@ -31,6 +32,24 @@ sys.path.insert(0, str(_ROOT / "tools"))
 from corpus_paths import LABELS, output_dir  # noqa: E402
 
 _FAIL = re.compile(r"\[ *FAIL \((\d+)\)\] +([a-z_]+)")
+#: a regression CASE line.  The invariant line above carries a count; a case is
+#: pass/fail, so the two shapes differ and ``_FAIL`` never matched this one.
+_CASE_FAIL = re.compile(r"^ *\[FAIL\] +(\S+)", re.M)
+_DOC = re.compile(r"^#{5,} (.+?) #{5,}$", re.M)
+
+
+@functools.lru_cache(maxsize=None)
+def _run(lane: str) -> str:
+    """One suite run per lane, shared by every reading below.
+
+    A full lane is 80 documents; the invariant count and the case verdicts both
+    come out of the same stdout, so running it twice would double the slowest
+    part of this file for nothing.
+    """
+    return subprocess.run(
+        [sys.executable, str(_ROOT / "tools" / "run_suite.py"), lane],
+        capture_output=True, text=True, cwd=_ROOT,
+    ).stdout
 
 
 def _measure(lane: str) -> dict[str, int]:
@@ -40,14 +59,28 @@ def _measure(lane: str) -> dict[str, int]:
     ``failures`` to 20 while keeping ``n_failures`` -- and parsing the printed
     line is what ``scan_heading_leaks.py`` already does.
     """
-    out = subprocess.run(
-        [sys.executable, str(_ROOT / "tools" / "run_suite.py"), lane],
-        capture_output=True, text=True, cwd=_ROOT,
-    ).stdout
     counts: collections.Counter = collections.Counter()
-    for m in _FAIL.finditer(out):
+    for m in _FAIL.finditer(_run(lane)):
         counts[m.group(2)] += int(m.group(1))
     return dict(counts)
+
+
+def _failing_cases(lane: str) -> list[tuple[str, str]]:
+    """``(document, case_id)`` for every active regression case that FAILED.
+
+    The suite prints a ``########## <file> ##########`` banner per document, so
+    the case is reported with the document it failed on rather than on its own.
+    """
+    out, doc, bad = _run(lane), "?", []
+    for line in out.splitlines():
+        d = _DOC.match(line)
+        if d:
+            doc = d.group(1)
+            continue
+        c = _CASE_FAIL.match(line)
+        if c:
+            bad.append((doc, c.group(1)))
+    return bad
 
 
 def _staged() -> bool:
@@ -66,6 +99,27 @@ def test_register_matches_the_committed_snapshot():
         "If this is an improvement, regenerate tools/suite/register.json in the "
         "same PR. If it is not, it is a regression."
     )
+
+
+def test_no_active_regression_case_fails():
+    """A regression case is a lock on a fix already made.  Its only value is zero.
+
+    The register is a count of KNOWN-OPEN defects and moves deliberately, so it
+    gets a committed snapshot.  A case is the opposite: every fix in this project
+    ships pinned by one in the same PR, so a failing case is a regression by
+    definition and there is nothing to snapshot.
+
+    ``_FAIL`` above matches ``[ FAIL (3)] section_carries_its_body`` -- an
+    invariant, which carries a count.  It has never matched ``[FAIL] <case_id>``,
+    so for as long as the register has gated CI, the mechanism protecting every
+    fix already made was gated by nothing.  Two cases were failing when this was
+    written, one of them the lock the previous round shipped.
+    """
+    if not _staged():
+        pytest.skip("corpus not staged -- the lane suites skip here too")
+    bad = [(lane, doc, cid) for lane in LABELS for doc, cid in _failing_cases(lane)]
+    assert not bad, "active regression case(s) failing:\n" + "\n".join(
+        f"  {lane}: {cid}\n    on {doc}" for lane, doc, cid in bad)
 
 
 def test_snapshot_total_agrees_with_its_own_lanes():

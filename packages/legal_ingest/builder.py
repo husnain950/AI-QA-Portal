@@ -15,6 +15,7 @@ module:
 
 from __future__ import annotations
 
+import functools
 import html as _html
 import re
 from dataclasses import dataclass, field
@@ -2702,6 +2703,41 @@ def normalize_document_text(result):
 _HEAD_CODE_PREFIX_RE = re.compile(_HEAD + rf"{_OPEN}{CODE}\s*[.\]]?\s*")
 
 
+@functools.lru_cache(maxsize=None)
+def _head_code_prefix_re(code: str):
+    """``_HEAD_CODE_PREFIX_RE`` for ONE known code, tolerating how it is printed.
+
+    ``CODE`` is positional and allows a hyphen but never a space, so on the
+    18-section run whose text layer splits the code -- ``150 ZQR.`` for 150ZQR,
+    the family ``_DOTSUFFIX_RE`` above exists to catch -- it matches ``150`` and
+    stops, and the title keeps the tail: ``heading`` came out as "ZQR.
+    Application".  Measured over the shipped corpus: 31 leaves in 15 documents
+    across two lanes -- the 16-rule ``150ZQ*`` run plus 14A in rules, and
+    156A x7 / 18A x5 / 25AA / 37D in acts -- every one of them
+    ``heading_source="body"``; a leaf whose heading came from the TOC is clean,
+    which is why the shape only appears once a section has a body to be read
+    from.  The dot is not always printed: Customs 18A reads "A Special customs
+    duty on imported goods".
+
+    So the strip is driven by the code the caller ALREADY passes and never used.
+    ``discover._heading_from_words`` solves the same disagreement the same way
+    and says why: the code arrives FOLDED (``norm_code``) while the words carry
+    the PRINTED spelling.  Anchored, and bounded to len(code)-1 separator runs.
+
+    The separator run is why the code token must be required to END on a
+    boundary.  Without the lookahead the run between the last two characters
+    can swallow the code's OWN terminator: Customs 193A prints ``193. Appeals
+    to Collector``, and ``3`` + ``. `` + ``A`` matches, taking the title's first
+    letter with it ("ppeals to Collector").  ``discover._heading_from_words``
+    carries the same construction and a comment claiming the len(code)-1 bound
+    makes that impossible; the bound limits how MANY separator runs there are,
+    not how far one reaches, so the claim does not hold for a code whose letter
+    suffix also begins the title word.
+    """
+    return re.compile(_HEAD + _OPEN + r"[\s.\-]*".join(map(re.escape, code))
+                      + r"(?=[\s.\]]|$)" + r"\s*[.\]]?\s*")
+
+
 def _body_heading_title(h4_inner: str, code: str) -> str:
     """The section title as PRINTED IN THE BODY, in the shape of a TOC heading.
 
@@ -2720,9 +2756,24 @@ def _body_heading_title(h4_inner: str, code: str) -> str:
     """
     s = re.sub(r"<sup\b[^>]*>.*?</sup>", "", h4_inner)
     s = _html.unescape(re.sub(r"<[^>]+>", "", s))
-    m = _HEAD_CODE_PREFIX_RE.match(s)
-    if not m:
+    # LONGEST match wins, and neither pattern can be dropped.
+    #
+    # The positional one alone is the bug this fixes: it cannot span "150 ZQT".
+    # But the code-driven one alone is a bug in the other direction -- where the
+    # body prints a code carrying a suffix the TOC's does not (TOC "15", body
+    # "15A. Title"), it matches only the "15" and leaves "A." in the title,
+    # which is the very shape being removed here.  It also cannot match at all
+    # where the body prints a different code than the TOC lists (Sales Tax Rules
+    # lists 39E for a body printing 39K with the same title).
+    #
+    # Each covers the other's blind spot and both are anchored, so taking the
+    # longer span is strictly better than either and can never strip less than
+    # today does.
+    cands = [m for m in (_head_code_prefix_re(code).match(s) if code else None,
+                         _HEAD_CODE_PREFIX_RE.match(s)) if m]
+    if not cands:
         return ""
+    m = max(cands, key=lambda c: c.end())
     s = s[m.end():]
     # drop the heading terminator (".—" / ",-" / a bare dash) and any bracket
     s = re.sub(r"[\s\]\[]*[.,]?\s*[—–―─-]+\s*$", "", s).strip()

@@ -121,9 +121,16 @@ does not have that blind spot.
 up in `wip/phase3-chapter-numerals.md`; the Phase 2 run that produced the baseline is in
 `wip/phase2-run.md`.)*
 
-**30 invariant hits across 103 converted editions**, measured 2026-08-30 after round 11.
-210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30. The acts lane holds 80
+**30 invariant hits across 103 converted editions**, measured 2026-08-31 after round 12.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30. The acts lane holds 80
 documents.
+
+Round 12 moved the register by **zero, deliberately**: it closed a defect class no
+invariant could see (31 headings carrying their own code tail, 15 documents, 2 lanes) and
+two gates that could not fail — the register test never matched a failing regression
+CASE, and round 11's lock case was scoped to a date that selected the wrong document.
+The invariant that can see the class ships closed at 0 in the same PR. See
+`wip/phase3-round12-body-heading-code.md`.
 
 | Lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
@@ -145,6 +152,7 @@ editions carrying 2,065 image-backed pages.
 | `no_chapter_caption_in_section_heading` | 3 (3) | — | — | **3** |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 |
 | `no_footnote_text_in_body` | — | — | — | **0** |
+| `no_code_fragment_in_section_heading` | 0 (was 14) | 0 (was 17) | — | **0** |
 
 ## What round 1 closed, and what it taught
 

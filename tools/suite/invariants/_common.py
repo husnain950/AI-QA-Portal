@@ -2096,6 +2096,53 @@ def inv_no_chapter_caption_in_section_heading(doc):
     return bad
 
 
+#: A heading opening with a code-shaped token, its dot OPTIONAL.  Bounded to 7
+#: chars so it cannot span a title word; the real test is the suffix check below.
+#:
+#: The dot is optional because the corpus prints the defect both ways: Customs
+#: 18A reads "A Special customs duty on imported goods" with no dot at all, and
+#: requiring one missed 5 of the 31.  Measured after the fix, the optional form
+#: reports 0 across both lanes -- so on this corpus it costs nothing.  The
+#: residual risk it accepts is a section whose title genuinely begins with the
+#: article "A" under a code ending in A; no such title exists here, and the
+#: suffix check keeps every other capitalised opening out.
+_CODE_TAIL_IN_HEADING = re.compile(r"^([0-9A-Z][0-9A-Z-]{0,6})\.?\s")
+
+
+def inv_no_code_fragment_in_section_heading(doc):
+    """A section heading must not open with the tail of its OWN code.
+
+    ``builder._body_heading_title`` strips the code off a body-printed heading so
+    the field keeps the shape of the TOC heading it replaces.  Its ``CODE``
+    pattern is positional and allows a hyphen but never a space, so where the
+    text layer splits the code -- ``150 ZQR.`` for 150ZQR, ``156 A.`` for 156A --
+    it matched the digits and stopped, and the letters stayed in the title:
+    "ZQR. Application", "A. Proceedings against authority and persons".
+
+    The test is not "looks like a code": that would report a rule whose title
+    really does begin ``A.``  It is that the leftover token is a PROPER SUFFIX of
+    the leaf's own ``code``, which no real title is.  Self-validating, and it
+    needs nothing from outside the leaf -- unlike the cross-edition sibling count
+    that the same class of blindness still wants (wip/tasks.md).
+
+    Measured before the fix: 31 leaves, 10 documents, acts and rules; 0 in the
+    ordinance lane, which is a separate ingest fork and does not run this.
+    Every one had ``heading_source="body"`` -- a TOC-sourced heading is clean,
+    which is why a section only shows the defect once it HAS a body to read from.
+    """
+    bad = []
+    for leaf in iter_section_leaves(doc):
+        code = str(leaf.get("code") or "")
+        m = _CODE_TAIL_IN_HEADING.match(str(leaf.get("heading") or ""))
+        if not m or not code:
+            continue
+        tail = m.group(1)
+        if tail != code and code.endswith(tail):
+            bad.append(f"section {code}: heading opens with its own code tail "
+                       f"{tail!r} -- {str(leaf.get('heading'))[:60]!r}")
+    return bad
+
+
 def _numeral_key(num):
     """A chapter numeral's identity, independent of how it is spelled.
 
@@ -2210,6 +2257,33 @@ def _demo_heading_leak_class() -> None:
     assert inv_body_chapters_in_tree({"metadata": {}, "chapters": []}) == []
 
 
+def _demo_code_fragment_in_heading() -> None:
+    """Pins the split-code heading detector, both ways."""
+    def doc(code, heading):
+        return {"metadata": {}, "chapters": [{"code": "CH", "sections": [
+            {"code": code, "heading": heading, "plain_text": "x", "html": "<p>x</p>"}]}]}
+
+    # the real shapes, from four documents
+    assert inv_no_code_fragment_in_section_heading(doc("150ZQR", "ZQR. Application"))
+    assert inv_no_code_fragment_in_section_heading(
+        doc("156A", "A. Proceedings against authority and persons"))
+    assert inv_no_code_fragment_in_section_heading(
+        doc("25AA", "AA. Transactions between associates"))
+    # the same defect printed with NO dot -- Customs 18A, 5 editions
+    assert inv_no_code_fragment_in_section_heading(
+        doc("18A", "A Special customs duty on imported goods"))
+    # repaired
+    assert inv_no_code_fragment_in_section_heading(doc("150ZQR", "Application")) == []
+    # a title that merely LOOKS like a code is not one: the token has to be this
+    # leaf's own code tail.  "A." is not a suffix of 73, and "PART" is not of 12.
+    assert inv_no_code_fragment_in_section_heading(doc("73", "A. Preliminary")) == []
+    assert inv_no_code_fragment_in_section_heading(doc("12", "PART. Something")) == []
+    # the whole code is not a TAIL of itself -- that shape is a different defect
+    # and belongs to whatever reports it, not here.
+    assert inv_no_code_fragment_in_section_heading(doc("14A", "14A. Credit notes")) == []
+    assert inv_no_code_fragment_in_section_heading(doc("", "A. Anything")) == []
+
+
 #: Invariant *order* for the Acts and the Rules lanes, whose ALL_INVARIANTS lists were
 #: byte-identical. The Ordinance lane runs a different set and passes its own order.
 _ORDER = [
@@ -2252,6 +2326,7 @@ _ORDER = [
     "preamble_present",
     "no_toc_row_in_heading",
     "no_chapter_caption_in_section_heading",
+    "no_code_fragment_in_section_heading",
     "structure_counts",
     "body_chapters_in_tree",
     "no_orphan_sections",
