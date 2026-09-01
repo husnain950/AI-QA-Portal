@@ -8,6 +8,10 @@ const FLAG_REASONS = {
         'Long body with almost no block structure (heading-only / wall of text)',
     heading_body_bleed:
         'Heading looks like body text bled into the heading',
+    // Informational, deliberately not in CRITICAL_FLAGS: the leaf is readable
+    // statute with contents-page debris attached, not a parse failure.
+    toc_tail_in_leaf:
+        'Leaf carries a contents listing fused to its own text',
 };
 
 /** Mirrors backend parse_quality.CRITICAL_FLAGS — elevate / approve-gate only. */

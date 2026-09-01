@@ -1,10 +1,11 @@
 """The preamble must not carry the tail of the Contents page.
 
 `inv_preamble_carries_no_toc_tail` counts, in the pipeline's own register, a
-defect the portal currently answers by deleting the evidence:
-`json_parser.is_junk_leaf` matches the same Contents column header and drops the
-whole leaf, so the preamble *and* the enacting formula of four Customs Act
-editions never reach a reviewer.
+defect the portal used to answer by deleting the evidence: `is_junk_leaf` matched
+the same Contents column header and dropped the whole leaf, so the preamble *and*
+the enacting formula of four Customs Act editions never reached a reviewer.  The
+API now flags that leaf instead (`json_parser.assess_toc_tail`); these hits stay
+here because the cause is the pipeline's.
 
 A gate that cannot fail is a no-op, so this file makes it fail on purpose.  The
 third case is the one that matters most: the invariant is about the PREAMBLE, not
@@ -65,8 +66,8 @@ def test_passes_on_a_clean_preamble():
 def test_does_not_fire_on_a_contents_leaf_outside_the_preamble():
     """The addressable Contents sink is intentional, not a defect.
 
-    `is_junk_leaf` already exempts `code=Contents` for this reason.  An invariant
-    that fired here would report the pipeline doing the right thing.
+    `json_parser.assess_toc_tail` exempts `code=Contents` for this reason.  An
+    invariant that fired here would report the pipeline doing the right thing.
     """
     doc = {
         "preamble": {"plain_text": "An Act to consolidate the law relating to Customs"},

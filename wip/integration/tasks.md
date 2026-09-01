@@ -3,8 +3,9 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State: the nine planned PRs are merged (#61–#71) and deployed, and PR-J has taken the
-ordinance lane onto the contract.** What remains is in Deferred, each with the reason it is
+**State: the nine planned PRs are merged (#61–#71) and deployed, PR-J has taken the
+ordinance lane onto the contract, and PR-K has closed P5's API half — every problem in
+`plan.md` §3 is now closed except the reading-order limb, which is measured and deferred.** What remains is in Deferred, each with the reason it is
 not done rather than a note that it isn't. If an assumption is disproven, the row changes and `plan.md` changes
 with it.
 
@@ -497,6 +498,58 @@ re-converted and *not* re-synced, parse it fresh and compare against its stored 
 any re-sync of any lane resets approvals on it. Carryover measured here overstates the
 cost of a sync; production, pushed current at #71, is the only place it means anything.
 
+## PR-K — P5's API half: stop deleting and mangling what the pipeline sent
+
+Closes **P5** but for its reading-order limb. Artifact:
+[`phase-p5-api-half.md`](phase-p5-api-half.md).
+
+- [x] re-measured before touching anything: `is_junk_leaf` **4** drops (all four a
+      Customs Act *preamble*, 2013–2016), `normalize_heading` **42** rewrites in 21
+      documents — and **not one of the 42 is TOC chrome.** Eleven parser rounds closed
+      every case the function was written for; all 42 are collateral.
+- [x] the omission marker had **two** attackers, not the one the Deferred row named.
+      Guarding the dot-leader substitution alone took 42 → 24 and left all 17 truncated
+      cases; `.strip(" .·•…")` four lines below mops the trailing dots of
+      `Directorate General of Valuation [...` down to a bare `[`. Both now guarded on
+      one rule — an unclosed `[` means those dots are the marker. **42 → 7, 35 markers
+      intact.** Found by measuring the real function over the corpus; the prototype
+      regex passed.
+- [x] `is_junk_leaf` → `assess_toc_tail`, returning an `Optional[flag]` the way
+      `assess_page_range` does. The caller flags instead of returning early.
+      `toc_tail_in_leaf` is deliberately **not** in `CRITICAL_FLAGS`.
+- [x] `tocLabels.cleanHeading` and its six regexes deleted (213 → 172 lines) — the last
+      of P6's six client forks, and the one that re-ran the backend's own bug
+- [x] **verified all three gates fail on purpose** — revert either bracket guard, restore
+      the early return, or `git checkout` `tocLabels.js`
+- [x] register **34, unchanged**; `EXPECTED_COUNTS` 61/61/47 unchanged;
+      `preamble_carries_no_toc_tail` still reports its 4 — the cause did not go away
+      because the symptom did
+- [x] 598 passed / 1 skipped / 0 failed; ruff, oxlint clean
+
+### Measured end to end, through the real sync
+
+Two real corpus documents into a scratch database, once with each parser:
+
+```
+fresh ingest   475 -> 476 sections
+added      1   Customs Act 2014 |/preamble  flags=['toc_tail_in_leaf'] status=pending
+removed    0   ids re-minted 0   status moved 0
+headings   2   'Directorate General [ ] Internal Audit' -> '... [...] Internal Audit'
+               'Directorate General of Valuation ['     -> '... Valuation [...'
+```
+
+The recovered leaf holds `1[Act No. IV of 1969]`, the long title, the WHEREAS recital
+and `It is hereby enacted as follows:-` — deleted, before this, in four editions.
+
+### Why `assess_toc_tail` did not move to `parse_quality`
+
+The plan put it beside `assess_page_range`. Three of its four regexes are shared with
+`normalize_heading`, and `json_parser` already imports `parse_quality` — so the move is
+either a circular import or three regexes forked across two modules. Forking a regex to
+fix a forked regex is the wrong trade. It keeps the `Optional[flag]` shape, in the module
+where its regexes live.
+
+
 ---
 
 ## Deferred, with reasons
@@ -510,7 +563,8 @@ cost of a sync; production, pushed current at #71, is the only place it means an
 | `ReviewToolbar`'s approval gate | it gates on *any* quality flag while claiming to mirror `CRITICAL_FLAGS`, which is narrower. Which is right is a product question — a broader confirm prompt may well be deliberate — so it is not something to silently "fix" into agreement. Needs a decision, then one line. |
 | exposing `node_key` on the API | no consumer yet. The column exists; whichever PR needs it (a stable React key, the overlay re-key) adds the three lines. |
 | re-keying `section_overlays` off `section_source_key` | same positional flaw as P1, and an approved AI fix could land on the wrong leaf after an insertion — **but it degrades safely**: `original_leaf_fingerprint` is compared on every sync, so a shifted overlay goes `stale` and re-flags the section rather than silently applying. Its own table, its own migration, its own PR. |
-| deleting `is_junk_leaf` / `normalize_heading` from the API | **measured, and the premise inverted.** Eleven parser rounds closed nearly every cause: on the whole corpus `is_junk_leaf` fires 4 times and `normalize_heading` rewrites 44 headings, and ~40 of those 48 are the compensation *causing* the damage. All 4 drops are a Customs Act *preamble* deleted with its enacting formula; 36 of the 44 rewrites eat the `[...]` omission marker (`Directorate General [...] Internal Audit` -> `[ ] Internal Audit`). PR-J gates the drop's cause in the register. The API fix is its own PR: guard the dot-leader pattern against brackets, make the drop a `parse_quality` flag instead of a delete, and remove the client's live second copy in `tocLabels.cleanHeading`. |
+| deleting `normalize_heading` outright | PR-K guarded it and deleted the client's copy; the function itself stays. With **zero true positives** on the corpus it has no job left, but its 7 surviving rewrites include 4 that strip a leading `]` — deleting it today puts `] Tax credit not allowed` on a reviewer's screen. Both that and the truncated `[...` are the pipeline's to stop emitting. A parser round, then one deletion. |
+| **making an API-side parse fix travel** | `create_version` gates on `source_hash`, the JSON *bytes*, so a change in how those bytes are *interpreted* reaches no existing row — `--force` included. Correct by design (PR-A), and it means PR-K cannot disturb production; it also means PR-K's 4 preambles and 35 headings arrive only when those documents are next re-converted. Forcing a whole-corpus re-parse to pick up a heading change is a decision with its own evidence. PR #37's sentence, in a new guise. |
 | an explicit `order` field on every leaf | measured before building it: tree-walk order and the API's page-sort order disagree on **21 of 103 documents**, and heavily — 222 of 327 positions in Sales Tax Rules 2006, 62 of 62 in Customs Rules 2001. Which is *right* cannot be settled from the JSON; it needs the source pages. So `docs/pipeline-contract.md` states the rule actually in force (sort by `start_page`, stably) rather than minting a field nobody has validated. Own PR, with its own measurement. |
 | register residue (30), Phase 4a/4b/5, OCR | out of scope, confirmed. See `wip/HANDOVER.md`. |
 
@@ -617,6 +671,25 @@ resets are not attributed to the re-conversion.
 Pinned to an attribute-free `<p>`; the current parser classes the paragraph. `re.search`
 made the fix two characters each. A case that names a structural property should match that
 property, or it fails the next time the renderer gets better.
+
+**2026-09-01 — the omission marker had two attackers, and the prototype missed one.**
+The Deferred row named the dot-leader substitution. Guarding it took 42 rewrites to 24
+and left all 17 truncated `[...` cases exactly as they were: `.strip(" .·•…")` four lines
+below mops trailing dots unconditionally. A regex tested in isolation passed; the same
+regex measured through `normalize_heading` over the corpus did not. Test the function,
+not the pattern.
+
+**2026-09-01 — `normalize_heading` has zero true positives.** The ledger said "~40 of 48
+are the compensation causing the damage". The corpus says all 42: no page number
+stripped, no gazette masthead, no `Section Page No.` column. Eleven parser rounds closed
+the entire reason the function exists, and nobody had re-measured it against its own
+premise.
+
+**2026-09-01 — an API-side parse fix does not travel.** Re-syncing an unchanged corpus
+with a changed parser is `skipped, 0 rows written`, `--force` included: `create_version`
+compares the JSON bytes, not the parse. Good news for this PR (it cannot disturb a
+production row — measured 0 of 475) and a real limit on every future one. Written up in
+Deferred rather than worked around.
 
 ---
 

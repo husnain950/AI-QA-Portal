@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-    cleanHeading,
     formatHierarchyLabel,
     formatLeafIdentity,
     formatLeafJsonPath,
@@ -48,16 +47,24 @@ describe('tocLabels', () => {
         );
     });
 
-    it('cleans gazette junk, leading brackets, and dot leaders', () => {
-        expect(cleanHeading('] THE GAZETTE OF PAKISTAN, EXTRA.')).toBe('');
-        expect(cleanHeading('Definitions................')).toBe('Definitions');
+    // `cleanHeading` lived here and re-ran json_parser.normalize_heading's regex set
+    // on a string the backend had already cleaned at ingest -- the last of P6's six
+    // client forks.  It also carried the backend's own bug: the dot-leader pattern
+    // ate the `[...]` omission marker.  The API is the one normaliser now, so what
+    // this module owes is to render what it is given.
+    it('renders the API heading verbatim, including the omission marker', () => {
+        expect(formatSectionLabel('30A', 'Directorate General [...] Internal Audit'))
+            .toBe('Section 30A: Directorate General [...] Internal Audit');
+        expect(formatHierarchyLabel('CHAPTER I', 'Definitions [...] and scope'))
+            .toBe('CHAPTER I: Definitions [...] and scope');
         expect(
-            cleanHeading('Short title, extent and commencement. ………..7'),
-        ).toBe('Short title, extent and commencement');
-        expect(cleanHeading('Uniform 14')).toBe('Uniform 14');
-        expect(
-            cleanHeading('CHAPTER III Officers of Customs Section Page No. 12'),
-        ).toMatch(/CHAPTER III/);
+            leafHierarchyLines({ section_code: '7', section_heading: '[ ... ] Return' }),
+        ).toEqual(['Section 7 · [ ... ] Return']);
+    });
+
+    it('still trims whitespace and skips blank headings', () => {
+        expect(formatSectionLabel('1', '  Short title  ')).toBe('Section 1: Short title');
+        expect(formatSectionLabel('2', '   ')).toBe('Section 2');
     });
 });
 

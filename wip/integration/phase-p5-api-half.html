@@ -1,0 +1,294 @@
+<title>Zero True Positives</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:#f6f6f4; --paper-sunk:#ecedea; --ink:#171c24; --ink-soft:#3a434f;
+  --muted:#656e79; --rule:#d5d7d3; --rule-soft:#e4e5e2;
+  --accent:#1d5b63; --accent-bg:#e2edee;
+  --defect:#9c2f2a; --defect-bg:#f4e5e3;
+  --good:#2c6146; --good-bg:#e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+    --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+    --accent:#6fb2ba; --accent-bg:#163034;
+    --defect:#dd8880; --defect-bg:#331d1c;
+    --good:#74b795; --good-bg:#162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+  --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+  --accent:#6fb2ba; --accent-bg:#163034;
+  --defect:#dd8880; --defect-bg:#331d1c;
+  --good:#74b795; --good-bg:#162b22;
+}
+* { box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif; font-size:18px;
+  line-height:1.62; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+.sheet { max-width:1080px; margin:0 auto; padding:4rem 2rem 6rem; }
+.block { display:grid; grid-template-columns:12.5rem 1fr; gap:0 2.75rem; align-items:start; }
+.block + .block { margin-top:3.25rem; }
+.gutter { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.74rem; line-height:1.5;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right;
+  padding-top:.5rem; border-right:1px solid var(--rule-soft); padding-right:2.75rem;
+  margin-right:-2.75rem; min-height:2rem; }
+.gutter .note { display:block; text-transform:none; letter-spacing:0; font-size:.82rem;
+  font-style:italic; font-family:"Newsreader",Georgia,serif; color:var(--muted);
+  margin-top:.6rem; line-height:1.45; }
+.body { min-width:0; max-width:62ch; }
+@media (max-width:860px) {
+  .block { grid-template-columns:1fr; gap:0; }
+  .gutter { text-align:left; border-right:0; padding-right:0; margin-right:0;
+    border-left:2px solid var(--rule); padding-left:.85rem; margin-bottom:.9rem; padding-top:0; }
+  .body { max-width:none; } .sheet { padding:2.5rem 1.25rem 4rem; }
+}
+.masthead { border-bottom:2px solid var(--ink); padding-bottom:1.5rem; margin-bottom:3.5rem; }
+.eyebrow { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.72rem; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 1rem; }
+h1 { font-weight:300; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08;
+  letter-spacing:-.018em; margin:0 0 .7rem; text-wrap:balance; }
+h1 em { font-style:italic; color:var(--accent); }
+.standfirst { font-size:1.13rem; color:var(--ink-soft); margin:0; max-width:56ch; text-wrap:pretty; }
+h2 { font-weight:400; font-size:1.62rem; line-height:1.2; letter-spacing:-.012em; margin:0 0 1rem; text-wrap:balance; }
+h3 { font-family:"Source Sans 3",system-ui,sans-serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:2rem 0 .75rem; }
+p { margin:0 0 1.05rem; text-wrap:pretty; }
+.body > :last-child { margin-bottom:0; }
+strong { font-weight:600; }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible, .scroller:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:2px; }
+code { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.845em;
+  background:var(--paper-sunk); padding:.1em .34em; border-radius:3px; border:1px solid var(--rule-soft); }
+.scoreline { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin:0 0 3.5rem; }
+.score { background:var(--paper); padding:1.15rem; }
+.score dt { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.68rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem; }
+.score dd { margin:0; font-size:1.85rem; font-weight:300; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.score .was { font-size:.8rem; color:var(--muted); margin-left:.45rem; font-variant-numeric:tabular-nums; }
+.score .to { color:var(--good); } .score .flat { color:var(--ink-soft); }
+.scroller { overflow-x:auto; }
+pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem; line-height:1.75;
+  background:var(--paper-sunk); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:1rem 1.15rem; margin:0 0 1.05rem; white-space:pre; }
+pre code { background:none; padding:0; border:0; font-size:inherit; }
+pre .hl { color:var(--defect); font-weight:500; }
+pre .dim { color:var(--muted); }
+table { width:100%; border-collapse:collapse; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.875rem; margin:0 0 1.05rem; }
+caption { caption-side:top; text-align:left; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:.6rem; }
+th, td { text-align:left; padding:.62rem .75rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:.7rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--rule); }
+tbody tr:last-child td { border-bottom:0; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+tr.yes td:last-child { color:var(--defect); font-weight:600; }
+tr.no td:last-child { color:var(--good); font-weight:600; }
+tr.wrong td:first-child { box-shadow:inset 3px 0 0 var(--defect); }
+tr.right td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+.tag { display:inline-block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .42rem; border-radius:3px; white-space:nowrap; }
+.tag.ok { background:var(--good-bg); color:var(--good); }
+.tag.bad { background:var(--defect-bg); color:var(--defect); }
+.figcap { font-size:.82rem; color:var(--muted); font-style:italic; margin:0 0 1.05rem; }
+.pull { border-left:3px solid var(--accent); padding:.1rem 0 .1rem 1.15rem; margin:1.6rem 0;
+  font-size:1.12rem; color:var(--ink-soft); font-style:italic; }
+.pull strong { font-style:normal; color:var(--ink); }
+blockquote { margin:0 0 1.05rem; padding:.1rem 0 .1rem 1.15rem; border-left:2px solid var(--rule);
+  color:var(--muted); font-style:italic; font-size:.95rem; }
+footer { margin-top:4.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-family:"Source Sans 3",system-ui,sans-serif; font-size:.8rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; }
+</style>
+
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Integration · PR-K · P5's API half</p>
+  <h1>A cleanup with <em>nothing left to clean</em></h1>
+  <p class="standfirst">Eleven parser rounds closed every case the portal's heading stripper was written for. It kept running anyway — and the only thing it still reached was the marker that says a law was amended. Beside it, four Customs Act preambles were being deleted outright.</p>
+</header>
+
+<dl class="scoreline">
+  <div class="score"><dt>Headings rewritten</dt><dd>42 <span class="to">→ 7</span></dd></div>
+  <div class="score"><dt>Omission markers destroyed</dt><dd>35 <span class="to">→ 0</span></dd></div>
+  <div class="score"><dt>Leaves silently deleted</dt><dd>4 <span class="to">→ 0</span></dd></div>
+  <div class="score"><dt>Anomaly register</dt><dd class="flat">34<span class="was">unchanged</span></dd></div>
+</dl>
+
+<section class="block">
+  <div class="gutter">The premise
+    <span class="note">Re-measured before touching anything, and it did not hold.</span>
+  </div>
+  <div class="body">
+    <h2>Not one of the 42 rewrites was TOC chrome</h2>
+    <p><code>normalize_heading</code> exists to strip table-of-contents debris that leaked into Act section headings — dot leaders, page numbers, gazette mastheads. The ledger estimated that most of its firings were now collateral. The corpus says <strong>all of them are</strong>: no page number stripped, no masthead, no <code>Section Page No.</code> column. Eleven parser rounds closed the entire reason the function exists, and nobody had re-measured it against its own premise.</p>
+    <div class="scroller">
+    <table>
+      <caption>Every rewrite on the 103-document corpus</caption>
+      <thead><tr><th class="num">×</th><th>Heading in</th><th>Heading out</th></tr></thead>
+      <tbody>
+        <tr class="wrong"><td class="num">17</td><td><code>Directorate General [...] Internal Audit</code></td><td><code>Directorate General [ ] Internal Audit</code></td></tr>
+        <tr class="wrong"><td class="num">17</td><td><code>Directorate General of Valuation [...</code></td><td><code>Directorate General of Valuation [</code></td></tr>
+        <tr class="wrong"><td class="num">1</td><td><code>] [ ... ] Return</code></td><td><code>[ ] Return</code></td></tr>
+        <tr class="right"><td class="num">4</td><td><code>] Tax credit not allowed</code></td><td><code>Tax credit not allowed</code></td></tr>
+        <tr class="right"><td class="num">3</td><td><code>(REVENUE DIVISION) … INCOME TAX MANUAL</code></td><td><code>(REVENUE DIVISION) INCOME TAX MANUAL</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="pull"><code>[...]</code> is not chrome. It is the pipeline's deliberate <strong>&ldquo;text omitted by amendment&rdquo;</strong> marker — emitted with its own <code>omitted-bracket</code> class in both builders, and preserved by name in the sanitizer allowlist as data rather than decoration. A dot-leader run and an omission marker are the same characters. That is the whole defect.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">The fix
+    <span class="note">The prototype passed. The function did not.</span>
+  </div>
+  <div class="body">
+    <h2>The marker had two attackers, not one</h2>
+    <p>The deferred note named one — the dot-leader substitution. Guarding it took 42 rewrites to <strong>24</strong> and left every truncated case exactly as it was. The second attacker sits four lines below:</p>
+    <div class="scroller"><pre><code>if had_leaders:
+    text = _DOT_LEADERS_RE.sub(" ", text)          <span class="dim"># attacker 1</span>
+...
+    text = _TRAILING_TOC_PAGE_RE.sub("", text)<span class="hl">.strip(" .·•…")</span>   <span class="dim"># attacker 2</span></code></pre></div>
+    <p><code>_TRAILING_TOC_PAGE_RE</code> requires a digit, so it never matched — but the <code>.strip()</code> mops trailing dots unconditionally, and <code>Directorate General of Valuation [...</code> ends in three of them. That is what produced the bare <code>[</code>.</p>
+    <p>Both are now guarded on one rule: <strong>an unclosed <code>[</code> means those dots are the marker.</strong></p>
+    <div class="scroller"><pre><code>_DOT_LEADERS_RE   = re.compile(r"<span class="hl">(\[[^\]]*\]?)</span>|(?:[.…·•]{2,}|…+)")
+_LEADERS_PRESENT_RE = re.compile(r"(?:[.…·•]{2,}|…+)")   <span class="dim"># the bare probe</span>
+
+text = _DOT_LEADERS_RE.sub(lambda m: m.group(1) or " ", text)
+if text.rfind("[") &lt;= text.rfind("]"):
+    text = text.rstrip(" .·•…").rstrip(" .")</code></pre></div>
+    <p class="figcap">The optional closing bracket is what covers the truncated form. A second pattern keeps the <code>had_leaders</code> probe honest — probing with the guarded one would answer true for any heading containing a bracket.</p>
+    <blockquote>Found by measuring the real function over the corpus. The prototype regex, tested in isolation on the same strings, passed.</blockquote>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">The deletion
+    <span class="note">Four editions, one document, and the clause that enacts it.</span>
+  </div>
+  <div class="body">
+    <h2>The preamble nobody could see was missing</h2>
+    <p><code>is_junk_leaf</code> fired four times on the whole corpus, and all four are the preamble of a Customs Act 1969 edition. A Contents tail overruns into it, the predicate matched the tail, and the caller returned early — deleting the node. This is one leaf, recovered from the scratch database after the change:</p>
+    <div class="scroller"><pre><code><span class="dim">THE CUSTOMS ACT, 1969
+Section Page
+No.
+224 Extension of time limit. 212
+THE FIRST SCHEDULE 216
+...
+xxi</span>
+<span class="hl">1[Act No. IV of 1969]
+[3rd March,1969]
+An Act to consolidate and amend the law relating to Customs
+Whereas it is expedient to consolidate and amend the law relating to the levy
+and collection of customs-duties 1a[, fee and service charges] ...
+It is hereby enacted as follows:-</span></code></pre></div>
+    <p class="figcap">Greyed: the Contents tail the predicate matched. Highlighted: what went with it.</p>
+    <p>The tail is real, and it is the pipeline's defect — <code>inv_preamble_carries_no_toc_tail</code> counts it, and still does. But the portal's answer took the enacting formula with it: silently, and invisibly to the register, to the conservation audits and to the reviewer.</p>
+    <p>It is now <code>assess_toc_tail</code>, returning an <code>Optional[flag]</code> the way <code>assess_page_range</code> already does, and the leaf reaches the reviewer with <code>toc_tail_in_leaf</code> named on it. Deliberately <strong>not</strong> in <code>CRITICAL_FLAGS</code> — the same call <code>page_range_out_of_bounds</code> makes. This is readable statute with debris attached, not a parse failure.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Measured
+    <span class="note">Through <code>run_sync</code>, not through the pieces.</span>
+  </div>
+  <div class="body">
+    <h2>Two real documents, two parsers, one scratch database</h2>
+    <div class="scroller"><pre><code>fresh ingest, old code : 475 sections
+fresh ingest, new code : <span class="hl">476</span> sections
+
+added            1   Customs Act 2014 |/preamble
+                     flags=['toc_tail_in_leaf']  status=pending
+removed          0
+ids re-minted    0   <span class="dim">&lt;- nothing else disturbed</span>
+status moved     0
+headings changed 2   'Directorate General [ ] Internal Audit'
+                       -> 'Directorate General [...] Internal Audit'
+                     'Directorate General of Valuation ['
+                       -> 'Directorate General of Valuation [...'</code></pre></div>
+    <p class="figcap">Reproduce: <code>wip/integration/measure/p5_seam.py</code>.</p>
+    <h3>The thing only running it found</h3>
+    <p>Re-syncing the <em>same</em> database with the new parser is <code>skipped 2, 0 rows changed</code> — with <code>--force</code> too. <code>create_version</code> gates on <code>source_hash</code>, the JSON <strong>bytes</strong>, and a change in how those bytes are <em>interpreted</em> is invisible to it.</p>
+    <p>That gate is correct and was designed in deliberately. It simply does not model an API-side parse change, and both consequences are worth stating plainly:</p>
+    <div class="scroller">
+    <table>
+      <thead><tr><th>Consequence</th><th>Measured</th></tr></thead>
+      <tbody>
+        <tr class="no"><td>This PR cannot disturb an existing row — no heading churn, no approval resets, no version manufactured on deploy</td><td>0 of 475</td></tr>
+        <tr class="yes"><td>It also does not reach existing rows. The 4 preambles and 35 headings arrive when those documents are next re-converted</td><td>deferred</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="pull">Forcing a whole-corpus re-parse to pick up a heading change is a decision with its own evidence, not a side effect of this PR. It is PR #37's <strong>&ldquo;the fix never travelled&rdquo;</strong> in a new guise, and it goes in the ledger rather than being worked around here.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">The gates
+    <span class="note">A gate that cannot fail is a no-op.</span>
+  </div>
+  <div class="body">
+    <h2>Each one stubbed out and re-run</h2>
+    <div class="scroller">
+    <table>
+      <thead><tr><th>Stub</th><th>What fails</th></tr></thead>
+      <tbody>
+        <tr><td>revert both bracket guards</td><td><code>test_the_omission_marker_survives_heading_normalisation</code></td></tr>
+        <tr><td>restore the early-return deletion</td><td><code>test_flags_gazette_and_contents_leaves…</code>, <code>test_a_preamble_with_a_contents_tail_is_flagged_not_deleted</code></td></tr>
+        <tr><td><code>git checkout</code> <code>tocLabels.js</code></td><td><code>renders the API heading verbatim, including the omission marker</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <h3>The register moved by zero</h3>
+    <p>This is an API change; the pipeline defect is still the pipeline's. <code>register.json</code> is byte-identical, <code>EXPECTED_COUNTS</code> is unchanged at 61/61/47, and <code>inv_preamble_carries_no_toc_tail</code> still reports its four hits — <strong>the cause did not go away because the symptom did.</strong></p>
+    <div class="scroller"><pre><code>598 passed, 1 skipped, 0 failed   apps/api/backend/tests + tools/tests
+ruff check                        All checks passed  <span class="dim">(bare, matches ci.yml)</span>
+oxlint --deny-warnings            clean
+vitest tocLabels + qualityFlags   24 passed
+run_suite acts / rules / ordinance   ALL PASS  61/61 · 61/61 · 47/47</code></pre></div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Net
+    <span class="note">And the one thing deliberately left standing.</span>
+  </div>
+  <div class="body">
+    <h2>One heading normaliser, not two</h2>
+    <div class="scroller">
+    <table>
+      <thead><tr><th></th><th class="num">before</th><th class="num">after</th></tr></thead>
+      <tbody>
+        <tr><td>Headings rewritten at ingest</td><td class="num">42</td><td class="num">7</td></tr>
+        <tr><td>Omission markers destroyed</td><td class="num">35</td><td class="num">0</td></tr>
+        <tr><td>Leaves silently deleted</td><td class="num">4</td><td class="num">0</td></tr>
+        <tr><td>Leaves flagged instead</td><td class="num">0</td><td class="num">4</td></tr>
+        <tr><td>Heading normalisers</td><td class="num">2</td><td class="num">1</td></tr>
+        <tr><td><code>tocLabels.js</code></td><td class="num">213 lines</td><td class="num">172</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><code>tocLabels.cleanHeading</code> was a line-for-line port of <code>normalize_heading</code>, re-run on a string the backend had already cleaned at ingest — the last of P6's six client forks, and the one that ran the backend's own bug a second time. It is gone.</p>
+    <p><code>normalize_heading</code> itself stays. With zero true positives it has no job left, but four of its seven surviving rewrites strip a leading <code>]</code>, and deleting it today would put <code>] Tax credit not allowed</code> on a reviewer's screen. That — and the truncated <code>[...</code> arriving from upstream — is a parser round away, not an API change.</p>
+  </div>
+</section>
+
+<footer>
+  <span>PR-K · integration/p5-api-half</span>
+  <span>from <code>main</code> at 31a2f6e</span>
+  <span>Closes P5 but for its reading-order limb</span>
+  <span>2026-09-01</span>
+</footer>
+
+</div>

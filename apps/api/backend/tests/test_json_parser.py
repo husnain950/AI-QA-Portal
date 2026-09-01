@@ -1,6 +1,6 @@
 import json
 
-from backend.services.json_parser import is_junk_leaf, parse_json_document
+from backend.services.json_parser import assess_toc_tail, parse_json_document
 from backend.tests.conftest import sample_document
 
 
@@ -85,7 +85,15 @@ def test_leaf_shaped_parts_under_chapters_become_sections():
     assert leaf["chapter_heading"] is None
 
 
-def test_skips_gazette_and_contents_junk_leaves_and_normalizes_headings():
+def test_flags_gazette_and_contents_leaves_and_normalizes_headings():
+    """Both junk-shaped leaves are KEPT and flagged; only the chrome is stripped.
+
+    This test used to assert ``len(sections) == 1`` -- the two leaves the portal
+    deleted.  The deletion was invisible to the register, to the conservation
+    audits and to the reviewer, and on the real corpus its only four victims were
+    Customs Act preambles carrying the enacting formula.  A flag says the same
+    thing where someone can act on it.
+    """
     payload = {
         "metadata": {"filename": "x.pdf", "total_pages": 20},
         "chapters": [
@@ -132,10 +140,17 @@ def test_skips_gazette_and_contents_junk_leaves_and_normalizes_headings():
         "preamble": {"html": "", "plain_text": ""},
     }
     sections, _ = parse_json_document(json.dumps(payload), document_id="document-1")
-    assert len(sections) == 1
-    assert sections[0]["section_code"] == "1"
-    assert sections[0]["section_heading"] == "Short title"
-    assert sections[0]["chapter_heading"] == "PRELIMINARY"
+    by_code = {s["section_code"]: s for s in sections}
+    assert set(by_code) == {"1", "PART I", "CHAPTER II"}
+
+    clean = by_code["1"]
+    assert clean["section_heading"] == "Short title"
+    assert clean["chapter_heading"] == "PRELIMINARY"
+    assert [f["code"] for f in clean["quality_flags"]] == []
+
+    for code in ("PART I", "CHAPTER II"):
+        flags = [f["code"] for f in by_code[code]["quality_flags"]]
+        assert "toc_tail_in_leaf" in flags, code
 
 
 def test_normalize_heading_strips_gazette_prefix_and_toc_leaders():
@@ -303,7 +318,7 @@ def test_numeric_right_hand_column_is_not_a_contents_listing():
         ),
         "html": "<p>65. If any goods be taken…</p>",
     }
-    assert not is_junk_leaf(leaf)
+    assert assess_toc_tail(leaf) is None
 
 
 def test_explicit_page_no_column_is_still_a_contents_listing():
@@ -314,4 +329,71 @@ def test_explicit_page_no_column_is_still_a_contents_listing():
         "plain_text": "Section Page No\n1. Short title 1\n2. Definitions 2\n",
         "html": "<p>Section Page No</p>",
     }
-    assert is_junk_leaf(leaf)
+    flag = assess_toc_tail(leaf)
+    assert flag is not None
+    assert flag["code"] == "toc_tail_in_leaf"
+
+
+def test_an_addressable_contents_leaf_is_exempt():
+    """Disposition A parks a contents listing in its own leaf on purpose."""
+    assert assess_toc_tail({
+        "code": "Contents",
+        "heading": "Contents · p3",
+        "plain_text": "Section Page No.\n224 Extension of time limit. 212\n",
+        "html": "<p>Section Page No.</p>",
+    }) is None
+
+
+def test_a_preamble_with_a_contents_tail_is_flagged_not_deleted():
+    """The four Customs Act editions P5 was about.
+
+    ``is_junk_leaf`` matched the Contents column header glued in front of the
+    enacting formula and returned early, so the preamble never became a row -- the
+    reviewer got no leaf and no warning.  The leaf must survive, carrying the flag.
+    """
+    payload = {
+        "metadata": {"filename": "customs.pdf", "total_pages": 240},
+        "chapters": [],
+        "schedules": [],
+        "preamble": {
+            "heading": "Preamble",
+            "plain_text": (
+                "Section Page\nNo.\n224 Extension of time limit. 212\n"
+                "It is hereby enacted as follows:-"
+            ),
+            "html": "<p>Section Page No.</p><p>It is hereby enacted as follows:-</p>",
+            "start_page": 1,
+        },
+    }
+    sections, _ = parse_json_document(json.dumps(payload), document_id="customs-1")
+
+    assert len(sections) == 1, "the preamble was dropped instead of flagged"
+    leaf = sections[0]
+    assert leaf["source_key"] == "/preamble"
+    assert "It is hereby enacted" in leaf["plain_text"]
+
+    codes = [f["code"] for f in leaf["quality_flags"]]
+    assert "toc_tail_in_leaf" in codes
+    # Informational, like page_range_out_of_bounds -- it must not elevate the leaf.
+    assert leaf["review_status"] == "pending"
+
+
+def test_the_omission_marker_survives_heading_normalisation():
+    """`[...]` is data: the pipeline's "text omitted by amendment" marker.
+
+    A dot-leader run and an omission marker are the same characters, and BOTH the
+    leader substitution and the trailing mop-up used to eat it -- the second one
+    turning the truncated form into a bare `[`.  All four strings are real corpus
+    headings, from 35 Sales Tax Act leaves across 18 editions.
+    """
+    from backend.services.json_parser import normalize_heading
+
+    for heading in (
+        "Directorate General [...] Internal Audit",
+        "Directorate General [ ... ] Internal Audit",
+        "Directorate General of Valuation [...",
+    ):
+        assert normalize_heading(heading) == heading, heading
+
+    # Leading gazette junk still goes; the marker behind it does not.
+    assert normalize_heading("] [ ... ] Return") == "[ ... ] Return"
