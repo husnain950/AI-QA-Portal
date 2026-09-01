@@ -4662,7 +4662,7 @@
         "kind": "preamble"
       },
       "check": "preamble_matches",
-      "arg": "<p><strong>AN</strong></p>",
+      "arg": "<p[^>]*><strong>AN</strong></p>",
       "status": "active",
       "applies_to": "20.02.2026"
     },
@@ -4686,7 +4686,7 @@
         "kind": "preamble"
       },
       "check": "preamble_matches",
-      "arg": "<p>WHEREAS",
+      "arg": "<p[^>]*>WHEREAS",
       "status": "active",
       "applies_to": "20.02.2026"
     },

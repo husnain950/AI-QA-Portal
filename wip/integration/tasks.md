@@ -3,8 +3,9 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State: the nine planned PRs are merged (#61–#71) and deployed.** What remains is in
-Deferred, each with the reason it is not done rather than a note that it isn't. If an assumption is disproven, the row changes and `plan.md` changes
+**State: the nine planned PRs are merged (#61–#71) and deployed, and PR-J has taken the
+ordinance lane onto the contract.** What remains is in Deferred, each with the reason it is
+not done rather than a note that it isn't. If an assumption is disproven, the row changes and `plan.md` changes
 with it.
 
 Architecture: [`wip/integration/plan.md`](plan.md). Pipeline state (out of scope here):
@@ -32,7 +33,7 @@ Architecture: [`wip/integration/plan.md`](plan.md). Pipeline state (out of scope
 | documents converted | 80 acts / 11 rules / 12 ordinance = 103 |
 | leaves | 10,474 acts / 1,119 rules / 4,958 ordinance = **16,551** |
 | leaves with `node_key` | 10,385 (74/80 docs) / 1,119 (11/11) / **0 (0/12)** = 11,504 |
-| leaves with **no** stable identity | **5,047 — 30% of the corpus** |
+| leaves with **no** stable identity | **5,047 — 30% of the corpus** (PR-J: now 89, 0.5%) |
 | duplicate `node_key` | **0** across all 11,504 |
 | false "changed" leaves, one insert per document | **386** by `source_key`, **0** by `node_key`; 16 documents churn 100% |
 | API + tools tests | **507 passed, 1 skipped, 0 failed** |
@@ -415,20 +416,101 @@ Closes **P10**'s gate half.
 Where a case already has unit coverage (leaf identity, withdrawal), the matrix drives
 it end to end anyway: the unit tests can only prove the pieces agree with themselves.
 
+## PR-J — The ordinance lane onto the contract, and the preamble TOC tail gated
+
+Closes the largest Deferred row and **P5's pipeline half**. Artifact:
+[`phase-reconvert-ordinance.md`](phase-reconvert-ordinance.md).
+
+- [x] **merged #73 first.** The corpus on disk was round-12 output — all 77 stamped
+      documents carried `pipeline_revision: 7cc5d3431337-dirty`, converted 19:21–19:24 PKT
+      on 08-31, and an acts run-log named `.worktrees/r12/…` as its output path, while
+      round 12 committed at 19:50 and was still open. P11, the second time. Nothing but
+      `pipeline_revision` could have said so.
+- [x] `output/_pre_contract/` snapshot before touching anything
+- [x] 12 ordinance documents converted, **4m41s**, each with an explicit `-o` at its
+      existing corpus path. `convert-all` was NOT used: it targets all 46 ordinance PDFs
+      and 34 are not in the corpus, so it would have added 34 documents to the portal
+      under cover of a re-conversion.
+- [x] `contract_version` 0/12 → **12/12**; `type` and `node_key` 0 → **6,941/6,941 nodes**;
+      **0 duplicate `node_key`** — the collision risk `plan.md` §7 named as unmeasured on
+      11 of 12 documents is now measured at zero on all of them
+- [x] corpus identity hole **5,047 leaves (30%) → 89 (0.5%)**, the 89 being the 6
+      OCR-blocked pre-Phase-0 acts documents
+- [x] churn re-measured across **96 documents / 16,460 leaves** (was 84 / 11,502):
+      `source_key` 422 falsely "changed", `node_key` **0**
+- [x] `inv_preamble_carries_no_toc_tail`, bound in all three lanes — **4 hits, all Customs
+      Act (2013–2016), 0 rules, 0 ordinance, 0 non-preamble leaves**
+- [x] **verified the gate fails on purpose** — 5 tests, including that an addressable
+      `code=Contents` leaf holding a real contents listing does *not* fire
+- [x] `EXPECTED_COUNTS` 60/60/46 → 61/61/47 (the ordinance lane keeps its own `_ORDER`)
+- [x] register **30 → 34**, regenerated with the file's own `--write` generator
+- [x] driven through the real sync: **12 updated, 0 added, 0 withdrawn, 0 failed**
+
+### Nine documents were additive. Three were stale output.
+
+Strip `type`, `node_key` and the four contract keys and **nine of twelve are
+byte-identical**. The three that are not are exactly the three whose JSON name never
+matched its PDF stem. Identical `plain_text` everywhere; `html` differs on 23 of 528
+leaves, and the difference is two **already-merged** fixes those documents had never
+received — `7bb3b71` (gazette preamble classes) and `700157b` (an empty-title cite is a
+`marker` and carries `data-ref`).
+
+Three documents sat several fixes behind the rest of their own lane and nothing on disk
+could have said so. That is what `pipeline_revision` and `converted_at` are for, catching
+a real instance on first use.
+
+### Two regression cases were pinned to markup, not to the property they name
+
+`qa_preamble_an_standalone` and `qa_preamble_recitals_separate` assert `"<p><strong>AN..."`
+and `"<p>WHEREAS"` — but their descriptions are about a *paragraph boundary*, and the
+current parser classes those paragraphs. `preamble_matches` is `re.search`, so both now
+read `<p[^>]*>`. A recital collapsing back into the long-title paragraph still fails them.
+A de-pinning, not a weakening; two lines.
+
+### The register moved by zero, then by four
+
+| | acts | rules | ordinance | total |
+|---|---|---|---|---|
+| committed before | 16 | 9 | 5 | **30** |
+| after re-conversion, before the invariant | 16 | 9 | 5 | **30** |
+| after the invariant | 20 | 9 | 5 | **34** |
+
+Twelve documents changed identity representation and three changed HTML, and not one
+invariant hit moved — including `contract_complete`, which stopped early-returning on all
+12 and now holds them to the whole contract.
+
+### Measured end to end, through the real sync
+
+```
+sync   validated 12, added 0, updated 12, skipped 0, failed 0, withdrawn 0
+ids    5,951 kept -- 0 retired, 0 newly minted
+keys   node_key backfilled onto 5,939 of 5,951 rows
+       the 12 without one are the synthesised preamble leaf, which has no node -- by design
+vers   1 -> 2 per document, exactly one new version each
+```
+
+**The 5 approval resets are the local database, not this change.** 200 seeded approvals,
+195 survived. Four of the five resets were in documents whose JSON was byte-identical, so
+it was tested rather than explained away: take an acts document that was *not*
+re-converted and *not* re-synced, parse it fresh and compare against its stored rows —
+**304 of 309 leaves already differ**. This dev database predates several merged rounds, so
+any re-sync of any lane resets approvals on it. Carryover measured here overstates the
+cost of a sync; production, pushed current at #71, is the only place it means anything.
+
 ---
 
 ## Deferred, with reasons
 
 | item | why not now |
 |---|---|
-| re-conversion onto the contract (14 stale acts docs, ordinance lane) | multi-hour, freezes parser work; confirmed decoupled. Own PR, established protocol: `output/_pre_<round>/` snapshot, three lanes re-measured, register regenerated in the same PR. |
-| deleting `_legacy_section_key` and the `source_key` bridge | only when a query shows zero rows relying on them. Today 19 of 103 documents (the whole ordinance lane + 6 pre-Phase-0 acts) still have no `node_key`, so the bridge is load-bearing until the re-conversion runs. |
+| re-converting the **14 stale acts documents** | done for the ordinance lane (PR-J). These 14 share one blocker — `RuntimeError: OCR failed … No module named 'numpy'`, all dated 2026-08-27 — and numpy 2.5.1 is installed now, so they would probably convert. Doing it takes OCR in scope: `data/ocr_cache` stops being 0 B, the fidelity-floor invariants start having something to say, and a sub-floor scan routes to `_provisional/`, which under PR-C's withdrawal **removes it from the portal**. Own PR, with the cache and the floor measured on purpose. |
+| deleting `_legacy_section_key` and the `source_key` bridge | only when a query shows zero rows relying on them. PR-J took this from 19 documents / 5,047 leaves to **6 documents / 89 leaves** — the pre-Phase-0 acts documents above. Still load-bearing, and now blocked on one thing instead of two. |
 | `footnotes.node_key` | the plan called for it; measurement says no. Footnotes are already matched by `(section_id, marker)`, which is structural — a positional index was never used. Nothing to fix. |
 | deleting the Zustand mirror in `documentStore` | the plan preferred deleting it over patching the invalidation, and that is still the right end state — every entity lives in two caches with independent lifetimes. But it means rewriting five pages onto React Query hooks, and the bug it caused is fixed and tested now. A separate PR, on its own evidence. |
 | `ReviewToolbar`'s approval gate | it gates on *any* quality flag while claiming to mirror `CRITICAL_FLAGS`, which is narrower. Which is right is a product question — a broader confirm prompt may well be deliberate — so it is not something to silently "fix" into agreement. Needs a decision, then one line. |
 | exposing `node_key` on the API | no consumer yet. The column exists; whichever PR needs it (a stable React key, the overlay re-key) adds the three lines. |
 | re-keying `section_overlays` off `section_source_key` | same positional flaw as P1, and an approved AI fix could land on the wrong leaf after an insertion — **but it degrades safely**: `original_leaf_fingerprint` is compared on every sync, so a shifted overlay goes `stale` and re-flags the section rather than silently applying. Its own table, its own migration, its own PR. |
-| deleting `is_junk_leaf` / `normalize_heading` from the API | they compensate for real pipeline defects. Make them **counted** first; delete per-cause as the pipeline closes each. Deleting blind regresses QA's view. |
+| deleting `is_junk_leaf` / `normalize_heading` from the API | **measured, and the premise inverted.** Eleven parser rounds closed nearly every cause: on the whole corpus `is_junk_leaf` fires 4 times and `normalize_heading` rewrites 44 headings, and ~40 of those 48 are the compensation *causing* the damage. All 4 drops are a Customs Act *preamble* deleted with its enacting formula; 36 of the 44 rewrites eat the `[...]` omission marker (`Directorate General [...] Internal Audit` -> `[ ] Internal Audit`). PR-J gates the drop's cause in the register. The API fix is its own PR: guard the dot-leader pattern against brackets, make the drop a `parse_quality` flag instead of a delete, and remove the client's live second copy in `tocLabels.cleanHeading`. |
 | an explicit `order` field on every leaf | measured before building it: tree-walk order and the API's page-sort order disagree on **21 of 103 documents**, and heavily — 222 of 327 positions in Sales Tax Rules 2006, 62 of 62 in Customs Rules 2001. Which is *right* cannot be settled from the JSON; it needs the source pages. So `docs/pipeline-contract.md` states the rule actually in force (sort by `start_page`, stably) rather than minting a field nobody has validated. Own PR, with its own measurement. |
 | register residue (30), Phase 4a/4b/5, OCR | out of scope, confirmed. See `wip/HANDOVER.md`. |
 
@@ -505,6 +587,36 @@ at 106 documents / 17,859 sections / 21 approved leaves after the aborted run.
 Moving `groupDocumentsByFamily` between modules left `isNameSort` unresolved; lint
 passed, `npm run build` passed, and only vitest caught it. Worth knowing before
 trusting the web lint gate for a refactor: it is a linter, not a type checker.
+
+**2026-09-01 — the corpus was round-12 output and `main` had not merged it.** P11, the
+second time, and caught the same way: `pipeline_revision: 7cc5d3431337-dirty` on 77
+documents, `converted_at` four hours after the sha they name, and an acts run-log pointing
+at `.worktrees/r12/`. Round 12 was PR #73, open and green. Merged it before converting
+anything. The lesson is not "check for open PRs" — it is that the provenance keys added in
+PR-A are the only reason this was a two-minute check instead of a four-round mystery.
+
+**2026-09-01 — three ordinance documents were several fixes behind their own lane.** Nine
+of twelve re-converted byte-identically; three did not, and the diff was two already-merged
+commits (`7bb3b71`, `700157b`) they had never received. They are exactly the three whose
+JSON filename never matched its PDF stem, which is the trace of a hand-run conversion. A
+corpus can be internally inconsistent without any single file looking wrong.
+
+**2026-09-01 — `convert-all` would have added 34 documents.** `make convert-all
+LANE=ordinance` targets all 46 ordinance PDFs; only 12 are in the corpus. Running the
+documented command for "re-convert the lane" would have quadrupled it and pushed 34 new
+documents at the portal. The 12 were converted with an explicit `-o` each. Worth knowing
+before anyone reaches for `convert-all` on the acts lane, where the same gap exists.
+
+**2026-09-01 — the local dev database is many rounds stale.** An acts document that was
+never re-converted and never re-synced has **304 of 309** stored leaves differing from a
+fresh parse. Any carryover or approval-loss number measured against this database is
+therefore an artefact of its age, not of the change under test. It is why PR-J's 5 approval
+resets are not attributed to the re-conversion.
+
+**2026-09-01 — two regression cases asserted markup instead of the property they describe.**
+Pinned to an attribute-free `<p>`; the current parser classes the paragraph. `re.search`
+made the fix two characters each. A case that names a structural property should match that
+property, or it fails the next time the renderer gets better.
 
 ---
 

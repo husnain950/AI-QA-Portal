@@ -469,6 +469,7 @@ _ORDER = [
     "no_control_chars",
     "preamble_present",
     "no_toc_row_in_heading",
+    "preamble_carries_no_toc_tail",
     "structure_counts",
     "no_orphan_sections",
     "section_carries_its_body",
