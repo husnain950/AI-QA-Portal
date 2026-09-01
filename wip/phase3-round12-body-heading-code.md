@@ -94,6 +94,15 @@ identical leaf counts. The fix moves characters out of the `heading` field and
 touches nothing else — which is the whole claim, and the thing worth checking,
 since a strip that reached one character too far would eat a title word.
 
+`audit_completeness` counts the `heading` field as body text, so this needed
+checking rather than asserting. The removed fragment is still in the leaf's
+`plain_text`, which carries the full printed line (`150 ZQR. Application.—…`):
+before the fix the output held `ZQR.` twice against the source's once, now once,
+and a missing-token multiset is unaffected. Audited directly on Customs
+30.06.2023, which carries both the `156A` and `18A` repairs — **body 100.000%,
+footnotes 100.000%, 0 missing**. The acts lane audits **77/80 within gate**, the
+three outside pre-existing and none among the fifteen changed here.
+
 ## Why no invariant saw it
 
 Two independent blind spots, both closed here.

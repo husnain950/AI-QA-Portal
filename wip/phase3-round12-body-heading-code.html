@@ -241,6 +241,7 @@ m = max(cands, key=lambda c: c.end())</code></pre></div>
     </table>
     </div>
     <p class="figcap">Not one character of statutory text moved. The fix takes characters out of a navigational field and touches nothing else — which is the whole claim, and the thing worth checking, since a strip reaching one character too far eats a title word.</p>
+    <p><code>audit_completeness</code> counts the <code>heading</code> field as body text, so this needed checking rather than asserting: the removed fragment is still in the leaf's <code>plain_text</code>, which carries the full printed line (<code>150 ZQR. Application.—…</code>). Before the fix the output held <code>ZQR.</code> twice against the source's once; now it holds it once, and a missing-token multiset is unaffected. Audited directly on Customs 30.06.2023, which carries both the <code>156A</code> and <code>18A</code> repairs: <strong>body 100.000%, footnotes 100.000%, 0 missing</strong>. The acts lane audits <strong>77/80 within gate</strong>, the three outside it pre-existing and none among the fifteen changed here.</p>
   </div>
 </section>
 
