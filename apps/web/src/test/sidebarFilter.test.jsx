@@ -73,7 +73,12 @@ describe('large TOC filtering', () => {
                 {
                     id: 'sec-part-leaf',
                     section_code: 'PART I',
-                    section_heading: '] THE GAZETTE OF PAKISTAN, EXTRA.',
+                    // What the API actually stores: `json_parser.normalize_heading`
+                    // reduces '] THE GAZETTE OF PAKISTAN, EXTRA.' to '' at ingest, so a
+                    // row can never hold the raw form.  This fixture used to carry the
+                    // raw string, which meant it was exercising the client's own copy of
+                    // that regex -- the fork this test's own module no longer has.
+                    section_heading: '',
                     chapter_code: '',
                     chapter_heading: '',
                     review_status: 'pending',
@@ -100,6 +105,8 @@ describe('large TOC filtering', () => {
             ),
         ).toBeInTheDocument();
         expect(screen.getByText('PART I')).toBeInTheDocument();
+        // Still asserted: no gazette chrome reaches the TOC. It is kept out at
+        // ingest now, by the one normaliser, instead of twice.
         expect(screen.queryByText(/THE GAZETTE/)).not.toBeInTheDocument();
     });
 });

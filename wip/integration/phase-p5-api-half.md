@@ -170,9 +170,17 @@ vitest tocLabels + qualityFlags       24 passed
 run_suite acts / rules / ordinance    ALL PASS  61/61 · 61/61 · 47/47
 ```
 
-The full vitest suite is not a gate on this host — 17 of 191 fail identically on clean
-`main` because Node 26 needs `--localstorage-file` (`tasks.md`, 2026-08-31). Per-file
-runs are what PR-C used; the suite is CI's job.
+`vitest run` is 17 failed / 201 passed here, and **the same 17 fail on clean `main`** —
+`libraryFavorites` and `libraryPage`, which need `localStorage`, unavailable because
+Node 26 wants `--localstorage-file`. CI pins Node 22.
+
+That baseline is the correction this PR earned. `tasks.md` had recorded the suite as
+unrunnable on this host and per-file runs as the substitute; per-file runs cover the
+files you *touched*, not the ones that *consume* them. Deleting
+`tocLabels.cleanHeading` broke `sidebarFilter.test.jsx`, whose fixture carried a raw
+`] THE GAZETTE OF PAKISTAN, EXTRA.` heading — a string `normalize_heading` reduces to
+`''` at ingest, so no row can hold it. The fixture was testing the client fork. Caught
+by CI; it should have been caught here, and now can be.
 
 ## 9. Net
 

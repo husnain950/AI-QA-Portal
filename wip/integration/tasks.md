@@ -624,6 +624,14 @@ changing the project's vitest config to suit one machine's Node version is how a
 signal gets hidden later. Individual test files run fine
 (`npx vitest run src/test/<file>`), which is what PR-C used; the suite is CI's job.
 
+**Corrected 2026-09-01 (PR-K).** "The suite is CI's job" is how PR-K shipped a red
+build. The 17 are confined to `libraryFavorites.test.js` and `libraryPage.test.jsx`,
+so `npx vitest run` IS usable here — you diff against that baseline instead of
+expecting green. Running only the files you touched misses the ones that CONSUME what
+you changed: PR-K deleted `tocLabels.cleanHeading` and `sidebarFilter.test.jsx` broke,
+because its fixture carried a raw `] THE GAZETTE OF PAKISTAN, EXTRA.` heading that the
+API reduces to `''` at ingest — a fixture that was, in effect, testing the client fork.
+
 **2026-08-31 — `make push-remote`'s refresh path has never worked.** The first real
 push failed on every document with `428 Precondition Required`: `/replace-json`
 requires `If-Match` naming the active version and `push_corpus` has never sent one.

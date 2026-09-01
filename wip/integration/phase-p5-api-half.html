@@ -256,7 +256,9 @@ headings changed 2   'Directorate General [ ] Internal Audit'
 ruff check                        All checks passed  <span class="dim">(bare, matches ci.yml)</span>
 oxlint --deny-warnings            clean
 vitest tocLabels + qualityFlags   24 passed
-run_suite acts / rules / ordinance   ALL PASS  61/61 · 61/61 · 47/47</code></pre></div>
+run_suite acts / rules / ordinance   ALL PASS  61/61 · 61/61 · 47/47
+vitest run (full)                 17 failed <span class="dim">-- the same 17 fail on clean main</span></code></pre></div>
+    <p class="pull">That baseline is the correction this PR earned. The ledger recorded the web suite as unrunnable here and per-file runs as the substitute &mdash; but per-file runs cover the files you <strong>touched</strong>, not the ones that <strong>consume</strong> them. Deleting <code>cleanHeading</code> broke <code>sidebarFilter.test.jsx</code>, whose fixture carried a raw <code>] THE GAZETTE OF PAKISTAN, EXTRA.</code> heading &mdash; a string the API reduces to <code>''</code> at ingest, so no row can hold it. The fixture was testing the client fork. Caught by CI; it should have been caught locally, and now can be.</p>
   </div>
 </section>
 
