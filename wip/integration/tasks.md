@@ -3,14 +3,34 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State: the nine planned PRs are merged (#61–#71) and deployed, PR-J has taken the
-ordinance lane onto the contract, and PR-K has closed P5's API half — every problem in
-`plan.md` §3 is now closed except the reading-order limb, which is measured and deferred.** What remains is in Deferred, each with the reason it is
-not done rather than a note that it isn't. If an assumption is disproven, the row changes and `plan.md` changes
-with it.
+**State: every problem in `plan.md` §3 is closed.** The nine planned PRs are merged
+(#61–#71) and deployed; PR-J (#74) took the ordinance lane onto the contract; PR-K (#75)
+closed P5's API half. The one thing not closed outright is P5's reading-order limb, and
+it is *measured and deferred*, not open. Everything else left is in
+[Deferred](#deferred-with-reasons), each row carrying the reason it is not done rather
+than a note that it isn't. If an assumption is disproven, the row changes and `plan.md`
+changes with it.
 
 Architecture: [`wip/integration/plan.md`](plan.md). Pipeline state (out of scope here):
 [`wip/HANDOVER.md`](../HANDOVER.md).
+
+## Start here — pick one
+
+There is no next PR in sequence; the plan is finished. These are the open rows ranked by
+value, each with the ONE thing that actually blocks it. Full reasoning is in Deferred.
+
+| # | pick this up | the single blocker | unlocks |
+|---|---|---|---|
+| 1 | **the 14 stale acts documents** | takes OCR in scope — `data/ocr_cache` stops being 0 B, fidelity-floor invariants wake up, and a sub-floor scan routes to `_provisional/`, which under PR-C's withdrawal *removes it from the portal*. numpy 2.5.1 is installed, so they will probably convert. | the last 89 leaves with no `node_key`, and with them row 2 |
+| 2 | delete `_legacy_section_key` + the `source_key` bridge | blocked on row 1 only: 6 documents / 89 leaves still rely on it. Confirm with a query, not a guess. | deletes a whole identity path |
+| 3 | `ReviewToolbar`'s approval gate | **needs a product decision, then one line** — it gates on *any* quality flag while claiming to mirror the narrower `CRITICAL_FLAGS`. Cheapest row on the board once someone decides. | — |
+| 4 | re-key `section_overlays` off `section_source_key` | its own table and migration. Degrades safely today (`original_leaf_fingerprint` goes stale), so it is real but not urgent. | P1's last positional key |
+| 5 | delete the Zustand mirror in `documentStore` | means rewriting five pages onto React Query hooks. The bug it caused (P8) is already fixed and tested, so this is architecture, not a defect. | one cache per entity |
+| 6 | an explicit `order` field | needs the **source pages** — tree-walk and page-sort order disagree on 21 of 103 documents and the JSON cannot settle which is right. | P5's reading-order limb |
+| 7 | delete `normalize_heading` outright | a parser round must first stop emitting a leading `]` and the truncated `[...`. Then it is one deletion. | — |
+
+Before touching any of them, read **Rules of engagement** below — every rule there is
+scar tissue, and three of them have drawn blood twice.
 
 ## Rules of engagement
 
@@ -24,6 +44,14 @@ Architecture: [`wip/integration/plan.md`](plan.md). Pipeline state (out of scope
   first.
 - Report changes that moved a number by zero. Folding them into a total misattributes
   the ones that moved it.
+- **Run the whole web suite, against its baseline.** `npx vitest run` is 17 failed here,
+  always, in `libraryFavorites` and `libraryPage` (Node 26 wants `--localstorage-file`;
+  CI pins 22). Diff against that, do not skip the suite. Running only the files you
+  touched misses the ones that *consume* them — that is how #75 shipped a red build.
+- **A parse-only change does not travel.** `create_version` gates on `source_hash`, the
+  JSON *bytes*, so editing `json_parser` / `parse_quality` / `html_sanitizer` reaches no
+  existing row on re-sync, `--force` included. Measure it as two fresh first-ingests into
+  a scratch database (`measure/p5_seam.py`), never as a re-sync of an existing one.
 
 ---
 
@@ -566,7 +594,7 @@ where its regexes live.
 | deleting `normalize_heading` outright | PR-K guarded it and deleted the client's copy; the function itself stays. With **zero true positives** on the corpus it has no job left, but its 7 surviving rewrites include 4 that strip a leading `]` — deleting it today puts `] Tax credit not allowed` on a reviewer's screen. Both that and the truncated `[...` are the pipeline's to stop emitting. A parser round, then one deletion. |
 | **making an API-side parse fix travel** | `create_version` gates on `source_hash`, the JSON *bytes*, so a change in how those bytes are *interpreted* reaches no existing row — `--force` included. Correct by design (PR-A), and it means PR-K cannot disturb production; it also means PR-K's 4 preambles and 35 headings arrive only when those documents are next re-converted. Forcing a whole-corpus re-parse to pick up a heading change is a decision with its own evidence. PR #37's sentence, in a new guise. |
 | an explicit `order` field on every leaf | measured before building it: tree-walk order and the API's page-sort order disagree on **21 of 103 documents**, and heavily — 222 of 327 positions in Sales Tax Rules 2006, 62 of 62 in Customs Rules 2001. Which is *right* cannot be settled from the JSON; it needs the source pages. So `docs/pipeline-contract.md` states the rule actually in force (sort by `start_page`, stably) rather than minting a field nobody has validated. Own PR, with its own measurement. |
-| register residue (30), Phase 4a/4b/5, OCR | out of scope, confirmed. See `wip/HANDOVER.md`. |
+| register residue (**34**), Phase 4a/4b/5, OCR | out of scope, confirmed. See `wip/HANDOVER.md`. |
 
 ## Discovered during the work
 
@@ -706,9 +734,14 @@ Deferred rather than worked around.
 Merged: **#61** contract · **#62** identity · **#63** withdrawal · **#64** production
 identity · **#65** If-Match · **#66** derived values · **#67** sanitizer · **#68**
 review state · **#69** the matrix · **#70** health transport · **#71** rate-limit
-backoff. Plus **#55, #60, #57, #58** — the four Phase 3 rounds that were open when this
-started, which took the register 64 → 30 and made the corpus and the code describe each
-other again.
+backoff · **#72** the ledger · **#74** the ordinance lane onto the contract · **#75**
+P5's API half. Plus **#55, #60, #57, #58** and **#73** — five Phase 3 rounds that were
+open, CI-green and unmerged when this work reached them, which took the register
+64 → 30 and made the corpus and the code describe each other again.
+
+Every problem in `plan.md` §3 is closed. The register stands at **34**; each of the
+three moves it did or did not make was reported in the PR that owned it — PR-A by 0,
+PR-J by +4, PR-K by 0.
 
 Production, measured: 106 → **115 documents**, all with corpus identity, **92 with
 pipeline health** (0 before), **85 carrying a new version** — eleven rounds of parser
@@ -723,9 +756,24 @@ because a dry-run sends nothing:
 2. Pipeline health had no wire at all. Fixing the identity made the rows *matchable*;
    it did not make them exist.
 3. The rate limiter dropped 32 of 92 measurements on the floor.
+4. **An API-side parse fix does not travel either.** `create_version` gates on the JSON
+   *bytes*, so #75's corrected headings and recovered preambles reach no existing row
+   until those documents are re-converted — `--force` included. The same sentence as (1),
+   one layer down, and it only showed up because the fix was driven through a real sync
+   twice instead of being reasoned about.
+5. **`convert-all` would have added 34 documents** to the portal under cover of
+   re-converting a lane. The documented command for the job was wrong about the job.
 
-**And three the tests found before merge:** a unique-index collision the identity
+**And four the tests found before merge:** a unique-index collision the identity
 change introduced; a positional fallback that let a new leaf inherit its neighbour's
-approval; and 965 occurrences of five pipeline-emitted classes the *backend* sanitizer
-had been silently discarding, which surfaced only because making the client sanitize
-broke a test that turned out to be right.
+approval; 965 occurrences of five pipeline-emitted classes the *backend* sanitizer had
+been silently discarding, which surfaced only because making the client sanitize broke a
+test that turned out to be right; and a fixture asserting on a heading the API can never
+store, which had been quietly testing the client fork #75 deleted.
+
+**The one thing to carry forward, if only one:** every defect above was found by
+*running* the thing — a real sync, a real push, a real conversion — and none of them by
+reading the code that contained it. Four separate times the first explanation that fit
+the evidence was true and useless. The register, the invariants and the matrix exist so
+that the next one is caught by a gate instead of by a person; when a gate cannot be made
+to fail on purpose, it has not been built yet.
