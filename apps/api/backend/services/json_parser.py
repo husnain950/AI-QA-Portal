@@ -37,7 +37,20 @@ def _stable_id(
 
 _GAZETTE_RE = re.compile(r"THE\s+GAZETTE\s+OF\s+PAKISTAN", re.I)
 _CONTENTS_MARKER_RE = re.compile(r"Section\s+Page\s+No\.?", re.I)
-_DOT_LEADERS_RE = re.compile(r"(?:[.\u2026·•]{2,}|\u2026+)")
+# A dot-leader run and an omission marker are the same characters, so the
+# substitution has to be told the difference.  `[...]` is the pipeline's deliberate
+# "text omitted by amendment" marker -- it carries its own `omitted-bracket` class in
+# both builders and in the sanitizer allowlist, which makes it data, not chrome.
+# Matching the bracket group FIRST and handing it back untouched is what keeps
+# `Directorate General [...] Internal Audit` intact.  The closing `]` is optional
+# because the corpus also prints the marker truncated (`Directorate General of
+# Valuation [...`, 17 editions); that heading arrives broken from the pipeline and
+# compounding it to a bare `[` is worse than leaving the defect legible.
+_DOT_LEADERS_RE = re.compile(r"(\[[^\]]*\]?)|(?:[.\u2026·•]{2,}|\u2026+)")
+#: The bare run, for the `had_leaders` probe.  `_DOT_LEADERS_RE` answers True for any
+#: heading containing a bracket, and `had_leaders` gates the trailing-page strip --
+#: so probing with it would fire that strip on headings carrying no TOC chrome at all.
+_LEADERS_PRESENT_RE = re.compile(r"(?:[.\u2026·•]{2,}|\u2026+)")
 _LEADING_JUNK_RE = re.compile(r"^[\]\s|]+")
 _TRAILING_TOC_PAGE_RE = re.compile(
     r"[\s.·•…]*\d{1,4}(?:\s*[-–]\s*\d{1,4})?"
@@ -74,29 +87,50 @@ def normalize_heading(heading: Any) -> str:
 
     text = _LEADING_JUNK_RE.sub("", text)
     had_gazette = bool(_GAZETTE_RE.search(text))
-    had_leaders = bool(_DOT_LEADERS_RE.search(text))
+    had_leaders = bool(_LEADERS_PRESENT_RE.search(text))
     had_contents = bool(_CONTENTS_MARKER_RE.search(text))
 
     if had_gazette:
         text = _GAZETTE_PREFIX_RE.sub("", text).strip()
     if had_leaders:
-        text = _DOT_LEADERS_RE.sub(" ", text)
+        text = _DOT_LEADERS_RE.sub(lambda m: m.group(1) or " ", text)
     text = re.sub(r"\s+", " ", text).strip()
 
     # Only strip trailing page nums when TOC chrome was present.
     if had_gazette or had_leaders or had_contents:
-        text = _TRAILING_TOC_PAGE_RE.sub("", text).strip(" .·•…")
-        text = text.rstrip(" .")
+        text = _TRAILING_TOC_PAGE_RE.sub("", text).lstrip(" .·•…")
+        # The tail strip is the marker's second attacker: an unclosed `[` means those
+        # trailing dots ARE the omission marker, and mopping them turns
+        # `Directorate General of Valuation [...` into `... Valuation [`.  Guarding
+        # only the substitution above leaves 17 editions still truncated here.
+        if text.rfind("[") <= text.rfind("]"):
+            text = text.rstrip(" .·•…").rstrip(" .")
+        text = text.rstrip()
     if had_contents:
         text = _CONTENTS_MARKER_RE.sub("", text).strip()
     return text
 
 
-def is_junk_leaf(sec_data: Dict[str, Any]) -> bool:
-    """True for CONTENTS-page / gazette-masthead fragments mistaken as sections.
+def assess_toc_tail(sec_data: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    """Flag a leaf that carries a Contents listing fused to real statute text.
 
-    Disposition A addressable Contents leaves (`code=Contents`, heading
-    `Contents · pN`) are kept — they are the intentional TOC sink, not junk.
+    This was ``is_junk_leaf``, and the caller *deleted* the leaf it matched.  Measured
+    over the whole corpus it fires four times, and all four are the PREAMBLE of a
+    Customs Act 1969 edition (2013-2016): the Contents parse overruns and its last rows
+    are glued in front of the enacting formula, so one node holds a table of contents
+    and ``It is hereby enacted as follows:-``.  Dropping it meant the preamble and the
+    enacting formula of four editions never reached a reviewer -- silently, and
+    invisibly to the register, to the conservation audits and to the reviewer.
+
+    The cause belongs to the pipeline and is counted there, by
+    ``tools/suite/invariants/_common.inv_preamble_carries_no_toc_tail``.  What belongs
+    here is telling the reviewer what they are looking at.  Deliberately NOT in
+    ``parse_quality.CRITICAL_FLAGS``: the leaf is readable statute with debris attached,
+    not a parse failure -- the same call ``page_range_out_of_bounds`` already makes.
+
+    Disposition A addressable Contents leaves (``code=Contents``, heading
+    ``Contents · pN``) are exempt: they are the intentional TOC sink, and a contents
+    listing is exactly what they are supposed to hold.
     """
     code = str(sec_data.get("code") or "").strip()
     heading = str(sec_data.get("heading") or "")
@@ -105,10 +139,16 @@ def is_junk_leaf(sec_data: Dict[str, Any]) -> bool:
     combined = f"{heading}\n{plain}\n{html}"
 
     if code == "Contents" or heading.startswith("Contents"):
-        return False
+        return None
 
     if _CONTENTS_MARKER_RE.search(combined):
-        return True
+        return {
+            "code": "toc_tail_in_leaf",
+            "reason": (
+                "Leaf carries a Contents listing (the 'Section Page No.' column "
+                "header) alongside its own text -- the contents parse overran into it"
+            ),
+        }
 
     # Short gazette masthead scraps (often with a leading "]").
     if _GAZETTE_RE.search(heading):
@@ -121,7 +161,12 @@ def is_junk_leaf(sec_data: Dict[str, Any]) -> bool:
             or _CONTAINER_CODE_RE.match(code)
             or _GAZETTE_RE.search(body)
         ):
-            return True
+            return {
+                "code": "toc_tail_in_leaf",
+                "reason": (
+                    "Leaf is a gazette masthead scrap with no section text under it"
+                ),
+            }
 
     # Container-coded leaf whose body is a CONTENTS listing.
     #
@@ -133,9 +178,14 @@ def is_junk_leaf(sec_data: Dict[str, Any]) -> bool:
     # before they reached the reviewer, which is a worse failure than any mislabelling.
     # A numeric right-hand column is a table, not a table of contents.
     if _CONTAINER_CODE_RE.match(code) and "Page No" in plain:
-        return True
+        return {
+            "code": "toc_tail_in_leaf",
+            "reason": (
+                f"Container-coded leaf ({code}) whose body is a contents listing"
+            ),
+        }
 
-    return False
+    return None
 
 
 def parse_json_document(
@@ -179,9 +229,6 @@ def parse_json_document(
     ) -> None:
         nonlocal sort_order
 
-        if is_junk_leaf(sec_data):
-            return
-
         node_key = _blank_to_none(sec_data.get("node_key"))
         section_id = _stable_id(document_id, source_key, node_key)
         start_page = sec_data.get("start_page") or sec_data.get("page_number")
@@ -199,6 +246,9 @@ def parse_json_document(
             end_page=end_page,
             total_pages=declared_pages,
         )
+        toc_tail = assess_toc_tail(sec_data)
+        if toc_tail is not None:
+            quality_flags.append(toc_tail)
         review_status = (
             "has_issues" if has_critical_flags(quality_flags) else "pending"
         )

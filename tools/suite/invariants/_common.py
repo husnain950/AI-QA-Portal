@@ -1047,13 +1047,14 @@ def inv_preamble_carries_no_toc_tail(doc):
     parse overruns, the last rows of the contents listing are glued in FRONT of
     it, so one node holds a table of contents and the enacting formula.
 
-    This is reported here because the portal's answer to it is worse than the
-    defect.  ``json_parser.is_junk_leaf`` matches the same column header and
-    *drops the whole leaf*, so the preamble and the enacting formula of four
-    Customs Act editions never reach a reviewer at all -- silently, invisibly to
-    the register, to the conservation audits and to the reviewer.  That deletion
-    is P5 in ``wip/integration/plan.md`` and is fixed on the API side separately;
-    the cause belongs to the pipeline, so the pipeline is where it is counted.
+    The portal's answer to it used to be worse than the defect: ``is_junk_leaf``
+    matched the same column header and *dropped the whole leaf*, so the preamble
+    and the enacting formula of four Customs Act editions never reached a reviewer
+    at all -- silently, invisibly to the register and to the conservation audits.
+    That was P5 in ``wip/integration/plan.md``, and it is closed: the API now
+    flags the leaf (``json_parser.assess_toc_tail`` -> ``toc_tail_in_leaf``)
+    instead of deleting it.  The cause is still the pipeline's, so the pipeline is
+    still where it is counted -- these 4 hits are the defect, not the symptom.
 
     Measured at 4 hits, all in the acts lane (Customs Act 1969, the 2013-2016
     editions), 0 in rules and 0 in ordinance.

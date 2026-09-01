@@ -182,22 +182,29 @@ acts documents to `output/_refused/` (80 → 78) and holds 9 in `_provisional/`.
 document refused, renamed or quarantined keeps its rows, its stale parse and its
 "approved" badges forever. A reviewer cannot tell a current document from an abandoned one.
 
-### P5 — Parsing decisions in the presentation layer — pipeline half GATED (PR-J); API half CARRIED
+### P5 — ~~Parsing decisions in the presentation layer~~ — CLOSED (#PRK), except reading order
 
 `apps/api/backend/services/json_parser.py` makes three pipeline-grade judgements the
 pipeline's invariants and register cannot see:
 
-- **`is_junk_leaf`** *silently drops* leaves. Invisible to the register, to the
-  conservation audits, and to the reviewer. Measured: it fires **4 times** on the whole
-  corpus, and all four are the *preamble* of a Customs Act edition, dropped with its
-  enacting formula because a Contents tail is glued to its front. PR-J's
-  `preamble_carries_no_toc_tail` counts that cause in the register, where it belongs; the
-  deletion itself is still here.
-- **`normalize_heading`** strips TOC chrome the pipeline should not have emitted — and
-  measured over the corpus it rewrites **44 headings in 21 documents, 36 of which are the
-  `[...]` omission marker** being eaten by the dot-leader pattern (`Directorate General
-  [...] Internal Audit` -> `[ ] Internal Audit`). The client's `tocLabels.cleanHeading`
-  is a live second copy that runs the same regex again on the already-cleaned string.
+- **`is_junk_leaf`** *silently dropped* leaves — invisible to the register, to the
+  conservation audits, and to the reviewer. It fired **4 times** on the whole corpus, and
+  all four were the *preamble* of a Customs Act edition, deleted with its enacting formula
+  because a Contents tail is glued to its front. It is now `assess_toc_tail`, an
+  informational `toc_tail_in_leaf` flag: the leaf reaches the reviewer with the defect
+  named on it. PR-J's `preamble_carries_no_toc_tail` still counts the cause, which is
+  and remains the pipeline's.
+- **`normalize_heading`** was written to strip TOC chrome, and measured over the corpus
+  **not one of its 42 rewrites was TOC chrome** — eleven parser rounds closed every case
+  it was built for. 35 of the 42 were the `[...]` **omission marker** being destroyed by
+  two attackers, the dot-leader substitution *and* the trailing `.strip(" .·•…")` mop-up
+  (`Directorate General [...] Internal Audit` -> `[ ] Internal Audit`; the truncated form
+  -> a bare `[`). Both are guarded on one rule: an unclosed `[` means those dots are the
+  marker. 42 → 7, all 35 markers intact. The client's `tocLabels.cleanHeading` — a live
+  second copy running the same regex on the already-cleaned string, and the last of P6's
+  six forks — is deleted. The function itself stays: with zero true positives it has no
+  job left, but deleting it today would put `] Tax credit not allowed` on a reviewer's
+  screen. That is a parser round away, not an API change.
 - **`_apply_reading_order`** re-derives document order by sorting on `start_page`. Its own
   docstring: *"sub-page position is not recoverable from the export."* **The pipeline
   knows the reading order and throws it away; the API guesses it back.**
@@ -529,7 +536,8 @@ survive the rate limiter.
 | `test_integration_matrix` | 18 seam states, **on CI**, with no private data |
 | `test_node_key_identity` | a structural change churning leaves that did not change |
 | `test_withdrawal` | one corpus's sync withdrawing another's documents |
-| `preamble_carries_no_toc_tail` (all 3 lanes) | a Contents tail glued in front of the enacting formula — the cause the portal answers by deleting the leaf |
+| `preamble_carries_no_toc_tail` (all 3 lanes) | a Contents tail glued in front of the enacting formula — the cause; the portal now flags the leaf instead of deleting it |
+| `test_json_parser` omission-marker cases | the `[...]` "omitted by amendment" marker being eaten by a heading normaliser, from either of its two attackers |
 
 The last of those is the one that was missing entirely: `data/corpora/` is gitignored,
 so every lane suite SKIPs on CI and nothing between "a parser fix merged" and "a
