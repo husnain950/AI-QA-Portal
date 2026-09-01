@@ -1,7 +1,8 @@
 # Pipeline → Web-App Integration: the architecture
 
-**Status:** the architecture that now exists. Every problem in §3 is marked closed or
-carried, with the PR that did it. `wip/integration/tasks.md` is the execution ledger;
+**Status:** the architecture that now exists. **Every problem in §3 is closed** — P1–P4
+and P6–P11 outright, P5 but for its reading-order limb, which is measured and deferred
+rather than open. Each is marked with the PR that did it. `wip/integration/tasks.md` is the execution ledger;
 `wip/integration/tasks.md` is the execution ledger and is the one to trust for *what is
 done*. When an assumption here is disproven by measurement, this file changes — it is not
 a historical record. (The frozen record is the per-PR artifact beside it.)
@@ -29,7 +30,8 @@ seam today has no written contract, positional leaf identity, two ingest paths t
 produce different rows, no deletion semantics, and a frontend that re-derives — from
 drifted copies — six things the backend already computes correctly.
 
-**Scope (confirmed):** the integration seam only. The 64-hit register, Phase 4a/4b,
+**Scope (confirmed):** the integration seam only. The register residue (64 then, **34**
+now), Phase 4a/4b,
 Phase 5 and the OCR backlog stay exactly where `wip/HANDOVER.md` left them.
 **Re-conversion (confirmed):** decoupled — nothing here blocks on it.
 **Production (confirmed):** PR-D deploys to the live Northflank portal.
@@ -182,7 +184,7 @@ acts documents to `output/_refused/` (80 → 78) and holds 9 in `_provisional/`.
 document refused, renamed or quarantined keeps its rows, its stale parse and its
 "approved" badges forever. A reviewer cannot tell a current document from an abandoned one.
 
-### P5 — ~~Parsing decisions in the presentation layer~~ — CLOSED (#PRK), except reading order
+### P5 — ~~Parsing decisions in the presentation layer~~ — CLOSED (#75), except reading order
 
 `apps/api/backend/services/json_parser.py` makes three pipeline-grade judgements the
 pipeline's invariants and register cannot see:
@@ -539,9 +541,11 @@ survive the rate limiter.
 | `preamble_carries_no_toc_tail` (all 3 lanes) | a Contents tail glued in front of the enacting formula — the cause; the portal now flags the leaf instead of deleting it |
 | `test_json_parser` omission-marker cases | the `[...]` "omitted by amendment" marker being eaten by a heading normaliser, from either of its two attackers |
 
-The last of those is the one that was missing entirely: `data/corpora/` is gitignored,
-so every lane suite SKIPs on CI and nothing between "a parser fix merged" and "a
-reviewer sees it" was checked. The matrix builds its own corpus, so it runs anywhere.
+`test_integration_matrix` is the one that was missing entirely: `data/corpora/` is
+gitignored, so every lane suite SKIPs on CI and nothing between "a parser fix merged"
+and "a reviewer sees it" was checked. The matrix builds its own corpus, so it runs
+anywhere. (Name the gate rather than its position — this sentence said "the last of
+those" until a row was appended beneath it.)
 
 ---
 
@@ -606,8 +610,8 @@ Additive first; subtractive only on evidence.
 - The adversarial matrix runs on CI against the fixture corpus and is green.
 - `wip/integration/plan.md` describes the architecture that exists; `tasks.md` is accurate
   at every commit.
-- The 64-hit register is unchanged except where PR-A deliberately moves it, and that move
-  is reported.
+- The register is unchanged except where a PR deliberately moves it, and that move is
+  reported in the same PR. It stands at **34** (PR-A moved it by 0, PR-J by +4, PR-K by 0).
 
 ---
 
