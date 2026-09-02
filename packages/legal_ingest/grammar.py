@@ -269,6 +269,33 @@ _FOLIO_PAREN_RE = re.compile(r"^\((\d{1,4})\)$")
 _FOLIO_TITLED_RE = re.compile(r"^(?=.*[A-Za-z]{3}).*?\b\(?(\d{1,4})\)?$")
 
 
+#: A FRONT-MATTER folio: lowercase roman, optionally parenthesised.  Front matter
+#: numbers its pages in roman and the body in arabic, which is why ``folio_value``
+#: -- whose job is to derive the document's page OFFSET -- reads arabic only and
+#: must keep doing so: a roman folio read as a page number would set the offset
+#: from a page outside the numbering it is meant to describe.
+#:
+#: It lives here because two modules need the same answer and disagreed about it.
+#: ``calibrate`` has always recognised a roman folio when measuring where the
+#: footer band sits; ``pagemodel``'s footer strip read ``_centred_int`` only, so a
+#: roman folio was never dropped as furniture.  It survived into ``body_refs``,
+#: and everything before the first section's anchor becomes the preamble -- so
+#: nine documents shipped a preamble opening on a bare ``xxi`` / ``(xxii)`` /
+#: ``vi``, and two Federal Excise editions shipped a preamble that is ONLY that.
+#:
+#: Strict roman grammar, and lowercase.  ``calibrate``'s own looser test stays as
+#: it is, deliberately: it is asking "where is the footer band", where a false
+#: positive costs one sample; this one is asking "delete this line", where a
+#: false positive deletes text.  A loose ``[ivxlcdm]+`` matches ``mix``, ``i``
+#: and an uppercase ``I`` drop cap.
+#: Bounded at ccxcix.  ``M`` and ``D`` are excluded, not for elegance but because
+#: ``mix`` is a valid roman numeral (MIX = 1009) and is an ordinary English word;
+#: no front matter runs to 1,009 pages, and the longest in this corpus is xxii.
+_ROMAN_299 = r"(?=[clxvi])c{0,2}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})"
+ROMAN_FOLIO_RE = re.compile(
+    rf"^(?:{_ROMAN_299}|\(\s*{_ROMAN_299}\s*\))$")
+
+
 def folio_value(text: str, profile) -> int | None:
     """The printed page number a margin line carries, in the forms this corpus prints.
 
@@ -423,6 +450,17 @@ SCHEDULE_TOC_RE = re.compile(
 
 def _demo() -> None:
     """Self-check: the cases that broke under the Ordinance grammar."""
+    # round 14: a FRONT-MATTER folio.  pagemodel deletes the line this matches,
+    # so a false positive deletes text -- hence strict roman and lowercase.
+    for _t in ("vi", "xxi", "(xxii)", "(xvii)", "i", "(iv)"):
+        assert ROMAN_FOLIO_RE.match(_t), _t
+    # ...and what a loose [ivxlcdm]+ would have eaten.  `calibrate`'s own test IS
+    # that loose form and stays so: it asks where the footer band is, where a
+    # false positive costs one sample, not a line of text.
+    for _t in ("mix", "civil", "dill", "mid", "lid", "did", "I", "XXI", "Vi",
+               "vi.", "vi 3", "vii)"):
+        assert not ROMAN_FOLIO_RE.match(_t), _t
+
     assert CODE_RE.match("3AAA") and CODE_RE.match("3CCE")
     assert CODE_RE.match("221-A") and CODE_RE.match("18C") and CODE_RE.match("2")
 

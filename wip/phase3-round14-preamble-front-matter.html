@@ -1,0 +1,290 @@
+<title>The Preamble That Began On The Contents Page</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:#f6f6f4; --paper-sunk:#ecedea; --ink:#171c24; --ink-soft:#3a434f;
+  --muted:#656e79; --rule:#d5d7d3; --rule-soft:#e4e5e2;
+  --accent:#1d5b63; --accent-bg:#e2edee;
+  --defect:#9c2f2a; --defect-bg:#f4e5e3;
+  --good:#2c6146; --good-bg:#e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+    --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+    --accent:#6fb2ba; --accent-bg:#163034;
+    --defect:#dd8880; --defect-bg:#331d1c;
+    --good:#74b795; --good-bg:#162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+  --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+  --accent:#6fb2ba; --accent-bg:#163034;
+  --defect:#dd8880; --defect-bg:#331d1c;
+  --good:#74b795; --good-bg:#162b22;
+}
+* { box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif; font-size:18px;
+  line-height:1.62; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+.sheet { max-width:1080px; margin:0 auto; padding:4rem 2rem 6rem; }
+.block { display:grid; grid-template-columns:12.5rem 1fr; gap:0 2.75rem; align-items:start; }
+.block + .block { margin-top:3.25rem; }
+.gutter { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.74rem; line-height:1.5;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right;
+  padding-top:.5rem; border-right:1px solid var(--rule-soft); padding-right:2.75rem;
+  margin-right:-2.75rem; min-height:2rem; }
+.gutter .note { display:block; text-transform:none; letter-spacing:0; font-size:.82rem;
+  font-style:italic; font-family:"Newsreader",Georgia,serif; color:var(--muted);
+  margin-top:.6rem; line-height:1.45; }
+.body { min-width:0; max-width:62ch; }
+@media (max-width:860px) {
+  .block { grid-template-columns:1fr; gap:0; }
+  .gutter { text-align:left; border-right:0; padding-right:0; margin-right:0;
+    border-left:2px solid var(--rule); padding-left:.85rem; margin-bottom:.9rem; padding-top:0; }
+  .body { max-width:none; } .sheet { padding:2.5rem 1.25rem 4rem; }
+}
+.masthead { border-bottom:2px solid var(--ink); padding-bottom:1.5rem; margin-bottom:3.5rem; }
+.eyebrow { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.72rem; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 1rem; }
+h1 { font-weight:300; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08;
+  letter-spacing:-.018em; margin:0 0 .7rem; text-wrap:balance; }
+h1 em { font-style:italic; color:var(--accent); }
+.standfirst { font-size:1.13rem; color:var(--ink-soft); margin:0; max-width:56ch; text-wrap:pretty; }
+h2 { font-weight:400; font-size:1.62rem; line-height:1.2; letter-spacing:-.012em; margin:0 0 1rem; text-wrap:balance; }
+h3 { font-family:"Source Sans 3",system-ui,sans-serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:2rem 0 .75rem; }
+p { margin:0 0 1.05rem; text-wrap:pretty; }
+.body > :last-child { margin-bottom:0; }
+strong { font-weight:600; }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible, .scroller:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:2px; }
+code { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.845em;
+  background:var(--paper-sunk); padding:.1em .34em; border-radius:3px; border:1px solid var(--rule-soft); }
+.scoreline { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin:0 0 3.5rem; }
+.score { background:var(--paper); padding:1.15rem; }
+.score dt { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.68rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem; }
+.score dd { margin:0; font-size:1.85rem; font-weight:300; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.score .was { font-size:.8rem; color:var(--muted); margin-left:.45rem; font-variant-numeric:tabular-nums; }
+.score .to { color:var(--good); } .score .flat { color:var(--ink-soft); }
+.scroller { overflow-x:auto; }
+pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem; line-height:1.75;
+  background:var(--paper-sunk); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:1rem 1.15rem; margin:0 0 1.05rem; white-space:pre; }
+pre code { background:none; padding:0; border:0; font-size:inherit; }
+pre .hl { color:var(--defect); font-weight:500; }
+pre .dim { color:var(--muted); }
+table { width:100%; border-collapse:collapse; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.875rem; margin:0 0 1.05rem; }
+caption { caption-side:top; text-align:left; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:.6rem; }
+th, td { text-align:left; padding:.62rem .75rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:.7rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--rule); }
+tbody tr:last-child td { border-bottom:0; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+tr.yes td:last-child { color:var(--defect); font-weight:600; }
+tr.no td:last-child { color:var(--good); font-weight:600; }
+tr.wrong td:first-child { box-shadow:inset 3px 0 0 var(--defect); }
+tr.right td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+.tag { display:inline-block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .42rem; border-radius:3px; white-space:nowrap; }
+.tag.ok { background:var(--good-bg); color:var(--good); }
+.tag.bad { background:var(--defect-bg); color:var(--defect); }
+.figcap { font-size:.82rem; color:var(--muted); font-style:italic; margin:0 0 1.05rem; }
+.pull { border-left:3px solid var(--accent); padding:.1rem 0 .1rem 1.15rem; margin:1.6rem 0;
+  font-size:1.12rem; color:var(--ink-soft); font-style:italic; }
+.pull strong { font-style:normal; color:var(--ink); }
+blockquote { margin:0 0 1.05rem; padding:.1rem 0 .1rem 1.15rem; border-left:2px solid var(--rule);
+  color:var(--muted); font-style:italic; font-size:.95rem; }
+footer { margin-top:4.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-family:"Source Sans 3",system-ui,sans-serif; font-size:.8rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; }
+</style>
+
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Phase 3 · Round 14</p>
+  <h1>Where the statute <em>actually starts</em></h1>
+  <p class="standfirst">Nine documents opened their preamble on front matter — two Federal Excise editions had a preamble consisting of the single token <code>vi</code>, and nothing else. The invariant added to catch this saw four of the ten.</p>
+</header>
+
+<dl class="scoreline">
+  <div class="score"><dt>Anomaly register</dt><dd>34 <span class="to">→ 32</span></dd></div>
+  <div class="score"><dt>Invariant, alone</dt><dd>4 <span class="was">→ 10 → 2</span></dd></div>
+  <div class="score"><dt>Documents</dt><dd>9<span class="was">0 refused</span></dd></div>
+  <div class="score"><dt>Sections gained</dt><dd class="to">+4<span class="was">s.224 ×4</span></dd></div>
+  <div class="score"><dt>Conservation</dt><dd class="to">identical<span class="was">9/9</span></dd></div>
+</dl>
+
+<section class="block">
+  <div class="gutter">The evidence
+    <span class="note">Fourteen siblings agree on what the answer looks like.</span>
+  </div>
+  <div class="body">
+    <h2>One instrument, twenty editions, six wrong</h2>
+    <div class="scroller">
+    <table>
+      <caption>Where the Customs Act 1969 preamble opens, across all 20 converted editions</caption>
+      <thead><tr><th>Editions</th><th class="num">n</th><th>Preamble opens</th></tr></thead>
+      <tbody>
+        <tr class="right"><td>the correct ones</td><td class="num">14</td><td><code>1[Act No. IV of 1969]</code> — 314 chars</td></tr>
+        <tr class="wrong"><td>2013–2016</td><td class="num">4</td><td><code>THE CUSTOMS ACT, 1969 / Section Page / No. / 224 Extension of time limit. 212 / … / xxi</code></td></tr>
+        <tr class="wrong"><td>2008</td><td class="num">1</td><td><code>THE FIRST SCHEDULE 213 / THE SECOND SHCEUDLE Omitted. 213 / … / (xxii)</code></td></tr>
+        <tr class="wrong"><td>2007</td><td class="num">1</td><td><code>(xxii)</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Three more outside that group: <strong>two Federal Excise editions whose entire preamble is <code>vi</code></strong> — the enacting formula never reached it — and Sales Tax Rules 2006, whose legitimate S.R.O. preamble wears a leading <code>(xvii)</code>.</p>
+    <p class="pull">The invariant keys on the Contents column header <code>Section Page No.</code> That is one <strong>spelling</strong> of the defect, not the defect. It saw four of ten.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Cause 1
+    <span class="note">One module knows. Its neighbour does not.</span>
+  </div>
+  <div class="body">
+    <h2>A folio the footer strip could not read</h2>
+    <div class="scroller"><pre><code><span class="dim"># pagemodel.py — strip the footer page number</span>
+v = _centred_int(ln)      <span class="hl"># -> grammar.folio_value: ARABIC only</span>
+
+<span class="dim"># calibrate.py:348 — where does the footer band sit?</span>
+if _ROMAN_RE.match(t):    <span class="dim"># ...has always read a roman folio</span>
+    foot_tops.append(ln.top)</code></pre></div>
+    <p>Front matter numbers its pages in roman. So a roman folio was never dropped as furniture, survived into <code>body_refs</code>, and everything before the first section's anchor becomes the preamble.</p>
+    <p>Round 13's shape exactly, and round 1's before it: <strong>two readers, one question, two answers.</strong></p>
+    <h3>The band could not be the test</h3>
+    <p><code>footer_min_top</code> is calibrated from <em>body</em> pages, and front matter is set to a different depth — the Customs 2008 folio prints at top 673.9 against a band starting at 702.5. So the test is what a folio <em>is</em>: roman, centred, alone on the <strong>last</strong> line of the page, below the midpoint.</p>
+    <blockquote>Measured over the front matter of six editions: 65 roman-shaped lines, 64 of them folios running i…xxii on consecutive pages, and one a Sales Tax clause marker <code>(iii)</code> — correctly kept, because it is neither last nor in the bottom half.</blockquote>
+    <p>Bounded at <code>ccxcix</code> and lowercase, for a reason worth writing down: <strong><code>mix</code> is a valid roman numeral</strong> (MIX = 1009) and an ordinary English word, and an uppercase <code>I</code> is a drop cap. A plain <code>[ivxlcdm]+</code> — which is what <code>calibrate</code> uses — eats all three. That looser test stays looser on purpose: it asks <em>where is the band</em>, where a false positive costs one sample; this one asks <em>delete this line</em>.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Cause 2
+    <span class="note">A contents page that measured zero contents rows.</span>
+  </div>
+  <div class="body">
+    <h2>A schedule row carries no code</h2>
+    <p>The folio was only the last line of that page. The rows above it are still there. And <code>detect_toc_pages</code> is <strong>correct</strong> — the tail page simply is not part of what it counts:</p>
+    <div class="scroller"><pre><code>pdf p21  lines=25 rows=13 ratio=0.52   <span class="dim">contents</span>
+pdf p22  lines=24 rows=14 ratio=0.58   <span class="dim">contents      detect_toc_pages = 22</span>
+pdf p23  lines= 6 rows=<span class="hl"> 0</span> ratio=0.00   <span class="hl">contents TAIL, read as body</span></code></pre></div>
+    <p>Zero rows on a page that is nothing but contents, because <code>_is_toc_row</code> reads a row as <em>code, title, folio</em> — and a <strong>schedule</strong> contents row has no code: <code>THE FIRST SCHEDULE 213</code>.</p>
+    <p>The pattern already existed. <code>grammar.SCHEDULE_TOC_RE</code> is the anchored, already-narrowed form; its own note records the wrapped citation <code>THE FIFTH SCHEDULE TO THE ACT……… 45</code> that the unanchored version read as a schedule title, switching the parser into schedule mode mid-body and losing two chapters. Reused rather than rewritten — and it still rejects that line here.</p>
+    <p class="figcap">Measured over both profiles and all 90 resolvable documents: 4 changed, 86 unchanged. The four are exactly the 2013–2016 editions.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Measured
+    <span class="note">Invariant first, on untouched JSON.</span>
+  </div>
+  <div class="body">
+    <h2>It was reporting four of ten</h2>
+    <div class="scroller">
+    <table>
+      <caption>Widening the invariant, before the parser was touched</caption>
+      <thead><tr><th>Lane</th><th class="num">Saw</th><th class="num">Actually</th><th class="num">After the fix</th></tr></thead>
+      <tbody>
+        <tr><td>acts</td><td class="num">4</td><td class="num">9</td><td class="num">2</td></tr>
+        <tr><td>rules</td><td class="num">0</td><td class="num">1</td><td class="num">0</td></tr>
+        <tr class="right"><td>ordinance</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="scroller">
+    <table>
+      <caption>What each document's preamble became</caption>
+      <thead><tr><th>Document</th><th class="num">Before</th><th class="num">After</th></tr></thead>
+      <tbody>
+        <tr class="right"><td>Customs 2013 / 2014 / 2015 / 2016</td><td class="num">484–507</td><td class="num">314</td></tr>
+        <tr class="right"><td>Customs 2007</td><td class="num">321</td><td class="num">314</td></tr>
+        <tr class="right"><td>Federal Excise 2005 ×2</td><td class="num">2</td><td>node correctly absent</td></tr>
+        <tr class="right"><td>Sales Tax Rules 2006 (30-06-2025)</td><td class="num">828</td><td class="num">821</td></tr>
+        <tr class="wrong"><td>Customs 2008</td><td class="num">433</td><td class="num">426</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="figcap">314 is not a coincidence — it is the length its fourteen correct siblings carry.</p>
+    <h3>Section 224 came back</h3>
+    <p>The 2013–2016 editions went <strong>304 → 305 section leaves</strong>. Section 224's contents row was inside the glued tail, so it never parsed. Counting that page as front matter binds it — a gain, and the cheapest proof the page-count fix landed rather than only the folio strip.</p>
+    <p><strong>Conservation is identical before and after on all nine</strong>, body and footnotes. The three not at 100.000% carry pre-existing, byte-identical deficits.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">The two that survive
+    <span class="note">Both visible now. Neither was before.</span>
+  </div>
+  <div class="body">
+    <h2>A floor that is load-bearing</h2>
+    <div class="scroller">
+    <table>
+      <caption>Why the last two cannot be closed the same way</caption>
+      <thead><tr><th>Document</th><th class="num">Rows</th><th>Why it falls short</th></tr></thead>
+      <tbody>
+        <tr class="wrong"><td>Customs 1969 (30.06.2008)</td><td class="num">2</td><td>Its source prints <code>THE SECOND SHCEUDLE Omitted.</code> — a typo <code>SCHEDULE_TOC_RE</code> rightly refuses. Loosening it re-admits the wrapped citation.</td></tr>
+        <tr class="wrong"><td>Sales Tax 1990 (30.06.2023)</td><td class="num">2</td><td>A <strong>new find</strong>, invisible before this round: <code>THE TWELFTH SCHEDULE……………....246</code> in front of the long title.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><code>detect_toc_pages</code> requires <code>rows &gt;= 3</code>, and its own comment says why that is not negotiable: the Income Tax Rules prints a body <em>title</em> page straight after its contents, three of whose 38 lines match the row shape, and a lower floor swallows it and starts the body a page late. A fix here needs a signal other than row density.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">The gate
+    <span class="note">It would have reported zero on a document that still has the defect.</span>
+  </div>
+  <div class="body">
+    <h2>Removing the folio removed the only signal</h2>
+    <p>Customs 2008 still carries four contents rows in its preamble. But the folio was the only thing the invariant could see there — so after the parser fix it would have passed, and this round would have closed the class on paper while one document silently kept it.</p>
+    <p>A third branch reads a schedule contents row straight out of the preamble text. It is deliberately <em>looser</em> than the parser's — it tolerates the <code>SHCEUDLE</code> typo — because it only <strong>reports</strong>; the parser's must not, because it <strong>cuts</strong>.</p>
+    <blockquote>One limitation is pinned rather than hidden. <code>(iv)</code> alone on a line is indistinguishable from a folio in the JSON; the parser separates them by geometry and an invariant cannot see geometry. Measured at 9 roman-shaped lines over 1,292 preamble lines corpus-wide, every one a folio — so the check is worth more than the risk, and the test that says so is where that trade-off is written down.</blockquote>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Locked
+    <span class="note">Each verified by removing its fix.</span>
+  </div>
+  <div class="body">
+    <h2>Four locks, one of them end to end</h2>
+    <div class="scroller">
+    <table>
+      <caption>What breaks what</caption>
+      <thead><tr><th>Lock</th><th>Fails if you revert</th></tr></thead>
+      <tbody>
+        <tr><td><code>grammar._demo</code></td><td>the bounded predicate — <code>mix</code>, <code>civil</code>, <code>I</code>, <code>vii)</code></td></tr>
+        <tr><td><code>calibrate._demo</code></td><td>the schedule contents row, and the wrapped citation staying out</td></tr>
+        <tr><td><code>test_preamble_toc_tail.py</code> <span class="tag ok">+4</span></td><td>either new invariant branch</td></tr>
+        <tr><td><code>cases/acts.json</code> <span class="tag ok">+3</span></td><td>the trim, the enacting formula surviving it, and s.224 binding</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>The parser lock was verified end to end rather than by unit test: with the folio strip removed, Federal Excise 31.12.2019 converts to a preamble of <code>'vi'</code> again and the invariant fires on it.</p>
+    <p>One case was written and then <em>deleted</em> rather than weakened. An absent preamble makes every <code>preamble_*</code> check return "no preamble present", so a case cannot assert that the Federal Excise node is correctly gone. <code>inv_preamble_present</code> already covers it, by scanning the first leaf for <code>WHEREAS</code> / <code>IT IS HEREBY ENACTED</code>.</p>
+  </div>
+</section>
+
+<footer>
+  <span>pytest tools/tests — 86 passed, 1 skipped, 0 failed</span>
+  <span>register 32</span>
+  <span>ruff check (bare) clean</span>
+  <span>discover_corpus --check — no drift</span>
+  <span>data/ocr_cache — 0 B</span>
+  <span>conservation identical on all nine</span>
+</footer>
+
+</div>

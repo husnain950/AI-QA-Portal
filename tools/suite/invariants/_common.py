@@ -1044,6 +1044,44 @@ def inv_no_toc_row_in_heading(doc):
 # table of contents: statute prose never prints "Section  Page  No.".
 _CONTENTS_COLUMN_HEADER = re.compile(r"Section\s+Page\s+No\.?", re.IGNORECASE)
 
+# A FRONT-MATTER folio, on a line of its own.  The column header above is one
+# SPELLING of the defect, not the defect: measured across the twenty converted
+# Customs Act editions, fourteen open their preamble correctly at
+# ``1[Act No. IV of 1969]`` and SIX do not -- and two of the six carry no column
+# header at all (the 2008 edition opens on schedule contents rows, the 2007 on a
+# bare ``(xxii)``).  Three more documents outside that group were invisible for
+# the same reason, including two Federal Excise editions whose entire preamble is
+# the single token ``vi``.
+#
+# Front matter numbers its pages in roman and the body in arabic, so a roman
+# folio ON ITS OWN LINE inside the preamble says the preamble began on a
+# front-matter page, whatever else came with it.  Bounded at ccxcix and lowercase
+# for the same reason ``grammar.ROMAN_FOLIO_RE`` is: ``mix`` is a valid roman
+# numeral and an ordinary word, and an uppercase ``I`` is a drop cap.
+_FRONT_MATTER_FOLIO = re.compile(
+    r"^(?:(?=[clxvi])c{0,2}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})"
+    r"|\(\s*(?=[clxvi])c{0,2}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})\s*\))$",
+    re.MULTILINE)
+
+
+# A SCHEDULE contents row -- "THE FIRST SCHEDULE 213".  The third spelling of the
+# same defect, and the one that kept a gate from being able to fail.
+#
+# Round 14 closed this class on eight of nine documents by teaching
+# ``calibrate._is_toc_row`` the schedule row shape, so the contents tail page is
+# counted as front matter.  The ninth, Customs 1969 (30.06.2008), still carries
+# four of these rows in its preamble -- its source prints the typo
+# ``THE SECOND SHCEUDLE Omitted.`` and ``grammar.SCHEDULE_TOC_RE`` rightly
+# refuses it, which leaves that page two rows short of the density floor.
+#
+# Without this branch the invariant reported ZERO on that document, because
+# removing the folio removed the only signal it had.  Reported here rather than
+# widened in the parser: loosening SCHEDULE_TOC_RE to admit the typo would
+# re-admit the wrapped citation its own note records losing two chapters to.
+_CONTENTS_SCHEDULE_ROW = re.compile(
+    r"^(THE\s+)?[A-Z]+\s+(SCHEDULE|SC[HAEDUL]{5,7})\b[^\n]*?\b\d{1,4}$",
+    re.IGNORECASE)
+
 
 def inv_preamble_carries_no_toc_tail(doc):
     """The preamble must not carry the tail of the Contents page.
@@ -1071,10 +1109,20 @@ def inv_preamble_carries_no_toc_tail(doc):
     blob = "\n".join(str(preamble.get(k) or "")
                      for k in ("heading", "plain_text", "html"))
     m = _CONTENTS_COLUMN_HEADER.search(blob)
-    if not m:
-        return []
-    return [f"preamble carries a Contents tail ({m.group(0)!r}); "
-            f"the enacting formula shares a node with the contents listing"]
+    if m:
+        return [f"preamble carries a Contents tail ({m.group(0)!r}); "
+                f"the enacting formula shares a node with the contents listing"]
+    plain = str(preamble.get("plain_text") or "")
+    folio = _FRONT_MATTER_FOLIO.search(plain)
+    if folio:
+        return [f"preamble carries a front-matter folio ({folio.group(0)!r}); "
+                f"it began on a page the body range should not have reached"]
+    rows = [ln for ln in plain.split("\n") if _CONTENTS_SCHEDULE_ROW.match(ln.strip())]
+    if rows:
+        return [f"preamble carries {len(rows)} schedule contents row(s), "
+                f"first {rows[0].strip()!r}; the enacting formula shares a node "
+                f"with the contents listing"]
+    return []
 
 
 _SCHED_ORD_WORDS = ("FIRST SECOND THIRD FOURTH FIFTH SIXTH SEVENTH EIGHTH NINTH "

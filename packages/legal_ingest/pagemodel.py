@@ -25,7 +25,7 @@ from __future__ import annotations
 import re as _re
 from dataclasses import dataclass, field
 
-from .grammar import folio_value, is_marker_text, is_year_like
+from .grammar import ROMAN_FOLIO_RE, folio_value, is_marker_text, is_year_like
 
 # Private-use glyph the PDF uses for the footnote asterisk. QA: "Different
 # Asterisk symbol is shown in JSON" -> normalise it to a plain "*".
@@ -910,6 +910,17 @@ def _page_is_scan(page, cover: float = 0.5,
 
 _FOLIO_RE = _re.compile(r"\d+")
 
+#: What a FRONT-MATTER folio is lives in ``grammar`` beside ``folio_value``, the
+#: arabic reader it is the counterpart to -- see the note there for why the two
+#: are separate and why ``calibrate``'s looser test stays looser.  The band
+#: cannot be the test: ``footer_min_top`` is calibrated from BODY pages and
+#: front matter is set to a different depth (the Customs 2008 folio prints at
+#: top=673.9 against a band starting at 702.5).  So the test is what a folio IS
+#: -- roman, centred, alone on the LAST line of the page, below the vertical
+#: midpoint.  Measured over the front matter of six editions: 65 roman-shaped
+#: lines, of which 64 are folios running i..xxii on consecutive pages and one is
+#: a Sales Tax clause marker ``(iii)``, correctly kept.
+
 
 def _is_header_line(ln, cal) -> bool:
     """Whether a line in the header BAND is really the running header.
@@ -1057,6 +1068,7 @@ def build_page_model(page, index: int, cal, pdf_path: str | None = None,
 
     lines = _group_into_lines(words)
     page_w = float(page.width)
+    page_h = float(page.height)
 
     def _centred_int(ln) -> int | None:
         """The folio this line carries, in any form this corpus prints, else None.
@@ -1080,6 +1092,22 @@ def build_page_model(page, index: int, cal, pdf_path: str | None = None,
                 return None
         return value
 
+    def _centred_roman_folio(ln, is_last: bool) -> bool:
+        """A front-matter page number: furniture, and NOT a page number.
+
+        Dropped like the arabic folio beside it, but deliberately never assigned
+        to ``printed_page`` -- front matter is not in the body's numbering, and
+        ``calibrate.folio_value`` derives the page offset from the same lines, so
+        reading one as a page number would set the offset from a page outside the
+        numbering it is meant to describe.
+        """
+        if not is_last or ln.top <= page_h / 2:
+            return False
+        if not ROMAN_FOLIO_RE.match(ln.text().strip()):
+            return False
+        center = (ln.min_x0 + max(w.x1 for w in ln.words)) / 2
+        return abs(center - page_w / 2) < page_w * 0.30
+
     # 1) strip running header.  First capture a centred bare-integer page number
     #    printed in the TOP margin: the pre-2021 editions (and the old
     #    TABLE-OF-CONTENTS-format ones) number their pages in the header, not the
@@ -1100,12 +1128,14 @@ def build_page_model(page, index: int, cal, pdf_path: str | None = None,
     # 2) capture + strip footer page number (centred bare integer near bottom)
     printed_page = None
     kept: list[Line] = []
-    for ln in lines:
+    for i, ln in enumerate(lines):
         if ln.top >= cal.footer_min_top:
             v = _centred_int(ln)
             if v is not None:
                 printed_page = v
                 continue  # drop the page-number line entirely
+        if _centred_roman_folio(ln, i == len(lines) - 1):
+            continue  # front-matter folio: furniture, but not a page number
         kept.append(ln)
     lines = kept
 
