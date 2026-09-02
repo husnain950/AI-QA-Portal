@@ -197,9 +197,17 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**30 hits across 103 converted editions**, re-measured 2026-08-30 after round 11.
-210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30. Documents held: acts 80,
-rules 11, ordinance 12.
+**34 hits across 103 converted editions**, re-measured 2026-09-02 after round 13.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → **34** → 34.
+Documents held: acts 80, rules 11, ordinance 12.
+
+The +4 arrived with a new question, not a regression: PR #74 added
+`preamble_carries_no_toc_tail` and it fires on four Customs Act editions that print the
+tail of their Contents page in front of the enacting formula. #74 also took the ordinance
+lane onto the output contract (12/12 `contract_version`, 6,941 nodes typed and keyed,
+corpus identity hole 5,047 leaves → 89) and #75 closed the portal half of the same defect,
+so `is_junk_leaf` no longer deletes those four preambles. Rounds 12 and 13 each moved the
+register by zero and each closed a class no invariant could see.
 
 Round 1: [`wip/phase3-chapter-numerals.md`](./phase3-chapter-numerals.md) — chapter
 numerals, read the same way in the body scan, the tree and the invariant.
@@ -225,22 +233,37 @@ Round 10: [`wip/phase3-header-band.md`](./phase3-header-band.md) — a band meas
 header that does not exist.
 Round 11: [`wip/phase3-pageless-contents.md`](./phase3-pageless-contents.md) — 118 sections
 the register could not see.
+Round 12: [`wip/phase3-round12-body-heading-code.md`](./phase3-round12-body-heading-code.md)
+— the argument the heading stripper never read.
+Round 13: [`wip/phase3-round13-chapter-hyphen.md`](./phase3-round13-chapter-hyphen.md) —
+the separator the private copy never learned.
 
-**Picking this up cold?** [`wip/HANDOVER.md`](./HANDOVER.md) has the full state: what
-landed, the 16 open items with their traced leads, and the working rules learned the hard
-way (never edit `packages/` mid-conversion; measure invariant and parser separately).
+The pipeline→portal track ran separately and is closed:
+[`wip/integration/plan.md`](./integration/plan.md) and
+[`tasks.md`](./integration/tasks.md), PRs #59–#76.
+
+**Picking this up cold?** [`wip/HANDOVER.md`](./HANDOVER.md) still has the **working
+rules**, which are the part that has not aged (never edit `packages/` mid-conversion;
+clear `__pycache__` after any mutate-and-restore; measure the invariant fix and the parser
+fix separately; verify a lock by removing the fix; report fixes that moved the register by
+zero). Its *numbers* are 23 PRs stale — it says 64 and lists 16 open items, both of which
+predate rounds 8–13 and the whole integration track. This file and `plan.md` are current;
+read those for state and HANDOVER §4 for method.
 
 | Invariant | acts | rules | ordinance | total | was |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 8 (6) | 8 (4) | 5 (4) | **21** | 23 |
-| `no_foreign_section_start_in_body` | — | 1 (1) | — | **1** | 2 |
-| `section_codes_ordered` | 3 (2) | — | — | **3** | 4 |
-| `no_chapter_caption_in_section_heading` | 4 (4) | — | — | **4** | 3 |
+| `section_carries_its_body` | 8 (6) | 8 (4) | 5 (4) | **21** | 21 |
+| `no_chapter_caption_in_section_heading` | 4 (4) | — | — | **4** | 4 |
+| `preamble_carries_no_toc_tail` | 4 (4) | — | — | **4** | new in #74 |
+| `section_codes_ordered` | 3 (2) | — | — | **3** | 3 |
+| `no_foreign_section_start_in_body` | — | 1 (1) | — | **1** | 1 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
 | `structure_counts` | — | — | — | **0** | 0 |
 | `no_footnote_text_in_body` | — | — | — | **0** | 0 |
 | `body_chapters_in_tree` | — | — | — | **0** | 0 |
-| **per lane** | **16** | **9** | **5** | **30** | 33 |
+| `no_code_fragment_in_section_heading` | — | — | — | **0** | 0 (was 31) |
+| `no_structural_heading_in_body` | — | — | — | **0** | 0 (was 175) |
+| **per lane** | **20** | **9** | **5** | **34** | 34 |
 
 `no_chapter_caption_in_section_heading` gains one because round 4 made it visible: with
 rule 150ZQZA finally binding, its heading is readable, and it is a FALSE positive — the
@@ -297,6 +320,105 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       Honest caveat: the acts lane did **not** move. 32 of the 48 gained lines were
       hyphenated Customs sections already binding by another route — lines newly matched
       is not the same measurement as sections newly bound.
+- [x] **175 chapter headings that were never boundaries — and a fourth reader, traced.**
+      `grammar.CHAPTER_RE` spells the keyword/numeral separator `[\s\-]+` and asserts so
+      in its own `_demo`. `builder._STRUCTURAL_RE` and the suite's `_STRUCT_LINE` both
+      spelled it `\s+`, so the Sales Tax Act's `Chapter-II` was not a segment boundary:
+      nine chapter headings per edition were swallowed into the preceding section's body,
+      and `no_structural_heading_in_body` — the invariant whose whole job is to find one
+      — reported **zero**, blind for the same reason. Round 1's chapter numeral and round
+      12's heading stripper, a third time.
+      Measured invariant-alone on identical JSON: **0 → 175** (acts 171/19 documents,
+      rules 4/2, ordinance **0** — the Income Tax Ordinance prints `CHAPTER I` with a
+      space everywhere, so the `fbr_ingest` fork's identical copies are dormant, not
+      correct, and are carried below).
+      Two edits, and they had to land together: `is_structural_boundary` does not stand
+      alone, because `discover` re-parses the line with `core.split()`, which on
+      `Chapter-II` has no space to split on and yields `kw="CHAPTER-II"` — matching
+      neither branch, falling through to Division and emitting a NAMELESS
+      `Node(code="Division ")` that parents every following section. Widening the boundary
+      test alone reproduces round 1's duplicate-container failure with certainty. The
+      cheap witness that the split fix landed is the run log: the three body-driven
+      editions now log `body-driven structure: 10 chapters` where they logged 0 and then
+      had `insert_missing_body_chapters` fill 10.
+      **21 documents re-converted, 0 refused, zero structural change** — leaf-code sets,
+      container sets, `sections_count`, `chapters_count`, `schedules_count` all identical.
+      Conservation `audit_all --family salestax` **19/19 at 100.000%**. Register **34 → 34**.
+      See `wip/phase3-round13-chapter-hyphen.md` for the three things only running it
+      found, including the conservation audit reading a canonicalisation as a 6-word loss.
+- [ ] **The preamble that begins on the last Contents page (4 hits) — and the invariant
+      undercounts it.** `preamble_carries_no_toc_tail` (new in #74) fires on the 2013–2016
+      Customs Act editions, whose preamble node opens
+      `THE CUSTOMS ACT, 1969 / Section Page / No. / 224 Extension of time limit. 219 /
+      THE FIRST SCHEDULE 223 … / xxi` before reaching `1[Act No. IV of 1969]`.
+      Measured across all 20 converted Customs editions: **14 start correctly at
+      `1[Act No. IV of 1969]` (314/315 chars) and 6 do not** — the four the invariant
+      sees, plus 2008 (contents rows, 433 chars) and 2007 (a bare roman folio `(xxii)`,
+      321 chars). The invariant keys on the column header `Section\s+Page\s+No\.?`, which
+      is one *spelling* of the defect rather than the defect, so it is blind to 2 of 6.
+      The cause is already named in the code: `pipeline.py`'s H5 comment records the
+      trade it accepted — *"no-op on 30, **one extra front-matter page into the preamble
+      on 9**, repairs 4, loses nothing."* H5 is right and stays; the trim belongs where
+      the front matter lands. Candidate signal, to be measured before it is committed: a
+      **roman-numeral folio line** (body pages print arabic folios, front matter roman) —
+      both failing shapes end at exactly that line and it is furniture in its own right.
+      Must NOT key on the enacting formula: `preamble_refs`'s docstring records gazette
+      Finance Acts whose legitimate preamble opens with `PART I`, the notification and the
+      masthead, and cutting to the formula destroyed 23–55 body words there.
+      Widen the invariant in the same PR, measured separately: **4 → 6 on unchanged JSON,
+      then → 0.**
+      Also found and NOT fixed: `inv_preamble_no_chapter_heading` compares
+      `line.strip() == chapters[0].code`, i.e. against the normalised `"CHAPTER I"` and
+      never the printed `4[Chapter-I`, so it has been passing on 19 editions that visibly
+      carried the leak round 13 removed — a third spelling of the same idea.
+- [ ] **The heading-terminator scan that walks through a boundary (3 hits).**
+      `builder._find_heading_split` looks up to four lines ahead for a heading terminator.
+      It stops at a grid table — its docstring argues that a table "can never be part of a
+      heading" and that this is "the same rule on the build side" — but not at a
+      structural heading, which cannot be part of one either. So Sales Tax `32AA`
+      (`6[32AA. ***]`, an omission with no terminator of its own) borrows section 33's,
+      and its heading comes out `*** Chapter-VII OFFENCES AND PENALTIES 33. Offences and
+      penalties`. That is the whole 32AA cluster of
+      `no_chapter_caption_in_section_heading`, across three Sales Tax editions.
+      Round 13 measured the obvious guard (`return None` at a boundary) and it **loses
+      section 32AA outright — 127 leaves → 126**: with no split the caller falls through
+      the colon-dash branch and creates no entry at all. Needs an omission-aware fallback,
+      not a guard.
+- [ ] **The container-code guard**, which two independent measurements now argue for:
+      a `PART-N` line is a boundary only where the enclosing chapter actually holds a part
+      with that code.
+      *(a)* It is what makes the PART separator widening safe. Widening PART scores **14
+      real boundaries against 6 losses**, and the 6 are annexure FORMS — Customs Rules
+      2001 leaf 34, a permission form whose item counter 8–11 runs ACROSS `PART-II`…
+      `PART-V` and whose first part prints an EN DASH, and Sales Tax Rules 2006 form
+      STR-11 (`PART-I`, `376[PART-II`). An exemption is the wrong tool: it silences the
+      invariant while `_build_one` still slices the form into the next rule, conservation
+      still reads 100.000%, and the hits vanish — the change would report itself as a
+      success.
+      *(b)* It is what would have kept round 13 from losing 32 words in Customs Rules
+      2001 (74.101% → 74.087%): four chapter captions cut out as boundaries into a tree
+      that holds 41 of ~44 chapters and cannot express them. Inside a known 62,519-word
+      Phase 5 deficit on the one document whose containers are known to be inexpressible,
+      but a real loss and reported as one.
+      Needs `build_sections` to pass per-chapter container codes into `_build_one`.
+- [ ] **The CHAPTER letter suffix — 57 hits, 24 documents, all real.**
+      `_STRUCTURAL_RE`'s CHAPTER branch has no suffix class where the PART and Division
+      branches beside it both carry `[A-Z]{0,2}`, so `CHAPTER XVI-A` is not a boundary
+      either: it sits in section 155's body in **twenty Customs Act editions**, with
+      `CHAPTER XIX-A` in 196J, plus the whole `XIV-A`..`XIV-D` / `V-A`..`V-C` / `VIII-A` /
+      `X-A` / `XVII-A` / `XVII-B` family of Sales Tax Rules 2006 — the exact set
+      `grammar.py`'s own comment records as unclassified. Held out of round 13 because it
+      doubles the re-conversion from 21 documents to 44 and twenty of those are the
+      Customs editions whose chapter tree rounds 1 and 6 rebuilt.
+      Pinned by `test_structural_boundary_agrees_with_grammar.py::
+      test_the_letter_suffixed_chapter_gap_is_still_open`, which asserts the current
+      WRONG answer and so fails the moment the widening lands.
+- [ ] **`fbr_ingest` carries both narrow copies, dormant.** Its `discover.py` has the
+      identical broken keyword/numeral split and its `builder.py` the identical `\s+`
+      regex, imported from its own fork rather than from `legal_ingest`. Measured at
+      **zero** additional hits across all 12 ordinance documents, so re-converting the
+      largest documents in the corpus would have moved nothing. Gated on the Phase 4b
+      fork decision.
 - [ ] **`section_carries_its_body` — the remaining 21.** The residue: 8 rules, 5 ordinance
       (`fbr_ingest`, sequenced after the Phase 4 decision on that fork), and 8 acts.
 - [x] **A contents page with no page numbers — 118 sections, and 3 register hits.**
@@ -566,6 +688,13 @@ Branch: `feat/profile-auto-default`, then `fix/pipeline-to-portal`
       collapse the lane→package mapping to family→profile. Phase 2 removed the reason
       not to: the family now overrides the lane's profile rather than replacing it, so
       the default flip no longer silently re-parses a lane.
+- [x] ~~The transport work~~ — **done as its own track**, `wip/integration/` PRs #59–#76:
+      the output contract and provenance, `node_key` leaf identity, withdrawal, one ingest
+      path in production, the sanitizer, review state, a CI gate at the corpus interface,
+      and PR-J taking the ordinance lane onto the contract (12/12 `contract_version`,
+      corpus identity hole 5,047 leaves → 89). The bullet below predates it and its
+      description of the ordinance lane as blocked is now only half true — that lane
+      converts and syncs; what is still open is which *fork* parses it.
 - [ ] Decide `fbr_ingest` on the evidence now committed in `signatures.json`: the 9 ICT
       Ordinance editions are `consolidated`/flat and structurally identical to the
       Acts-lane PSW and VDDA instruments, and nothing like the 13 Income Tax Ordinance
@@ -579,11 +708,9 @@ Branch: `feat/profile-auto-default`, then `fix/pipeline-to-portal`
       `--profile auto` is still not expressible here — `fbr_ingest.run` takes no
       profile, and Phase 1's guard refuses the run rather than letting 46 children fail
       and quarantine the lane.
-- [ ] The transport work from the previous plan, unchanged: `make sync` after
-      re-conversion, a mounted corpus volume in production, and an HTTP path that
-      writes `version_metrics` so the portal can show pipeline health at all
-
 **Gate:** a parser fix merged to `main` is visible in the portal without a manual step
+— **met for the transport half** (#70 wired pipeline health, #64/#65 production identity
+and `If-Match`); what remains is the profile default and the fork decision above.
 
 ---
 

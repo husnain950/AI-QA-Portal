@@ -267,10 +267,37 @@ def output_text(doc: dict):
     return "\n".join(body_parts), "\n".join(foot_parts)
 
 
+#: Container keywords, which the TREE canonicalises to upper case.  A boundary
+#: line is furniture: the tree represents it as a node, and ``output_text``
+#: counts that node's ``code`` precisely so the words net out.  They net out
+#: only where the source also prints the keyword in upper case.  The Sales Tax
+#: Act prints ``Chapter-II``, and ``discover`` mints ``code="CHAPTER II"``, so
+#: once round 13 let those lines BE boundaries the case-sensitive multiset read
+#: a canonicalisation as a loss -- 6 tokens on the 2009 edition (100.000% ->
+#: 99.975%, below the 99.99% gate) and 1-2 on ten of its siblings, every one of
+#: them the single word ``Chapter``.  No text left the document.
+#:
+#: Folded on both sides, and ONLY for these four tokens.  The hole this leaves
+#: is narrow and worth naming: a title-case ``Chapter`` dropped from PROSE
+#: ("...specified in Chapter V...") is now masked by a node code, which is the
+#: same tolerance the audit already had for the upper-case spelling.
+_CONTAINER_KEYWORDS = frozenset(("CHAPTER", "PART", "DIVISION", "SCHEDULE"))
+
+
+def _fold_container_case(counter):
+    """Upper-case the container keywords in a word multiset, leave the rest."""
+    folded = collections.Counter()
+    for word, n in counter.items():
+        up = word.upper()
+        folded[up if up in _CONTAINER_KEYWORDS else word] += n
+    return folded
+
+
 def _report(label, src, out):
     ow = collections.Counter(_words(out))
     src = join_dropcaps(src, set(ow))
     sw = collections.Counter(_words(src))
+    ow, sw = _fold_container_case(ow), _fold_container_case(sw)
     missing = sw - ow                       # words in source, short in output
     n_src = sum(sw.values())
     n_missing = sum(missing.values())

@@ -1,0 +1,297 @@
+<title>The Separator Three Readers Disagreed On</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:#f6f6f4; --paper-sunk:#ecedea; --ink:#171c24; --ink-soft:#3a434f;
+  --muted:#656e79; --rule:#d5d7d3; --rule-soft:#e4e5e2;
+  --accent:#1d5b63; --accent-bg:#e2edee;
+  --defect:#9c2f2a; --defect-bg:#f4e5e3;
+  --good:#2c6146; --good-bg:#e3eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+    --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+    --accent:#6fb2ba; --accent-bg:#163034;
+    --defect:#dd8880; --defect-bg:#331d1c;
+    --good:#74b795; --good-bg:#162b22;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#12161b; --paper-sunk:#1a1f26; --ink:#e3e6e3; --ink-soft:#b9c0c5;
+  --muted:#8d97a1; --rule:#2c333c; --rule-soft:#232931;
+  --accent:#6fb2ba; --accent-bg:#163034;
+  --defect:#dd8880; --defect-bg:#331d1c;
+  --good:#74b795; --good-bg:#162b22;
+}
+* { box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif; font-size:18px;
+  line-height:1.62; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+.sheet { max-width:1080px; margin:0 auto; padding:4rem 2rem 6rem; }
+.block { display:grid; grid-template-columns:12.5rem 1fr; gap:0 2.75rem; align-items:start; }
+.block + .block { margin-top:3.25rem; }
+.gutter { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.74rem; line-height:1.5;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:right;
+  padding-top:.5rem; border-right:1px solid var(--rule-soft); padding-right:2.75rem;
+  margin-right:-2.75rem; min-height:2rem; }
+.gutter .note { display:block; text-transform:none; letter-spacing:0; font-size:.82rem;
+  font-style:italic; font-family:"Newsreader",Georgia,serif; color:var(--muted);
+  margin-top:.6rem; line-height:1.45; }
+.body { min-width:0; max-width:62ch; }
+@media (max-width:860px) {
+  .block { grid-template-columns:1fr; gap:0; }
+  .gutter { text-align:left; border-right:0; padding-right:0; margin-right:0;
+    border-left:2px solid var(--rule); padding-left:.85rem; margin-bottom:.9rem; padding-top:0; }
+  .body { max-width:none; } .sheet { padding:2.5rem 1.25rem 4rem; }
+}
+.masthead { border-bottom:2px solid var(--ink); padding-bottom:1.5rem; margin-bottom:3.5rem; }
+.eyebrow { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.72rem; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 1rem; }
+h1 { font-weight:300; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08;
+  letter-spacing:-.018em; margin:0 0 .7rem; text-wrap:balance; }
+h1 em { font-style:italic; color:var(--accent); }
+.standfirst { font-size:1.13rem; color:var(--ink-soft); margin:0; max-width:56ch; text-wrap:pretty; }
+h2 { font-weight:400; font-size:1.62rem; line-height:1.2; letter-spacing:-.012em; margin:0 0 1rem; text-wrap:balance; }
+h3 { font-family:"Source Sans 3",system-ui,sans-serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:2rem 0 .75rem; }
+p { margin:0 0 1.05rem; text-wrap:pretty; }
+.body > :last-child { margin-bottom:0; }
+strong { font-weight:600; }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible, .scroller:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:2px; }
+code { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.845em;
+  background:var(--paper-sunk); padding:.1em .34em; border-radius:3px; border:1px solid var(--rule-soft); }
+.scoreline { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin:0 0 3.5rem; }
+.score { background:var(--paper); padding:1.15rem; }
+.score dt { font-family:"Source Sans 3",system-ui,sans-serif; font-size:.68rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem; }
+.score dd { margin:0; font-size:1.85rem; font-weight:300; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.score .was { font-size:.8rem; color:var(--muted); margin-left:.45rem; font-variant-numeric:tabular-nums; }
+.score .to { color:var(--good); } .score .flat { color:var(--ink-soft); }
+.scroller { overflow-x:auto; }
+pre { font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.78rem; line-height:1.75;
+  background:var(--paper-sunk); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:1rem 1.15rem; margin:0 0 1.05rem; white-space:pre; }
+pre code { background:none; padding:0; border:0; font-size:inherit; }
+pre .hl { color:var(--defect); font-weight:500; }
+pre .dim { color:var(--muted); }
+table { width:100%; border-collapse:collapse; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.875rem; margin:0 0 1.05rem; }
+caption { caption-side:top; text-align:left; font-family:"Source Sans 3",system-ui,sans-serif;
+  font-size:.7rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding-bottom:.6rem; }
+th, td { text-align:left; padding:.62rem .75rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:.7rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--rule); }
+tbody tr:last-child td { border-bottom:0; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+tr.yes td:last-child { color:var(--defect); font-weight:600; }
+tr.no td:last-child { color:var(--good); font-weight:600; }
+tr.wrong td:first-child { box-shadow:inset 3px 0 0 var(--defect); }
+tr.right td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+.tag { display:inline-block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .42rem; border-radius:3px; white-space:nowrap; }
+.tag.ok { background:var(--good-bg); color:var(--good); }
+.tag.bad { background:var(--defect-bg); color:var(--defect); }
+.figcap { font-size:.82rem; color:var(--muted); font-style:italic; margin:0 0 1.05rem; }
+.pull { border-left:3px solid var(--accent); padding:.1rem 0 .1rem 1.15rem; margin:1.6rem 0;
+  font-size:1.12rem; color:var(--ink-soft); font-style:italic; }
+.pull strong { font-style:normal; color:var(--ink); }
+blockquote { margin:0 0 1.05rem; padding:.1rem 0 .1rem 1.15rem; border-left:2px solid var(--rule);
+  color:var(--muted); font-style:italic; font-size:.95rem; }
+footer { margin-top:4.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-family:"Source Sans 3",system-ui,sans-serif; font-size:.8rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; }
+</style>
+
+<div class="sheet">
+
+<header class="masthead">
+  <p class="eyebrow">Phase 3 · Round 13</p>
+  <h1>One separator, <em>three spellings</em></h1>
+  <p class="standfirst">The grammar has always known a chapter heading may print <code>Chapter-II</code>. Two private copies of that rule did not — the parser's cut, and the invariant written to catch a missed cut. So 175 chapter headings sat inside section bodies, and the gate that exists to find them reported zero.</p>
+</header>
+
+<dl class="scoreline">
+  <div class="score"><dt>Anomaly register</dt><dd class="flat">34<span class="was">unchanged</span></dd></div>
+  <div class="score"><dt>Headings re-zoned</dt><dd>175 <span class="to">→ 0</span></dd></div>
+  <div class="score"><dt>Documents</dt><dd>21<span class="was">2 lanes</span></dd></div>
+  <div class="score"><dt>Structural change</dt><dd class="to">0<span class="was">nodes</span></dd></div>
+  <div class="score"><dt>Conservation</dt><dd class="to">100.000%<span class="was">19/19</span></dd></div>
+</dl>
+
+<section class="block">
+  <div class="gutter">The defect
+    <span class="note">Three modules, one idea, and nothing that compared them.</span>
+  </div>
+  <div class="body">
+    <h2>The authority, and the two copies that drifted from it</h2>
+    <div class="scroller"><pre><code><span class="dim"># grammar.py — right, and asserts so in its own _demo</span>
+CHAPTER_RE = rf"^\s*\[?\s*{spaced('CHAPTER')}<span class="hl">[\s\-]+</span>({NUMERAL}) ..."
+
+<span class="dim"># builder.py — the parser's cut</span>
+_STRUCTURAL_RE = r"^(CHAPTER<span class="hl">\s+</span>[IVXLC0-9]+|PART\s+...)$"
+
+<span class="dim"># tools/suite/invariants/_common.py — the invariant that reports a missed cut</span>
+_STRUCT_LINE   = r"^(CHAPTER<span class="hl">\s+</span>[IVXLC0-9]+|PART\s+...)$"</code></pre></div>
+    <p>So <code>Chapter-II</code> was not a boundary. Nine chapter headings per Sales Tax Act edition were swallowed into the preceding section's body — and <code>no_structural_heading_in_body</code>, whose entire job is to find a structural heading sitting in a body, reported <strong>zero</strong>, blind for the same reason.</p>
+    <p class="pull">Round 1 found the body scan, the tree and the invariant each reading one chapter numeral differently. Round 12 found two normalisers disagreeing about one code spelling. <strong>This is the third time, on the same shape.</strong></p>
+    <p>Cross-references were never at risk: the pattern is whole-line anchored, so <code>Chapter-V of this Act;</code> has never matched and still does not.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Measured first
+    <span class="note">Invariant alone, identical JSON, no re-conversion.</span>
+  </div>
+  <div class="body">
+    <h2>What the blind gate was hiding</h2>
+    <div class="scroller">
+    <table>
+      <caption>Widening <code>_STRUCT_LINE</code> and nothing else</caption>
+      <thead><tr><th>Lane</th><th class="num">Register before</th><th class="num">Register after</th><th>What appeared</th></tr></thead>
+      <tbody>
+        <tr><td>acts</td><td class="num">20</td><td class="num">191</td><td>171 hits, 19 documents — nine per Sales Tax edition</td></tr>
+        <tr><td>rules</td><td class="num">9</td><td class="num">13</td><td>4 hits, 2 documents</td></tr>
+        <tr class="right"><td>ordinance</td><td class="num">5</td><td class="num">5</td><td>0 — the Ordinance prints <code>CHAPTER I</code> with a space, everywhere</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="figcap">The ordinance zero is the finding that kept the <code>fbr_ingest</code> fork out of this round. It carries both narrow copies, and re-converting the largest documents in the corpus would have moved nothing.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">The fix
+    <span class="note">Two edits. Shipping one without the other is worse than shipping neither.</span>
+  </div>
+  <div class="body">
+    <h2>The boundary test does not stand alone</h2>
+    <p><code>discover</code> re-parses the very line <code>is_structural_boundary</code> just accepted — with a different separator:</p>
+    <div class="scroller"><pre><code>core = re.sub(r"\s+", " ", _STRUCT_DECOR_RE.sub("", text)).strip()
+kw = <span class="hl">core.split()</span>[0].upper()        <span class="dim"># "CHAPTER-II" — no space to split on</span>
+numeral = core.split(None, 1)[1] if " " in core else ""   <span class="dim"># ""</span></code></pre></div>
+    <p><code>"CHAPTER-II"</code> matches neither <code>"CHAPTER"</code> nor <code>"PART"</code>, so it falls through to the Division branch and emits a <strong>nameless</strong> <code>Node(code="Division ")</code> that then parents every following section. Ten per edition. Widening the boundary test alone reproduces round 1's duplicate-container failure with certainty.</p>
+    <div class="scroller">
+    <table>
+      <caption>The split, before and after — <code>maxsplit=1</code> is what keeps it a no-op</caption>
+      <thead><tr><th>Line</th><th>Before</th><th>After</th></tr></thead>
+      <tbody>
+        <tr class="right"><td><code>CHAPTER II</code></td><td>("CHAPTER", "II")</td><td>("CHAPTER", "II")</td></tr>
+        <tr class="right"><td><code>CHAPTER XVI-A</code></td><td>("CHAPTER", "XVI-A")</td><td>("CHAPTER", "XVI-A")</td></tr>
+        <tr class="right"><td><code>Division III A</code></td><td>("DIVISION", "III A")</td><td>("DIVISION", "III A")</td></tr>
+        <tr class="wrong"><td><code>Chapter-II</code></td><td>("CHAPTER-II", "") → <strong>Division</strong></td><td>("CHAPTER", "II")</td></tr>
+        <tr class="wrong"><td><code>CHAPTER - V</code></td><td>("CHAPTER", "- V")</td><td>("CHAPTER", "V")</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Nothing in the output distinguishes the two mechanisms — <code>chapters_count</code> is 10 either way. The run log does:</p>
+    <div class="scroller"><pre><code><span class="dim">before</span>  body-driven structure: <span class="hl">0 chapters</span>, 127 sections
+        10 chapter(s) filled/inserted from body
+<span class="dim">after</span>   body-driven structure: <span class="hl">10 chapters</span>, 127 sections
+        <span class="dim">(no insert pass)</span></code></pre></div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">After re-conversion
+    <span class="note">21 documents, 2 lanes, 0 refused.</span>
+  </div>
+  <div class="body">
+    <h2>Text moved; nothing else did</h2>
+    <div class="scroller">
+    <table>
+      <caption>Before / after, against the <code>_pre_r13</code> snapshot</caption>
+      <thead><tr><th>Measure</th><th>acts (19)</th><th>rules (2)</th></tr></thead>
+      <tbody>
+        <tr><td>Leaf-code sets, container sets</td><td>identical</td><td>identical</td></tr>
+        <tr><td><code>sections_count</code> / <code>chapters_count</code> / <code>schedules_count</code></td><td>unchanged</td><td>unchanged</td></tr>
+        <tr><td>Text out of section bodies</td><td class="num">−5,758</td><td class="num">−217</td></tr>
+        <tr><td>Text out of preambles</td><td class="num">−432</td><td class="num">0</td></tr>
+        <tr class="right"><td>Body + footnote conservation</td><td>19/19 at 100.000%</td><td>1 unchanged, 1 traced</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <h3>Three things only running it found</h3>
+    <p><strong>The conservation audit read a canonicalisation as a loss.</strong> The first run came back 18/19, one edition at 99.975%, six missing words — every one the token <code>Chapter</code>. No text left the document: a boundary line is furniture, the tree holds it as a node, and the audit counts that node's <code>code</code> precisely so the words net out. They net out only where the source also prints the keyword in upper case. The Sales Tax Act prints <code>Chapter-II</code>; <code>discover</code> mints <code>CHAPTER II</code>; the multiset is case-sensitive. Folded, for four container keywords only — and the hole that leaves is named in the code rather than buried. Re-run: <strong>19/19 at 100.000%.</strong></p>
+    <p><strong>One document loses 32 words, and it is the Phase 5 compilation.</strong> Customs Rules 2001 goes 74.101% → 74.087%. The tokens are four chapter captions cut out as boundaries into a tree that holds 41 of ~44 chapters and cannot express them. Inside a known 62,519-word deficit, on the one document whose containers are known to be inexpressible — but a real loss, and the second measurement arguing for the container-code guard.</p>
+    <p><strong>One preamble was nothing but the leak.</strong> Eighteen editions ended their preamble <code>…as follows:-\n4[Chapter-I\nPRELIMINARY</code> — the chapter's own code and caption, emitted twice. On the 2014 edition the preamble was 24 characters and was <em>only</em> that, so the node is now absent. <code>inv_preamble_present</code> stays green by its documented fallback.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Measured, not shipped
+    <span class="note">Each held out with the number that held it out.</span>
+  </div>
+  <div class="body">
+    <h2>Three widenings the corpus argued against</h2>
+    <div class="scroller">
+    <table>
+      <caption>What was tested and deliberately left open</caption>
+      <thead><tr><th>Candidate</th><th class="num">Gained</th><th class="num">Lost</th><th>Why not now</th></tr></thead>
+      <tbody>
+        <tr class="wrong"><td>PART / Division separator</td><td class="num">14</td><td class="num">6</td><td>The 6 are annexure FORMS — an item counter running 8–11 <em>across</em> the parts. Cutting slices a form into the next rule while conservation still reads 100.000% and the hits vanish: the change would report itself as a success.</td></tr>
+        <tr class="wrong"><td>CHAPTER letter suffix</td><td class="num">57</td><td class="num">0</td><td>All real — <code>CHAPTER XVI-A</code> in 20 Customs editions. Doubles re-conversion to 44 documents, 20 of them the Customs tree rounds 1 and 6 rebuilt. Earns its own conservation run.</td></tr>
+        <tr class="wrong"><td>Delegate to <code>grammar</code></td><td class="num">269</td><td class="num">32</td><td><code>ROMAN</code>'s suffix class under <code>IGNORECASE</code> eats <code>of</code> / <code>or</code> / <code>for</code>. Those patterns are tuned for contents rows; this test runs on body prose.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="figcap">The suffix gap is pinned by a test that asserts the current <em>wrong</em> answer, so it fails the moment the widening lands — the number then moves in the same PR that moved it.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Why the register holds
+    <span class="note">The prediction was wrong, and being wrong found a fourth reader.</span>
+  </div>
+  <div class="body">
+    <h2>A fourth scanner that walks through a boundary</h2>
+    <p>Three register hits were expected to close — the <code>32AA</code> cluster. Its body <em>is</em> fixed. Its heading is not:</p>
+    <div class="scroller"><pre><code><span class="dim">before</span>  text     '6[32AA. ***]<span class="hl">\nChapter-VII\nOFFENCES AND PENALTIES</span>'
+<span class="dim">after</span>   text     '6[32AA. ***]'
+<span class="dim">both</span>    heading  '*** Chapter-VII OFFENCES AND PENALTIES 33. Offences and penalties'</code></pre></div>
+    <p><code>_find_heading_split</code> scans up to four lines ahead for a heading terminator. It stops at a grid table — its docstring argues a table "can never be part of a heading" and that this is "the same rule on the build side" — but not at a structural heading, which cannot be part of one either. So an omission with no terminator of its own borrows section 33's.</p>
+    <blockquote>The obvious guard was measured, and it loses section 32AA outright: 127 leaves → 126. With no split the caller creates no entry at all. This needs an omission-aware fallback, not a guard.</blockquote>
+    <p>So the register holds at <strong>34</strong>, deliberately, with the class closed corpus-wide and the invariant that can see it shipping at 0 in the same PR — the same shape as round 12.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="gutter">Locked
+    <span class="note">Each verified by removing its fix, one at a time.</span>
+  </div>
+  <div class="body">
+    <h2>The comparison that did not exist</h2>
+    <div class="scroller">
+    <table>
+      <caption>Four locks, and what each one catches</caption>
+      <thead><tr><th>Lock</th><th>Fails if you revert</th></tr></thead>
+      <tbody>
+        <tr><td><code>builder._demo</code></td><td>the boundary regex — and the PART forms held out</td></tr>
+        <tr><td><code>discover._demo</code> <span class="tag ok">new</span></td><td>the keyword/numeral split, and <code>maxsplit=1</code></td></tr>
+        <tr><td><code>_common._demo_structural_line</code> <span class="tag ok">new</span></td><td>the invariant pattern, and the tariff exception's trap</td></tr>
+        <tr><td><code>test_structural_boundary_agrees_with_grammar.py</code> <span class="tag ok">new</span></td><td>all three, plus the deferred suffix gap</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>The last file is the one that would have caught this twelve rounds ago. The three modules stay independent implementations on purpose — an invariant that imports the parser's own regex checks nothing — but nothing compared them, and that is exactly how one separator came to have three spellings.</p>
+    <p>A docstring was corrected with it. The invariant's tariff-reference exception claimed <em>"every genuine chapter boundary prints <code>CHAPTER</code>"</em>. The Sales Tax Act prints <code>Chapter-II</code>, so that was false — and the exception stays correct only because its <code>split(" ")</code> cannot split a hyphen. Widening it to match the pattern's own separator silences 171 of these 175 hits. Now asserted, not assumed.</p>
+  </div>
+</section>
+
+<footer>
+  <span>pytest tools/tests — 81 passed, 1 skipped, 0 failed</span>
+  <span>ruff check (bare) clean</span>
+  <span>discover_corpus --check — no drift</span>
+  <span>data/ocr_cache — 0 B</span>
+  <span>output/_refused/ — no new entries</span>
+  <span>register 34, regenerated as a byte no-op</span>
+</footer>
+
+</div>

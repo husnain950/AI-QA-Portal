@@ -121,20 +121,33 @@ does not have that blind spot.
 up in `wip/phase3-chapter-numerals.md`; the Phase 2 run that produced the baseline is in
 `wip/phase2-run.md`.)*
 
-**30 invariant hits across 103 converted editions**, measured 2026-08-31 after round 12.
-210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30. The acts lane holds 80
-documents.
+**34 invariant hits across 103 converted editions**, measured 2026-09-02 after round 13.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → **34** → 34. The acts
+lane holds 80 documents.
 
-Round 12 moved the register by **zero, deliberately**: it closed a defect class no
-invariant could see (31 headings carrying their own code tail, 15 documents, 2 lanes) and
-two gates that could not fail — the register test never matched a failing regression
-CASE, and round 11's lock case was scoped to a date that selected the wrong document.
-The invariant that can see the class ships closed at 0 in the same PR. See
-`wip/phase3-round12-body-heading-code.md`.
+The +4 is not a regression. PR #74 added `preamble_carries_no_toc_tail`, a NEW question
+about a defect that was already there: four Customs Act editions print the tail of their
+Contents page in front of the enacting formula. It is counted here because the pipeline
+owns the cause; the portal's half of it (`is_junk_leaf` dropping the whole leaf) closed
+separately in #75.
+
+Rounds 12 and 13 each moved the register by **zero, deliberately**, and each closed a
+defect class no invariant could see:
+
+- Round 12 — 31 headings carrying their own code tail, 15 documents, 2 lanes. The
+  heading stripper never read the `code` argument it was handed.
+  `wip/phase3-round12-body-heading-code.md`.
+- Round 13 — 175 chapter headings swallowed into the preceding section's body, 21
+  documents, 2 lanes. `grammar.CHAPTER_RE` spells the keyword/numeral separator
+  `[\s\-]+`; `builder._STRUCTURAL_RE` and the suite's `_STRUCT_LINE` both spelled it
+  `\s+`, so `Chapter-II` was not a boundary and the invariant written to catch exactly
+  that was blind for the same reason. `wip/phase3-round13-chapter-hyphen.md`.
+
+In both, the invariant that can see the class ships closed at 0 in the same PR.
 
 | Lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 16 | 12 | **80** | 93 |
+| acts | 20 | 16 | **80** | 93 |
 | rules | 9 | 4 | **11** | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
@@ -146,13 +159,15 @@ editions carrying 2,065 image-backed pages.
 | Invariant | acts | rules | ordinance | total |
 |---|---|---|---|---|
 | `section_carries_its_body` | 8 (6) | 8 (4) | 5 (4) | **21** |
+| `no_chapter_caption_in_section_heading` | 4 (4) | — | — | **4** |
+| `preamble_carries_no_toc_tail` | 4 (4) | — | — | **4** |
+| `section_codes_ordered` | 3 (2) | — | — | **3** |
 | `no_foreign_section_start_in_body` | — | 1 (1) | — | **1** |
-| `section_codes_ordered` | 4 (3) | — | — | **4** |
-| `structure_counts` | — | — | — | **0** |
-| `no_chapter_caption_in_section_heading` | 3 (3) | — | — | **3** |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 |
+| `structure_counts` | — | — | — | **0** |
 | `no_footnote_text_in_body` | — | — | — | **0** |
 | `no_code_fragment_in_section_heading` | 0 (was 14) | 0 (was 17) | — | **0** |
+| `no_structural_heading_in_body` | 0 (was 171) | 0 (was 4) | 0 | **0** |
 
 ## What round 1 closed, and what it taught
 
@@ -183,25 +198,64 @@ Two lessons worth carrying into the remaining classes:
 
 ## Order for what remains
 
-1. **`section_carries_its_body` (111)** — the largest class. Round 2's triage
-   decomposed it from measurement rather than assumption: **48** are the two compilations
-   (Customs Rules 2001 and Federal Excise Rules 2005), whose cause is already traced and
-   accepted for three sibling invariants; **14** are one printed defect — the text layer
-   splits the code, `150 ZQR.` for `150ZQR`, so `_candidate_code` returns `None` for a
-   whole 18-section run; **8** are omissions the invariant fails to recognise (an
-   ellipsis `2[15. ... ]`, and `(cid:N)` corruption); the remaining ~41 are real zoning
-   misses and one untriaged group.
-2. **`no_foreign_section_start_in_body` (20)** — the mirror of class 1: the invariant only
-   fires when the victim leaf is itself heading-only, so these move with the start-detection
-   fixes rather than separately.
-3. ~~`no_footnote_text_in_body`~~ — **closed in round 2.**
-4. ~~`structure_counts`~~ — **closed in round 6.** The parser sorted chapters by a numeral
-   value that sums a suffix's letters, so `XIV-AB`, `XIV-BA` and `XIV-C` all collided at
-   14.03. A suffix is alphabetical, not additive.
-5. **`section_codes_ordered` (7)** and **`no_chapter_caption_in_section_heading` (5)** —
-   one cause: an omitted-section placeholder lands at a tree position matching neither its
-   code nor its page, and its segment then runs on into the next chapter heading.
-5. `no_chapter_caption_in_section_heading` (4), `clause_codes_plausible` (1).
+Re-derived from the live register after round 13, not carried forward. The counts
+below are hits; the parenthesised number is documents.
+
+1. **`section_carries_its_body` (21)** — still the largest class, and it is now four
+   unrelated causes rather than one:
+   - **omission spellings the invariant cannot read (2, acts).** Customs 30.06.2024
+     s.196K prints `to Omitted 96u`, and 30.06.2025 s.79 prints `A O mitted` — an
+     intra-word space round 3 measured and refused to admit for a regex whose job is
+     precision. Worth re-measuring now the count is small enough to trace individually.
+   - **the STSP 58U/58V pair (4, rules).** The same two rules in both Sales Tax Special
+     Procedures Rules 2007 editions — one cause, two editions.
+   - **the round-10 residue (3, rules).** Sales Tax Rules 01-01-2025, each already
+     traced to a printed defect: 44A opens with a left double quote, 150ZQZI is printed
+     `150ZQZl`, and 150W's code appears only in a footnote.
+   - **the ordinance five**, which live in the `fbr_ingest` fork and are sequenced after
+     the Phase 4 decision on it.
+   The remainder are single documents: the Pakistan Single Window Act's ministry list
+   read as sections 27/28, PFMA 2019 s.26, Sales Tax 2014 s.10 (`R(cid:2)fund`).
+2. **The heading-terminator scan that walks through a boundary (3 hits, acts).**
+   `builder._find_heading_split` looks up to four lines ahead for a heading terminator
+   and stops at a grid table but not at a structural heading, so an omitted section
+   borrows the next section's terminator and its heading comes out
+   `*** Chapter-VII OFFENCES AND PENALTIES 33. Offences and penalties`. This is the whole
+   of `no_chapter_caption_in_section_heading`'s 32AA cluster across three Sales Tax
+   editions. Round 13 traced it and measured the obvious guard as **losing section 32AA
+   outright** (127 leaves → 126): an omitted section has no terminator of its own, so
+   refusing the borrowed one leaves nothing to open it with. Needs an omission-aware
+   fallback. `wip/phase3-round13-chapter-hyphen.md`.
+3. **`preamble_carries_no_toc_tail` (4, acts)** — the preamble begins on the last
+   Contents page. `pipeline.py`'s H5 comment already records the cost it accepted
+   ("one extra front-matter page into the preamble on 9, repairs 4, loses nothing"), so
+   the trim belongs where the front matter lands, not at the page boundary. **The
+   invariant undercounts**: it keys on the column header `Section Page No.`, which is one
+   spelling of the defect — 6 of the 20 Customs editions are affected, including 2008
+   (contents rows, no column header) and 2007 (a bare roman folio `(xxii)`).
+4. **The container-code guard**, which two independent measurements now argue for: a
+   `PART-N` line should be a boundary only where the enclosing chapter actually holds a
+   part with that code. It is what makes the PART separator widening safe (14 real
+   boundaries against 6 annexure-form losses), and it is what would have kept round 13
+   from dropping four chapter captions in Customs Rules 2001, whose tree cannot express
+   them. Needs `build_sections` to pass per-chapter container codes into `_build_one`.
+5. **The CHAPTER letter suffix (57 hits, 24 documents)** — `_STRUCTURAL_RE`'s CHAPTER
+   branch has no suffix class where PART and Division beside it both do, so
+   `CHAPTER XVI-A` sits in section 155's body in twenty Customs editions. Measured and
+   held out of round 13 because twenty of the twenty-four are the Customs editions whose
+   chapter tree rounds 1 and 6 rebuilt. Pinned by a test that fails when it lands.
+6. **`section_codes_ordered` (3)** — Customs 2025 `'9' after '119'`, Sales Tax 2014
+   `'3' after '32AA'` and `'22' after '75'`. Untraced.
+7. **`clause_codes_plausible` (1, Finance Act 2024).** The jump `7->8517` is an HS tariff
+   heading read from a **table row**; the check excludes schedules but not table-derived
+   codes (ledger P06). Do not weaken it.
+8. **No invariant can see a document that lost 93% of its sections.** Round 11's document
+   gained 118 sections while the register moved 3. What would catch it is a CROSS-EDITION
+   fact, and invariants run per document: `runner.run` is handed one `doc` with no lane,
+   no path and no siblings. The join exists — `signatures.json`'s `group` key matches
+   `metadata.filename` on 80/80 acts documents — but its counts are PDF-regex
+   measurements, not tree counts, so a real parse-quality comparison needs a new
+   per-group index over `output/*.json`.
 
 Every hit ends **fixed** or **exempted with traced evidence** in
 `tools/suite/exemptions/<lane>.json` (`tools/suite/README.md`). There is no third state.
@@ -214,8 +268,14 @@ Every hit ends **fixed** or **exempted with traced evidence** in
 thing, and the ordinance lane's other 10 text-layer documents wait on the Phase 4
 `fbr_ingest` decision.
 
-**Phase 4 —** flip `--profile auto` to the default, decide `fbr_ingest`, and the
-pipeline→portal transport work — sync, seeding, `version_metrics` — unchanged.
+**Phase 4 —** flip `--profile auto` to the default and decide `fbr_ingest`. The
+pipeline→portal transport work is **no longer open**: it ran as its own track in
+`wip/integration/` (PRs #59–#76), which closed every problem in that plan's §3 — the
+output contract, positional leaf identity, withdrawal, the two ingest paths, the
+sanitizer, stale review state, and the CI gate at the corpus interface. PR-J (#74) took
+the ordinance lane onto the contract: 12/12 documents carrying `contract_version`, 6,941
+nodes typed and keyed, and the corpus-wide identity hole 5,047 leaves (30%) → 89 (0.5%).
+The Phase 4 bullet below describing that lane as blocked predates it.
 
 Nothing in Phases 3–4 needs the discovery stage to change again. That is the point of
 running it first.
