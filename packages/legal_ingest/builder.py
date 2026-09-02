@@ -2084,8 +2084,25 @@ def preamble_refs(body_refs, ordered_sections, containers=()):
 # Matched only when the WHOLE line is the structural code -- otherwise ordinary
 # cross-references in body text ("...specified in Division V of Part I...") would
 # wrongly truncate a section.
+#
+# The separator between the keyword and the numeral is ``[\s\-]+`` for CHAPTER,
+# which is the spelling ``grammar.CHAPTER_RE`` has always used (and asserts, at
+# grammar.py's ``_demo``).  This private copy spelled it ``\s+`` for twelve
+# rounds, so the Sales Tax Act's ``Chapter-II`` was not a boundary: nine chapter
+# headings per edition were swallowed into the preceding section's body, 175
+# leaves across 21 documents, and the invariant written to catch exactly that
+# (``_STRUCT_LINE`` in tools/suite/invariants/_common.py) carried the same narrow
+# spelling and reported zero.  Round 1's chapter numeral again -- two readers of
+# one line, normalising differently.
+#
+# PART and Division stay on ``\s+``, measured: widening them scores 14 real
+# boundaries against 6 losses, and the 6 are ANNEXURE FORMS whose numbered parts
+# would be sliced into the next rule (Customs Rules 2001 s.34, whose item counter
+# 8-11 runs ACROSS the parts and whose first part prints an EN DASH; Sales Tax
+# Rules 2006 form STR-11).  Text stays conserved and is silently misplaced, so
+# the change would report as a success -- see wip/phase3-round13-chapter-hyphen.md.
 _STRUCTURAL_RE = re.compile(
-    r"^(CHAPTER\s+[IVXLC0-9]+|PART\s+[IVXLC0-9]+[A-Z]{0,2}|Division\s+[IVXLC0-9]+[A-Z]{0,2})$",
+    r"^(CHAPTER[\s\-]+[IVXLC0-9]+|PART\s+[IVXLC0-9]+[A-Z]{0,2}|Division\s+[IVXLC0-9]+[A-Z]{0,2})$",
     re.IGNORECASE)
 
 # leading amendment decoration on a structural heading: superscript marker(s)
@@ -3172,6 +3189,29 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
 
 def _demo() -> None:
     """Pure-function pin: gazette preamble HTML must not glue titles into recitals."""
+    # ---- round 13: the separator the private copy never learned ------------
+    # grammar.CHAPTER_RE has always spelled it [\s\-]+; _STRUCTURAL_RE spelled it
+    # \s+, so nine chapter boundaries per Sales Tax Act edition were invisible and
+    # their headings sat in the preceding section's body (175 leaves, 21 docs).
+    for _line in ("CHAPTER II", "Chapter-II", "CHAPTER-II", "Chapter- I",
+                  "CHAPTER - V", "4[Chapter-I", "128[CHAPTER-XLI",
+                  "150[CHAPTER- XLIII", "PART III", "1[PART VA"):
+        assert is_structural_boundary(_line), _line
+    # ...and what the WHOLE-LINE anchor must still keep out.  These are the
+    # false positives that disqualified delegating to grammar.CHAPTER_RE, whose
+    # IGNORECASE roman suffix class eats the lowercase words of/or/for (28 hits
+    # in the ordinance lane, 4 tariff rows in acts, measured over 639,722 lines).
+    for _line in ("Chapter-V of this Act;", "Chapter VII of", "Chapter X or",
+                  "Part V of", "Division III of", "chapter 87 35",
+                  "Chapter XII]"):
+        assert not is_structural_boundary(_line), _line
+    # PART and Division stay on \s+ this round.  Customs Rules 2001 s.34 and
+    # Sales Tax Rules 2006 form STR-11 print an annexure FORM's parts; cutting
+    # there slices the form into the next rule while conservation still reads
+    # 100.000%, so the regression would report itself as a success.
+    for _line in ("PART-II", "PART-2", "34[PART-3", "PART-I"):
+        assert not is_structural_boundary(_line), _line
+
     # A section code the text layer SPLIT still has to bind.  The unbracketed
     # branch of _DOTSUFFIX_RE exists for two measured families and is narrow in
     # three ways; each case below fails if one of those narrowings is removed.

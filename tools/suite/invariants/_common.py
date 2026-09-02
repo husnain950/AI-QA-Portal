@@ -444,7 +444,7 @@ def inv_schedules_have_content(doc):
 # a wrapped table cell ("... of Chapter X or\nChapter XII]" in section 182's
 # penalty table) and is legitimate body content.
 _STRUCT_LINE = re.compile(
-    r"^(CHAPTER\s+[IVXLC0-9]+|PART\s+[IVXLC0-9]+[A-Z]{0,2}|"
+    r"^(CHAPTER[\s\-]+[IVXLC0-9]+|PART\s+[IVXLC0-9]+[A-Z]{0,2}|"
     r"DIVISION\s+[IVXLC0-9]+[A-Z]{0,2})$", re.IGNORECASE)
 
 
@@ -532,7 +532,13 @@ def inv_no_structural_heading_in_body(doc):
     twelve-character column, so the cross-reference lands on a line of its own.
     Measured over all 46 converted editions there are exactly 11 non-all-caps
     hits and every one is a tariff reference (``chapter 25``, ``chapter 78``,
-    ``Chapter 84``), while every genuine chapter boundary prints ``CHAPTER``.
+    ``Chapter 84``).  That evidence covers the SPACE form only: the exception
+    used to claim "every genuine chapter boundary prints CHAPTER" and the Sales
+    Tax Act disproves it, printing ``Chapter-II`` for nine real boundaries per
+    edition.  The skip stays correct only because its ``split(" ")`` cannot
+    split a hyphen, so ``Chapter-II`` never reaches the == test -- widening that
+    split to match the pattern's own separator would silence 171 real hits.
+    Pinned in ``_demo_structural_line``.
     PART and Division stay case-blind: the Twelfth Schedule really does print
     "Part III" in title case.
 
@@ -2223,6 +2229,35 @@ def inv_body_chapters_in_tree(doc):
                if (k := _numeral_key(ch.get("code"))) is not None}
     return [f"body CHAPTER {raw} has no tree node" for raw in numerals
             if _numeral_key(raw) not in present]
+
+
+def _demo_structural_line() -> None:
+    """``no_structural_heading_in_body``: which lines ARE boundaries, and the
+    tariff exception that must not be generalised along with them.
+
+    Round 13: ``_STRUCT_LINE`` spelled the keyword/numeral separator ``\\s+``
+    while ``grammar.CHAPTER_RE`` has always spelled it ``[\\s\\-]+``, so this
+    invariant reported ZERO on 175 swallowed chapter headings across 21
+    documents -- blind for the same reason the parser was.
+    """
+    for line in ("CHAPTER II", "Chapter-II", "CHAPTER-II", "4[Chapter-I",
+                 "CHAPTER - V", "128[CHAPTER-XLI", "PART III", "1[PART VA"):
+        assert _STRUCT_LINE.match(_STRUCT_DECOR.sub("", line.strip())), line
+    for line in ("Chapter-V of this Act;", "Chapter VII of", "Chapter X or",
+                 "Chapter XII]", "PART-II", "34[PART-3"):
+        assert not _STRUCT_LINE.match(_STRUCT_DECOR.sub("", line.strip())), line
+
+    # THE TRAP.  inv_no_structural_heading_in_body skips a CHAPTER whose keyword
+    # is not ALL-CAPS, because those are Pakistan Customs Tariff references in a
+    # rate table ("chapter 25").  Its docstring claims "every genuine chapter
+    # boundary prints CHAPTER" -- and that claim is FALSE: the Sales Tax Act
+    # prints "Chapter-II".  The exception survives only because ``split(" ")``
+    # does not split on the hyphen, so the whole token fails the == test.
+    # Widening that split to [\\s\\-] silences 171 of this round's 175 hits.
+    assert _STRUCT_DECOR.sub("", "Chapter-II").split(" ")[0] == "Chapter-II"
+    for line in ("chapter 25", "Chapter 84", "chapter 78"):
+        kw = _STRUCT_DECOR.sub("", line).split(" ")[0]
+        assert kw.upper() == "CHAPTER" and kw != "CHAPTER", line
 
 
 def _demo_heading_leak_class() -> None:

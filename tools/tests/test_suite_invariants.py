@@ -34,6 +34,12 @@ def test_section_attribution_helpers():
     _common._demo_section_attribution()
 
 
+def test_structural_line_helpers():
+    """``no_structural_heading_in_body``: the separator, and the tariff-reference
+    exception whose stated premise is false and must stay narrowly scoped."""
+    _common._demo_structural_line()
+
+
 def test_heading_leak_class_helpers():
     """The O02/O03 detectors (caption-in-heading, LEGAL REFERENCE, body chapters)."""
     _common._demo_heading_leak_class()
