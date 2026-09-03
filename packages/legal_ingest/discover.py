@@ -426,6 +426,30 @@ def _front_matter_container(profile, is_amendment: bool, idx: int,
             and idx < section_start)
 
 
+def _split_container_heading(text: str) -> tuple[str, str]:
+    """A structural heading line -> its (KEYWORD, numeral).
+
+    Split on ``[\\s\\-]+``, the separator ``grammar.CHAPTER_RE`` uses and the one
+    ``builder.is_structural_boundary`` accepts, so the reader that decides a line
+    IS a container and the reader that decides WHICH container agree about one
+    spelling.  They did not: this split was ``core.split()``, so ``Chapter-II``
+    -- no space to split on -- yielded ``kw="CHAPTER-II"``, matched neither
+    "CHAPTER" nor "PART", fell through to the Division branch and emitted a
+    NAMELESS ``Node(kind="division", code="Division ")`` that then parented every
+    following section.  Ten per Sales Tax Act edition.  That is round 1's
+    duplicate-container failure, and it is why widening the boundary test without
+    widening this split would have been worse than leaving both narrow.
+
+    ``maxsplit=1`` is what keeps it a no-op on every line that already matched:
+    the numeral's OWN suffix separator stays in the numeral ("CHAPTER XVI-A" ->
+    ("CHAPTER", "XVI-A")), and a space-separated suffix survives too
+    ("Division III A" -> ("DIVISION", "III A")).
+    """
+    core = re.sub(r"\s+", " ", _STRUCT_DECOR_RE.sub("", text)).strip()
+    bits = re.split(r"[\s\-]+", core, maxsplit=1)
+    return bits[0].upper(), (bits[1] if len(bits) > 1 else "")
+
+
 def discover_structure(body_refs, printed_by_page, page_footnotes,
                        _gate: bool = True, profile=None):
     """Reconstruct ``(chapters, ordered_sections)`` from the body stream.
@@ -551,9 +575,7 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
         if is_structural_boundary(text) and not _quoted_container(
                 is_amendment, last_key) and not _front_matter_container(
                     profile, is_amendment, idx, section_start):
-            core = re.sub(r"\s+", " ", _STRUCT_DECOR_RE.sub("", text)).strip()
-            kw = core.split()[0].upper()
-            numeral = core.split(None, 1)[1] if " " in core else ""
+            kw, numeral = _split_container_heading(text)
             if kw == "CHAPTER":
                 node = Node(kind="chapter",
                             code="CHAPTER " + _chapter_numeral(numeral))
@@ -794,3 +816,29 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
 
     merged = sorted(reals + placeholders, key=lambda t: t[0])
     return chapters, [e for _, e in merged]
+
+
+def _demo() -> None:
+    """Pure-function pin: a container heading splits into (KEYWORD, numeral).
+
+    The boolean ``is_structural_boundary`` answers is only half the decision; the
+    other half is this split, and a heading the split cannot read becomes a
+    nameless Division holding every following section.  Pinning the boolean alone
+    would let that regression through.
+    """
+    # round 13: what the split could not read before
+    assert _split_container_heading("Chapter-II") == ("CHAPTER", "II")
+    assert _split_container_heading("1[Chapter- I") == ("CHAPTER", "I")
+    assert _split_container_heading("CHAPTER - V") == ("CHAPTER", "V")
+    assert _split_container_heading("128[CHAPTER-XLI") == ("CHAPTER", "XLI")
+    # ...and what must not change.  Both fail if maxsplit=1 is dropped: the
+    # numeral's own suffix separator belongs to the numeral.
+    assert _split_container_heading("CHAPTER II") == ("CHAPTER", "II")
+    assert _split_container_heading("CHAPTER XVI-A") == ("CHAPTER", "XVI-A")
+    assert _split_container_heading("Division III A") == ("DIVISION", "III A")
+    assert _split_container_heading("1[PART VA") == ("PART", "VA")
+    print("OK legal_ingest.discover self-checks")
+
+
+if __name__ == "__main__":  # pragma: no cover
+    _demo()
