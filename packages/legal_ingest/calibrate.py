@@ -33,7 +33,7 @@ import re
 import statistics
 from dataclasses import asdict, dataclass
 
-from .grammar import folio_value
+from .grammar import SCHEDULE_TOC_RE, folio_value
 from .pagemodel import Word, _group_into_lines, normalize_text
 from .profiles import ACTS, Profile
 
@@ -84,6 +84,20 @@ def _is_toc_row(line: str, profile: Profile = ACTS) -> bool:
     body page to be mistaken for contents.
     """
     if TOC_ROW_RE.match(line):
+        return True
+    # A SCHEDULE contents row carries no section code, so the coded form above
+    # cannot see it -- and a contents page whose tail is nothing but schedule
+    # rows therefore measured 0 rows and was not counted as front matter.  The
+    # body then started one page early, and everything on that page before the
+    # first section's anchor became the preamble: four Customs Act editions
+    # shipped their contents tail glued in front of the enacting formula.
+    #
+    # ``SCHEDULE_TOC_RE`` is reused rather than rewritten.  It is already the
+    # narrowed, anchored form -- its own note records the wrapped citation
+    # ("THE FIFTH SCHEDULE TO THE ACT......... 45") that the unanchored pattern
+    # read as a schedule title, and it still rejects it here.  Measured over both
+    # profiles and all 90 resolvable documents: 4 changed, 86 unchanged.
+    if SCHEDULE_TOC_RE.match(line):
         return True
     if profile.toc_hyphen_leaders and TOC_LEADER_RE.search(line):
         return True
@@ -602,6 +616,21 @@ def _demo() -> None:
     The pure part runs with no arguments -- it used to be a no-op without a PDF, which
     meant the pipeline gate exercised none of this.
     """
+    # round 14: a SCHEDULE contents row is a contents row.  Without it the tail
+    # page of a contents whose last rows are all schedules measures ZERO rows,
+    # detect_toc_pages stops one page short, and that page's lines become the
+    # preamble -- four Customs editions shipped their contents tail in front of
+    # the enacting formula.  Measured: 4 documents changed, 86 unchanged.
+    for _r in ("THE FIRST SCHEDULE 213", "THE THIRD SCHEDULE 213",
+               "THE FIFTH SCHEDULE 219"):
+        assert _is_toc_row(_r, ACTS), _r
+    # ...and the wrapped CITATION SCHEDULE_TOC_RE was narrowed to reject, which
+    # this must not re-admit: reading it as a schedule title switched the parser
+    # into schedule mode mid-body and lost two chapters (see grammar.py).
+    for _r in ("THE FIFTH SCHEDULE TO THE ACT\u2026\u2026\u2026 45",
+               "THE CUSTOMS ACT,1969", "Section Page", "No."):
+        assert not _is_toc_row(_r, ACTS), _r
+
     import sys
 
     import pdfplumber

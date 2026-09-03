@@ -121,9 +121,9 @@ does not have that blind spot.
 up in `wip/phase3-chapter-numerals.md`; the Phase 2 run that produced the baseline is in
 `wip/phase2-run.md`.)*
 
-**34 invariant hits across 103 converted editions**, measured 2026-09-02 after round 13.
-210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → **34** → 34. The acts
-lane holds 80 documents.
+**32 invariant hits across 103 converted editions**, measured 2026-09-02 after round 14.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → **34** → 34 → 32. The
+acts lane holds 80 documents.
 
 The +4 is not a regression. PR #74 added `preamble_carries_no_toc_tail`, a NEW question
 about a defect that was already there: four Customs Act editions print the tail of their
@@ -145,9 +145,19 @@ defect class no invariant could see:
 
 In both, the invariant that can see the class ships closed at 0 in the same PR.
 
+Round 14 **did** move it, 34 → 32, and the same rule made the movement legible: the
+invariant alone went 4 → 10 on identical JSON before the parser was touched, so eight of
+ten real defects closed while the register fell by two. Nine documents opened their
+preamble on front matter — two Federal Excise editions had a preamble consisting of the
+single token `vi`. Two causes, both the round-13 shape: `calibrate` has always read a
+roman folio when measuring the footer band and `pagemodel` never read one when stripping
+it, and `_is_toc_row` could not see a SCHEDULE contents row, so a contents tail page
+measured zero rows and the body began a page early.
+`wip/phase3-round14-preamble-front-matter.md`.
+
 | Lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 20 | 16 | **80** | 93 |
+| acts | 18 | 14 | **80** | 93 |
 | rules | 9 | 4 | **11** | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
@@ -160,7 +170,7 @@ editions carrying 2,065 image-backed pages.
 |---|---|---|---|---|
 | `section_carries_its_body` | 8 (6) | 8 (4) | 5 (4) | **21** |
 | `no_chapter_caption_in_section_heading` | 4 (4) | — | — | **4** |
-| `preamble_carries_no_toc_tail` | 4 (4) | — | — | **4** |
+| `preamble_carries_no_toc_tail` | 2 (2) | — | — | **2** (was 4, and the defect was on 10) |
 | `section_codes_ordered` | 3 (2) | — | — | **3** |
 | `no_foreign_section_start_in_body` | — | 1 (1) | — | **1** |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 |
@@ -226,13 +236,15 @@ below are hits; the parenthesised number is documents.
    outright** (127 leaves → 126): an omitted section has no terminator of its own, so
    refusing the borrowed one leaves nothing to open it with. Needs an omission-aware
    fallback. `wip/phase3-round13-chapter-hyphen.md`.
-3. **`preamble_carries_no_toc_tail` (4, acts)** — the preamble begins on the last
-   Contents page. `pipeline.py`'s H5 comment already records the cost it accepted
-   ("one extra front-matter page into the preamble on 9, repairs 4, loses nothing"), so
-   the trim belongs where the front matter lands, not at the page boundary. **The
-   invariant undercounts**: it keys on the column header `Section Page No.`, which is one
-   spelling of the defect — 6 of the 20 Customs editions are affected, including 2008
-   (contents rows, no column header) and 2007 (a bare roman folio `(xxii)`).
+3. **`preamble_carries_no_toc_tail` (2, acts)** — closed on eight of the ten documents
+   that had it; the two survivors are the same shape and both now VISIBLE, which they
+   were not before round 14. Customs 30.06.2008 and Sales Tax 30.06.2023 each have a
+   contents tail page carrying 2 schedule rows against `detect_toc_pages`'s floor of 3 —
+   2008 because its source prints the typo `THE SECOND SHCEUDLE`, which
+   `grammar.SCHEDULE_TOC_RE` rightly refuses. The floor is load-bearing: that function's
+   own comment records a lower one swallowing the Income Tax Rules' body title page and
+   starting the body a page late. A fix here needs a signal other than row density.
+
 4. **The container-code guard**, which two independent measurements now argue for: a
    `PART-N` line should be a boundary only where the enclosing chapter actually holds a
    part with that code. It is what makes the PART separator widening safe (14 real

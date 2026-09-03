@@ -367,6 +367,44 @@
       "arg": "Certain transactions not admissible",
       "status": "active",
       "applies_to": "Sales Tax Act, 1990 as amended up to 30.06.2021"
+    },
+    {
+      "id": "customs300614_preamble_starts_at_the_enacting_formula",
+      "source": "rounds/phase3-round14",
+      "description": "The contents tail page fell one row short of detect_toc_pages' density floor because _is_toc_row could not read a SCHEDULE contents row ('THE FIRST SCHEDULE 216' carries no section code). The body then started a page early and everything on that page before section 1's anchor became the preamble: this edition shipped 507 characters opening 'THE CUSTOMS ACT, 1969 / Section Page / No. / 224 Extension of time limit. 212 / ... / xxi' in front of the enacting formula. Fourteen of the twenty converted Customs editions open at '1[Act No. IV of 1969]' and this must be the fifteenth.",
+      "target": {
+        "kind": "preamble"
+      },
+      "check": "preamble_not_matches",
+      "arg": "Section\\s+Page|SCHEDULE\\s+2\\d\\d",
+      "status": "active",
+      "applies_to": "Customs Act ,1969 (As amended up to 30th June, 2014)"
+    },
+    {
+      "id": "customs300614_preamble_keeps_its_enacting_formula",
+      "source": "rounds/phase3-round14",
+      "description": "The other half of the same fix: trimming the front matter must not trim the preamble itself. Measured at 314 characters after the fix, byte-for-byte the length its fourteen correct siblings carry.",
+      "target": {
+        "kind": "preamble"
+      },
+      "check": "preamble_matches",
+      "arg": "(?s)Act No\\. IV of 1969.*hereby enacted as follows",
+      "status": "active",
+      "applies_to": "Customs Act ,1969 (As amended up to 30th June, 2014)",
+      "field": "plain_text"
+    },
+    {
+      "id": "customs300614_section_224_binds_once_its_toc_row_is_read",
+      "source": "rounds/phase3-round14",
+      "description": "Section 224's contents row was INSIDE the glued tail, so it never parsed and the edition held 304 section leaves. Counting the tail page as front matter binds it: 305. A gain, and the cheapest proof the page-count fix landed rather than merely the folio strip.",
+      "target": {
+        "kind": "section",
+        "code": "224"
+      },
+      "check": "plain_contains",
+      "arg": "Extension of time limit",
+      "status": "active",
+      "applies_to": "Customs Act ,1969 (As amended up to 30th June, 2014)"
     }
   ]
 }

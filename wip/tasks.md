@@ -197,8 +197,8 @@ parser drift, not the profile. Phase 3 item.
 ## Phase 3 — the anomaly register
 Branch: one per invariant class
 
-**34 hits across 103 converted editions**, re-measured 2026-09-02 after round 13.
-210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → **34** → 34.
+**32 hits across 103 converted editions**, re-measured 2026-09-02 after round 14.
+210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → **34** → 34 → 32.
 Documents held: acts 80, rules 11, ordinance 12.
 
 The +4 arrived with a new question, not a regression: PR #74 added
@@ -237,6 +237,8 @@ Round 12: [`wip/phase3-round12-body-heading-code.md`](./phase3-round12-body-head
 — the argument the heading stripper never read.
 Round 13: [`wip/phase3-round13-chapter-hyphen.md`](./phase3-round13-chapter-hyphen.md) —
 the separator the private copy never learned.
+Round 14: [`wip/phase3-round14-preamble-front-matter.md`](./phase3-round14-preamble-front-matter.md)
+— the preamble that began on the contents page.
 
 The pipeline→portal track ran separately and is closed:
 [`wip/integration/plan.md`](./integration/plan.md) and
@@ -254,7 +256,7 @@ read those for state and HANDOVER §4 for method.
 |---|---|---|---|---|---|
 | `section_carries_its_body` | 8 (6) | 8 (4) | 5 (4) | **21** | 21 |
 | `no_chapter_caption_in_section_heading` | 4 (4) | — | — | **4** | 4 |
-| `preamble_carries_no_toc_tail` | 4 (4) | — | — | **4** | new in #74 |
+| `preamble_carries_no_toc_tail` | 2 (2) | — | — | **2** | 4, and the defect was on 10 |
 | `section_codes_ordered` | 3 (2) | — | — | **3** | 3 |
 | `no_foreign_section_start_in_body` | — | 1 (1) | — | **1** | 1 |
 | `clause_codes_plausible` | 1 (1) | — | — | 1 | 1 |
@@ -263,7 +265,7 @@ read those for state and HANDOVER §4 for method.
 | `body_chapters_in_tree` | — | — | — | **0** | 0 |
 | `no_code_fragment_in_section_heading` | — | — | — | **0** | 0 (was 31) |
 | `no_structural_heading_in_body` | — | — | — | **0** | 0 (was 175) |
-| **per lane** | **20** | **9** | **5** | **34** | 34 |
+| **per lane** | **18** | **9** | **5** | **32** | 34 |
 
 `no_chapter_caption_in_section_heading` gains one because round 4 made it visible: with
 rule 150ZQZA finally binding, its heading is readable, and it is a FALSE positive — the
@@ -346,31 +348,43 @@ wrote them, and the rules column is measured over 11 of that lane's 48 documents
       Conservation `audit_all --family salestax` **19/19 at 100.000%**. Register **34 → 34**.
       See `wip/phase3-round13-chapter-hyphen.md` for the three things only running it
       found, including the conservation audit reading a canonicalisation as a 6-word loss.
-- [ ] **The preamble that begins on the last Contents page (4 hits) — and the invariant
-      undercounts it.** `preamble_carries_no_toc_tail` (new in #74) fires on the 2013–2016
-      Customs Act editions, whose preamble node opens
-      `THE CUSTOMS ACT, 1969 / Section Page / No. / 224 Extension of time limit. 219 /
-      THE FIRST SCHEDULE 223 … / xxi` before reaching `1[Act No. IV of 1969]`.
-      Measured across all 20 converted Customs editions: **14 start correctly at
-      `1[Act No. IV of 1969]` (314/315 chars) and 6 do not** — the four the invariant
-      sees, plus 2008 (contents rows, 433 chars) and 2007 (a bare roman folio `(xxii)`,
-      321 chars). The invariant keys on the column header `Section\s+Page\s+No\.?`, which
-      is one *spelling* of the defect rather than the defect, so it is blind to 2 of 6.
-      The cause is already named in the code: `pipeline.py`'s H5 comment records the
-      trade it accepted — *"no-op on 30, **one extra front-matter page into the preamble
-      on 9**, repairs 4, loses nothing."* H5 is right and stays; the trim belongs where
-      the front matter lands. Candidate signal, to be measured before it is committed: a
-      **roman-numeral folio line** (body pages print arabic folios, front matter roman) —
-      both failing shapes end at exactly that line and it is furniture in its own right.
-      Must NOT key on the enacting formula: `preamble_refs`'s docstring records gazette
-      Finance Acts whose legitimate preamble opens with `PART I`, the notification and the
-      masthead, and cutting to the formula destroyed 23–55 body words there.
-      Widen the invariant in the same PR, measured separately: **4 → 6 on unchanged JSON,
-      then → 0.**
-      Also found and NOT fixed: `inv_preamble_no_chapter_heading` compares
-      `line.strip() == chapters[0].code`, i.e. against the normalised `"CHAPTER I"` and
-      never the printed `4[Chapter-I`, so it has been passing on 19 editions that visibly
-      carried the leak round 13 removed — a third spelling of the same idea.
+- [x] **The preamble that began on the contents page — 10 documents, and the invariant
+      saw 4.** Nine documents opened their preamble on front matter, including two
+      Federal Excise editions whose ENTIRE preamble was the single token `vi`. Two
+      causes, both the round-13 shape of one question answered two ways:
+      *(1)* `pagemodel`'s footer strip read `_centred_int` → `grammar.folio_value`, which
+      is ARABIC only, while front matter numbers its pages in roman — and `calibrate`
+      has always recognised a roman folio when measuring where the footer band sits. The
+      predicate now lives in `grammar.ROMAN_FOLIO_RE`, where `calibrate`'s own comment
+      says folio grammar belongs; its looser test stays looser, deliberately (it asks
+      where the band is, where a false positive costs a sample, not a line of text).
+      The BAND could not be the test — `footer_min_top` is calibrated from body pages and
+      the Customs 2008 folio prints at top 673.9 against a band starting at 702.5 — so
+      the test is what a folio IS: roman, centred, last line of the page, bottom half.
+      Measured: **65 roman-shaped lines over six editions' front matter, 64 of them
+      folios, one a clause marker correctly kept.** Bounded at ccxcix and lowercase
+      because `mix` is a valid roman numeral (MIX = 1009) and an ordinary word.
+      *(2)* `calibrate._is_toc_row` could not see a SCHEDULE contents row
+      (`THE FIRST SCHEDULE 213` carries no code), so a contents tail page measured ZERO
+      rows and `first_body_page` began a page early. `grammar.SCHEDULE_TOC_RE` — the
+      already-narrowed form, which still rejects the wrapped citation its own note
+      records losing two chapters to — reused rather than rewritten. Measured over both
+      profiles and all 90 resolvable documents: **4 changed, 86 unchanged.**
+      **Invariant alone on identical JSON: 4 → 10. Parser fix: 10 → 2. Register 34 → 32.**
+      Nine documents re-converted, 0 refused, conservation identical on all nine.
+      The 2013-2016 editions **gained** section 224 (304 → 305 leaves): its contents row
+      was inside the glued tail. A third invariant branch was needed or the gate would
+      have reported ZERO on Customs 2008, which still carries the defect — removing the
+      folio removed the only signal it had.
+- [ ] **`preamble_carries_no_toc_tail` — the 2 that survive, same shape.** Customs
+      30.06.2008 and Sales Tax 30.06.2023 each have a contents tail page carrying 2
+      schedule rows against `detect_toc_pages`'s floor of `rows >= 3`. 2008's source
+      prints `THE SECOND SHCEUDLE Omitted.` and `SCHEDULE_TOC_RE` rightly refuses the
+      typo; loosening it re-admits the wrapped citation. Sales Tax 30.06.2023 is a NEW
+      find, invisible before round 14 widened the invariant. The floor is load-bearing —
+      `detect_toc_pages`'s comment records a lower one swallowing the Income Tax Rules'
+      body title page and starting the body a page late — so a fix needs a signal other
+      than row density.
 - [ ] **The heading-terminator scan that walks through a boundary (3 hits).**
       `builder._find_heading_split` looks up to four lines ahead for a heading terminator.
       It stops at a grid table — its docstring argues that a table "can never be part of a
