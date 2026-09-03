@@ -17,6 +17,8 @@ Phase 4 and Phase 5, and the OCR work excluded by instruction.
 |---|---|
 | [`open-work.md`](open-work.md) | what is left, ranked, with the blocker for each |
 | [`working-rules.md`](working-rules.md) | how to work on this, and the traps that drew blood |
+| [`plan.md`](plan.md) | the architecture: every remaining problem numbered, with the fix already known to be wrong |
+| [`tasks.md`](tasks.md) | **the execution ledger — start here to do work.** Pick a row, follow the steps, record the result |
 
 ---
 
