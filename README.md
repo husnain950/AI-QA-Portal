@@ -278,6 +278,8 @@ asked for them. `POST /api/v2/jobs/{type}` enqueues, `GET /api/v2/jobs/{id}` rep
 progress, and `GET /health/worker` is 503 when no worker has beaten in the last 30 s.
 
 Operations, backup, and restore are in [`docs/operations.md`](docs/operations.md).
+Where the pipeline remediation stands, what is still open, and the rules for working
+on it are in [`handover/`](handover/README.md).
 
 ## Non-goals (v1)
 
