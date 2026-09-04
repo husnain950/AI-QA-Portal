@@ -26,9 +26,22 @@ of 80 acts documents at the new revision — exactly the mixed-revision hazard a
 `--skip-existing` does not help: after a re-conversion every output exists. What worked was
 converting only outputs older than the parser's mtime.
 
-**Two source files have no `.pdf` extension** — Customs Rules 2001 and The Finance
-(Supplementary) Act 2022 — so a `**/*.pdf` glob misses them **silently**. Any re-conversion
-loop needs to handle them.
+**Nineteen source files have no `.pdf` extension**, not two. This rule used to name only
+Customs Rules 2001 and The Finance (Supplementary) Act 2022; a round-16 walk of the three
+lanes counts **6 in acts, 12 in rules, 1 in ordinance** — five Customs Act editions, four
+Sales Tax Rules 2006 editions, seven Recruitment Rules SROs among them. A `**/*.pdf` glob
+misses every one **silently**, and so does the obvious repair
+`name.endswith(".pdf") or "." not in name`: these names carry a dot in their *date*
+(`Customs Act, 1969 as amended up to 30.06.2021`). Sniff the file or list the directory —
+do not pattern-match the name.
+
+**`make convert-*` from a worktree runs the wrong interpreter.** The Makefile takes
+`PYTHON := $(ROOT)/.venv/bin/python` only when that file exists, and `ROOT` is the
+*worktree*, which has no `.venv` — so it falls back to `python3` and dies on
+`ModuleNotFoundError: No module named 'pdfplumber'`. Pass the main tree's interpreter:
+`make convert-rules PYTHON=/Users/muhammad.husnain/Downloads/code/crx/.venv/bin/python
+PDF="…" OUT="…"`. `PYTHONPATH` off the same `ROOT` is correct as-is — it must point at the
+worktree's `packages/`, which is the whole reason to convert from there.
 
 **Know which tree you are editing, and give the worktree the corpus.** `data/corpora/*`
 is gitignored, so a fresh worktree holds only `data/corpora/README.md` — and every

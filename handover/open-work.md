@@ -8,18 +8,20 @@ from** — is [`tasks.md`](tasks.md).
 > **This file, `tasks.md` and `plan.md` §4 each carry the same ranked list.** Three copies
 > of one fact is the very shape `working-rules.md` warns about under *"a cached artifact
 > cannot tell you its generator is wrong"*. Until they are consolidated, **`tasks.md` is
-> the authority** and every round must update all three. Flagged 2026-09-04, round 15.
+> the authority** and every round must update all three. Flagged 2026-09-04, round 15;
+> still true after round 16, which had to touch all three again.
 
 Expect a lower hits-per-round rate from here than the early rounds got. Rounds 1–7 each
 found *one cause explaining many hits*. What is left is mostly 1–2 hits per document with
 different causes — with two exceptions, items 4 and 5, which are still one-cause-many-hits
-and are the reason they rank where they do.
+and are the reason they rank where they do. Round 16 spent the last of the cheap
+one-cause-many-hits rows.
 
 ---
 
-## Phase 3 — the register's 29
+## Phase 3 — the register's 25
 
-### 1. `section_carries_its_body` (21) — four unrelated causes, not one
+### 1. `section_carries_its_body` (17) — four unrelated causes, one of them closed
 
 The largest class, and no longer a single defect:
 
@@ -27,8 +29,11 @@ The largest class, and no longer a single defect:
   prints `to Omitted 96u`; 30.06.2025 s.79 prints `A O mitted` — an intra-word space that
   round 3 measured and refused to admit into a regex whose job is precision. Worth
   re-measuring now the count is small enough to trace individually.
-- **The STSP 58U/58V pair (4, rules).** The same two rules in both Sales Tax Special
-  Procedures Rules 2007 editions — one cause, two editions.
+- ~~**The STSP 58U/58V pair (4, rules).**~~ **CLOSED, round 16** (PR #82). Both editions
+  print `111[58U].` — S.R.O. 188(I)/2015 renamed rules 59/60, so the amendment bracket
+  wraps the code and the dot prints after the `]`. `_BRACKETED_DOTLESS_RE` read that as
+  rule **58**. One new pattern in `builder._candidate_code_raw`; artifact
+  `wip/phase3-round16-bracketed-code-dot.md`.
 - **The round-10 residue (3, rules).** Sales Tax Rules 01-01-2025, each already traced to a
   printed defect: 44A opens with a left double quote, 150ZQZI is printed `150ZQZl`, and
   150W's code appears only in a footnote.
@@ -204,4 +209,4 @@ work:
   parser round must first stop emitting a leading `]` and the truncated `[...`. Then it is
   one deletion.
 
-> Every file under `wip/integration/` still states the register as **34**. It is **29**.
+> Every file under `wip/integration/` still states the register as **34**. It is **25**.
