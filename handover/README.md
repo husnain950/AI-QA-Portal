@@ -1,6 +1,6 @@
 # Handover — start here
 
-Written **2026-09-04**, on `main` after PR #80 (round 15). Every number below was
+Written **2026-09-04**, on `main` after PR #81 (round 15). Every number below was
 measured on this machine at that commit, not carried forward; §4 says which command
 produces each one.
 
@@ -150,7 +150,7 @@ factual below it has moved.
 |---|---|
 | register **64** | **29** |
 | **16 of 48** items open | **20 of 66** |
-| after eight merged PRs (#46–#53) | #54–#80 have merged since |
+| after eight merged PRs (#46–#53) | #54–#81 have merged since |
 | **three** invariant classes closed | **six** |
 | its whole §2 register table | wrong on every row — `no_foreign_section_start_in_body` 19 → 1, `section_carries_its_body` 37 → 21 |
 | "`section_carries_its_body` and `no_foreign_section_start_in_body` move together — fix start detection and both move" | superseded; the second is down to 1 and the first is now four unrelated causes |

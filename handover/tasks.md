@@ -8,7 +8,7 @@ leftovers from the finished integration track. Reasoning for every row is in
 [`plan.md`](plan.md); state is in [`README.md`](README.md); the traps are in
 [`working-rules.md`](working-rules.md).
 
-Written 2026-09-04 on `main` after PR #80 (round 15). **Next round is 16; next PR is #81.**
+Written 2026-09-04 on `main` after PR #81 (round 15). **Next round is 16; next PR is #82.**
 
 **Six invariant classes are now closed.** Round 15 closed `section_codes_ordered` — see
 [task 1's Result](#1-trace-section_codes_ordered--3-hits-acts--closed-round-15).
@@ -268,7 +268,7 @@ cd apps/web && npm run test                   # only if you touched the portal; 
 Then: write the round artifact as `wip/phase3-round16-<slug>.md`
 — **a new file; do not edit existing `wip/` files** — following the shape of
 `wip/phase3-round15-chapter-numeral-pairing.md`: what was measured, what moved, what moved
-by **zero**, and what was rejected and why. Open **PR #81** with the before/after
+by **zero**, and what was rejected and why. Open **PR #82** with the before/after
 artifact linked in the body.
 
 **If the register improved, `test_register_snapshot.py` fails until step 7 is done.** That
@@ -283,7 +283,7 @@ Each carries: what it closes · **Steps** · **Definition of done** · **Do not*
 
 ### 1. Trace `section_codes_ordered` — 3 hits, acts — **CLOSED, round 15**
 
-**Closed by PR #80 (round 15).** Artifact:
+**Closed by PR #81 (round 15).** Artifact:
 `wip/phase3-round15-chapter-numeral-pairing.md`. Kept here because what it found
 contradicts what this row predicted, and the next rows inherit that.
 

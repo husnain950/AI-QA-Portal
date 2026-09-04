@@ -5,7 +5,7 @@ ledger and is the file to trust for *what is done*; this file is the reasoning a
 links back to. **It is not a historical record** — when a measurement disproves something
 here, this file changes. (The frozen record is `wip/`, per [README §5](README.md#5-where-the-history-is).)
 
-Written **2026-09-04**, on `main` after PR #80 (round 15). Every number below was measured
+Written **2026-09-04**, on `main` after PR #81 (round 15). Every number below was measured
 on this machine at that commit; §7 gives the command for each. Nothing is carried forward
 from `wip/`, which is wrong on nearly every number it states.
 
