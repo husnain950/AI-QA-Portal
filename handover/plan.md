@@ -23,7 +23,7 @@ Method: [`working-rules.md`](working-rules.md)
 
 Two tracks have finished. The **integration seam** closed as PRs #59–#76 — every problem
 in `wip/integration/plan.md` §3, and the corpus-wide identity hole went from 5,047 leaves
-(30%) to 89 (0.5%). The **anomaly register** went 210 → 29 over fifteen rounds, and is
+(30%) to 89 (0.5%). The **anomaly register** went 210 → 25 over sixteen rounds, and is
 now committed and gated (`tools/suite/register.json`).
 
 What remains is the residue of both, and it is **harder per hit than what came before.**
@@ -45,12 +45,12 @@ lane per invariant, no document attribution.
 
 | invariant | acts | rules | ordinance | total | implementation |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 8 | 8 | 5 | **21** | `tools/suite/invariants/_common.py:1267` |
+| `section_carries_its_body` | 8 | 4 | 5 | **17** | `tools/suite/invariants/_common.py:1267` |
 | `no_chapter_caption_in_section_heading` | 4 | — | — | **4** | `_common.py:2151` |
 | `preamble_carries_no_toc_tail` | 2 | — | — | **2** | `_common.py:1086` |
 | `no_foreign_section_start_in_body` | — | 1 | — | **1** | `_common.py:1371` |
 | `clause_codes_plausible` | 1 | — | — | **1** | `_common.py:1874` |
-| **per lane** | **15** | **9** | **5** | **29** | |
+| **per lane** | **15** | **5** | **5** | **25** | |
 
 These five are shared in `_common.py`, bound by name via `all_invariants`
 (`_common.py:2558-2570`), where a lane module's `inv_<name>` overrides `_common`'s.
@@ -77,7 +77,7 @@ source-file counts on the right.
 | lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
 | acts | 15 | 11 | 80 | 93 |
-| rules | 9 | 4 | 11 | **48** |
+| rules | 5 | 2 | 11 | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
 The rules lane converts **11 of 48** — the other 36 are scans and one is Urdu, and every
@@ -93,9 +93,9 @@ Each carries the evidence, the measurement already taken, and — for the three 
 one — **the approach already known to be wrong.** Read that part before proposing a fix;
 it is there because someone already spent a round on it.
 
-### Phase 3 — the register's 29
+### Phase 3 — the register's 25
 
-#### P3-1 — `section_carries_its_body` (21) — four unrelated causes, not one
+#### P3-1 — `section_carries_its_body` (17) — four unrelated causes, one of them closed
 
 The largest class, and no longer a single defect. Invariant: `_common.py:1267`. Split so
 the causes can be worked separately:
@@ -103,10 +103,19 @@ the causes can be worked separately:
 | cause | hits | lane | state |
 |---|---|---|---|
 | **a.** Omission spellings the invariant cannot read | 2 | acts | open |
-| **b.** The STSP 58U/58V pair | 4 | rules | open, one cause / two editions |
+| **b.** The STSP 58U/58V pair | ~~4~~ **0** | rules | **CLOSED, round 16** (PR #82) |
 | **c.** The round-10 residue — printed defects | 3 | rules | traced, each individually |
 | **d.** The ordinance five | 5 | ordinance | **blocked on [P4-2](#p4-2--decide-the-fbr_ingest-fork--a-routing-problem)** |
 | **e.** Single-document remainder | 7 | acts/rules | open |
+
+**b** is closed. Both editions print `111[58U]. Application:--`: S.R.O. 188(I)/2015
+*renamed* rules 59 and 60, so the amendment bracket wraps the code and the terminating dot
+prints after the `]`. `_DOTFORM_RE` wants the dot where the `]` is, and
+`_BRACKETED_DOTLESS_RE` then backtracked `CODE` to its digits and read the suffix letter as
+the title's opening capital — returning rule **`58`**. Fixed by one new pattern,
+`builder._BRACKETED_CODE_DOT_RE`, with both brackets and a letter suffix mandatory; the
+suffix is what keeps a penalty **table row serial** (`2[21].Where any person repeats an
+offence`) out. Trace: `wip/phase3-round16-bracketed-code-dot.md`.
 
 **a.** Customs 30.06.2024 s.196K prints `to Omitted 96u`; 30.06.2025 s.79 prints
 `A O mitted` — an intra-word space that round 3 measured and refused to admit into a regex
@@ -180,7 +189,7 @@ Customs editions.
 
 Measured at **57 further hits across 24 documents, zero false**. Held out of round 13
 because it doubles re-conversion from 21 to 44 documents, twenty of them the Customs
-chapter tree that rounds 1 and 6 rebuilt. These 57 are **not in the register's 29** — the
+chapter tree that rounds 1 and 6 rebuilt. These 57 are **not in the register's 25** — the
 register counts what the invariants currently see.
 
 > **A test asserts the current *wrong* answer on purpose.**
@@ -217,8 +226,8 @@ Was 3: Customs 2025 `'9' after '119'`; Sales Tax 2014 `'3' after '32AA'` and
 
 **The lesson that generalises to the rows still open:** this class was ranked "cheapest,
 3 pages to read", and the reading is what disproved its own premise. Two of the remaining
-rows carry a *predicted* cause in the same voice — [P3-1c](#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one)
-("each already traced to a printed defect") and [P3-1a](#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one).
+rows carry a *predicted* cause in the same voice — [P3-1c](#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed)
+("each already traced to a printed defect") and [P3-1a](#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed).
 Neither prediction has been checked against a page since it was written.
 
 #### P3-7 — `clause_codes_plausible` (1, Finance Act 2024)
@@ -269,7 +278,7 @@ parsing one. Route by family, not by lane. Routing today:
 `:170`).
 
 **Merging the fork stays the v1 non-goal it already is** (`README.md:283`). Follow-through
-unblocks 9 documents, and with them [P3-1d](#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one).
+unblocks 9 documents, and with them [P3-1d](#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed).
 
 The fork also carries **two dormant copies of round 13's fixes**, measured at *zero*
 additional hits across all 12 ordinance documents, so leaving them was correct — but they
@@ -359,7 +368,7 @@ delete _legacy_section_key ─ blocked on ─ 14 stale acts docs ─ blocked on 
 Two things that look like dependencies and are not: **P3-2 and P3-5 both touch
 `builder.py` but not the same function** (`_find_heading_split:2245` vs
 `_STRUCTURAL_RE:2104`), so they can be separate rounds. And **P3-1's five sub-causes are
-independent** — a round may close b alone.
+independent** — a round may close b alone. Round 16 did exactly that.
 
 ---
 
@@ -393,9 +402,9 @@ Every command below was run at this commit and produced exactly the output shown
 
 ```sh
 .venv/bin/python tools/run_suite.py acts        # 15 hits
-.venv/bin/python tools/run_suite.py rules       #  9 hits
+.venv/bin/python tools/run_suite.py rules       #  5 hits
 .venv/bin/python tools/run_suite.py ordinance   #  5 hits
-.venv/bin/python -m pytest tools/tests -q       # 86 passed, 1 skipped in ~37s
+.venv/bin/python -m pytest tools/tests -q       # 92 passed, 1 skipped in ~33s
 .venv/bin/python tools/run_tests_smoke.py       # package self-checks + lane suites
 .venv/bin/python tools/discover_corpus.py --check   # "no drift"
 .venv/bin/ruff check                            # "All checks passed!"  -- BARE

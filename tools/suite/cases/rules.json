@@ -80,6 +80,32 @@
       "arg": "Short title and commencement",
       "status": "known_gap",
       "applies_to": "Customs Rules, 2001"
+    },
+    {
+      "id": "stsp_58u_renamed_rule_carries_its_body_111",
+      "source": "rules-pipeline",
+      "description": "Rule 58U opens '111[58U]. Application:--' -- S.R.O. 188(I)/2015 RENAMED rule 59, so the amendment bracket wraps the code alone and the dot prints after the ']'. _DOTFORM_RE wants the dot where the ']' is, so the rule bound to nothing and its body (with 58V's) was carried onto 58W.",
+      "target": {
+        "kind": "section",
+        "code": "58U"
+      },
+      "check": "plain_contains",
+      "arg": "manufacturers of goods specified against S. No. 13",
+      "status": "active",
+      "applies_to": "SALES TAX SPECIAL PROCEDURES RULES,, 2007 UPDATED UPTO 05.03.2015"
+    },
+    {
+      "id": "stsp_58u_renamed_rule_carries_its_body_118",
+      "source": "rules-pipeline",
+      "description": "Rule 58U opens '118[58U]. Application:--' -- S.R.O. 188(I)/2015 RENAMED rule 59, so the amendment bracket wraps the code alone and the dot prints after the ']'. _DOTFORM_RE wants the dot where the ']' is, so the rule bound to nothing and its body (with 58V's) was carried onto 58W.",
+      "target": {
+        "kind": "section",
+        "code": "58U"
+      },
+      "check": "plain_contains",
+      "arg": "manufacturers of goods specified against S. No. 13",
+      "status": "active",
+      "applies_to": "Sales Tax Special Procedures Rules, 2007 (amended up to 30th June 2015)"
     }
   ]
 }

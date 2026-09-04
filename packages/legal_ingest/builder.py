@@ -1352,6 +1352,39 @@ _DOTFORM_RE = re.compile(_HEAD + rf"{_OPEN}({CODE})\s*\.")
 # THIRTY later sections into heading-only stubs.  discover.py already required
 # a suffix here; the two had drifted.
 _BRACKETPAREN_RE = re.compile(_HEAD + rf"\[\s*\(?({CODE_SUFFIXED})\)")
+# The amendment bracket may enclose the CODE ALONE, leaving the terminating dot
+# outside it -- Sales Tax Special Procedures Rules 2007 prints rules 58U and 58V
+# as ``111[58U]. Application:--`` and ``112[58V]. Conditions and limitations``,
+# because S.R.O. 188(I)/2015 *renamed* rules 59 and 60 rather than inserting new
+# ones.  The same document's inserted sections print the ordinary shape, bracket
+# open and never closed ("106[58S. Application.--"), which is all ``_DOTFORM_RE``
+# accepts: its mandatory dot sits where the ``]`` is.
+#
+# This is not a miss but a MISREAD.  ``_BRACKETED_DOTLESS_RE`` below backtracks
+# ``CODE`` to its digits and takes the suffix letter as the title's opening
+# capital, so ``111[58U].`` returned the code ``58`` -- a real rule of Chapter IX
+# forty pages earlier -- while 58U and 58V bound to nothing.  Hence the position:
+# after every pattern that already reads a shape correctly, before the one that
+# reads this shape wrongly.
+#
+# Two guards, both measured over 290,982 distinct text lines -- every PDF in the
+# three lanes, read from the SOURCE and not from ``output/*.json``:
+#
+#   * BOTH brackets are mandatory, which makes this narrower than the ``\[?``
+#     ``_DOTFORM_RE`` already allows -- the closing bracket alone would let a
+#     wrapped amendment quotation's own ``]`` open a section (``42].``, measured).
+#   * the code must carry a LETTER SUFFIX.  Read with bare ``CODE`` this also
+#     matches a penalty-TABLE ROW SERIAL: Sales Tax 01.07.2014 prints
+#     ``2[21].Where any person repeats an offence`` inside s.33's offences table,
+#     forty pages past s.21's own page, and that row is the ONE line in the whole
+#     corpus the bare form gains.  A bracket that wraps the code alone is a
+#     RENUMBERING, and a section renumbered into an existing run always takes a
+#     suffix -- the same reason ``_BRACKETPAREN_RE`` above requires one.
+#
+# As shipped: 0 lines gained, 12 changed, all 12 correct -- the four STSP lines
+# and eight spellings of Income Tax Rules 2002's rules 19D-19G, which read as
+# rule ``19`` before this.
+_BRACKETED_CODE_DOT_RE = re.compile(_HEAD + rf"\[\s*({CODE_SUFFIXED})\s*\]\s*\.")
 # Bare ``(10) Refund of input tax. —`` (Sales Tax 2009 body): TOC lists it as
 # section 10 but the PDF drops the ``10.`` form.  Require a Capitalised title
 # so amendment bullets ``(19) in section 120...`` and subsections stay clauses.
@@ -1496,6 +1529,11 @@ def _candidate_code_raw(line) -> str | None:
     if m:
         return m.group(1)
     m = _BRACKETPAREN_RE.match(head)
+    if m:
+        return m.group(1)
+    # before _BRACKETED_DOTLESS_RE, which reads this shape's suffix letter as the
+    # title's first capital and returns the digits alone.  See the pattern.
+    m = _BRACKETED_CODE_DOT_RE.match(head)
     if m:
         return m.group(1)
     m = _BRACKETED_DOTLESS_RE.match(head)
