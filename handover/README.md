@@ -1,12 +1,14 @@
 # Handover — start here
 
-Written **2026-09-03**, on `main` at `5477a57`, after PR #78. Every number below was
+Written **2026-09-04**, on `main` after PR #80 (round 15). Every number below was
 measured on this machine at that commit, not carried forward; §4 says which command
 produces each one.
 
-**One-line state:** the anomaly register is **32**, down from 210. It is committed and
-gated on CI. **21 of 66** checklist items remain open — the residue of Phase 3, all of
-Phase 4 and Phase 5, and the OCR work excluded by instruction.
+**One-line state:** the anomaly register is **29**, down from 210. It is committed and
+gated on CI. **20 of 66** checklist items remain open — the residue of Phase 3, all of
+Phase 4 and Phase 5, and the OCR work, which is now **deliberately** out of scope
+(decided 2026-09-04; the decision and its consequences are in
+[`tasks.md`](tasks.md#decisions-on-record-2026-09-04)).
 
 > **This folder supersedes `wip/HANDOVER.md`.** That file was written 2026-08-30 at
 > register 64 and is now wrong on nearly every number it states. `wip/` is deliberately
@@ -32,19 +34,20 @@ against a live three-lane run at this commit.
 |---|---|---|---|---|
 | `section_carries_its_body` | 8 | 8 | 5 | **21** |
 | `no_chapter_caption_in_section_heading` | 4 | — | — | **4** |
-| `section_codes_ordered` | 3 | — | — | **3** |
 | `preamble_carries_no_toc_tail` | 2 | — | — | **2** |
 | `no_foreign_section_start_in_body` | — | 1 | — | **1** |
 | `clause_codes_plausible` | 1 | — | — | **1** |
-| **per lane** | **18** | **9** | **5** | **32** |
+| **per lane** | **15** | **9** | **5** | **29** |
 
-Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32`.
+Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29`.
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
 
-**Five invariant classes are closed:** `body_chapters_in_tree`, `no_footnote_text_in_body`,
-`structure_counts`, `no_code_fragment_in_section_heading` (round 12, was 31), and
-`no_structural_heading_in_body` (round 13, was 175).
+**Six invariant classes are closed:** `body_chapters_in_tree`, `no_footnote_text_in_body`,
+`structure_counts`, `no_code_fragment_in_section_heading` (round 12, was 31),
+`no_structural_heading_in_body` (round 13, was 175), and **`section_codes_ordered`
+(round 15, was 3)** — which turned out to be three mislabelled *chapters*, not three
+misread section codes.
 
 **The rule has not changed: fixed, or exempted with evidence traced to the source PDF.
 There is no third state.** "Tracked and deferred" without an exemption entry is a red gate.
@@ -55,7 +58,7 @@ There is no third state.** "Tracked and deferred" without an exemption entry is 
 
 | lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 18 | 14 | **80** | 93 |
+| acts | 15 | 11 | **80** | 93 |
 | rules | 9 | 4 | **11** | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
@@ -68,11 +71,17 @@ fix touches, so 61 scanned documents keep whatever revision last wrote them. At 
 
 | documents | `pipeline_revision` |
 |---|---|
-| 47 | `7cc5d34…-dirty` |
-| 21 | `8e01b27…` (round 13) |
+| 41 | `7cc5d34…-dirty` |
+| 15 | `6824850…-dirty` (round 15) |
 | 14 | *(none recorded)* |
+| 13 | `8e01b27…` (round 13) |
 | 12 | `4827840…` (round 12) |
-| 9 | `06d8bfb…` (round 14) |
+| 8 | `06d8bfb…` (round 14) |
+
+Round 15 re-converted 15 documents, chosen by measurement rather than by guess: each
+acts/rules document's contents were parsed twice at the same commit, with the fix on and
+off, and **76 were shown untouchable**. The ordinance lane cannot be reached by that
+round's fixes at all — it runs `packages/fbr_ingest`, a separate parser.
 
 ## 3. Ground rules
 
@@ -89,7 +98,7 @@ fix touches, so 61 scanned documents keep whatever revision last wrote them. At 
 ## 4. Verification
 
 ```sh
-.venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 18 / 9 / 5
+.venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 15 / 9 / 5
 .venv/bin/python -m pytest tools/tests -q       # 86 passed, 1 skipped
 .venv/bin/python tools/run_tests_smoke.py       # package self-checks + lane suites
 .venv/bin/python tools/discover_corpus.py --check
@@ -139,10 +148,10 @@ factual below it has moved.
 
 | it says | actually |
 |---|---|
-| register **64** | **32** |
-| **16 of 48** items open | **21 of 66** |
-| after eight merged PRs (#46–#53) | #54–#78 have merged since |
-| **three** invariant classes closed | **five** |
+| register **64** | **29** |
+| **16 of 48** items open | **20 of 66** |
+| after eight merged PRs (#46–#53) | #54–#80 have merged since |
+| **three** invariant classes closed | **six** |
 | its whole §2 register table | wrong on every row — `no_foreign_section_start_in_body` 19 → 1, `section_carries_its_body` 37 → 21 |
 | "`section_carries_its_body` and `no_foreign_section_start_in_body` move together — fix start detection and both move" | superseded; the second is down to 1 and the first is now four unrelated causes |
 | Sales Tax 15.9.2021 — "the pages *interleave*. Read those source pages before theorising" | **disproved.** They do not interleave; it was the cursor cascade, closed in round 9 |
@@ -152,4 +161,5 @@ factual below it has moved.
 | `pytest tools/tests` → 56 passed | 86 passed, 1 skipped |
 
 One more, not in HANDOVER: every file under `wip/integration/` still states the register as
-**34**. Round 14 took it to 32.
+**34**. Round 14 took it to 32 and round 15 to **29**. `wip/tasks.md:664` also states
+`section_codes_ordered` as **4** open hits; the class is **closed**.
