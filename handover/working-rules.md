@@ -30,6 +30,23 @@ converting only outputs older than the parser's mtime.
 (Supplementary) Act 2022 — so a `**/*.pdf` glob misses them **silently**. Any re-conversion
 loop needs to handle them.
 
+**Know which tree you are editing, and give the worktree the corpus.** `data/corpora/*`
+is gitignored, so a fresh worktree holds only `data/corpora/README.md` — and every
+`tools/*.py` derives **both** the import root and the corpus root from `__file__`. So
+running them from the main tree measures **main's** parser, and running them from the
+worktree finds **no documents**. Symlink the lanes in once, per worktree:
+
+```sh
+for L in acts rules ordinance; do ln -sfn "$PWD/data/corpora/$L" .worktrees/rN/data/corpora/$L; done
+```
+
+(Use absolute targets — a relative `../../../` from `.worktrees/rN/data/corpora/` lands in
+`.worktrees/`, not the repo root, and resolves to nothing.) Related, and it cost real time
+in round 15: **the Bash tool's cwd resets between calls**, so a `python - <<PY` heredoc
+using a *relative* path silently patched `packages/` in the **main tree** instead of the
+worktree. Half the round's changes landed on the wrong branch. Use absolute paths in
+every edit, and `git status` in **both** trees before you trust a measurement.
+
 **Clear `__pycache__` after any mutate-and-restore verification.** Patching a module,
 re-importing and restoring leaves stale bytecode: the source is right while the module in
 memory is the version you rejected. This was caught by pytest only *after* a re-conversion
@@ -52,6 +69,15 @@ missed the PDF.
 **Verify a lock by removing the fix.** A parenting lock passed with the fix stubbed out —
 its two-chapter fixture let a later pass repair the damage. Three chapters reproduced the
 real document. **A gate that cannot be made to fail on purpose is not a gate.**
+
+**A row's predicted cause is not evidence, however confidently the ledger states it.**
+`plan.md` P3-6 said `section_codes_ordered` was "the code was misread" and ranked the row
+as three PDF pages to read. Reading them disproved the premise: **no code was misread** —
+three *chapters* were mislabelled, and the invariant only ever saw the consequence. The
+row also predicted `exemptions/acts.json` would be needed; it was not, and still does not
+exist. Two rows still open carry a predicted cause in the same voice (P3-1a, P3-1c, "each
+already traced to a printed defect") and **neither has been checked against a page since
+it was written**. Read the page first; the ledger's guess is a hypothesis.
 
 **Report changes that moved a number by zero.** Round 4's acts lane and round 6's PART fix
 were both correct and both scored nothing; folding them into a total would have

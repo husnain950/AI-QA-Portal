@@ -560,6 +560,19 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
             else:
                 pending_heading_for = node
             last_section = None
+            # A chapter row also CLOSES a section row that never printed a folio.
+            # ``SECTION_NOPAGE_RE`` leaves such a row in ``pending_page`` so its
+            # wrapped title can go on being joined, and nothing here cleared it,
+            # so the next chapter's ALL-CAPS caption was offered to that section
+            # first -- read as foreign to it, and opened as a caption chapter of
+            # its own.  The Customs Act 1969 (30.06.2025) contents print
+            # "3F Hiring of technology specialists, auditors, accountants and /
+            # goods evaluators on short term contract" with NO page number at
+            # all, so CHAPTER III came out twice: a coded shell with no heading,
+            # beside a numeral-less node holding III's caption and ss.9-14A.
+            # ``_open_caption_chapter`` resets all three of these; this branch
+            # reset only two.
+            pending_page = None
             continue
 
         # ---- table (a Federal Excise schedule's Table-I / Table-II) --------
@@ -1055,6 +1068,38 @@ def _demo() -> None:
     assert by_code["15"].parent is och[1], "15 must parent to the caption chapter"
     assert by_code["16"].parent is och[1]
     assert by_code["18"].parent is och[2]
+
+    # ...and a chapter row CLOSES a section row that printed no folio at all.
+    # The same edition's contents print s.3F with NO page number, so
+    # ``SECTION_NOPAGE_RE`` parks it in ``pending_page`` for its wrapped title
+    # and -- before this round -- nothing cleared it, so CHAPTER III's caption
+    # was offered to s.3F, read as foreign to it, and opened as a chapter of its
+    # own.  Reasoning at the fix site; the consequence was CHAPTER III twice,
+    # and ``section_codes_ordered`` reporting "'9' out of order after '119'".
+    folioless = [
+        "        3F      Hiring of technology specialists, auditors, accountants and",
+        "                goods evaluators on short term contract",
+        "        4       Powers and duties of officers of customs.            12",
+        "        8A.     Uniform                                              14",
+        "        CHAPTER III",
+        "        DECLARATION  OF PORTS, AIRPORTS,",
+        "        LAND CUSTOMS-STATIONS, ETC.",
+        "        9       Declaration of customs-ports, customs-airports, etc. 16",
+        "        10      Power to approve landing places.                     16",
+    ]
+    fch, _fs, fsecs = parse_toc(folioless, ACTS)
+    assert [c.code for c in fch] == ["CHAPTER III"], [c.code for c in fch]
+    assert fch[0].heading == (
+        "DECLARATION OF PORTS, AIRPORTS, LAND CUSTOMS-STATIONS, ETC"), \
+        fch[0].heading
+    fby = {e.code: e for e in fsecs}
+    assert fby["9"].parent is fch[0], getattr(fby["9"].parent, "code", None)
+    assert fby["10"].parent is fch[0], getattr(fby["10"].parent, "code", None)
+    # the folio-less row itself keeps its wrapped title and does NOT swallow
+    # the caption that follows two rows later
+    assert fby["3F"].heading == (
+        "Hiring of technology specialists, auditors, accountants and "
+        "goods evaluators on short term contract"), fby["3F"].heading
     assert strip_foreign_caption_tail(
         "Provision of accommodation at customs ports, etc "
         "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION"

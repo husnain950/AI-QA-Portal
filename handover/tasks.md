@@ -3,46 +3,66 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **32**. **21 of 66** checklist items are open, plus 3 optional
-leftovers from the finished integration track. There is no next PR in sequence — pick a
-row from the table below. Reasoning for every row is in [`plan.md`](plan.md); state is in
-[`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
+**State:** the register is **29**. **20 of 66** checklist items are open, plus 3 optional
+leftovers from the finished integration track. Reasoning for every row is in
+[`plan.md`](plan.md); state is in [`README.md`](README.md); the traps are in
+[`working-rules.md`](working-rules.md).
 
-Written 2026-09-03 on `main` at `d0d591d`. **Next round is 15; next PR is #80.**
+Written 2026-09-04 on `main` after PR #81 (round 15). **Next round is 16; next PR is #82.**
+
+**Six invariant classes are now closed.** Round 15 closed `section_codes_ordered` — see
+[task 1's Result](#1-trace-section_codes_ordered--3-hits-acts--closed-round-15).
+
+### Decisions on record (2026-09-04)
+
+Taken by the repository owner, so they are not rediscovered:
+
+| decision | consequence |
+|---|---|
+| **Scope: everything**, through Phase 5 | the ranked table below is worked top to bottom, not sampled |
+| **OCR (row 14) stays out of scope**, recorded as a deliberate "no" | `data/ocr_cache` stays 0 B; row 15 stays blocked, but *honestly* blocked |
+| **`ReviewToolbar` gates on CRITICAL flags only** (row 16) | switch to `hasCriticalQualityFlags`, matching the backend's `CRITICAL_FLAGS` |
+| Context is cleared between PRs | **this folder is the only memory that survives; updating it is part of the PR** |
+
+**Execution order** differs from the value ranking below in one place: **row 2 (the
+container-code guard) is worked before row 1 (the CHAPTER letter suffix)**, because the
+guard is what kept round 13 from dropping four chapter captions in Customs Rules 2001 and
+row 1 re-converts twenty Customs editions. Guard first converts them once, not twice.
 
 ---
 
 ## Start here — pick one
 
 Ranked by value against cost, each with the ONE thing that actually blocks it. An agent
-with no other context can take row 1 and start.
+with no other context can take a row and start. **Per the execution order above, take
+row 2 before row 1** — and note the STSP pair (row 3) is the cheapest row now that
+`section_codes_ordered` is closed.
 
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
-| 1 | **trace `section_codes_ordered`** — read 3 source PDF pages | 3 | nothing. Untraced only because nobody read the pages. **Cheapest row on the board.** | [P3-6](plan.md#p3-6--section_codes_ordered-3--untraced) |
-| 2 | **the CHAPTER letter suffix** | **57** ¹ | doubles re-conversion to 44 documents, 20 of them the Customs chapter tree. Nothing else. Highest-value row. | [P3-5](plan.md#p3-5--the-chapter-letter-suffix--57-hits-24-documents-all-real) |
-| 3 | **the container-code guard** | 0 ² | `build_sections` must pass per-chapter container codes into `_build_one` — a signature change. | [P3-4](plan.md#p3-4--the-container-code-guard) |
-| 4 | **the STSP 58U/58V pair** | 4 | nothing. One cause, two editions — the best remaining hits-per-round ratio. | [P3-1b](plan.md#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one) |
-| 5 | **the round-10 rules residue** | 3 | a judgement call, not code: all three are *printed* defects, so this is an **exemption-with-evidence** row. | [P3-1c](plan.md#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one) |
-| 6 | **the heading-terminator scan** | 3 | needs an **omission-aware fallback**; the obvious guard was measured losing section 32AA outright. | [P3-2](plan.md#p3-2--the-heading-terminator-scan-that-walks-through-a-boundary-3-acts) |
-| 7 | **the omission spellings** | 2 | `A O mitted` needs an intra-word-space tolerance a precision regex refused in round 3. Re-measure now the count is traceable. | [P3-1a](plan.md#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one) |
-| 8 | **`preamble_carries_no_toc_tail`** | 2 | needs **a signal other than row density** — the `rows >= 3` floor is load-bearing and may not be lowered. | [P3-3](plan.md#p3-3--preamble_carries_no_toc_tail-2-acts) |
-| 9 | **the single-document remainder** | 7 | nothing shared — PSW ministry list, PFMA s.26, `R(cid:2)fund`. Three unrelated traces. | [P3-1e](plan.md#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one) |
-| 10 | **`clause_codes_plausible`** | 1 | **do not weaken the check.** Two routes suggested, neither measured. | [P3-7](plan.md#p3-7--clause_codes_plausible-1-finance-act-2024) |
-| 11 | **decide the `fbr_ingest` fork** | 5 ³ | **a decision, on evidence already committed.** Route by family, not by lane. Merging stays the v1 non-goal. | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
-| 12 | **the cross-edition index** | 0 ⁴ | needs a new per-group index over `output/*.json`; `signatures.json`'s counts are PDF-regex, not tree counts. | [P3-8](plan.md#p3-8--no-invariant-can-see-a-document-that-lost-93-of-its-sections) |
-| 13 | **the instrument tree level** (4 limbs) | 0 ⁵ | limb 2 is **23 walker sites across 11 files** and a new `Node.kind` is dropped *silently*. | [Phase 5](plan.md#phase-5--the-instrument-tree-level-4-limbs-not-started) |
-| 14 | flip `--profile auto` to default | — | **BLOCKED: Phase 3 must reach zero-or-exempted first.** Flipping it re-parses everything and destroys attribution. | [P4-1](plan.md#p4-1--flip---profile-auto-to-the-default) |
-| 15 | the OCR decision | — | **BLOCKED: needs a human decision.** Not work. See the consequence chain before deciding. | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
-| 16 | delete `_legacy_section_key` | — | **BLOCKED on row 15** — 6 documents / 89 leaves still rely on it. And the query that would confirm this **does not exist yet**; writing it is step 1. | [Deferred](#deferred-with-reasons) |
-| 17 | the `ReviewToolbar` approval gate | — | **a product decision, then one line.** Cheapest row here once someone decides. | [Deferred](#deferred-with-reasons) |
-| 18 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect. | [Deferred](#deferred-with-reasons) |
+| 1 | **the CHAPTER letter suffix** | **57** ¹ | doubles re-conversion to 44 documents, 20 of them the Customs chapter tree. Nothing else. Highest-value row. | [P3-5](plan.md#p3-5--the-chapter-letter-suffix--57-hits-24-documents-all-real) |
+| 2 | **the container-code guard** | 0 ² | `build_sections` must pass per-chapter container codes into `_build_one` — a signature change. | [P3-4](plan.md#p3-4--the-container-code-guard) |
+| 3 | **the STSP 58U/58V pair** | 4 | nothing. One cause, two editions — the best remaining hits-per-round ratio. | [P3-1b](plan.md#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one) |
+| 4 | **the round-10 rules residue** | 3 | a judgement call, not code: all three are *printed* defects, so this is an **exemption-with-evidence** row. | [P3-1c](plan.md#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one) |
+| 5 | **the heading-terminator scan** | 3 | needs an **omission-aware fallback**; the obvious guard was measured losing section 32AA outright. | [P3-2](plan.md#p3-2--the-heading-terminator-scan-that-walks-through-a-boundary-3-acts) |
+| 6 | **the omission spellings** | 2 | `A O mitted` needs an intra-word-space tolerance a precision regex refused in round 3. Re-measure now the count is traceable. | [P3-1a](plan.md#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one) |
+| 7 | **`preamble_carries_no_toc_tail`** | 2 | needs **a signal other than row density** — the `rows >= 3` floor is load-bearing and may not be lowered. | [P3-3](plan.md#p3-3--preamble_carries_no_toc_tail-2-acts) |
+| 8 | **the single-document remainder** | 7 | nothing shared — PSW ministry list, PFMA s.26, `R(cid:2)fund`. Three unrelated traces. | [P3-1e](plan.md#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one) |
+| 9 | **`clause_codes_plausible`** | 1 | **do not weaken the check.** Two routes suggested, neither measured. | [P3-7](plan.md#p3-7--clause_codes_plausible-1-finance-act-2024) |
+| 10 | **decide the `fbr_ingest` fork** | 5 ³ | **a decision, on evidence already committed.** Route by family, not by lane. Merging stays the v1 non-goal. | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
+| 11 | **the cross-edition index** | 0 ⁴ | needs a new per-group index over `output/*.json`; `signatures.json`'s counts are PDF-regex, not tree counts. | [P3-8](plan.md#p3-8--no-invariant-can-see-a-document-that-lost-93-of-its-sections) |
+| 12 | **the instrument tree level** (4 limbs) | 0 ⁵ | limb 2 is **23 walker sites across 11 files** and a new `Node.kind` is dropped *silently*. | [Phase 5](plan.md#phase-5--the-instrument-tree-level-4-limbs-not-started) |
+| 13 | flip `--profile auto` to default | — | **BLOCKED: Phase 3 must reach zero-or-exempted first.** Flipping it re-parses everything and destroys attribution. | [P4-1](plan.md#p4-1--flip---profile-auto-to-the-default) |
+| 14 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded. | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
+| 15 | delete `_legacy_section_key` | — | **BLOCKED on row 14**, which is now decided as *no OCR* — so the 14 stale acts documents stay stale and this stays blocked. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it is step 1, and worth doing so the number is real. | [Deferred](#deferred-with-reasons) |
+| 16 | the `ReviewToolbar` approval gate | — | **DECIDED 2026-09-04: gate on CRITICAL flags only.** Switch to `hasCriticalQualityFlags`, which is already tested and unused. One line plus the test. Cheapest row on the board. | [Deferred](#deferred-with-reasons) |
+| 17 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect. | [Deferred](#deferred-with-reasons) |
 
-¹ Not in the register's 32 — the invariants cannot currently see them. Closing this row
+¹ Not in the register's 29 — the invariants cannot currently see them. Closing this row
 *adds* hits before it removes them; see the task below.
 ² An enabler: it unblocks the PART separator widening and prevents round 13's
 chapter-caption losses.
-³ Unblocks the ordinance five in `section_carries_its_body`, and 9 documents.
+³ Unblocks the ordinance five in `section_carries_its_body`, and 9 documents. Round 15 confirmed the ordinance lane is unreachable from `legal_ingest`: it runs `fbr_ingest`, which carries its own `toc.py` and its own `insert_missing_body_chapters`.
 ⁴ A new instrument, not a fix. Round 11 lost 93% of a document's sections and the register
 moved 3.
 ⁵ Measured by the *deletion* of 4 exemption entries, not by hits.
@@ -50,30 +70,31 @@ moved 3.
 **Before touching any of them, read [Rules of engagement](#rules-of-engagement).** Every
 rule there was paid for, and three of them have drawn blood twice.
 
-### How this reconciles to "21 of 66"
+### How this reconciles to "20 of 66"
 
-The 21 unchecked boxes in `wip/tasks.md` map onto the rows above exactly. Verified by
-`grep -c '^\s*- \[ \]' wip/tasks.md` → 21, and `- [x]` → 45.
+The unchecked boxes in `wip/tasks.md` map onto the rows above exactly. `wip/` is frozen,
+so its box for `section_codes_ordered` (`:664`) is still unticked there — **round 15
+closed it**, and this file is the authority on that, not `wip/`.
 
 | `wip/tasks.md` line | row above |
 |---|---|
-| `:664` `section_codes_ordered` | 1 — note it says **4** hits; the register says **3**. `wip/` is stale, the register is truth |
-| `:418` CHAPTER letter suffix | 2 |
-| `:401` container-code guard | 3 |
-| `:436` `section_carries_its_body` — the remaining 21 | 4, 5, 7, 9 (one box, four causes) |
-| `:388` heading-terminator scan | 6 |
-| `:379` `preamble_carries_no_toc_tail` | 8 |
-| `:668` `clause_codes_plausible` | 10 |
-| `:712` decide `fbr_ingest` · `:430` its dormant copies | 11 (two boxes) |
-| `:503` no invariant sees a 93% loss | 12 |
-| `:741` `:742` `:743` `:744` the four Phase 5 limbs | 13 (four boxes) |
-| `:701` `--profile auto` default | 14 |
-| `:184` OCR · `:190` the 9 provisional · `:192` the ordinance 10 | 15 (three boxes) |
+| `:664` `section_codes_ordered` | **CLOSED, round 15.** It said **4** hits, the register said **3**, and it is now **0** |
+| `:418` CHAPTER letter suffix | 1 |
+| `:401` container-code guard | 2 |
+| `:436` `section_carries_its_body` — the remaining 21 | 3, 4, 6, 8 (one box, four causes) |
+| `:388` heading-terminator scan | 5 |
+| `:379` `preamble_carries_no_toc_tail` | 7 |
+| `:668` `clause_codes_plausible` | 9 |
+| `:712` decide `fbr_ingest` · `:430` its dormant copies | 10 (two boxes) |
+| `:503` no invariant sees a 93% loss | 11 |
+| `:741` `:742` `:743` `:744` the four Phase 5 limbs | 12 (four boxes) |
+| `:701` `--profile auto` default | 13 |
+| `:184` OCR · `:190` the 9 provisional · `:192` the ordinance 10 | 14 (three boxes) |
 | `:536` `convert_all.py` cannot resume · `:671` the 29 low-confidence documents · `:79` rebuild api/worker images | [Deferred](#deferred-with-reasons) (three boxes) |
 
-Rows 16–18 are **not** among the 21 — they come from `wip/integration/tasks.md`'s own
-ledger. So: **21 checklist items + 3 integration leftovers = 24 open things**, which is
-the honest total.
+Rows 15–17 are **not** among the unchecked boxes — they come from
+`wip/integration/tasks.md`'s own ledger. So: **20 checklist items + 3 integration
+leftovers = 23 open things**, which is the honest total.
 
 ---
 
@@ -118,6 +139,19 @@ The full set, because this is the file an agent actually opens. Long-form reason
 - **Two source files have no `.pdf` extension** — Customs Rules 2001 and The Finance
   (Supplementary) Act 2022 — so a `**/*.pdf` glob misses them **silently**. Any
   re-conversion loop must handle them.
+- **A worktree has no corpus, and `tools/*.py` resolve everything from `__file__`.**
+  `data/corpora/*` is gitignored, so a fresh worktree holds only its README — and because
+  both the import root and the corpus root come from `__file__`, running a tool from the
+  main tree measures **main's** parser while running it from the worktree finds **no
+  documents**. Symlink the lanes in once, with **absolute** targets:
+  ```sh
+  for L in acts rules ordinance; do ln -sfn "$PWD/data/corpora/$L" .worktrees/rN/data/corpora/$L; done
+  ```
+  (A relative `../../../` from `.worktrees/rN/data/corpora/` lands in `.worktrees/`.)
+- **The Bash tool's cwd resets between calls — use absolute paths in every edit.** In
+  round 15 a heredoc with a relative path patched `packages/` in the **main tree**; half
+  the change landed on the wrong branch and the measurement silently used unfixed code.
+  `git status` in **both** trees before trusting a number.
 - **Clear `__pycache__` after any mutate-and-restore verification.** Patching a module,
   re-importing and restoring leaves stale bytecode: the source is right while the module in
   memory is the version you rejected. Caught by pytest only *after* a re-conversion had
@@ -193,14 +227,14 @@ gate, not a decision.
 
 ---
 
-## How a round runs — worked for round 15
+## How a round runs — worked for round 16
 
 Copy this. Do not invent a variation.
 
 ```sh
 # 1. Branch. Use a worktree -- the tree is shared with peer sessions.
-git worktree add .worktrees/r15 -b fix/phase3-round15-<slug> main
-cd .worktrees/r15
+git worktree add .worktrees/r16 -b fix/phase3-round16-<slug> main
+cd .worktrees/r16
 
 # 2. Baseline, before touching anything. The corpus lives in the MAIN tree
 #    (data/corpora is gitignored, so a worktree has no copy) -- run suites from there.
@@ -208,7 +242,8 @@ cd /Users/muhammad.husnain/Downloads/code/crx
 for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L > /tmp/pre-$L.txt; done
 
 # 3. Snapshot the outputs you are about to overwrite.
-cp -r data/corpora/acts/output data/corpora/acts/output/_pre_15   # per lane you touch
+mkdir -p data/corpora/acts/output/_pre_16 \
+  && cp data/corpora/acts/output/*.json data/corpora/acts/output/_pre_16/
 
 # 4. Write the failing test FIRST, then the fix. Confirm the test fails without it.
 .venv/bin/python -m pytest tools/tests/<the new test> -q      # must be RED
@@ -230,10 +265,10 @@ du -sh data/ocr_cache                         # must still be 0B
 cd apps/web && npm run test                   # only if you touched the portal; 17-failed baseline
 ```
 
-Then: write the round artifact as `wip/phase3-round15-<slug>.md`
+Then: write the round artifact as `wip/phase3-round16-<slug>.md`
 — **a new file; do not edit existing `wip/` files** — following the shape of
-`wip/phase3-round14-preamble-front-matter.md`: what was measured, what moved, what moved
-by **zero**, and what was rejected and why. Open **PR #80** with the before/after
+`wip/phase3-round15-chapter-numeral-pairing.md`: what was measured, what moved, what moved
+by **zero**, and what was rejected and why. Open **PR #82** with the before/after
 artifact linked in the body.
 
 **If the register improved, `test_register_snapshot.py` fails until step 7 is done.** That
@@ -246,31 +281,59 @@ is the design, not a bug.
 Each carries: what it closes · **Steps** · **Definition of done** · **Do not** ·
 **Result** (empty until it lands).
 
-### 1. Trace `section_codes_ordered` — 3 hits, acts
+### 1. Trace `section_codes_ordered` — 3 hits, acts — **CLOSED, round 15**
 
-Three hits, nobody has read the source pages. Invariant is acts-only:
-`tools/suite/invariants/acts.py:121`.
+**Closed by PR #81 (round 15).** Artifact:
+`wip/phase3-round15-chapter-numeral-pairing.md`. Kept here because what it found
+contradicts what this row predicted, and the next rows inherit that.
 
-**Steps**
-1. Get the three failures with their documents:
-   `.venv/bin/python tools/run_suite.py acts | grep -A3 section_codes_ordered`
-2. The three are Customs 2025 `'9' after '119'`; Sales Tax 2014 `'3' after '32AA'` and
-   `'22' after '75'`. Find the printed page for each code in the source PDF.
-3. Decide per hit, and only from the page: **parser defect** (the code was misread) or
-   **printed defect** (the source really prints them out of order).
-4. Parser defect → fix + failing test. Printed defect → an entry in
-   `tools/suite/exemptions/acts.json` quoting the page. **Note that file does not exist
-   yet** — only `rules.json` does (`tools/suite/runner.py:30-32`: a missing file means no
-   exemptions, which is not an error).
+**Result** — register **32 → 29**; `run_suite.py acts` **18 → 15**; the invariant is
+**0 — the class is closed**, the sixth to close. rules and ordinance moved by **zero**.
 
-**Definition of done** — register total **32 → 29**; `run_suite.py acts` → 15 hits; each
-of the three either fixed or carrying an exemption entry with a page citation.
+**No hit was what this row assumed.** The row said *"decide per hit: parser defect (the
+code was misread) or printed defect"*, and expected `tools/suite/exemptions/acts.json` to
+be created. **All three source pages are correct, no code was misread, and that file
+still does not exist.** Not one section code was wrong — three *chapters* were mislabelled,
+and the invariant could only see the consequence: sections walking backwards because
+their container sorts elsewhere.
 
-**Do not** — do not infer the answer from the JSON. `'3' after '32AA'` is exactly the shape
-a cursor cascade produces *and* the shape a genuine printing error produces; only the page
-distinguishes them.
+| document | hit | the page says | was parsed as |
+|---|---|---|---|
+| Customs 1969 30.06.2025 | `'9' after '119'` | contents p3: ss.9-11 under `CHAPTER III` | `CHAPTER XI` / WAREHOUSING |
+| Sales Tax 1990 01.07.2014 | `'3' after '32AA'` | body p51: `Chapter-VI` | `CHAPTER I` / PRELIMINARY |
+| Sales Tax 1990 01.07.2014 | `'22' after '75'` | body p81: `Chapter-IX` | `CHAPTER III` / REGISTRATION |
 
-**Result** — _(empty)_
+**Two causes, one shared endpoint.**
+
+1. **`toc.py`, the CHAPTER branch of `parse_toc`.** A chapter row did not close a section
+   row that printed **no folio at all**. Customs' contents print `3F Hiring of technology
+   specialists…` with no page number; `SECTION_NOPAGE_RE` parks it in `pending_page` for
+   its wrapped title and nothing cleared it, so `CHAPTER III`'s caption was offered to
+   s.3F, correctly judged foreign to it, and opened as a chapter of its own. **`CHAPTER
+   III` came out twice** — a coded shell beside a numeral-less node holding III's caption
+   and its sections. `_open_caption_chapter` resets all three state variables; this branch
+   reset two. **The fix is the third.**
+2. **`pipeline.py`, `insert_missing_body_chapters`.** `zip(empties, unused)` paired
+   leftover numeral-less nodes with leftover body numerals **by list position**, which is
+   right only if the two lists correspond one-to-one. They need not. Replaced with pairing
+   by **which body span actually prints that node's own sections**, reusing
+   `_codes_in_span`, already defined in that function.
+
+**Leaf counts unchanged** — 325 and 116. Sections changed container; none was gained or
+lost. That is the check round 13 failed (127 → 126).
+
+**Scope was measured, not guessed.** Each acts/rules document's contents were parsed twice
+at the same commit, fix on and fix off, and compared: **8 documents change, 7 more carry a
+code-less chapter (cause 2's only reach), 76 are provably untouchable.** Those 15 were
+re-converted; **0 failures, 0 refusals**. 10 of the 15 moved by **zero** and are reported
+as such. **The ordinance lane cannot be reached by either fix — it runs `fbr_ingest`,
+which has its own `toc.py` and its own `insert_missing_body_chapters`.**
+
+**What was rejected:** an exemption (no printed defect exists); widening
+`_captions_match`'s 3-word floor to 2 (a 2-word coincidence would bind chapters across 103
+documents — the floor is untouched, the fallback beneath it was the defect); reparenting by
+page order (tree-walk and page order legitimately disagree on 21 of 103 documents, which
+is P5's reading-order limb); porting either fix into the `fbr_ingest` fork (row 10's call).
 
 ---
 

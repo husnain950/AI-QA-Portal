@@ -1,8 +1,14 @@
 # What is left
 
-21 open items. Ranked by value, each with the one thing that actually blocks it.
+20 open items. Ranked by value, each with the one thing that actually blocks it.
 State and verification are in [`README.md`](README.md); method is in
-[`working-rules.md`](working-rules.md).
+[`working-rules.md`](working-rules.md); the executable ledger — **the file to work
+from** — is [`tasks.md`](tasks.md).
+
+> **This file, `tasks.md` and `plan.md` §4 each carry the same ranked list.** Three copies
+> of one fact is the very shape `working-rules.md` warns about under *"a cached artifact
+> cannot tell you its generator is wrong"*. Until they are consolidated, **`tasks.md` is
+> the authority** and every round must update all three. Flagged 2026-09-04, round 15.
 
 Expect a lower hits-per-round rate from here than the early rounds got. Rounds 1–7 each
 found *one cause explaining many hits*. What is left is mostly 1–2 hits per document with
@@ -11,7 +17,7 @@ and are the reason they rank where they do.
 
 ---
 
-## Phase 3 — the register's 32
+## Phase 3 — the register's 29
 
 ### 1. `section_carries_its_body` (21) — four unrelated causes, not one
 
@@ -83,9 +89,15 @@ widening lands:
 
 Do not "fix" that test — its failure is the signal.
 
-### 6. `section_codes_ordered` (3) — untraced
+### 6. `section_codes_ordered` — **CLOSED, round 15**
 
-Customs 2025 `'9' after '119'`; Sales Tax 2014 `'3' after '32AA'` and `'22' after '75'`.
+Was 3, now **0**, and **not for the reason this file predicted**: no section code was
+misread. All three were a *chapter* mislabelled — `toc.py` emitting `CHAPTER III` twice
+because a folio-less contents row stayed open across the chapter boundary, and
+`insert_missing_body_chapters` then pairing leftover nodes to leftover numerals by list
+position. See `wip/phase3-round15-chapter-numeral-pairing.md`.
+
+The hits were: Customs 2025 `'9' after '119'`; Sales Tax 2014 `'3' after '32AA'` and `'22' after '75'`.
 Nobody has read the source pages for these.
 
 ### 7. `clause_codes_plausible` (1, Finance Act 2024)
@@ -192,4 +204,4 @@ work:
   parser round must first stop emitting a leading `]` and the truncated `[...`. Then it is
   one deletion.
 
-> Every file under `wip/integration/` still states the register as **34**. It is 32.
+> Every file under `wip/integration/` still states the register as **34**. It is **29**.

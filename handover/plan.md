@@ -5,8 +5,8 @@ ledger and is the file to trust for *what is done*; this file is the reasoning a
 links back to. **It is not a historical record** — when a measurement disproves something
 here, this file changes. (The frozen record is `wip/`, per [README §5](README.md#5-where-the-history-is).)
 
-Written **2026-09-03**, on `main` at `d0d591d` (PR #79). Every number below was measured
-on this machine at this commit; §7 gives the command for each. Nothing is carried forward
+Written **2026-09-04**, on `main` after PR #81 (round 15). Every number below was measured
+on this machine at that commit; §7 gives the command for each. Nothing is carried forward
 from `wip/`, which is wrong on nearly every number it states.
 
 State: [`README.md`](README.md) · Ranked work: [`open-work.md`](open-work.md) ·
@@ -23,7 +23,7 @@ Method: [`working-rules.md`](working-rules.md)
 
 Two tracks have finished. The **integration seam** closed as PRs #59–#76 — every problem
 in `wip/integration/plan.md` §3, and the corpus-wide identity hole went from 5,047 leaves
-(30%) to 89 (0.5%). The **anomaly register** went 210 → 32 over fourteen rounds, and is
+(30%) to 89 (0.5%). The **anomaly register** went 210 → 29 over fifteen rounds, and is
 now committed and gated (`tools/suite/register.json`).
 
 What remains is the residue of both, and it is **harder per hit than what came before.**
@@ -47,22 +47,21 @@ lane per invariant, no document attribution.
 |---|---|---|---|---|---|
 | `section_carries_its_body` | 8 | 8 | 5 | **21** | `tools/suite/invariants/_common.py:1267` |
 | `no_chapter_caption_in_section_heading` | 4 | — | — | **4** | `_common.py:2151` |
-| `section_codes_ordered` | 3 | — | — | **3** | `invariants/acts.py:121` ¹ |
 | `preamble_carries_no_toc_tail` | 2 | — | — | **2** | `_common.py:1086` |
 | `no_foreign_section_start_in_body` | — | 1 | — | **1** | `_common.py:1371` |
 | `clause_codes_plausible` | 1 | — | — | **1** | `_common.py:1874` |
-| **per lane** | **18** | **9** | **5** | **32** | |
+| **per lane** | **15** | **9** | **5** | **29** | |
 
-¹ **`section_codes_ordered` has no shared implementation.** It is three independent
-per-lane functions — `invariants/acts.py:121`, `rules.py:167`, `ordinance.py:213` (the
-last importing `fbr_ingest.discover.code_sort_key` at `:223`). All 3 hits are acts, so
-only `acts.py:121` is in play. The other five classes above are shared in `_common.py`,
-bound by name via `all_invariants` (`_common.py:2558-2570`), where a lane module's
-`inv_<name>` overrides `_common`'s.
+These five are shared in `_common.py`, bound by name via `all_invariants`
+(`_common.py:2558-2570`), where a lane module's `inv_<name>` overrides `_common`'s.
 
-**Five invariant classes are closed:** `body_chapters_in_tree`, `no_footnote_text_in_body`,
-`structure_counts`, `no_code_fragment_in_section_heading` (round 12, was 31), and
-`no_structural_heading_in_body` (round 13, was 175).
+**Six invariant classes are closed:** `body_chapters_in_tree`, `no_footnote_text_in_body`,
+`structure_counts`, `no_code_fragment_in_section_heading` (round 12, was 31),
+`no_structural_heading_in_body` (round 13, was 175), and **`section_codes_ordered`
+(round 15, was 3)**. Note that last one still has **no shared implementation** — it is
+three independent per-lane functions, `invariants/acts.py:121`, `rules.py:167` and
+`ordinance.py:213` (the last importing `fbr_ingest.discover.code_sort_key` at `:223`) — so
+a future regression can appear in one lane and not the others.
 
 **The governing rule: fixed, or exempted with evidence traced to the source PDF. There is
 no third state.** "Tracked and deferred" without an entry in
@@ -77,7 +76,7 @@ source-file counts on the right.
 
 | lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 18 | 14 | 80 | 93 |
+| acts | 15 | 11 | 80 | 93 |
 | rules | 9 | 4 | 11 | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
@@ -94,7 +93,7 @@ Each carries the evidence, the measurement already taken, and — for the three 
 one — **the approach already known to be wrong.** Read that part before proposing a fix;
 it is there because someone already spent a round on it.
 
-### Phase 3 — the register's 32
+### Phase 3 — the register's 29
 
 #### P3-1 — `section_carries_its_body` (21) — four unrelated causes, not one
 
@@ -181,7 +180,7 @@ Customs editions.
 
 Measured at **57 further hits across 24 documents, zero false**. Held out of round 13
 because it doubles re-conversion from 21 to 44 documents, twenty of them the Customs
-chapter tree that rounds 1 and 6 rebuilt. These 57 are **not in the register's 32** — the
+chapter tree that rounds 1 and 6 rebuilt. These 57 are **not in the register's 29** — the
 register counts what the invariants currently see.
 
 > **A test asserts the current *wrong* answer on purpose.**
@@ -195,12 +194,32 @@ register counts what the invariants currently see.
 Note `XIVA` and `XIV-A` are two *different* chapters of Sales Tax Rules 2006. Matching
 numerals by value collapses them.
 
-#### P3-6 — `section_codes_ordered` (3) — untraced
+#### P3-6 — `section_codes_ordered` — **CLOSED, round 15**
 
-Customs 2025 `'9' after '119'`; Sales Tax 2014 `'3' after '32AA'` and `'22' after '75'`.
-**Nobody has read the source pages for these.** Implementation is acts-only
-(`invariants/acts.py:121`). This is the cheapest item on the board in tokens — three PDF
-pages read — and it is untraced only because nobody did it.
+Was 3: Customs 2025 `'9' after '119'`; Sales Tax 2014 `'3' after '32AA'` and
+`'22' after '75'`. Now **0**.
+
+> **This entry said "the code was misread". That was wrong, and the pages disprove it.**
+> Not one section code was misread. All three hits were a **chapter** wearing the wrong
+> numeral, and the invariant could only see the consequence — sections walking backwards
+> because their container sorts somewhere else. Both fixes are therefore in the *chapter*
+> path, not the code path:
+>
+> 1. `toc.py`'s CHAPTER branch did not reset `pending_page`, so a contents row that
+>    printed **no folio** stayed open across a chapter boundary and the next chapter's
+>    caption opened a second, numeral-less node — `CHAPTER III` emitted **twice**.
+> 2. `pipeline.py`'s `insert_missing_body_chapters` paired leftover numeral-less nodes
+>    with leftover body numerals by **list position** (`zip(empties, unused)`), which is
+>    correct only where the two lists correspond one-to-one. Now paired by which body span
+>    actually prints the node's own sections.
+>
+> Full trace: `wip/phase3-round15-chapter-numeral-pairing.md`.
+
+**The lesson that generalises to the rows still open:** this class was ranked "cheapest,
+3 pages to read", and the reading is what disproved its own premise. Two of the remaining
+rows carry a *predicted* cause in the same voice — [P3-1c](#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one)
+("each already traced to a printed defect") and [P3-1a](#p3-1--section_carries_its_body-21--four-unrelated-causes-not-one).
+Neither prediction has been checked against a page since it was written.
 
 #### P3-7 — `clause_codes_plausible` (1, Finance Act 2024)
 
@@ -373,7 +392,7 @@ leaving it unrecorded is not.
 Every command below was run at this commit and produced exactly the output shown.
 
 ```sh
-.venv/bin/python tools/run_suite.py acts        # 18 hits
+.venv/bin/python tools/run_suite.py acts        # 15 hits
 .venv/bin/python tools/run_suite.py rules       #  9 hits
 .venv/bin/python tools/run_suite.py ordinance   #  5 hits
 .venv/bin/python -m pytest tools/tests -q       # 86 passed, 1 skipped in ~37s

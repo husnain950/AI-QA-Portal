@@ -355,6 +355,46 @@ def _demo() -> None:
     assert sorted(c.code for c in chs3) == ["CHAPTER XIV-A", "CHAPTER XIVA"], \
         [c.code for c in chs3]
 
+    # A numeral-less caption node takes the numeral whose BODY SPAN prints its
+    # own sections, never the one left over in list order.  Reasoning and both
+    # corpus traces are at the fix site in ``insert_missing_body_chapters``.
+    #
+    # This is the Sales Tax Act 1990 (01.07.2014) shape: the contents classify
+    # no numeral at all, and the body caption reads "APPOINTMENT OF 1 [OFFICERS
+    # OF SALES TAX]" where the contents say "APPOINTMENT OF OFFICER OF SALES
+    # TAX" -- 2 equal words against ``_captions_match``'s floor of 3.  That node
+    # is CHAPTER VI; pairing by position gave it I, and s.30 landed in
+    # PRELIMINARY.  ``section_codes_ordered`` reported "'3' out of order after
+    # '32AA'".
+    stoc = [
+        "        SCOPE AND PAYMENT OF TAX 19",
+        "        3.   Scope of tax.                                     19",
+        "        APPOINTMENT OF OFFICER OF SALES TAX & THEIR POWERS 43",
+        "        30.  Appointment of Authorities.                       43",
+        "        OFFENCES AND PENALTIES 47",
+        "        33.  Offences and penalties.                           47",
+    ]
+    chs4, _s4, secs4 = parse_toc(stoc, ACTS)
+    assert [c.code for c in chs4] == ["", ""], [c.code for c in chs4]
+    insert_missing_body_chapters(chs4, secs4, [
+        _ln("Chapter-I", 14), _ln("PRELIMINARY", 14),
+        _ln("1. Short title.- This Act may be called", 14),
+        _ln("Chapter-II", 27), _ln("SCOPE AND PAYMENT OF TAX", 27),
+        _ln("3. Scope of tax.- Subject to the provisions of this Act", 27),
+        _ln("Chapter-VI", 51),
+        _ln("APPOINTMENT OF 1 [OFFICERS OF SALES TAX] & THEIR POWERS", 51),
+        _ln("30. Appointment of Authorities.- For the purposes of this Act", 51),
+        _ln("Chapter-VII", 55), _ln("OFFENCES AND PENALTIES", 55),
+        _ln("33. Offences and penalties.- Whoever commits any offence", 55),
+    ])
+    by4 = {e.code: e for e in secs4}
+    assert by4["30"].parent.code == "CHAPTER VI", by4["30"].parent.code
+    assert by4["3"].parent.code == "CHAPTER II", by4["3"].parent.code
+    assert by4["33"].parent.code == "CHAPTER VII", by4["33"].parent.code
+    # and the numeral it must NOT have taken parents nothing
+    assert [e.code for e in secs4 if e.parent.code == "CHAPTER I"] == [], \
+        [e.code for e in secs4 if e.parent.code == "CHAPTER I"]
+
     # ---- amending-clause headings, pinned on the real corpus -------------
     # Every shape below is a verbatim clause heading from the 30 amending
     # documents on disk. They are the reason the pattern has five verbs, an
@@ -1425,11 +1465,6 @@ def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
         if match:
             _fill(ch, match)
 
-    unused = [num for _i, num, _c in entries if not _taken(num)]
-    empties = [ch for ch in chapters if not ch.code]
-    for ch, num in zip(empties, unused):
-        _fill(ch, num)
-
     pos_of_anchor = {id(r): i for i, r in enumerate(body_refs)}
 
     def _codes_in_span(lo: int, hi: int) -> set:
@@ -1441,6 +1476,49 @@ def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
                 seen.add(cc)
         return seen
 
+    def _next_body_idx(idx: int) -> int:
+        return next((n for n, _num, _c in entries if n > idx), len(body_refs))
+
+    # The spans are disjoint by construction, so building all of them costs one
+    # pass over ``body_refs`` -- the same as the single span the loop below used
+    # to compute per chapter -- and the caption fallback above reuses them.
+    span_of = {num: _codes_in_span(idx, _next_body_idx(idx))
+               for idx, num, _c in entries}
+
+    # A numeral-less caption node takes the numeral whose body span actually
+    # PRINTS its own sections.  What stood here paired the leftover nodes with
+    # the leftover numerals by list position -- ``zip(empties, unused)`` -- which
+    # is right only where the two lists correspond one-to-one, and they need not:
+    #
+    #   * Customs 1969 (30.06.2025) used to return ``CHAPTER III`` TWICE -- a
+    #     coded shell beside the caption node holding III's own sections -- so
+    #     the numeral III read as already taken (the ``toc.parse_toc`` half of
+    #     this round).  The contents also skip IV/IX/XI, the caption match
+    #     claims IV and IX, and the one numeral going spare was XI: ss.9-14A
+    #     were parented to WAREHOUSING, 70 pages from where they are printed.
+    #   * The Sales Tax Act 1990 (01.07.2014) contents classify no numeral at
+    #     all, and its body caption reads ``APPOINTMENT OF 1 [OFFICERS OF SALES
+    #     TAX]`` where the contents say ``APPOINTMENT OF OFFICER OF SALES TAX``
+    #     -- 2 equal words against ``_captions_match``'s floor of 3.  That node
+    #     is CHAPTER VI; position paired it with I, and s.30 landed in
+    #     PRELIMINARY.  The node holding ss.48-75 took III the same way.
+    #
+    # All three ``section_codes_ordered`` hits were this.  A node with no
+    # sections of its own now keeps no numeral rather than borrowing one.
+    codes_of: dict[int, set] = {}
+    for entry in ordered_sections:
+        holder = entry.parent
+        if holder is not None and not holder.code:
+            codes_of.setdefault(id(holder), set()).add(entry.code)
+    for ch in [c for c in chapters if not c.code]:
+        mine = codes_of.get(id(ch))
+        if not mine:
+            continue
+        match = next((num for _i, num, _c in entries
+                      if not _taken(num) and (mine & span_of[num])), None)
+        if match:
+            _fill(ch, match)
+
     remaining = [(idx, num, cap) for idx, num, cap in entries if not _taken(num)]
     for idx, num, cap in remaining:
         node = Node(kind="chapter", code="CHAPTER " + num, heading=cap or "")
@@ -1449,12 +1527,8 @@ def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
         chapters.append(node)
         taken.add(num)
         n_changed += 1
-        next_idx = len(body_refs)
-        for j, (nidx, nnum, _c) in enumerate(entries):
-            if nidx > idx:
-                next_idx = nidx
-                break
-        span = _codes_in_span(idx, next_idx)
+        next_idx = _next_body_idx(idx)
+        span = span_of[num]
         prev = _previous_chapter(chapters, num)
         for entry in ordered_sections:
             # An entry that carries an ANCHOR knows where it actually is, so place
