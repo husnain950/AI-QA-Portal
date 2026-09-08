@@ -1,19 +1,24 @@
 # Handover — start here
 
-Written **2026-09-04**, on `main` after PR #83 (round 17). Every number below was
+Written **2026-09-04**, on `main` after PR #83 (round 17); updated **2026-09-08**
+after PR #84 (round 18). Every number below was
 measured on this machine at that commit, not carried forward; §4 says which command
 produces each one.
 
 **One-line state:** the anomaly register is **25**, down from 210. It is committed and
-gated on CI. **19 of 66** checklist items remain open, plus one round 17 located — the
+gated on CI. **18 of 66** checklist items remain open, plus two located since (one by round
+17, one by round 18) — the
 residue of Phase 3, all of Phase 4 and Phase 5, and the OCR work, which is now
 **deliberately** out of scope (decided 2026-09-04; the decision and its consequences are
 in [`tasks.md`](tasks.md#decisions-on-record-2026-09-04)).
 
-**Round 17 moved the register by zero, on purpose.** It shipped the container-code guard
-and the PART separator widening it enables — **14 gained, 0 lost** — a class the
-invariants cannot see at all. A round that moves the register by zero and says so is
-working as designed; see §3's last rule.
+**Rounds 17 and 18 both moved the register by zero, on purpose.** Round 17 shipped the
+container-code guard and the PART separator widening it enables (**14 gained, 0 lost**).
+Round 18 closed the **CHAPTER letter suffix**: **80 swallowed boundary lines across 24
+documents went to 0**, with 0 leaves and 0 chapter nodes gained or lost — the register rose
+**+57** when the invariant was widened and fell **-57** when the parser was, netting zero.
+A round that moves the register by zero and says so is working as designed; see §3's last
+rule.
 
 > **This folder supersedes `wip/HANDOVER.md`.** That file was written 2026-08-30 at
 > register 64 and is now wrong on nearly every number it states. `wip/` is deliberately
@@ -44,7 +49,7 @@ against a live three-lane run at this commit.
 | `clause_codes_plausible` | 1 | — | — | **1** |
 | **per lane** | **15** | **5** | **5** | **25** |
 
-Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25`.
+Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25`.
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
 
@@ -53,6 +58,12 @@ instrument that made four existing defects visible for the first time.
 `no_structural_heading_in_body` (round 13, was 175), and **`section_codes_ordered`
 (round 15, was 3)** — which turned out to be three mislabelled *chapters*, not three
 misread section codes.
+
+`no_structural_heading_in_body` is closed **more strongly** since round 18: its own pattern
+carried the same narrow CHAPTER branch as the parser, so it was blind to 57 hits it should
+have reported. Both were widened together, and it is back to 0 with an instrument as wide as
+the defect. A closed class whose instrument is narrower than the bug is not closed -- it is
+unmeasured.
 
 `section_carries_its_body` is **not** among them, and its 21 → 17 in round 16 is why the
 distinction matters: that class has four unrelated causes and round 16 closed one of them
@@ -81,13 +92,20 @@ fix touches, so 61 scanned documents keep whatever revision last wrote them. At 
 
 | documents | `pipeline_revision` |
 |---|---|
-| 39 | `7cc5d34…-dirty` |
+| 29 | `7cc5d34…-dirty` |
+| **24** | **`e9d7e74…-dirty` (round 18)** |
 | 14 | *(none recorded)* |
 | 13 | `8e01b27…` (round 13) |
-| 12 | `6824850…-dirty` (round 15) |
 | 12 | `4827840…` (round 12) |
-| 8 | `06d8bfb…` (round 14) |
-| 5 | `e09d156…-dirty` (round 17) |
+| 8 | `6824850…-dirty` (round 15) |
+| 2 | `06d8bfb…` (round 14) |
+| 1 | `e09d156…-dirty` (round 17) |
+
+Recounted at this commit, and it sums to 103. Round 18's 24 documents superseded whatever
+revision they held before, which is why five of these rows fell — round 17's bucket from 5
+to **1**, round 15's from 12 to **8**, round 14's from 8 to **2**. A re-conversion does not
+only add a row to this table, it drains the others, and the rows are worth recounting rather
+than incrementing.
 
 Round 15 re-converted 15 documents, chosen by measurement rather than by guess: each
 acts/rules document's contents were parsed twice at the same commit, with the fix on and
@@ -105,6 +123,12 @@ candidate document **twice at the same commit** with the fix on and off — the 
 attribute a change on a mixed-revision corpus. Its round-16 predecessor's two documents and
 three of round 15's fifteen are among the five, which is why those rows fell.
 
+Round 18 re-converted **24** -- 20 Customs Act editions and 4 rules editions -- and its
+scope was measured the same way, over which body lines flip answer between the old pattern
+and the new. **The ledger's standing estimate of 44 was stale**: it dated from before round
+13 shipped. The flipped-line set and the invariant-hit set were the same 24 documents, which
+is the cross-check that the scope was right.
+
 ## 3. Ground rules
 
 - **Never commit to `main`.** One branch and one PR per unit of work.
@@ -121,7 +145,7 @@ three of round 15's fifteen are among the five, which is why those rows fell.
 
 ```sh
 .venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 15 / 5 / 5
-.venv/bin/python -m pytest tools/tests -q       # 92 passed, 1 skipped
+.venv/bin/python -m pytest tools/tests -q       # 98 passed, 1 skipped
 .venv/bin/python tools/run_tests_smoke.py       # package self-checks + lane suites
 .venv/bin/python tools/discover_corpus.py --check
 .venv/bin/ruff check                            # BARE -- matches ci.yml
@@ -171,8 +195,8 @@ factual below it has moved.
 | it says | actually |
 |---|---|
 | register **64** | **25** |
-| **16 of 48** items open | **19 of 66**, plus one located since |
-| after eight merged PRs (#46–#53) | #54–#83 have merged since |
+| **16 of 48** items open | **18 of 66**, plus two located since |
+| after eight merged PRs (#46–#53) | #54–#84 have merged since |
 | **three** invariant classes closed | **six** |
 | its whole §2 register table | wrong on every row — `no_foreign_section_start_in_body` 19 → 1, `section_carries_its_body` 37 → 17 |
 | "`section_carries_its_body` and `no_foreign_section_start_in_body` move together — fix start detection and both move" | superseded; the second is down to 1 and the first is now four unrelated causes |
@@ -180,7 +204,7 @@ factual below it has moved.
 | Phase 5's gate is "the deletion of the **two** Round 3 exemptions" | **4 entries**, across 2 documents. (`wip/tasks.md` says *five*; that is also wrong — verified by grep at this commit) |
 | "4c — transport and deploy … Docker is down on this host" | done, as the `wip/integration/` track, #59–#76 |
 | an exported transcript "is **not gitignored**" | resolved — `.gitignore:80` |
-| `pytest tools/tests` → 56 passed | 92 passed, 1 skipped |
+| `pytest tools/tests` → 56 passed | **98 passed, 1 skipped** |
 
 One more, not in HANDOVER: every file under `wip/integration/` still states the register as
 **34**. Round 14 took it to 32, round 15 to 29 and round 16 to **25**, where round 17 left

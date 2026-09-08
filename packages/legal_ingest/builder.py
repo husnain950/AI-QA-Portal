@@ -2205,8 +2205,32 @@ def preamble_refs(body_refs, ordered_sections, containers=()):
 # exemption nor a per-document rule can tell them apart.
 #
 # Division stays on ``\s+``: it has no measured gain to earn the same guard.
+#
+# The CHAPTER branch carries a letter suffix as of round 18.  ``grammar.CHAPTER_RE``
+# has accepted one since it was written -- its ``NUMERAL`` spells it -- so
+# ``CHAPTER XVI-A`` was a chapter to the grammar and not a boundary here, and its
+# caption sat in section 155's body across twenty Customs Act editions.  Measured
+# at 80 such lines over 24 documents, all real; closing it moved the register by
+# zero, because these chapters were already in the tree off the contents page and
+# the body was printing their captions a SECOND time.
+#
+# The class is deliberately NOT ``grammar.ROMAN``'s ``\s?-?[A-Z]{1,3}``:
+#
+#   * no SPACED form.  Under IGNORECASE a space-then-letters suffix eats the
+#     lowercase words of/or/for -- 28 false positives in the ordinance lane, which
+#     is what disqualified delegating to the grammar outright.  ``Chapter VII of``
+#     is refused only because a space cannot enter the suffix.
+#   * two letters, not three.  The longest real suffix in this corpus is two (AB,
+#     BB, AA, AC, AD, BA).  Three buys nothing and widens that same surface.
+#   * ``{1,2}`` not ``{0,2}``, so a trailing bare hyphen (``CHAPTER XVI-``) is not
+#     a boundary.  Fail-closed on a form the corpus does not print.
+#
+# The EN DASH separator is a separate, still-open gap: ``CHAPTER – VI`` is 42 real
+# boundaries over 21 documents, and ``grammar.CHAPTER_RE`` rejects those too, so it
+# cannot be closed by agreeing with the grammar the way this one was.  Pinned in
+# ``test_structural_boundary_agrees_with_grammar.KNOWN_GAP_ENDASH_CHAPTERS``.
 _STRUCTURAL_RE = re.compile(
-    r"^(CHAPTER[\s\-]+[IVXLC0-9]+|PART[\s\-]+[IVXLC0-9]+[A-Z]{0,2}|Division\s+[IVXLC0-9]+[A-Z]{0,2})$",
+    r"^(CHAPTER[\s\-]+[IVXLC0-9]+(?:-?[A-Z]{1,2})?|PART[\s\-]+[IVXLC0-9]+[A-Z]{0,2}|Division\s+[IVXLC0-9]+[A-Z]{0,2})$",
     re.IGNORECASE)
 
 #: The PART form the widening admits and the old ``PART\s+`` spelling did not:

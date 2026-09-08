@@ -24,18 +24,23 @@ Method: [`working-rules.md`](working-rules.md)
 Two tracks have finished. The **integration seam** closed as PRs #59–#76 — every problem
 in `wip/integration/plan.md` §3, and the corpus-wide identity hole went from 5,047 leaves
 (30%) to 89 (0.5%). The **anomaly register** went 210 → 25 over seventeen rounds, and is
-now committed and gated (`tools/suite/register.json`).
+now committed and gated (`tools/suite/register.json`) — eighteen rounds as of PR #84.
 
 What remains is the residue of both, and it is **harder per hit than what came before.**
 Rounds 1–7 each found *one cause explaining many hits*: the cursor cascade, the header
 band, the chapter numerals. What is left is mostly 1–2 hits per document with unrelated
-causes. There is exactly **one** remaining one-cause-many-hits item —
-[§4 P3-5](#p3-5--the-chapter-letter-suffix--57-hits-24-documents-all-real), at 57 hits —
-and that is the reason it is the top row in `tasks.md`. The other,
-[§4 P3-4](#p3-4--the-container-code-guard-closed-round-17), closed in round 17 and moved
-the register by **zero**, which is what it promised: it was the enabler for the PART
-separator widening, not a fix in its own right. **Expect a lower hits-per-round rate
-from here.** A round that closes two hits is not a bad round now.
+causes. **The last one-cause-many-hits item is now spent**:
+[§4 P3-5](#p3-5--the-chapter-letter-suffix--closed-round-18), at 57 hits, closed in round 18.
+It and [§4 P3-4](#p3-4--the-container-code-guard-closed-round-17) (round 17) both moved the
+register by **zero**, which is what each promised — P3-4 was the enabler for the PART
+separator widening, and P3-5's own instrument was as narrow as its defect, so the 57 hits
+appeared and vanished inside one round.
+
+**Expect a lower hits-per-round rate from here.** A round that closes two hits is not a bad
+round now, and the top row in `tasks.md` is an exemption-with-evidence judgement call rather
+than a fix. Two rounds in a row have also *located* new work while closing old
+(round 17 the schedule PART reader, round 18 the CHAPTER en-dash separator), so the open
+count is flat at 20 even though both rounds shipped.
 
 ---
 
@@ -201,28 +206,52 @@ This entry gave **two** arguments for the row. The first held; the second did no
 > carrying four Phase-5 exemption entries for exactly this. **Those four captions are
 > Phase 5, not this guard.**
 
-#### P3-5 — the CHAPTER letter suffix — 57 hits, 24 documents, all real
+#### P3-5 — the CHAPTER letter suffix — **CLOSED, round 18**
 
-`_STRUCTURAL_RE` (`packages/legal_ingest/builder.py:2104-2106`): the **CHAPTER branch is
-`CHAPTER[\s\-]+[IVXLC0-9]+` with no letter-suffix class, where PART and Division beside it
-both carry `[A-Z]{0,2}`.** So `CHAPTER XVI-A` sits in section 155's body across twenty
-Customs editions.
+**Closed by PR #84.** `_STRUCTURAL_RE`'s CHAPTER branch had no letter-suffix class, so
+`CHAPTER XVI-A` sat in section 155's body across twenty Customs editions. **80 swallowed
+boundary lines across 24 documents went to 0**; register **unchanged at 25** (rise +57 on
+the invariant, fall -57 on the parser). Artifact
+`wip/phase3-round18-chapter-letter-suffix.md`.
 
-Measured at **57 further hits across 24 documents, zero false**. Held out of round 13
-because it doubles re-conversion from 21 to 44 documents, twenty of them the Customs
-chapter tree that rounds 1 and 6 rebuilt. These 57 are **not in the register's 25** — the
-register counts what the invariants currently see.
+**0 leaves and 0 chapter nodes gained or lost, and no duplicate chapter code introduced.**
+Every one of these chapters was *already* in the tree off the contents page — the body was
+printing its caption a second time — so this class **un-duplicates**, which is why no
+`section_carries_its_body` hit moved: no section's body was missing anything, it had too
+much.
 
-> **A test asserts the current *wrong* answer on purpose.**
-> `tools/tests/test_structural_boundary_agrees_with_grammar.py:90-96`
-> (`test_the_letter_suffixed_chapter_gap_is_still_open`), over
-> `KNOWN_GAP_SUFFIXED_CHAPTERS` at `:63-65` — `["CHAPTER XVI-A", "1[CHAPTER XIX-A",
-> "248[CHAPTER XIVA", "[CHAPTER - VIAB"]`. **Do not repair it. Its failure is the signal
-> the widening landed** — the assertion message itself tells you to move the lines into
-> `BOUNDARIES` (`:35-39`) and re-measure.
+> **This entry's prescribed fix was wrong, and its quoted measurement was right.**
+> "The same suffix class as PART and Division" is `[A-Z]{0,2}`, which **cannot cross a
+> hyphen** — and the separator in this corpus usually *is* a hyphen. Done literally it finds
+> **9** hits, not the 57 this same entry quotes. The shipped class is `(?:-?[A-Z]{1,2})?`:
+> fused or hyphenated, **no spaced form and at most two letters**, because `grammar.ROMAN`'s
+> `\s?-?[A-Z]{1,3}` under `IGNORECASE` eats the lowercase words *of / or / for* — the 28
+> ordinance false positives already on record.
+>
+> **And two regexes were narrow, not one.** The suite's own `_STRUCT_LINE`
+> (`tools/suite/invariants/_common.py:447`) carried the identical narrow CHAPTER branch.
+> That is the mechanism behind "the register rises before it falls":
+> `no_structural_heading_in_body` is the instrument for this defect and was blind to it.
+> **A closed class whose instrument is narrower than the bug is not closed, it is
+> unmeasured.**
+>
+> **`grammar.CHAPTER_RE` accepted every one of these forms all along** — its `NUMERAL` has
+> carried the suffix since it was written. The whole row was a parser/grammar disagreement,
+> the same one round 13 closed for the separator, on the other half of the same line. But
+> the parser must **not** delegate to the grammar: it also accepts `Chapter VII of` and
+> `chapter 87 35`.
+>
+> **"44 documents" was a round-13-era estimate**, from before round 13 shipped. Measured at
+> this commit by which body lines flip answer: **24 documents, 80 lines**.
 
-Note `XIVA` and `XIV-A` are two *different* chapters of Sales Tax Rules 2006. Matching
-numerals by value collapses them.
+`XIVA` and `XIV-A` remain two *different* chapters of Sales Tax Rules 2006 — `toc._chapter_numeral`
+only uppercases and Arabic->Roman, so they stay distinct nodes. Matching numerals by value
+would collapse them.
+
+**A second gap on the same line of code was located and deliberately left open:** the
+**en-dash separator**, 42 real boundaries across 21 documents. `grammar.CHAPTER_RE` rejects
+those too, so unlike this row it cannot be closed by making the parser agree with the
+grammar — the grammar has to move first. Pinned as `KNOWN_GAP_ENDASH_CHAPTERS`.
 
 #### P3-6 — `section_codes_ordered` — **CLOSED, round 15**
 
@@ -382,7 +411,8 @@ P3-1d (ordinance 5) ──── blocked on ── P4-2  (fbr_ingest routing)
 P4-1 (--profile auto) ── blocked on ── Phase 3 at zero-or-exempted
 P5-1 completion ──────── DEFINED BY ── deleting exemptions/rules.json:47-66
 P3-4 (container guard) ─ CLOSED r17 ── the PART separator widening shipped with it
-P3-5 (CHAPTER suffix) ── breaks ────── test_..._gap_is_still_open (by design)
+P3-5 (CHAPTER suffix) ── CLOSED round 18; its pin is spent, replaced by the
+                          en-dash pin (test_the_en_dash_chapter_gap_is_still_open)
 delete _legacy_section_key ─ blocked on ─ 14 stale acts docs ─ blocked on ─ OCR decision
 ```
 
@@ -425,7 +455,7 @@ Every command below was run at this commit and produced exactly the output shown
 .venv/bin/python tools/run_suite.py acts        # 15 hits
 .venv/bin/python tools/run_suite.py rules       #  5 hits
 .venv/bin/python tools/run_suite.py ordinance   #  5 hits
-.venv/bin/python -m pytest tools/tests -q       # 92 passed, 1 skipped in ~33s
+.venv/bin/python -m pytest tools/tests -q       # 98 passed, 1 skipped in ~33s
 .venv/bin/python tools/run_tests_smoke.py       # package self-checks + lane suites
 .venv/bin/python tools/discover_corpus.py --check   # "no drift"
 .venv/bin/ruff check                            # "All checks passed!"  -- BARE

@@ -443,8 +443,20 @@ def inv_schedules_have_content(doc):
 # decoration is stripped before matching: a line with a trailing "]" alone is
 # a wrapped table cell ("... of Chapter X or\nChapter XII]" in section 182's
 # penalty table) and is legitimate body content.
+# The CHAPTER branch carries a letter suffix as of round 18, in step with
+# ``builder._STRUCTURAL_RE``.  It had to: this pattern was as narrow as the parser
+# bug it exists to report, so ``no_structural_heading_in_body`` read 0 while 80
+# swallowed ``CHAPTER XVI-A``-shaped boundaries sat in bodies across 24 documents.
+# Widening it alone took the register 25 -> 82; widening the parser and
+# re-converting took it back to 25.  A closed class whose instrument is narrower
+# than the defect is not closed, it is unmeasured.
+#
+# ``PART`` stays on ``\s+`` here even though the parser widened it in round 17:
+# the vouched half of that widening is per-chapter and this line has no container
+# to consult, so widening it would report the nine annexure-FORM part lines in the
+# rules lane as defects.  See ``test_structural_boundary_agrees_with_grammar``.
 _STRUCT_LINE = re.compile(
-    r"^(CHAPTER[\s\-]+[IVXLC0-9]+|PART\s+[IVXLC0-9]+[A-Z]{0,2}|"
+    r"^(CHAPTER[\s\-]+[IVXLC0-9]+(?:-?[A-Z]{1,2})?|PART\s+[IVXLC0-9]+[A-Z]{0,2}|"
     r"DIVISION\s+[IVXLC0-9]+[A-Z]{0,2})$", re.IGNORECASE)
 
 
