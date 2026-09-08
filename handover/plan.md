@@ -23,8 +23,8 @@ Method: [`working-rules.md`](working-rules.md)
 
 Two tracks have finished. The **integration seam** closed as PRs #59–#76 — every problem
 in `wip/integration/plan.md` §3, and the corpus-wide identity hole went from 5,047 leaves
-(30%) to 89 (0.5%). The **anomaly register** went 210 → 25 over seventeen rounds, and is
-now committed and gated (`tools/suite/register.json`) — eighteen rounds as of PR #84.
+(30%) to 89 (0.5%). The **anomaly register** went 210 → 22 over nineteen rounds, and is
+now committed and gated (`tools/suite/register.json`) — nineteen rounds as of PR #85.
 
 What remains is the residue of both, and it is **harder per hit than what came before.**
 Rounds 1–7 each found *one cause explaining many hits*: the cursor cascade, the header
@@ -101,9 +101,9 @@ Each carries the evidence, the measurement already taken, and — for the three 
 one — **the approach already known to be wrong.** Read that part before proposing a fix;
 it is there because someone already spent a round on it.
 
-### Phase 3 — the register's 25
+### Phase 3 — the register's 22
 
-#### P3-1 — `section_carries_its_body` (17) — four unrelated causes, one of them closed
+#### P3-1 — `section_carries_its_body` (14) — four unrelated causes, two of them closed
 
 The largest class, and no longer a single defect. Invariant: `_common.py:1267`. Split so
 the causes can be worked separately:

@@ -1,12 +1,12 @@
 # Handover — start here
 
 Written **2026-09-04**, on `main` after PR #83 (round 17); updated **2026-09-08**
-after PR #84 (round 18). Every number below was
+after PR #84 (round 18) and PR #85 (round 19). Every number below was
 measured on this machine at that commit, not carried forward; §4 says which command
 produces each one.
 
-**One-line state:** the anomaly register is **25**, down from 210. It is committed and
-gated on CI. **18 of 66** checklist items remain open, plus two located since (one by round
+**One-line state:** the anomaly register is **22**, down from 210. It is committed and
+gated on CI. **17 of 66** checklist items remain open, plus two located since (one by round
 17, one by round 18) — the
 residue of Phase 3, all of Phase 4 and Phase 5, and the OCR work, which is now
 **deliberately** out of scope (decided 2026-09-04; the decision and its consequences are
@@ -19,6 +19,12 @@ documents went to 0**, with 0 leaves and 0 chapter nodes gained or lost — the 
 **+57** when the invariant was widened and fell **-57** when the parser was, netting zero.
 A round that moves the register by zero and says so is working as designed; see §3's last
 rule.
+
+**Round 19 took the register to 22** — the first movement in three rounds — by **exemption
+with evidence**, not by a fix: the three heading-only leaves of Sales Tax Rules 2006
+(01-01-2025) are each a printing error in the source, traced to PDF pages 66, 109 and 151.
+Two of the three traces the ledger carried for them were **wrong**; see
+[`tasks.md` task 5](tasks.md#5-the-round-10-rules-residue--3-hits-an-exemption-row).
 
 > **This folder supersedes `wip/HANDOVER.md`.** That file was written 2026-08-30 at
 > register 64 and is now wrong on nearly every number it states. `wip/` is deliberately
@@ -42,14 +48,14 @@ against a live three-lane run at this commit.
 
 | invariant | acts | rules | ordinance | total |
 |---|---|---|---|---|
-| `section_carries_its_body` | 8 | 4 | 5 | **17** |
+| `section_carries_its_body` | 8 | 1 | 5 | **14** |
 | `no_chapter_caption_in_section_heading` | 4 | — | — | **4** |
 | `preamble_carries_no_toc_tail` | 2 | — | — | **2** |
 | `no_foreign_section_start_in_body` | — | 1 | — | **1** |
 | `clause_codes_plausible` | 1 | — | — | **1** |
-| **per lane** | **15** | **5** | **5** | **25** |
+| **per lane** | **15** | **2** | **5** | **22** |
 
-Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25`.
+Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22`.
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
 
@@ -65,9 +71,10 @@ have reported. Both were widened together, and it is back to 0 with an instrumen
 the defect. A closed class whose instrument is narrower than the bug is not closed -- it is
 unmeasured.
 
-`section_carries_its_body` is **not** among them, and its 21 → 17 in round 16 is why the
-distinction matters: that class has four unrelated causes and round 16 closed one of them
-(the STSP 58U/58V pair). Three remain, plus the ordinance five behind the `fbr_ingest`
+`section_carries_its_body` is **not** among them, and its 21 → 17 → **14** across rounds 16
+and 19 is why the distinction matters: that class has four unrelated causes, round 16 closed
+one of them (the STSP 58U/58V pair) and round 19 **exempted** another with evidence (the
+round-10 rules residue). Two remain, plus the ordinance five behind the `fbr_ingest`
 decision.
 
 **The rule has not changed: fixed, or exempted with evidence traced to the source PDF.
@@ -144,7 +151,7 @@ is the cross-check that the scope was right.
 ## 4. Verification
 
 ```sh
-.venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 15 / 5 / 5
+.venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 15 / 2 / 5
 .venv/bin/python -m pytest tools/tests -q       # 98 passed, 1 skipped
 .venv/bin/python tools/run_tests_smoke.py       # package self-checks + lane suites
 .venv/bin/python tools/discover_corpus.py --check
@@ -194,11 +201,11 @@ factual below it has moved.
 
 | it says | actually |
 |---|---|
-| register **64** | **25** |
-| **16 of 48** items open | **18 of 66**, plus two located since |
-| after eight merged PRs (#46–#53) | #54–#84 have merged since |
+| register **64** | **22** |
+| **16 of 48** items open | **17 of 66**, plus two located since |
+| after eight merged PRs (#46–#53) | #54–#85 have merged since |
 | **three** invariant classes closed | **six** |
-| its whole §2 register table | wrong on every row — `no_foreign_section_start_in_body` 19 → 1, `section_carries_its_body` 37 → 17 |
+| its whole §2 register table | wrong on every row — `no_foreign_section_start_in_body` 19 → 1, `section_carries_its_body` 37 → 14 |
 | "`section_carries_its_body` and `no_foreign_section_start_in_body` move together — fix start detection and both move" | superseded; the second is down to 1 and the first is now four unrelated causes |
 | Sales Tax 15.9.2021 — "the pages *interleave*. Read those source pages before theorising" | **disproved.** They do not interleave; it was the cursor cascade, closed in round 9 |
 | Phase 5's gate is "the deletion of the **two** Round 3 exemptions" | **4 entries**, across 2 documents. (`wip/tasks.md` says *five*; that is also wrong — verified by grep at this commit) |
@@ -207,8 +214,8 @@ factual below it has moved.
 | `pytest tools/tests` → 56 passed | **98 passed, 1 skipped** |
 
 One more, not in HANDOVER: every file under `wip/integration/` still states the register as
-**34**. Round 14 took it to 32, round 15 to 29 and round 16 to **25**, where round 17 left
-it. `wip/tasks.md:664` also states `section_codes_ordered` as **4** open hits; the class is
+**34**. Round 14 took it to 32, round 15 to 29, round 16 to 25, where rounds 17 and 18 left it,
+and round 19 to **22**. `wip/tasks.md:664` also states `section_codes_ordered` as **4** open hits; the class is
 **closed**. And `wip/tasks.md:401`'s container-code guard box is unticked there; **round 17
 closed it**, and this folder is the authority on that.
 

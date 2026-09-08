@@ -1,6 +1,6 @@
 # What is left
 
-20 open items — 18 carried, plus two located since (round 17 the schedule PART reader,
+19 open items — 17 carried, plus two located since (round 17 the schedule PART reader,
 round 18 the CHAPTER en-dash separator). Ranked by value, each with the one thing that
 actually blocks it.
 State and verification are in [`README.md`](README.md); method is in
@@ -13,8 +13,9 @@ from** — is [`tasks.md`](tasks.md).
 > the authority** and every round must update all three. Flagged 2026-09-04, round 15;
 > still true after rounds 16, 17 and 18, each of which had to touch all three again — and
 > round 17 found this file and `plan.md` **both** asserting something the measurement
-> disproved (item 4 below), which is exactly the cost the warning predicts. **Round 18 paid
-> it again**, from `tasks.md` itself: its prescribed fix for item 5 (`[A-Z]{0,2}`, "the same
+> disproved (item 4 below), which is exactly the cost the warning predicts. **Rounds 18 and
+> 19 both paid it again** — round 19 found *two of the three* traces for its row wrong at the
+> source pages. **Round 18 paid it**, from `tasks.md` itself: its prescribed fix for item 5 (`[A-Z]{0,2}`, "the same
 > suffix class as PART and Division") cannot cross a hyphen and finds 9 of the 57 hits the
 > same row quotes. The measurement was right and the instruction derived from it was wrong.
 
@@ -26,9 +27,9 @@ before it needs code, and the top row is now a judgement call rather than a fix.
 
 ---
 
-## Phase 3 — the register's 25
+## Phase 3 — the register's 22
 
-### 1. `section_carries_its_body` (17) — four unrelated causes, one of them closed
+### 1. `section_carries_its_body` (14) — four unrelated causes, two of them closed
 
 The largest class, and no longer a single defect:
 
@@ -41,9 +42,14 @@ The largest class, and no longer a single defect:
   wraps the code and the dot prints after the `]`. `_BRACKETED_DOTLESS_RE` read that as
   rule **58**. One new pattern in `builder._candidate_code_raw`; artifact
   `wip/phase3-round16-bracketed-code-dot.md`.
-- **The round-10 residue (3, rules).** Sales Tax Rules 01-01-2025, each already traced to a
-  printed defect: 44A opens with a left double quote, 150ZQZI is printed `150ZQZl`, and
-  150W's code appears only in a footnote.
+- ~~**The round-10 residue (3, rules).**~~ **CLOSED, round 19** (PR #85), by *exemption with
+  evidence* — all three are printing errors in a `native-digital` source, so no parser change
+  can read them: 44A prints `“44A.` with a left double quote (p.66); **150W prints `228[50W.`
+  with its leading digit dropped** (p.109) — *not* "only in a footnote", which is what this
+  file used to say; and 150ZQZI prints `150ZQZl` with a lowercase L (p.151) while **p.152
+  carries a genuinely different rule `150ZQZL`**, so the two cannot be folded. Entered with
+  **no expiry**: this document is never OCR'd, so the earlier "OCR-class, may expire on the
+  OCR decision" note was wrong on both counts.
 - **The ordinance five**, which live in the `fbr_ingest` fork and are sequenced behind the
   Phase 4 decision on it.
 

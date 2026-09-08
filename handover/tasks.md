@@ -3,13 +3,13 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **25**. **18 of 66** checklist items are open, plus 3 optional
+**State:** the register is **22**. **17 of 66** checklist items are open, plus 3 optional
 leftovers from the finished integration track. Reasoning for every row is in
 [`plan.md`](plan.md); state is in [`README.md`](README.md); the traps are in
 [`working-rules.md`](working-rules.md).
 
 Written 2026-09-04 on `main` after PR #83 (round 17); updated 2026-09-08 after PR #84
-(round 18). **Next round is 19; next PR is #85.**
+(round 18) and PR #85 (round 19). **Next round is 20; next PR is #86.**
 
 **Six invariant classes are closed.** Round 15 closed `section_codes_ordered` — see
 [task 1's Result](#1-trace-section_codes_ordered--3-hits-acts--closed-round-15). Round 16
@@ -25,7 +25,12 @@ enables: 14 gained, 0 lost, register unchanged at 25 — see
 (rise +57 on the invariant, fall −57 on the parser) — see
 [task 3's Result](#3-the-chapter-letter-suffix--57-hits-24-documents--closed-round-18). It
 also **located a second gap on the same line of code** and left it open on evidence: the
-**en-dash separator**, 42 lines across 21 documents, now row 9.
+**en-dash separator**, 42 lines across 21 documents, now row 8.
+
+**Round 19 closed the round-10 rules residue** — the register's first movement in three
+rounds, **25 → 22**, by *exemption with evidence*: all three are printing errors traced to
+PDF pages 66, 109 and 151. **Two of the three traces this file carried were wrong** — see
+[task 5's Result](#5-the-round-10-rules-residue--3-hits-an-exemption-row).
 
 ### Decisions on record (2026-09-04)
 
@@ -52,22 +57,21 @@ in Customs Rules 2001. See [task 4's Result](#4-the-container-code-guard--0-hits
 ## Start here — pick one
 
 Ranked by value against cost, each with the ONE thing that actually blocks it. An agent
-with no other context can take a row and start. **Row 1 is the row to take.** Rounds 16, 17 and 18 spent the
-three cheapest rows on the board (the STSP pair, the container guard, the CHAPTER suffix);
-row 1 is now an exemption-with-evidence judgement call, and everything below it needs a
-trace before it needs code.
+with no other context can take a row and start. **Row 1 is the row to take.** Rounds 16-19 spent the four
+cheapest rows on the board (the STSP pair, the container guard, the CHAPTER suffix, the
+round-10 residue). Nothing left is cheap: row 1 needs an **omission-aware fallback** that a
+measured guard already failed at, and every row below it needs a trace before it needs code.
 
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
-| 1 | **the round-10 rules residue** | 3 | a judgement call, not code: all three are *printed* defects, so this is an **exemption-with-evidence** row. Cheapest row that moves the register. | [P3-1c](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 2 | **the heading-terminator scan** | 3 | needs an **omission-aware fallback**; the obvious guard was measured losing section 32AA outright. | [P3-2](plan.md#p3-2--the-heading-terminator-scan-that-walks-through-a-boundary-3-acts) |
-| 3 | **the omission spellings** | 2 | `A O mitted` needs an intra-word-space tolerance a precision regex refused in round 3. Re-measure now the count is traceable. | [P3-1a](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 4 | **`preamble_carries_no_toc_tail`** | 2 | needs **a signal other than row density** — the `rows >= 3` floor is load-bearing and may not be lowered. | [P3-3](plan.md#p3-3--preamble_carries_no_toc_tail-2-acts) |
-| 5 | **the single-document remainder** | 7 | nothing shared — PSW ministry list, PFMA s.26, `R(cid:2)fund`. Three unrelated traces. | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 6 | **`clause_codes_plausible`** | 1 | **do not weaken the check.** Two routes suggested, neither measured. | [P3-7](plan.md#p3-7--clause_codes_plausible-1-finance-act-2024) |
-| 7 | **decide the `fbr_ingest` fork** | 5 ³ | **a decision, on evidence already committed.** Route by family, not by lane. Merging stays the v1 non-goal. | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
-| 8 | **the schedule PART reader** | 0 ⁶ | **newly located, cause not yet known.** `schedules._kind()` accepts 18 of the 20 lines, so the pattern is not it. Diagnose before fixing. | [round 17](../wip/phase3-round17-container-code-guard.md) |
-| 9 | **the CHAPTER en-dash separator** | 0 ⁷ | **grammar must move first.** `grammar.CHAPTER_RE` rejects `CHAPTER – VI` too, and its `[–—]` branch reads an en dash as a same-line TITLE. Round 18 located it, pinned it, and left it. | [round 18](../wip/phase3-round18-chapter-letter-suffix.md) |
+| 1 | **the heading-terminator scan** | 3 | needs an **omission-aware fallback**; the obvious guard was measured losing section 32AA outright. | [P3-2](plan.md#p3-2--the-heading-terminator-scan-that-walks-through-a-boundary-3-acts) |
+| 2 | **the omission spellings** | 2 | `A O mitted` needs an intra-word-space tolerance a precision regex refused in round 3. Re-measure now the count is traceable. | [P3-1a](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| 3 | **`preamble_carries_no_toc_tail`** | 2 | needs **a signal other than row density** — the `rows >= 3` floor is load-bearing and may not be lowered. | [P3-3](plan.md#p3-3--preamble_carries_no_toc_tail-2-acts) |
+| 4 | **the single-document remainder** | 7 | nothing shared — PSW ministry list, PFMA s.26, `R(cid:2)fund`. Three unrelated traces. | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| 5 | **`clause_codes_plausible`** | 1 | **do not weaken the check.** Two routes suggested, neither measured. | [P3-7](plan.md#p3-7--clause_codes_plausible-1-finance-act-2024) |
+| 6 | **decide the `fbr_ingest` fork** | 5 ³ | **a decision, on evidence already committed.** Route by family, not by lane. Merging stays the v1 non-goal. | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
+| 7 | **the schedule PART reader** | 0 ⁶ | **newly located, cause not yet known.** `schedules._kind()` accepts 18 of the 20 lines, so the pattern is not it. Diagnose before fixing. | [round 17](../wip/phase3-round17-container-code-guard.md) |
+| 8 | **the CHAPTER en-dash separator** | 0 ⁷ | **grammar must move first.** `grammar.CHAPTER_RE` rejects `CHAPTER – VI` too, and its `[–—]` branch reads an en dash as a same-line TITLE. Round 18 located it, pinned it, and left it. | [round 18](../wip/phase3-round18-chapter-letter-suffix.md) |
 | 10 | **the cross-edition index** | 0 ⁴ | needs a new per-group index over `output/*.json`; `signatures.json`'s counts are PDF-regex, not tree counts. | [P3-8](plan.md#p3-8--no-invariant-can-see-a-document-that-lost-93-of-its-sections) |
 | 11 | **the instrument tree level** (4 limbs) | 0 ⁵ | limb 2 is **23 walker sites across 11 files** and a new `Node.kind` is dropped *silently*. | [Phase 5](plan.md#phase-5--the-instrument-tree-level-4-limbs-not-started) |
 | 12 | flip `--profile auto` to default | — | **BLOCKED: Phase 3 must reach zero-or-exempted first.** Flipping it re-parses everything and destroys attribution. | [P4-1](plan.md#p4-1--flip---profile-auto-to-the-default) |
@@ -76,8 +80,6 @@ trace before it needs code.
 | 15 | the `ReviewToolbar` approval gate | — | **DECIDED 2026-09-04: gate on CRITICAL flags only.** Switch to `hasCriticalQualityFlags`, which is already tested and unused. One line plus the test. Cheapest row on the board. | [Deferred](#deferred-with-reasons) |
 | 16 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect. | [Deferred](#deferred-with-reasons) |
 
-¹ Not in the register's 25 — the invariants cannot currently see them. Closing this row
-*adds* hits before it removes them; see the task below.
 ³ Unblocks the ordinance five in `section_carries_its_body`, and 9 documents. Round 15 confirmed the ordinance lane is unreachable from `legal_ingest`: it runs `fbr_ingest`, which carries its own `toc.py` and its own `insert_missing_body_chapters`.
 ⁴ A new instrument, not a fix. Round 11 lost 93% of a document's sections and the register
 moved 3.
@@ -104,7 +106,7 @@ closed it**, and this file is the authority on that, not `wip/`.
 | `:664` `section_codes_ordered` | **CLOSED, round 15.** It said **4** hits, the register said **3**, and it is now **0** |
 | `:401` container-code guard | **CLOSED, round 17.** 14 gained, 0 lost, register unchanged |
 | `:418` CHAPTER letter suffix | **CLOSED, round 18.** 80 lines over 24 documents to 0; register unchanged |
-| `:436` `section_carries_its_body` — now **17** | 2, 4, 6 (one box, and **round 16 closed the fourth of its causes**) |
+| `:436` `section_carries_its_body` — now **14** | 2, 4 (one box; **round 16 closed the fourth of its causes and round 19 exempted the round-10 residue**) |
 | `:388` heading-terminator scan | 3 |
 | `:379` `preamble_carries_no_toc_tail` | 5 |
 | `:668` `clause_codes_plausible` | 7 |
@@ -118,8 +120,8 @@ closed it**, and this file is the authority on that, not `wip/`.
 Rows **8** and **9** have no box in `wip/` at all: round 17 located the schedule PART reader
 and round 18 the CHAPTER en-dash separator, and both are new work, not carried items. Rows
 14–16 are also **not** among the unchecked boxes — they come from
-`wip/integration/tasks.md`'s own ledger. So: **18 checklist items + 2 new + 3 integration
-leftovers = 23 open things**, which is the honest total.
+`wip/integration/tasks.md`'s own ledger. So: **17 checklist items + 2 new + 3 integration
+leftovers = 22 open things**, which is the honest total.
 
 ---
 
@@ -295,7 +297,7 @@ make convert-acts PYTHON=/Users/muhammad.husnain/Downloads/code/crx/.venv/bin/py
 #    Do not edit packages/ while this runs. Mind the 19 files with no .pdf extension.
 
 # 6. Re-measure ALL THREE lanes -- a fix in one lane can move another.
-for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L; done
+for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L; done   # 15 / 2 / 5
 
 # 7. Regenerate the register IN THIS PR. No Make target, no pytest flag.
 .venv/bin/python tools/tests/test_register_snapshot.py --write
@@ -329,15 +331,14 @@ here* table as rows close. Current mapping:
 
 | Start here row | section below |
 |---|---|
-| 1 the round-10 rules residue | [5](#5-the-round-10-rules-residue--3-hits-an-exemption-row) |
-| 2 the heading-terminator scan | [6](#6-the-heading-terminator-scan--3-hits-acts) |
-| 3 the omission spellings | [7](#7-the-omission-spellings--2-hits-acts) |
-| 4 `preamble_carries_no_toc_tail` | [8](#8-preamble_carries_no_toc_tail--2-hits-acts) |
-| 5 the single-document remainder | [9](#9-the-single-document-remainder--7-hits) |
-| 6 `clause_codes_plausible` | [10](#10-clause_codes_plausible--1-hit-finance-act-2024) |
-| 7 decide the `fbr_ingest` fork | [11](#11-decide-the-fbr_ingest-fork--unblocks-5-hits-and-9-documents) |
-| 8 the schedule PART reader | *none yet* — round 17 located it; see its artifact |
-| 9 the CHAPTER en-dash separator | *none yet* — round 18 located it; see its artifact |
+| 1 the heading-terminator scan | [6](#6-the-heading-terminator-scan--3-hits-acts) |
+| 2 the omission spellings | [7](#7-the-omission-spellings--2-hits-acts) |
+| 3 `preamble_carries_no_toc_tail` | [8](#8-preamble_carries_no_toc_tail--2-hits-acts) |
+| 4 the single-document remainder | [9](#9-the-single-document-remainder--7-hits) |
+| 5 `clause_codes_plausible` | [10](#10-clause_codes_plausible--1-hit-finance-act-2024) |
+| 6 decide the `fbr_ingest` fork | [11](#11-decide-the-fbr_ingest-fork--unblocks-5-hits-and-9-documents) |
+| 7 the schedule PART reader | *none yet* — round 17 located it; see its artifact |
+| 8 the CHAPTER en-dash separator | *none yet* — round 18 located it; see its artifact |
 | 10 the cross-edition index | [12](#12-the-cross-edition-index--a-new-instrument) |
 | 11 the instrument tree level | [13](#13-the-instrument-tree-level--phase-5-4-limbs) |
 | 12 `--profile auto` default | [14](#14---profile-auto-as-the-default--blocked) |
@@ -346,7 +347,8 @@ here* table as rows close. Current mapping:
 Closed: section [1](#1-trace-section_codes_ordered--3-hits-acts--closed-round-15) (round
 15), [2](#2-the-stsp-58u58v-pair--4-hits-rules--closed-round-16) (round 16),
 [4](#4-the-container-code-guard--0-hits-an-enabler--closed-round-17) (round 17),
-[3](#3-the-chapter-letter-suffix--57-hits-24-documents--closed-round-18) (round 18).
+[3](#3-the-chapter-letter-suffix--57-hits-24-documents--closed-round-18) (round 18),
+[5](#5-the-round-10-rules-residue--3-hits-an-exemption-row) (round 19).
 
 ### 1. Trace `section_codes_ordered` — 3 hits, acts — **CLOSED, round 15**
 
@@ -551,7 +553,7 @@ predicate.
 
 ---
 
-### 5. The round-10 rules residue — 3 hits, an exemption row
+### 5. The round-10 rules residue — 3 hits, an exemption row — **CLOSED, round 19**
 
 Sales Tax Rules 01-01-2025, each already traced to a **printed** defect: 44A opens with a
 left double quote; 150ZQZI is printed `150ZQZl` (lowercase L for capital i); 150W's code
@@ -572,7 +574,26 @@ green; each entry names the page it was traced to.
 not "fix" `150ZQZl` by collapsing `l`→`I`. Both make the parser wrong about correct
 documents to be right about a broken one.
 
-**Result** — _(empty)_
+**Result** — **closed by PR #85 (round 19).** Register **25 → 22**, one exemption entry
+covering all three hits (the format keys on `applies_to` + `invariant`, so three separate
+entries for one pair is not a shape it has). `register.json` regenerated in the PR.
+
+All three re-confirmed against the source pages, and **two of the three traces above were
+wrong**:
+
+| hit | this file said | the page says |
+|---|---|---|
+| 44A | opens with a left double quote | **correct** — p.66 prints `“44A. -Selection and conduct of audit.-(1)` |
+| 150W | "code appears only in a footnote" | **wrong** — p.109 prints `228[50W. Audit.--`, the leading digit **dropped**, while its contents row on p.10 reads `150W. Audit` |
+| 150ZQZI | printed `150ZQZl`, an **OCR-class** defect that "may expire on the OCR decision" | spelling **correct** (p.151), expiry **wrong** — `source_kind` is `native-digital`, so this document is never OCR'd and the defect **can never expire on that decision** |
+
+The 150ZQZI trace also gained the argument that makes it un-fixable rather than merely
+awkward: **p.152 carries a genuinely different rule, `150ZQZL. Right granted to the
+licensee`**, so collapsing `l`→`I` would collide two real rules. (Its contents row on p.13
+also prints the typo `liceensing`, which is where the leaf's heading comes from.)
+
+Entered with **no expiry**, and the three hits are **enumerated in the reason on purpose**: a
+fourth hit on this document would be a new defect the entry does not describe.
 
 ---
 
