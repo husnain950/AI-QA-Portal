@@ -1,14 +1,19 @@
 # Handover — start here
 
-Written **2026-09-04**, on `main` after PR #82 (round 16). Every number below was
+Written **2026-09-04**, on `main` after PR #83 (round 17). Every number below was
 measured on this machine at that commit, not carried forward; §4 says which command
 produces each one.
 
 **One-line state:** the anomaly register is **25**, down from 210. It is committed and
-gated on CI. **20 of 66** checklist items remain open — the residue of Phase 3, all of
-Phase 4 and Phase 5, and the OCR work, which is now **deliberately** out of scope
-(decided 2026-09-04; the decision and its consequences are in
-[`tasks.md`](tasks.md#decisions-on-record-2026-09-04)).
+gated on CI. **19 of 66** checklist items remain open, plus one round 17 located — the
+residue of Phase 3, all of Phase 4 and Phase 5, and the OCR work, which is now
+**deliberately** out of scope (decided 2026-09-04; the decision and its consequences are
+in [`tasks.md`](tasks.md#decisions-on-record-2026-09-04)).
+
+**Round 17 moved the register by zero, on purpose.** It shipped the container-code guard
+and the PART separator widening it enables — **14 gained, 0 lost** — a class the
+invariants cannot see at all. A round that moves the register by zero and says so is
+working as designed; see §3's last rule.
 
 > **This folder supersedes `wip/HANDOVER.md`.** That file was written 2026-08-30 at
 > register 64 and is now wrong on nearly every number it states. `wip/` is deliberately
@@ -39,7 +44,7 @@ against a live three-lane run at this commit.
 | `clause_codes_plausible` | 1 | — | — | **1** |
 | **per lane** | **15** | **5** | **5** | **25** |
 
-Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25`.
+Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25`.
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
 
@@ -77,12 +82,12 @@ fix touches, so 61 scanned documents keep whatever revision last wrote them. At 
 | documents | `pipeline_revision` |
 |---|---|
 | 39 | `7cc5d34…-dirty` |
-| 15 | `6824850…-dirty` (round 15) |
 | 14 | *(none recorded)* |
 | 13 | `8e01b27…` (round 13) |
+| 12 | `6824850…-dirty` (round 15) |
 | 12 | `4827840…` (round 12) |
 | 8 | `06d8bfb…` (round 14) |
-| 2 | `88f5d14…-dirty` (round 16) |
+| 5 | `e09d156…-dirty` (round 17) |
 
 Round 15 re-converted 15 documents, chosen by measurement rather than by guess: each
 acts/rules document's contents were parsed twice at the same commit, with the fix on and
@@ -94,6 +99,11 @@ rather than the output: 290,982 distinct text lines from all 187 PDFs in the thr
 scored against the unfixed parser. The fix changes **12 lines and gains none**. Four are
 the two documents it re-converted; the other eight are **Income Tax Rules 2002**, which has
 no `output/*.json` and was deliberately left alone rather than pushed into the corpus.
+
+Round 17 re-converted **5**, all rules-lane, and its scope was measured by parsing each
+candidate document **twice at the same commit** with the fix on and off — the only way to
+attribute a change on a mixed-revision corpus. Its round-16 predecessor's two documents and
+three of round 15's fifteen are among the five, which is why those rows fell.
 
 ## 3. Ground rules
 
@@ -161,8 +171,8 @@ factual below it has moved.
 | it says | actually |
 |---|---|
 | register **64** | **25** |
-| **16 of 48** items open | **20 of 66** |
-| after eight merged PRs (#46–#53) | #54–#81 have merged since |
+| **16 of 48** items open | **19 of 66**, plus one located since |
+| after eight merged PRs (#46–#53) | #54–#83 have merged since |
 | **three** invariant classes closed | **six** |
 | its whole §2 register table | wrong on every row — `no_foreign_section_start_in_body` 19 → 1, `section_carries_its_body` 37 → 17 |
 | "`section_carries_its_body` and `no_foreign_section_start_in_body` move together — fix start detection and both move" | superseded; the second is down to 1 and the first is now four unrelated causes |
@@ -173,5 +183,13 @@ factual below it has moved.
 | `pytest tools/tests` → 56 passed | 92 passed, 1 skipped |
 
 One more, not in HANDOVER: every file under `wip/integration/` still states the register as
-**34**. Round 14 took it to 32, round 15 to 29 and round 16 to **25**. `wip/tasks.md:664`
-also states `section_codes_ordered` as **4** open hits; the class is **closed**.
+**34**. Round 14 took it to 32, round 15 to 29 and round 16 to **25**, where round 17 left
+it. `wip/tasks.md:664` also states `section_codes_ordered` as **4** open hits; the class is
+**closed**. And `wip/tasks.md:401`'s container-code guard box is unticked there; **round 17
+closed it**, and this folder is the authority on that.
+
+`handover/` itself was wrong about one thing until round 17 measured it: `plan.md` P3-4,
+`open-work.md` item 4 and `tasks.md` task 4 all claimed the container-code guard "would
+have kept round 13 from dropping four chapter captions in Customs Rules 2001". It would
+not. All three now say so, and the reason it took a round to notice is the three-copy
+problem `open-work.md` flags at the top of itself.

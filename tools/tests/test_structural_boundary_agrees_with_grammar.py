@@ -60,12 +60,24 @@ KNOWN_GAP_SUFFIXED_CHAPTERS = [
     "CHAPTER XVI-A", "1[CHAPTER XIX-A", "248[CHAPTER XIVA", "[CHAPTER - VIAB",
 ]
 
-#: Lines that are NOT.  The first five are what disqualified delegating to
-#: ``grammar`` outright -- its roman suffix class under IGNORECASE eats the
-#: lowercase words of/or/for, measured at 28 false positives in the ordinance
-#: lane.  ``chapter 87 35`` is a tariff row (4 more).  ``Chapter XII]`` is a
-#: wrapped table cell -- only LEADING decoration is stripped.  The PART forms are
-#: annexure FORM parts, deliberately still out of scope (14 gained : 6 lost).
+#: Lines that are NOT -- read with no ``container_codes``, which is what every
+#: caller that cannot say which container a line sits in passes.  The first five
+#: are what disqualified delegating to ``grammar`` outright: its roman suffix
+#: class under IGNORECASE eats the lowercase words of/or/for, measured at 28
+#: false positives in the ordinance lane.  ``chapter 87 35`` is a tariff row (4
+#: more).  ``Chapter XII]`` is a wrapped table cell -- only LEADING decoration is
+#: stripped.
+#:
+#: The four PART forms are round 17's guard, and they belong here rather than in
+#: ``BOUNDARIES`` for a reason worth stating: since round 17 a hyphenated
+#: ``PART-N`` IS a boundary -- but only where the enclosing chapter holds a part
+#: with that code, and this list has no container to consult.  Unvouched they
+#: still answer False, and so does the invariant, so the two still agree.  What
+#: they now agree on is a blind spot rather than a gap: ``_STRUCT_LINE`` keeps
+#: the narrow PART spelling deliberately, because widening it would report the
+#: nine annexure-FORM part lines in the rules lane as defects.  The vouched half
+#: is pinned document-level instead, in
+#: ``test_hyphenated_part_needs_a_container.py``.
 NOT_BOUNDARIES = [
     "Chapter-V of this Act;", "Chapter VII of", "Chapter X or", "Part V of",
     "Division III of", "chapter 87 35", "Chapter XII]",

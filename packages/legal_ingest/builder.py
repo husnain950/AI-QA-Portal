@@ -1686,6 +1686,52 @@ def _container_heading_pieces(containers) -> set:
     return out
 
 
+def _part_codes_in_scope(containers, ordered_sections) -> dict:
+    """Per section entry, the part codes its container and that container's
+    ancestors actually hold -- keyed by ``id(entry)``.
+
+    This is the evidence ``is_structural_boundary`` demands of a hyphenated
+    ``PART-N`` line, and the reason the guard has to be per-chapter rather than
+    per-document: Sales Tax Rules 2006 (01-01-2025) holds ``PART I``..``PART V``
+    under CHAPTER XI *and* prints form STR-11's ``PART-I`` / ``376[PART-II``
+    inside rule 165 under CHAPTER XVIII, which holds no parts at all.  A
+    document-wide set would vouch for the form.
+
+    ANCESTORS are included, not just the entry's own container, because the
+    caption a missing cut swallows belongs to the part the NEXT section opens: in
+    Sales Tax Rules 2006 the ``PART-II`` line sits at the end of rule 87, whose
+    own container is ``PART I``.  Walking up to CHAPTER XI is what sees ``PART
+    II``.  A section with no container (``parent`` is None) gets the empty set and
+    therefore the pre-round-17 answer.
+    """
+    nodes = list(containers or ())
+    parent = {}
+    for node in nodes:
+        for kid in ((getattr(node, "parts", None) or [])
+                    + (getattr(node, "divisions", None) or [])):
+            parent[id(kid)] = node
+
+    cache: dict[int, frozenset] = {}
+
+    def scope(node):
+        if node is None:
+            return frozenset()
+        if id(node) in cache:
+            return cache[id(node)]
+        codes, walk, seen = set(), node, set()
+        while walk is not None and id(walk) not in seen:
+            seen.add(id(walk))
+            for part in getattr(walk, "parts", None) or []:
+                code = _norm_container_code(getattr(part, "code", "") or "")
+                if code:
+                    codes.add(code)
+            walk = parent.get(id(walk))
+        cache[id(node)] = frozenset(codes)
+        return cache[id(node)]
+
+    return {id(e): scope(getattr(e, "parent", None)) for e in ordered_sections}
+
+
 def _title_stems(text: str) -> list:
     """A heading as comparable 5-character token stems.
 
@@ -1739,6 +1785,9 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
     from collections import defaultdict
 
     ordered = list(ordered_sections)
+
+    # The container-code evidence the hyphenated-PART guard needs, once per run.
+    part_codes = _part_codes_in_scope(containers, ordered)
 
     # Where a TOC printed page maps to in the PDF, measured from the folios the
     # pages actually print rather than computed as printed + constant offset.
@@ -1999,8 +2048,15 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
     consumed = _container_heading_pieces(containers)
     for k in range(len(starts) - 1):
         lo, hi = starts[k][0], starts[k + 1][0]
+        # Read the boundary with the FOLLOWING section's container codes: the
+        # heading opens the container that section belongs to, which is the whole
+        # reason this loop hands the region to it.  ``_build_one`` cuts section k
+        # at the same line, so the two must agree about it or the caption between
+        # them reaches no leaf and conservation falls.
+        codes = part_codes.get(id(starts[k + 1][1]), frozenset())
         b = next((i for i in range(lo + 1, hi)
-                  if is_structural_boundary(body_refs[i].line.text())), None)
+                  if is_structural_boundary(body_refs[i].line.text(), codes)),
+                 None)
         if b is None:
             continue
         j, pending = b + 1, 2
@@ -2009,7 +2065,7 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
             if not t:
                 j += 1
                 continue
-            if is_structural_boundary(body_refs[j].line.text()):
+            if is_structural_boundary(body_refs[j].line.text(), codes):
                 j, pending = j + 1, 2
                 continue
             if any(t == c or (len(t) > 8 and t in c) for c in consumed):
@@ -2031,7 +2087,9 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
                                               page_footnotes, page_offset,
                                               is_last=(k + 1 == len(starts)),
                                               printed_by_page=printed_by_page,
-                                              cited_footnotes=cited_footnotes)
+                                              cited_footnotes=cited_footnotes,
+                                              container_codes=part_codes.get(
+                                                  id(entry), frozenset()))
             except Exception as exc:  # never let one bad section kill the run
                 import sys
                 print(f"[fbr] warning: section {entry.code} failed: {exc}",
@@ -2133,15 +2191,30 @@ def preamble_refs(body_refs, ordered_sections, containers=()):
 # spelling and reported zero.  Round 1's chapter numeral again -- two readers of
 # one line, normalising differently.
 #
-# PART and Division stay on ``\s+``, measured: widening them scores 14 real
-# boundaries against 6 losses, and the 6 are ANNEXURE FORMS whose numbered parts
+# PART now carries ``[\s\-]+`` too, but ONLY behind the container-code guard
+# below.  Round 13 measured the bare widening at 14 real boundaries against 6
+# losses, and the 6 are the dangerous kind: ANNEXURE FORMS whose numbered parts
 # would be sliced into the next rule (Customs Rules 2001 s.34, whose item counter
-# 8-11 runs ACROSS the parts and whose first part prints an EN DASH; Sales Tax
-# Rules 2006 form STR-11).  Text stays conserved and is silently misplaced, so
-# the change would report as a success -- see wip/phase3-round13-chapter-hyphen.md.
+# 8-11 runs ACROSS the parts; Sales Tax Rules 2006 form STR-11).  Text stays
+# conserved and is silently misplaced, so the change reported as a SUCCESS -- see
+# wip/phase3-round13-chapter-hyphen.md.  What separates the two populations is not
+# the spelling of the line but whether the enclosing chapter actually holds a part
+# with that code: Sales Tax Rules 2006 (01-01-2025) prints BOTH -- five real
+# ``PART-N`` captions under CHAPTER XI, which holds those parts, and form STR-11's
+# two under CHAPTER XVIII, which holds none.  One document, so neither an
+# exemption nor a per-document rule can tell them apart.
+#
+# Division stays on ``\s+``: it has no measured gain to earn the same guard.
 _STRUCTURAL_RE = re.compile(
-    r"^(CHAPTER[\s\-]+[IVXLC0-9]+|PART\s+[IVXLC0-9]+[A-Z]{0,2}|Division\s+[IVXLC0-9]+[A-Z]{0,2})$",
+    r"^(CHAPTER[\s\-]+[IVXLC0-9]+|PART[\s\-]+[IVXLC0-9]+[A-Z]{0,2}|Division\s+[IVXLC0-9]+[A-Z]{0,2})$",
     re.IGNORECASE)
+
+#: The PART form the widening admits and the old ``PART\s+`` spelling did not:
+#: anything other than a plain space between the keyword and the numeral
+#: ("PART-II", "PART- IV", "34[PART-3").  Fail-CLOSED by construction -- it
+#: matches every PART line that is *not* the long-accepted spaced form, so a
+#: separator nobody anticipated is guarded rather than admitted.
+_GUARDED_PART_RE = re.compile(r"^PART(?!\s+[IVXLC0-9])", re.IGNORECASE)
 
 # leading amendment decoration on a structural heading: superscript marker(s)
 # and/or opening bracket(s), e.g. "1[PART VA", "[PART III" (the marker can land
@@ -2149,15 +2222,46 @@ _STRUCTURAL_RE = re.compile(
 _STRUCT_DECOR_RE = re.compile(r"^(?:[\d*]{1,3}\s*|\[+\s*)+")
 
 
-def is_structural_boundary(text: str) -> bool:
+def _norm_container_code(text: str) -> str:
+    """A container code in the spelling ``toc``/``discover`` store on a ``Node``,
+    so a body line and a tree node can be compared ("34[PART-3" -> "PART 3").
+
+    Only the separator after the keyword is folded.  The NUMERAL is deliberately
+    left alone -- not arabic to roman (Sales Tax Special Procedures Rules 2007
+    numbers its parts "PART 1".."PART 3" on both sides, contents and body) and
+    not by value, because ``XIVA`` and ``XIV-A`` are two DIFFERENT chapters of
+    Sales Tax Rules 2006.  A comparison that is too strict can only refuse a
+    boundary; one that is too loose invents one.  Cf. ``schedules._norm``, which
+    folds more because a schedule's contents page and body disagree about more.
+    """
+    t = re.sub(r"\s+", " ", _STRUCT_DECOR_RE.sub("", text.strip())).upper()
+    return re.sub(r"^(CHAPTER|PART|DIVISION)[\s\-]+", r"\1 ", t).strip()
+
+
+def is_structural_boundary(text: str, container_codes=None) -> bool:
     """True when a body line is a CHAPTER/PART/Division heading, tolerating a
     LEADING amendment marker + bracket ("1[PART VA" -- Part VA was inserted by
     the Finance Act, 2003, so its heading wears a citation).  Only leading
     decoration is stripped: a trailing "]" alone must NOT qualify, because a
     wrapped table cell can end "... of Chapter X or\nChapter XII]" and that
     line is body content, not a boundary (section 182's penalty table).
+
+    ``container_codes`` are the part codes the line's enclosing chapter actually
+    holds (``_part_codes_in_scope``).  They are the EVIDENCE a hyphenated
+    ``PART-N`` needs before it may cut a section, and nothing else consults them:
+    every long-accepted form answers the same with or without them.  Callers that
+    cannot say which container a line sits in pass nothing and get the
+    pre-round-17 answer -- ``discover``, which is where a body-driven edition's
+    containers come FROM, so vouching a line with a container built from that
+    same line would be circular; and ``preamble_refs``, whose region precedes
+    every container.
     """
-    return bool(_STRUCTURAL_RE.match(_STRUCT_DECOR_RE.sub("", text.strip())))
+    t = _STRUCT_DECOR_RE.sub("", text.strip())
+    if not _STRUCTURAL_RE.match(t):
+        return False
+    if _GUARDED_PART_RE.match(t):
+        return _norm_container_code(t) in (container_codes or ())
+    return True
 
 
 #: an em/en dash sitting BETWEEN two word characters ("customs–ports") -- a
@@ -2865,7 +2969,8 @@ def _wrapped_heading_lines(seg, code: str, heading: str) -> int:
 def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
                page_offset: int = 0, is_last: bool = False,
                printed_by_page: dict | None = None,
-               cited_footnotes: dict | None = None) -> BuiltSection:
+               cited_footnotes: dict | None = None,
+               container_codes=frozenset()) -> BuiltSection:
     # A section ends when a new structural heading begins -- even though the
     # next *section* heading may be a page or two further on.
     #
@@ -2880,7 +2985,7 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
     cut = len(seg)
     if not is_last:
         for i in range(1, len(seg)):
-            if is_structural_boundary(seg[i].line.text()):
+            if is_structural_boundary(seg[i].line.text(), container_codes):
                 cut = i
                 break
     seg = seg[:cut]
@@ -3243,12 +3348,43 @@ def _demo() -> None:
                   "Part V of", "Division III of", "chapter 87 35",
                   "Chapter XII]"):
         assert not is_structural_boundary(_line), _line
-    # PART and Division stay on \s+ this round.  Customs Rules 2001 s.34 and
-    # Sales Tax Rules 2006 form STR-11 print an annexure FORM's parts; cutting
-    # there slices the form into the next rule while conservation still reads
-    # 100.000%, so the regression would report itself as a success.
+    # ---- round 17: the hyphenated PART, and the evidence it needs ----------
+    # Customs Rules 2001 s.34 and Sales Tax Rules 2006 form STR-11 print an
+    # annexure FORM's parts.  Cutting there slices the form into the next rule
+    # while conservation still reads 100.000%, so the regression reports itself
+    # as a SUCCESS -- which is why the widening waited for the guard.  Unvouched,
+    # every one of them still answers exactly as it did for sixteen rounds.
     for _line in ("PART-II", "PART-2", "34[PART-3", "PART-I"):
         assert not is_structural_boundary(_line), _line
+        assert not is_structural_boundary(_line, frozenset()), _line
+        # ...and a chapter holding OTHER parts does not vouch for this one
+        assert not is_structural_boundary(_line, {"PART IX"}), _line
+    # With the code its enclosing chapter really holds, the same line cuts.
+    # These are the four spellings the rules lane actually prints.
+    for _line, _code in (("PART-II", "PART II"), ("PART-2", "PART 2"),
+                         ("34[PART-3", "PART 3"), ("PART- IV", "PART IV")):
+        assert is_structural_boundary(_line, {_code}), _line
+        assert _norm_container_code(_line) == _code, _line
+    # The numeral is never folded: a chapter with PART I does not vouch for a
+    # PART 1 line, nor PART IVA for PART IV-A (XIVA / XIV-A are two different
+    # chapters of Sales Tax Rules 2006).
+    assert not is_structural_boundary("PART-1", {"PART I"})
+    assert not is_structural_boundary("PART-IV-A", {"PART IVA"})
+    # The guard is fail-CLOSED: a separator the pattern never anticipated is
+    # GUARDED rather than admitted -- a run of hyphens folds to one space like a
+    # single one, so it still needs a container to vouch for it.
+    assert not is_structural_boundary("PART--II")
+    assert is_structural_boundary("PART--II", {"PART II"})
+    # The spaced form -- accepted since round 1 -- is not guarded and needs no
+    # codes.  It must keep answering True with an EMPTY set, or sixteen rounds of
+    # chapter/part cuts would vanish the moment a section has no container.
+    assert is_structural_boundary("PART III") and is_structural_boundary("1[PART VA")
+    assert is_structural_boundary("PART III", frozenset())
+    assert is_structural_boundary("CHAPTER-II", frozenset())
+    # An EN DASH still matches nothing.  Sales Tax Rules 2006 prints "PART - IV"
+    # with one, and its CHAPTER XI holds no PART IV node to vouch for it anyway,
+    # so widening the character class would gain zero -- see the round 17 write-up.
+    assert not is_structural_boundary("PART \u2013 IV", {"PART IV"})
 
     # A section code the text layer SPLIT still has to bind.  The unbracketed
     # branch of _DOTSUFFIX_RE exists for two measured families and is narrow in

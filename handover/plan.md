@@ -23,15 +23,18 @@ Method: [`working-rules.md`](working-rules.md)
 
 Two tracks have finished. The **integration seam** closed as PRs #59–#76 — every problem
 in `wip/integration/plan.md` §3, and the corpus-wide identity hole went from 5,047 leaves
-(30%) to 89 (0.5%). The **anomaly register** went 210 → 25 over sixteen rounds, and is
+(30%) to 89 (0.5%). The **anomaly register** went 210 → 25 over seventeen rounds, and is
 now committed and gated (`tools/suite/register.json`).
 
 What remains is the residue of both, and it is **harder per hit than what came before.**
 Rounds 1–7 each found *one cause explaining many hits*: the cursor cascade, the header
 band, the chapter numerals. What is left is mostly 1–2 hits per document with unrelated
-causes. There are exactly two remaining one-cause-many-hits items — [§4 P3-4](#p3-4--the-container-code-guard)
-and [§4 P3-5](#p3-5--the-chapter-letter-suffix--57-hits-24-documents-all-real) — and that
-is the reason they rank where they do in `tasks.md`. **Expect a lower hits-per-round rate
+causes. There is exactly **one** remaining one-cause-many-hits item —
+[§4 P3-5](#p3-5--the-chapter-letter-suffix--57-hits-24-documents-all-real), at 57 hits —
+and that is the reason it is the top row in `tasks.md`. The other,
+[§4 P3-4](#p3-4--the-container-code-guard-closed-round-17), closed in round 17 and moved
+the register by **zero**, which is what it promised: it was the enabler for the PART
+separator widening, not a fix in its own right. **Expect a lower hits-per-round rate
 from here.** A round that closes two hits is not a bad round now.
 
 ---
@@ -163,22 +166,40 @@ rule at `:279`; the floor loop at `:298-300`, reading
 > `first_body_page = toc_pages + 1` started the body a page late. **A fix needs a signal
 > other than row density.**
 
-#### P3-4 — the container-code guard
+#### P3-4 — the container-code guard — CLOSED, round 17
 
-A `PART-N` line should be a boundary **only where the enclosing chapter actually holds a
-part with that code.** Zero hits of its own; it is an *enabler*, and two independent
-measurements now argue for it:
+A `PART-N` line is a boundary **only where the enclosing chapter actually holds a part
+with that code.** Shipped in round 17 together with the PART separator widening it
+enables, at **14 gained / 0 lost** and the register unchanged at 25 — zero hits of its
+own, exactly as an enabler should be. `is_structural_boundary` takes an optional
+`container_codes`; `_part_codes_in_scope` resolves them per entry from the container tree,
+ancestors included. Artifact: `wip/phase3-round17-container-code-guard.md`.
 
-- it is what makes the PART separator widening safe — 14 real boundaries against 6
-  annexure FORM losses, where the losses are an item counter running 8–11 *across* the
-  parts (the measurement is in the comment at `builder.py:2085-2103`);
-- it is what would have kept round 13 from dropping four chapter captions in Customs Rules
-  2001 (conservation 74.101% → 74.087%), whose tree holds 41 of ~44 chapters and cannot
-  express them.
+This entry gave **two** arguments for the row. The first held; the second did not.
 
-Needs `build_sections` (`builder.py:1682`) to pass per-chapter container codes into
-`_build_one` (`builder.py:2827`). That signature change is the whole task; the guard
-itself is small.
+- **Held.** It is what makes the PART separator widening safe — 14 real boundaries against
+  6 annexure FORM losses, the losses being an item counter running 8–11 *across* the parts
+  (the measurement is in the comment at `builder.py:2085-2103`). Round 17 reproduced both
+  numbers, and the discriminator had to be **per-chapter**: Sales Tax Rules 2006
+  (01-01-2025) prints five real captions under CHAPTER XI and form STR-11's two under
+  CHAPTER XVIII in the same document, so a document-wide set of part codes vouches for the
+  form.
+
+> **The second argument was wrong.** It said the guard "is what would have kept round 13
+> from dropping four chapter captions in Customs Rules 2001 (conservation 74.101% →
+> 74.087%)". Measured: extending the guard to the CHAPTER branch moves conservation to
+> 74.099% and **every one of those 28 tokens is a duplication.** `preamble_refs` passes no
+> container codes, so guarding CHAPTER flips the preamble's own `CHAPTER I` line to *not a
+> boundary*; the preamble stops ending there and swallows the caption **plus rule 1's
+> opening text, which rule 1 still holds**. Not one leaf changed. The multiset audit checks
+> presence only, so it scored the second copy as a recovery — round 13's preamble leak,
+> re-created and reported as a success.
+>
+> And even with the preamble side fixed the trade is bad. Three of Customs Rules 2001's 44
+> chapters have no node at all; putting their heading lines back into bodies raises
+> `no_structural_heading_in_body` from **0** to buy 32 words on the one document already
+> carrying four Phase-5 exemption entries for exactly this. **Those four captions are
+> Phase 5, not this guard.**
 
 #### P3-5 — the CHAPTER letter suffix — 57 hits, 24 documents, all real
 
@@ -360,7 +381,7 @@ any order.
 P3-1d (ordinance 5) ──── blocked on ── P4-2  (fbr_ingest routing)
 P4-1 (--profile auto) ── blocked on ── Phase 3 at zero-or-exempted
 P5-1 completion ──────── DEFINED BY ── deleting exemptions/rules.json:47-66
-P3-4 (container guard) ─ enables ───── the PART separator widening
+P3-4 (container guard) ─ CLOSED r17 ── the PART separator widening shipped with it
 P3-5 (CHAPTER suffix) ── breaks ────── test_..._gap_is_still_open (by design)
 delete _legacy_section_key ─ blocked on ─ 14 stale acts docs ─ blocked on ─ OCR decision
 ```

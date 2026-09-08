@@ -1,6 +1,7 @@
 # What is left
 
-20 open items. Ranked by value, each with the one thing that actually blocks it.
+20 open items — 19 carried, plus one round 17 located. Ranked by value, each with the one
+thing that actually blocks it.
 State and verification are in [`README.md`](README.md); method is in
 [`working-rules.md`](working-rules.md); the executable ledger — **the file to work
 from** — is [`tasks.md`](tasks.md).
@@ -9,13 +10,14 @@ from** — is [`tasks.md`](tasks.md).
 > of one fact is the very shape `working-rules.md` warns about under *"a cached artifact
 > cannot tell you its generator is wrong"*. Until they are consolidated, **`tasks.md` is
 > the authority** and every round must update all three. Flagged 2026-09-04, round 15;
-> still true after round 16, which had to touch all three again.
+> still true after rounds 16 and 17, each of which had to touch all three again — and
+> round 17 found this file and `plan.md` **both** asserting something the measurement
+> disproved (item 4 below), which is exactly the cost the warning predicts.
 
 Expect a lower hits-per-round rate from here than the early rounds got. Rounds 1–7 each
 found *one cause explaining many hits*. What is left is mostly 1–2 hits per document with
-different causes — with two exceptions, items 4 and 5, which are still one-cause-many-hits
-and are the reason they rank where they do. Round 16 spent the last of the cheap
-one-cause-many-hits rows.
+different causes — with one exception, item 5, still one-cause-many-hits at 57 and the
+reason it is now the top row. Rounds 16 and 17 spent the last of the cheap rows.
 
 ---
 
@@ -68,18 +70,23 @@ which `grammar.SCHEDULE_TOC_RE` rightly refuses.
 the Income Tax Rules' body title page and starting the body a page late. A fix needs a
 signal other than row density.
 
-### 4. The container-code guard
+### 4. The container-code guard — **CLOSED, round 17**
 
-A `PART-N` line should be a boundary only where the enclosing chapter actually holds a part
-with that code. **Two independent measurements now argue for it:**
+A `PART-N` line is a boundary only where the enclosing chapter actually holds a part with
+that code. Shipped with the PART separator widening it enables: **14 gained, 0 lost**,
+register **unchanged at 25**. Artifact `wip/phase3-round17-container-code-guard.md`.
 
-- it is what makes the PART separator widening safe (14 real boundaries against 6 annexure
-  FORM losses, where the losses are an item counter running 8–11 *across* the parts);
-- it is what would have kept round 13 from dropping four chapter captions in Customs Rules
-  2001 (conservation 74.101% → 74.087%), whose tree holds 41 of ~44 chapters and cannot
-  express them.
+This file listed **two** measurements arguing for it. The first held and reproduced
+exactly. **The second was false, and round 17 disproved it:** the guard would *not* have
+kept round 13 from dropping Customs Rules 2001's four chapter captions. Extending it to the
+CHAPTER branch moves conservation 74.087% → 74.099% and all 28 of those tokens are a
+**duplication** — `preamble_refs` passes no codes, so the preamble's own `CHAPTER I` line
+stops being a boundary, the preamble no longer ends there and swallows rule 1's opening
+text, which rule 1 still holds. Not one leaf changed. **Those four captions are Phase 5.**
 
-Needs `build_sections` to pass per-chapter container codes into `_build_one`.
+The discriminator had to be per-chapter, not per-document: Sales Tax Rules 2006
+(01-01-2025) prints five real `PART-N` captions under CHAPTER XI *and* form STR-11's two
+under CHAPTER XVIII in the same document.
 
 ### 5. The CHAPTER letter suffix — 57 hits, 24 documents, all real
 
@@ -119,6 +126,31 @@ with no lane, no path and no siblings. The join exists — `signatures.json`'s `
 matches `metadata.filename` on 80/80 acts documents — but its counts are PDF-regex
 measurements, not tree counts, so a real parse-quality comparison needs a new per-group index
 over `output/*.json`.
+
+### 9. The schedule PART reader — 20 lines, cause unknown — **new, round 17**
+
+Round 17's scan turned up **20 hyphenated PART lines sitting in Finance Act *schedule*
+bodies** — a different reader from the one it fixed, and not reached by it.
+
+| document | lines |
+|---|---|
+| Finance Act, 2021 | 8 — `PART-I`..`PART-VIII`, Fifth Schedule and its TABLE-III |
+| Finance Act 2025 | 7 — `Part-1`, `Part-Il`, `Part-lll`, `Part-IV`..`Part-VIlI`, Fifth Schedule |
+| Finance Act, 2019 | 4 — Fifth Schedule, inside its own `PART I` and `PART VI` nodes |
+| Finance Act, 2014 | 1 — `Part-11`, Second Schedule |
+
+**Do not assume it is the same defect.** `schedules.py` has always accepted the hyphen
+(`_PART_RE`, `:64`) and `_kind()` returns `"part"` for **18 of the 20**, so for those 18 the
+pattern is not the cause and the cause is **not yet known** — candidates are
+`_is_heading_size`'s 8.5 pt gate (`:85`) and the schedule zoning. **Diagnose before
+fixing.** Nothing in the register sees these: no invariant looks for a PART line in a
+schedule leaf.
+
+Two things that *are* explained: `Part-1` and `Part-11` fail because `_PART_RE`'s numeral
+is `[IVXL]+` with **no digit branch** where `_TABLE_RE` beside it has one; and `Part-Il`,
+`Part-lll`, `Part-VIlI` are OCR letter confusion (lowercase `l` for capital `I`) that
+`_kind()` admits as roman only because it is IGNORECASE — they would normalise to `PART IL`
+/ `PART LLL`. Per the standing rule, do **not** collapse `l`→`I`.
 
 ### Also open in Phase 3, off the ranked list
 

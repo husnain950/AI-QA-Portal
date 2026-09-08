@@ -94,7 +94,19 @@ it was written**. Read the page first; the ledger's guess is a hypothesis.
 
 **Report changes that moved a number by zero.** Round 4's acts lane and round 6's PART fix
 were both correct and both scored nothing; folding them into a total would have
-misattributed the rounds that did move it.
+misattributed the rounds that did move it. **Round 17 is a whole round of this**: the
+container-code guard fixed 14 real boundaries and left the register at 25, because no
+invariant can see a swallowed `PART-N`. Its evidence is a gained/lost diff, not the
+register.
+
+**A conservation number that goes UP can be a duplication.** The audit
+(`tools/acts/audit_completeness.py`) compares word *multisets*, so it scores presence, not
+placement — and a line held in two leaves at once counts as conserved. Round 17 measured a
+candidate CHAPTER guard at 74.087% → **74.099%** on Customs Rules 2001 and all 28
+"recovered" tokens were the preamble swallowing rule 1's opening text a second time. **Not
+one leaf changed.** This is the companion to round 13's warning that a sliced form stays at
+100.000%: conservation is blind in *both* directions, so pair it with a line-level diff of
+which leaf holds what. Neither number is evidence on its own.
 
 **A cached artifact cannot tell you its generator is wrong.** Three instances in one phase:
 a `known_gaps` skip inside a check function, two `exemptions/` entries, and `report.md` §5 —
