@@ -6,7 +6,11 @@ import re
 
 import pdfplumber
 
-from legal_contract import stamp_document
+from legal_contract import (
+    iter_document_roots,
+    represent_compilation,
+    stamp_document,
+)
 
 from .builder import LineRef, build_sections
 from .discover import _omission_codes
@@ -58,7 +62,12 @@ def _calibrate_offset(pdf, toc_pages: int, first_printed: int = 1) -> int:
     return body_start_pdf_page - first_printed
 
 
-def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = None) -> dict:
+def run(
+    pdf_path: str,
+    progress=lambda *a: None,
+    _max_body_page: int | None = None,
+    instrument_partitions=None,
+) -> dict:
     pdf = pdfplumber.open(pdf_path)
     total_pages = len(pdf.pages)
 
@@ -280,6 +289,8 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         "chapters": [_node_to_dict(c) for c in chapters],
         "schedules": schedules_out,
     }
+    if instrument_partitions is not None:
+        represent_compilation(result, instrument_partitions)
     # Same point in the run as legal_ingest stamps it: the tree is assembled, and
     # nothing after this adds or removes a node -- the preamble is a sibling of
     # `chapters`, and footnote adoption and text normalisation only rewrite leaves
@@ -300,8 +311,11 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     # completeness safety net: adopt any uncited footnote into the leaf covering
     # its page, so no footnote text is dropped anywhere in the document.
     from .builder import adopt_orphan_footnotes, all_leaves
-    leaves = [lf for root in ("chapters", "schedules")
-              for node in result[root] for lf in all_leaves(node)]
+    leaves = [
+        leaf
+        for _collection, _kind, node in iter_document_roots(result)
+        for leaf in all_leaves(node)
+    ]
     n = adopt_orphan_footnotes(leaves, page_footnotes, printed_by_page, offset)
     progress(f"adopted {n} orphaned footnotes")
 

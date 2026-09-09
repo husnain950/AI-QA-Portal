@@ -1,7 +1,7 @@
 import json
 
 from backend.services.json_parser import assess_toc_tail, parse_json_document
-from backend.tests.conftest import sample_document
+from backend.tests.conftest import multi_instrument_document, sample_document
 
 
 def test_source_keys_and_ids_are_stable_despite_repeated_legal_codes():
@@ -26,6 +26,34 @@ def test_source_keys_and_ids_are_stable_despite_repeated_legal_codes():
     assert [footnote["id"] for footnote in first_footnotes] == [
         footnote["id"] for footnote in second_footnotes
     ]
+
+
+def test_multi_instrument_tree_flattens_context_and_distinct_identity():
+    sections, footnotes = parse_json_document(
+        multi_instrument_document(),
+        document_id="compilation-1",
+    )
+
+    assert footnotes == []
+    assert [section["section_code"] for section in sections] == ["1", "1"]
+    assert [section["instrument_code"] for section in sections] == [
+        "SRO-ONE",
+        "SRO-TWO",
+    ]
+    assert [section["instrument_heading"] for section in sections] == [
+        "First Rules",
+        "Second Rules",
+    ]
+    assert [section["chapter_code"] for section in sections] == [
+        "CHAPTER I",
+        "CHAPTER I",
+    ]
+    assert [section["source_key"] for section in sections] == [
+        "/instruments/0/chapters/0/sections/0",
+        "/instruments/1/chapters/0/sections/0",
+    ]
+    assert len({section["node_key"] for section in sections}) == 2
+    assert len({section["id"] for section in sections}) == 2
 
 
 def test_json_pointer_escaping_handles_container_names_safely():

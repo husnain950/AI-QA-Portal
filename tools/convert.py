@@ -17,6 +17,9 @@ The output JSON is
       "chapters":  [ {code, heading, parts, divisions, sections}, ... ],
       "schedules": [ ... ] }
 
+or, for a compilation, ``instruments[]`` contains those chapter/schedule
+collections and gives each instrument its own stable legal identity.
+
 where each leaf is
     { code, heading, page_number, html, plain_text,
       start_page, end_page, footnotes: [{ref, marker, text}, ...] }

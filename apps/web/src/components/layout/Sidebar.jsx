@@ -135,6 +135,8 @@ const Sidebar = ({ documentId }) => {
             return [
                 section.section_code,
                 section.section_heading,
+                section.instrument_code,
+                section.instrument_heading,
                 section.chapter_code,
                 section.chapter_heading,
                 section.part_code,
@@ -148,12 +150,31 @@ const Sidebar = ({ documentId }) => {
                 .includes(normalizedQuery);
         });
 
+        let lastInstrument = null;
         let lastChapter = null;
         let lastPart = null;
         let lastDivision = null;
 
         const nodes = [];
         visibleSections.forEach((sec) => {
+            const instrumentCode = sec.instrument_code || null;
+            if (instrumentCode !== lastInstrument) {
+                lastInstrument = instrumentCode;
+                lastChapter = null;
+                lastPart = null;
+                lastDivision = null;
+                const instrumentLabel = formatHierarchyLabel(
+                    sec.instrument_code,
+                    sec.instrument_heading,
+                );
+                if (instrumentLabel) {
+                    nodes.push(
+                        <div key={`inst-${sec.id}`} className="toc-node level-instrument">
+                            {instrumentLabel}
+                        </div>
+                    );
+                }
+            }
             if (sec.chapter_code !== lastChapter) {
                 lastChapter = sec.chapter_code;
                 lastPart = null;
@@ -165,7 +186,10 @@ const Sidebar = ({ documentId }) => {
                 );
                 if (chapterLabel) {
                     nodes.push(
-                        <div key={`ch-${sec.id}`} className="toc-node level-chapter">
+                        <div
+                            key={`ch-${sec.id}`}
+                            className={`toc-node level-chapter ${sec.instrument_code ? 'under-instrument' : ''}`}
+                        >
                             {chapterLabel}
                         </div>
                     );
@@ -177,7 +201,10 @@ const Sidebar = ({ documentId }) => {
                 const partLabel = formatHierarchyLabel(sec.part_code, sec.part_heading);
                 if (partLabel) {
                     nodes.push(
-                        <div key={`pt-${sec.id}`} className="toc-node level-part">
+                        <div
+                            key={`pt-${sec.id}`}
+                            className={`toc-node level-part ${sec.instrument_code ? 'under-instrument' : ''}`}
+                        >
                             {partLabel}
                         </div>
                     );
@@ -188,7 +215,10 @@ const Sidebar = ({ documentId }) => {
                 const divisionLabel = formatHierarchyLabel(sec.division_code, sec.division_heading);
                 if (divisionLabel) {
                     nodes.push(
-                        <div key={`div-${sec.id}`} className="toc-node level-division">
+                        <div
+                            key={`div-${sec.id}`}
+                            className={`toc-node level-division ${sec.instrument_code ? 'under-instrument' : ''}`}
+                        >
                             {divisionLabel}
                         </div>
                     );
@@ -201,7 +231,7 @@ const Sidebar = ({ documentId }) => {
             nodes.push(
                 <div
                     key={`sec-${sec.id}`}
-                    className={`toc-node level-section ${isActive ? 'active' : ''}`}
+                    className={`toc-node level-section ${sec.instrument_code ? 'under-instrument' : ''} ${isActive ? 'active' : ''}`}
                     onClick={() => handleSectionClick(sec.id)}
                 >
                     <span className="toc-node-status-container">
@@ -344,7 +374,9 @@ const Sidebar = ({ documentId }) => {
                                         {formatSectionLabel(res.section_code, res.section_heading)}
                                     </div>
                                     <div className="search-result-chapter">
-                                        {res.chapter_code || 'Schedules'}
+                                        {[res.instrument_code, res.chapter_code]
+                                            .filter(Boolean)
+                                            .join(' · ') || 'Schedules'}
                                     </div>
                                     <SearchSnippet result={res} />
                                 </button>

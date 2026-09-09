@@ -51,7 +51,14 @@ def test_the_source_columns_and_indexes_the_review_code_relies_on(test_database_
         "corpus_lane",
         "statute_family_id",
     } <= documents
-    assert {"source_key", "quality_flags", "hierarchy_kind", "reviewer_verdict"} <= sections
+    assert {
+        "instrument_code",
+        "instrument_heading",
+        "source_key",
+        "quality_flags",
+        "hierarchy_kind",
+        "reviewer_verdict",
+    } <= sections
     # A unique partial index now, so one document cannot hold two rows for a source key.
     assert "uq_sections_source" in section_indexes
     assert _RAW_DDL_INDEXES <= section_indexes, "the full-text GIN index must exist"

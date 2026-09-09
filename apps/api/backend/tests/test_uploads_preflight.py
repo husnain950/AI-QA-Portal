@@ -12,7 +12,11 @@ from pypdf import PdfWriter
 
 from backend.database import database_connection
 from backend.services import blob_store
-from backend.tests.conftest import ADMIN_EMAIL, sample_document
+from backend.tests.conftest import (
+    ADMIN_EMAIL,
+    multi_instrument_document,
+    sample_document,
+)
 
 
 def _pdf(pages=3) -> bytes:
@@ -61,6 +65,39 @@ async def test_preflight_reports_what_it_actually_counted(runtime_sandbox, clien
     assert staged["committed_at"] is None
     storage = blob_store.get_storage()
     assert storage.exists(staged["pdf_key"]) and storage.exists(staged["json_key"])
+
+
+async def test_multi_instrument_upload_persists_context_on_section_api(
+    runtime_sandbox,
+    client,
+):
+    staged = await _preflight(client, json_text=multi_instrument_document())
+    assert staged.status_code == 201, staged.text
+    assert staged.json()["sections"] == 2
+
+    created = await client.post(
+        "/api/v2/documents",
+        json={"token": staged.json()["token"], "name": "Rules compilation"},
+    )
+    assert created.status_code == 201, created.text
+
+    response = await client.get(
+        f"/api/documents/{created.json()['id']}/sections"
+    )
+    assert response.status_code == 200, response.text
+    sections = response.json()
+    assert [section["instrument_code"] for section in sections] == [
+        "SRO-ONE",
+        "SRO-TWO",
+    ]
+    assert [section["instrument_heading"] for section in sections] == [
+        "First Rules",
+        "Second Rules",
+    ]
+    assert [section["source_key"] for section in sections] == [
+        "/instruments/0/chapters/0/sections/0",
+        "/instruments/1/chapters/0/sections/0",
+    ]
 
 
 async def test_a_renamed_non_pdf_is_caught_by_its_bytes(runtime_sandbox, client):

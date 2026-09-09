@@ -3,7 +3,7 @@
 // SCHEDULE", "SIXTH SCHEDULE" — plus annexures and Contents, so 5,393 leaves read as
 // "Section THE FIRST SCHEDULE". SCHEDULE is therefore matched anywhere in the code.
 const CONTAINER_CODE_RE =
-    /(^(?:THE\s+)?(PART|CHAPTER|DIVISION|PREAMBLE|SECTION|CONTENTS|ANNEX))|(\bSCHEDULE\b)/i;
+    /(^(?:THE\s+)?(INSTRUMENT|PART|CHAPTER|DIVISION|PREAMBLE|SECTION|CONTENTS|ANNEX))|(\bSCHEDULE\b)/i;
 const SCHEDULE_RE = /\bschedule\b/i;
 // Headings arrive already normalised: `json_parser` cleans a section heading at
 // ingest and a container heading with the same call, and every page importing this
@@ -72,6 +72,7 @@ export function formatLeafIdentity(code, heading) {
 }
 
 const HIERARCHY_TYPE_ABBRS = {
+    Instrument: 'Instrument|Inst',
     Chapter: 'Chapter|Ch',
     Schedule: 'Schedule|Sch',
     Part: 'Part|Pt',
@@ -114,11 +115,13 @@ function pushHierarchyItem(items, type, code, heading) {
     });
 }
 
-/** Breadcrumb crumbs for a leaf: chapter/schedule, part, division, section. */
+/** Breadcrumb crumbs: instrument, chapter/schedule, part, division, section. */
 export function leafHierarchyItems(section) {
     if (!section) return [];
     const items = [];
     const {
+        instrument_code,
+        instrument_heading,
         chapter_code,
         chapter_heading,
         part_code,
@@ -130,6 +133,12 @@ export function leafHierarchyItems(section) {
         hierarchy_kind,
     } = section;
 
+    pushHierarchyItem(
+        items,
+        'Instrument',
+        instrument_code,
+        instrument_heading,
+    );
     if (chapter_code && String(chapter_code).trim()) {
         const type = hierarchyTypeLabel(hierarchy_kind, chapter_code, chapter_heading);
         pushHierarchyItem(items, type, chapter_code, chapter_heading);

@@ -21,6 +21,8 @@ import re
 from dataclasses import dataclass, field
 from statistics import median as _median
 
+from legal_contract import iter_document_roots
+
 from .footnotes import BRACKETS_ONLY_RE, all_markers_anonymous, ref_sort_key
 from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX, is_code_like, norm_code
 
@@ -2838,8 +2840,11 @@ def normalize_document_text(result):
     RC-7 line-break de-hyphenation, RC-5 fused-marker spacing (leaf + footnote
     plain/html) and RC-5 bare-marker merging (leaf plain).  Runs once per
     document."""
-    leaves = [lf for root in ("chapters", "schedules")
-              for node in result.get(root, []) for lf in all_leaves(node)]
+    leaves = [
+        leaf
+        for _collection, _kind, node in iter_document_roots(result)
+        for leaf in all_leaves(node)
+    ]
     solid, hyph = _hyphenation_vocab(leaves)
     for lf in leaves:
         if lf.get("plain_text"):

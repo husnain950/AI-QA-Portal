@@ -50,6 +50,8 @@ def _section_metadata_kwargs(r) -> dict:
     return dict(
         id=r["id"],
         document_id=r["document_id"],
+        instrument_code=r["instrument_code"],
+        instrument_heading=r["instrument_heading"],
         chapter_code=r["chapter_code"],
         chapter_heading=r["chapter_heading"],
         part_code=r["part_code"],
@@ -72,7 +74,8 @@ def _section_metadata_kwargs(r) -> dict:
 
 
 _SECTION_META_COLS = """
-    s.id, s.document_id, s.chapter_code, s.chapter_heading, s.part_code, s.part_heading,
+    s.id, s.document_id, s.instrument_code, s.instrument_heading,
+    s.chapter_code, s.chapter_heading, s.part_code, s.part_heading,
     s.division_code, s.division_heading, s.hierarchy_kind, s.section_code, s.section_heading,
     s.source_key, s.start_page, s.end_page, s.review_status, s.reviewer_verdict,
     s.effective_status, s.sort_order, s.quality_flags

@@ -423,6 +423,8 @@ async def apply_parsed_document(
             {
                 "label": f"section {row.get('section_code') or ''}".strip(),
                 "source_key": row.get("source_key"),
+                "instrument_code": row.get("instrument_code"),
+                "instrument_heading": row.get("instrument_heading"),
                 "section_code": row.get("section_code"),
                 "section_heading": row.get("section_heading"),
                 "plain_text": (row.get("plain_text") or "")[:4000],
@@ -473,6 +475,7 @@ async def apply_parsed_document(
             await db.execute(
                 """
                 UPDATE sections SET
+                    instrument_code = ?, instrument_heading = ?,
                     chapter_code = ?, chapter_heading = ?,
                     part_code = ?, part_heading = ?,
                     division_code = ?, division_heading = ?,
@@ -487,6 +490,8 @@ async def apply_parsed_document(
                 WHERE id = ?
                 """,
                 (
+                    section.get("instrument_code"),
+                    section.get("instrument_heading"),
                     section["chapter_code"],
                     section["chapter_heading"],
                     section["part_code"],
@@ -520,7 +525,8 @@ async def apply_parsed_document(
             await db.execute(
                 """
                 INSERT INTO sections (
-                    id, document_id, chapter_code, chapter_heading,
+                    id, document_id, instrument_code, instrument_heading,
+                    chapter_code, chapter_heading,
                     part_code, part_heading, division_code, division_heading,
                     section_code, section_heading, start_page, end_page,
                     html_content, plain_text, sort_order, review_status,
@@ -529,11 +535,13 @@ async def apply_parsed_document(
                     effective_status, sanitizer_version, sanitized_changed,
                     sanitizer_diagnostics
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                          ?, ?, ?, ?, ?, CAST(? AS jsonb))
+                          ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb))
                 """,
                 (
                     final_id,
                     document_id,
+                    section.get("instrument_code"),
+                    section.get("instrument_heading"),
                     section["chapter_code"],
                     section["chapter_heading"],
                     section["part_code"],

@@ -54,6 +54,7 @@ async def search_document(
     if cleaned_q:
         query = """
             SELECT s.id AS section_id, s.section_code, s.section_heading,
+                   s.instrument_code, s.instrument_heading,
                    s.chapter_code, s.plain_text,
                    ts_rank(
                      to_tsvector('simple', coalesce(s.section_code,'') || ' ' ||
@@ -79,6 +80,8 @@ async def search_document(
                 s.id as section_id,
                 s.section_code,
                 s.section_heading,
+                s.instrument_code,
+                s.instrument_heading,
                 s.chapter_code,
                 s.plain_text
             FROM sections s
@@ -96,6 +99,8 @@ async def search_document(
             section_id=row["section_id"],
             section_code=row["section_code"],
             section_heading=row["section_heading"],
+            instrument_code=row["instrument_code"],
+            instrument_heading=row["instrument_heading"],
             chapter_code=row["chapter_code"],
             snippet=snippet,
             snippet_text=snippet,
