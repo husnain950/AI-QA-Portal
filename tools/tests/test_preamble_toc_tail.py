@@ -19,13 +19,40 @@ import pathlib
 import sys
 
 _ROOT = pathlib.Path(__file__).resolve().parents[2]
-for _p in (str(_ROOT), str(_ROOT / "tools")):
+for _p in (str(_ROOT), str(_ROOT / "packages"), str(_ROOT / "tools")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from legal_ingest.calibrate import _is_toc_row, detect_toc_pages  # noqa: E402
+from legal_ingest.profiles import ACTS, RULES  # noqa: E402
 from suite.invariants import _common  # noqa: E402
 
 inv = _common.inv_preamble_carries_no_toc_tail
+
+
+class _TextPage:
+    def __init__(self, lines):
+        self._text = "\n".join(lines)
+
+    def extract_text(self):
+        return self._text
+
+
+class _TextPdf:
+    def __init__(self, *pages):
+        self.pages = [_TextPage(lines) for lines in pages]
+
+
+# One cover page, then an established dense contents run. The synthetic tail
+# pages below occupy index 2, so a correct result is three leading pages.
+_COVER_PAGE = ("ACT TITLE",)
+_DENSE_CONTENTS_PAGE = (
+    "1. Short title 1",
+    "2. Definitions 2",
+    "3. Scope 3",
+    "4. Power to make rules 4",
+)
+_BODY_PAGE = ("An Act to consolidate and amend the law",)
 
 #: What the Customs Act 1969 editions actually print: the last rows of the
 #: contents listing, then the enacting formula, in one node.
@@ -155,3 +182,45 @@ def test_does_not_fire_on_a_contents_leaf_outside_the_preamble():
 def test_tolerates_a_document_with_no_preamble():
     assert inv({}) == []
     assert inv({"preamble": None}) == []
+
+
+def test_detects_customs_two_row_schedule_tail_without_accepting_shceudle():
+    tail = (
+        "THE FIRST SCHEDULE 213",
+        "THE SECOND SHCEUDLE Omitted. 213",
+        "THE THIRD SCHEDULE 213",
+        "THE FOURTH SCHEDULE Omitted. 213",
+        "(xxii)",
+    )
+    assert not _is_toc_row(tail[1], ACTS)
+    assert sum(_is_toc_row(line, ACTS) for line in tail) == 2
+
+    pdf = _TextPdf(_COVER_PAGE, _DENSE_CONTENTS_PAGE, tail, _BODY_PAGE)
+    assert detect_toc_pages(pdf, profile=ACTS) == 3
+
+
+def test_detects_sales_tax_two_row_schedule_tail():
+    tail = (
+        "THE TWELFTH SCHEDULE……………....246",
+        "THE THIRTEENTH SCHEDULE...248",
+    )
+    assert sum(_is_toc_row(line, ACTS) for line in tail) == 2
+
+    pdf = _TextPdf(_COVER_PAGE, _DENSE_CONTENTS_PAGE, tail, _BODY_PAGE)
+    assert detect_toc_pages(pdf, profile=ACTS) == 3
+
+
+def test_does_not_swallow_income_tax_rules_title_page():
+    title_page = (
+        "GOVERNMENT OF PAKISTAN",
+        "FEDERAL BOARD OF REVENUE",
+        "INCOME TAX RULES, 2002",
+        "Islamabad September 2002",
+        "Published by Federal Board of Revenue 2002",
+        *("Official title-page furniture",) * 33,
+    )
+    assert len(title_page) == 38
+    assert sum(_is_toc_row(line, RULES) for line in title_page) == 3
+
+    pdf = _TextPdf(_COVER_PAGE, _DENSE_CONTENTS_PAGE, title_page, _BODY_PAGE)
+    assert detect_toc_pages(pdf, profile=RULES) == 2
