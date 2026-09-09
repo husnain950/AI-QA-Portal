@@ -426,6 +426,38 @@ def _front_matter_container(profile, is_amendment: bool, idx: int,
             and idx < section_start)
 
 
+def _gridless_table_indexes(body_refs) -> set[int]:
+    """Body indexes carrying fallback-detected table rows.
+
+    :mod:`pagemodel` replaces a ruled grid with a ``Table`` object, whose
+    ``is_table`` provenance the discovery loops already honour.  A text-only
+    grid has no such line metadata: :func:`tables.find_table_spans` recognises
+    it later, while rendering an already-discovered section.  That is too late
+    to stop one of its rows from becoming the section boundary that splits the
+    table in the first place.
+
+    Reuse the renderer's existing span detector here, but bound its answer at a
+    self-contained clause heading.  The renderer normally receives one
+    section at a time, so its span cannot cross the next clause; this caller
+    sees the whole document and must restore that bound explicitly.  A tariff
+    fragment such as ``8517.1390) shall be added.`` has no heading terminator
+    and stays table-owned, while ``8. Amendments ... .—`` ends the table and
+    remains eligible for normal discovery.
+    """
+    from .tables import find_table_spans
+
+    indexes: set[int] = set()
+    for start, end in find_table_spans(body_refs):
+        for idx in range(start, end):
+            text = body_refs[idx].line.text().strip()
+            if (idx > start and _HEADING_DASH_RE.search(text)
+                    and (_DOTFORM_RE.match(text[:40])
+                         or _DOTLESS_NUMERIC_RE.match(text[:40]))):
+                break
+            indexes.add(idx)
+    return indexes
+
+
 def _split_container_heading(text: str) -> tuple[str, str]:
     """A structural heading line -> its (KEYWORD, numeral).
 
@@ -493,6 +525,7 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
     pending: Node | None = None      # structural node awaiting heading line(s)
     pending_left = 0
     last_key = None                  # code_sort_key of the last REAL section
+    gridless_table_indexes = _gridless_table_indexes(body_refs)
 
     # Where this act's OWN numbering begins.  A gazette Act reproduced inside a
     # Finance Act is preceded by the host instrument's enacting clause, which
@@ -563,9 +596,11 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
     # ---- pass 1: structural tree + real sections ---------------------------
     for idx, ref in enumerate(body_refs):
         container_at[idx] = container()
-        if getattr(ref.line, "is_table", False):
+        if (getattr(ref.line, "is_table", False)
+                or idx in gridless_table_indexes):
             # a grid-extracted table can neither open a section nor carry a
-            # structural heading, and it ends any pending heading capture
+            # structural heading.  The fallback detector covers the text-only
+            # tables which pagemodel necessarily leaves as Lines.
             pending, pending_left = None, 0
             continue
         text = ref.line.text().strip()
@@ -786,7 +821,8 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
     placeholder_codes: set[str] = set()
     import bisect
     for idx, ref in enumerate(body_refs):
-        if getattr(ref.line, "is_table", False):
+        if (getattr(ref.line, "is_table", False)
+                or idx in gridless_table_indexes):
             continue
         text = ref.line.text().strip()
         if not text or "[" not in text or not BRACKETS_ONLY_RE.match(text):
