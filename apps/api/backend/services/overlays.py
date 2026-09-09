@@ -29,7 +29,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from backend.database import DatabaseConnection, DatabaseRow
 from backend.services.clock import iso_now_z as _now
 
-_LEAF_SEGMENTS = {"chapters", "schedules", "parts", "divisions", "sections"}
+_LEAF_SEGMENTS = {
+    "instruments", "chapters", "schedules", "parts", "divisions", "sections"
+}
 
 
 
@@ -51,7 +53,7 @@ def pdf_digest_from_filename(pdf_filename: str) -> Optional[str]:
 
 
 def get_leaf(data: Dict[str, Any], source_key: str) -> Optional[Dict[str, Any]]:
-    """Resolve a ``source_key`` path (e.g. ``/chapters/0/sections/3``) to its node."""
+    """Resolve a source path, including ``/instruments/0/chapters/...``."""
     if source_key == "/preamble":
         node = data.get("preamble")
         return node if isinstance(node, dict) else None

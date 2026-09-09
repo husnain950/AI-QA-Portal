@@ -21,6 +21,8 @@ import re
 from dataclasses import dataclass, field
 from statistics import median as _median
 
+from legal_contract import iter_document_roots
+
 from .footnotes import BRACKETS_ONLY_RE, all_markers_anonymous, ref_sort_key
 from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX, is_code_like, norm_code
 
@@ -1335,6 +1337,15 @@ _HEAD = r"^\s*" + MARKER_PREFIX
 #: (``2 [ (5) The Federal Government may ...``, the false accept the comment on
 #: ``_BRACKETPAREN_RE`` records as costing thirty sections) -- a subsection
 #: marker carries no dot after its code.
+#: A decimal dot is not a section delimiter.  This matters beyond ordinary
+#: table rows: Finance Act 2024 wraps a quoted PCT list so that the continuation
+#: line opens ``8517.1430 ...``.  Discovery matched ``8517`` here, then its
+#: multiline title scan borrowed the real clause 8 terminator and advanced the
+#: clause cursor past 8.  ``(?!\d)`` rejects only a digit fused directly to the
+#: dot; it keeps both real numeric-leading titles (``1. 2024 ...``) and an
+#: independently terminated ``8517. Amendment ...`` eligible for the normal
+#: plausibility invariant.
+#:
 #: A SUBSTITUTED section is printed inside its amendment bracket AND inside the
 #: quotation marks of the substituting instrument: Sales Tax 15.01.2022 prints
 #: s.47A as ``602[“47A. Alternative dispute resolution.—``.  Like the paren, the
@@ -1343,7 +1354,7 @@ _HEAD = r"^\s*" + MARKER_PREFIX
 #: section.  ``_BRACKETED_DOTLESS_RE`` already allowed a quote AFTER the code for
 #: the same reason; this is the other side of it.
 _OPEN = r"(?:\[\s*[“”\"'‘]?\s*\(?\s*|\[?\s*)"
-_DOTFORM_RE = re.compile(_HEAD + rf"{_OPEN}({CODE})\s*\.")
+_DOTFORM_RE = re.compile(_HEAD + rf"{_OPEN}({CODE})\s*\.(?!\d)")
 # A parenthesised code is only a SECTION when it carries a letter suffix.
 # ``CODE`` alone matched an inserted SUBSECTION -- "2 [ (5) The Federal
 # Government may, by notification..." on page 40 of the 2007 edition read as
@@ -2065,10 +2076,35 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
             if not t:
                 j += 1
                 continue
+            if _SUBCHAPTER_BODY_RE.fullmatch(t):
+                # Sub-chapters are deliberately not a tree level (the TOC
+                # reader consumes the same row). Consume its body caption and
+                # one following title line as structural furniture instead of
+                # handing ``(1)`` to the next section as an orphan list item.
+                j += 1
+                while j < hi and not body_refs[j].line.text().strip():
+                    j += 1
+                if j < hi and not (
+                    _candidate_code(body_refs[j].line)
+                    or getattr(body_refs[j].line, "is_table", False)
+                    or is_structural_boundary(body_refs[j].line.text(), codes)
+                ):
+                    j += 1
+                pending = 2
+                continue
             if is_structural_boundary(body_refs[j].line.text(), codes):
                 j, pending = j + 1, 2
                 continue
-            if any(t == c or (len(t) > 8 and t in c) for c in consumed):
+            if any(
+                t == c
+                or (len(t) > 8 and t in c)
+                or (
+                    len(t) >= 4
+                    and t.isupper()
+                    and c.upper().startswith(t.upper() + " ")
+                )
+                for c in consumed
+            ):
                 j, pending = j + 1, pending - 1
                 continue
             break
@@ -2181,12 +2217,11 @@ def preamble_refs(body_refs, ordered_sections, containers=()):
 # cross-references in body text ("...specified in Division V of Part I...") would
 # wrongly truncate a section.
 #
-# The separator between the keyword and the numeral is ``[\s\-]+`` for CHAPTER,
-# which is the spelling ``grammar.CHAPTER_RE`` has always used (and asserts, at
-# grammar.py's ``_demo``).  This private copy spelled it ``\s+`` for twelve
-# rounds, so the Sales Tax Act's ``Chapter-II`` was not a boundary: nine chapter
-# headings per edition were swallowed into the preceding section's body, 175
-# leaves across 21 documents, and the invariant written to catch exactly that
+# The separator between the keyword and the numeral is ``[\s\-–]+`` for CHAPTER,
+# in step with ``grammar.CHAPTER_RE``.  This private copy once spelled it ``\s+``,
+# so the Sales Tax Act's ``Chapter-II`` was not a boundary: nine chapter headings
+# per edition were swallowed into the preceding section's body, 175 leaves across
+# 21 documents, and the invariant written to catch exactly that
 # (``_STRUCT_LINE`` in tools/suite/invariants/_common.py) carried the same narrow
 # spelling and reported zero.  Round 1's chapter numeral again -- two readers of
 # one line, normalising differently.
@@ -2225,12 +2260,12 @@ def preamble_refs(body_refs, ordered_sections, containers=()):
 #   * ``{1,2}`` not ``{0,2}``, so a trailing bare hyphen (``CHAPTER XVI-``) is not
 #     a boundary.  Fail-closed on a form the corpus does not print.
 #
-# The EN DASH separator is a separate, still-open gap: ``CHAPTER – VI`` is 42 real
-# boundaries over 21 documents, and ``grammar.CHAPTER_RE`` rejects those too, so it
-# cannot be closed by agreeing with the grammar the way this one was.  Pinned in
-# ``test_structural_boundary_agrees_with_grammar.KNOWN_GAP_ENDASH_CHAPTERS``.
+# The EN DASH separator carries measured evidence of its own: ``CHAPTER – VI`` /
+# ``– VII`` in twenty Customs editions and ``– V`` / ``– VIAB`` in Sales Tax
+# Rules are 42 real boundaries over 21 documents.  It belongs only to CHAPTER:
+# PART's en-dash forms remain behind the separate container-evidence decision.
 _STRUCTURAL_RE = re.compile(
-    r"^(CHAPTER[\s\-]+[IVXLC0-9]+(?:-?[A-Z]{1,2})?|PART[\s\-]+[IVXLC0-9]+[A-Z]{0,2}|Division\s+[IVXLC0-9]+[A-Z]{0,2})$",
+    r"^(CHAPTER[\s\-–]+[IVXLC0-9]+(?:-?[A-Z]{1,2})?|PART[\s\-]+[IVXLC0-9]+[A-Z]{0,2}|Division\s+[IVXLC0-9]+[A-Z]{0,2})$",
     re.IGNORECASE)
 
 #: The PART form the widening admits and the old ``PART\s+`` spelling did not:
@@ -2239,6 +2274,10 @@ _STRUCTURAL_RE = re.compile(
 #: matches every PART line that is *not* the long-accepted spaced form, so a
 #: separator nobody anticipated is guarded rather than admitted.
 _GUARDED_PART_RE = re.compile(r"^PART(?!\s+[IVXLC0-9])", re.IGNORECASE)
+_SUBCHAPTER_BODY_RE = re.compile(
+    r"^SUB[\s\-]*CHAPTER[\s\-]*\(?[IVXLC0-9]+\)?$",
+    re.IGNORECASE,
+)
 
 # leading amendment decoration on a structural heading: superscript marker(s)
 # and/or opening bracket(s), e.g. "1[PART VA", "[PART III" (the marker can land
@@ -2259,7 +2298,7 @@ def _norm_container_code(text: str) -> str:
     folds more because a schedule's contents page and body disagree about more.
     """
     t = re.sub(r"\s+", " ", _STRUCT_DECOR_RE.sub("", text.strip())).upper()
-    return re.sub(r"^(CHAPTER|PART|DIVISION)[\s\-]+", r"\1 ", t).strip()
+    return re.sub(r"^(CHAPTER|PART|DIVISION)[\s\-–]+", r"\1 ", t).strip()
 
 
 def is_structural_boundary(text: str, container_codes=None) -> bool:
@@ -2301,6 +2340,12 @@ _DOT_DASH_RUN_RE = re.compile(r"[.,]-{1,3}")
 # A token that is only the section code plus a trailing dash ("227D.-", "[236C.-"),
 # i.e. inserted-code decoration -- NOT the "<title>.-" heading terminator.
 _CODE_DASH_RE = re.compile(r"^\[*\(?\d{1,3}[A-Z]{0,3}\)?\.?[-—–―─]$")
+
+# What may sit between a section code's dot and an omission cue: closing/opening
+# amendment brackets and superscript marker numbers.  ``***`` is itself the cue,
+# so ``*`` is deliberately not decoration here.
+_OMISSION_AFTER_CODE_RE = re.compile(
+    r"^[\s\[\]\d.,()\-]*(?:\*{3}|(?:omitted|repealed)\b)", re.IGNORECASE)
 
 
 def _words_after_heading_dash(words, allow_first=False):
@@ -2421,11 +2466,21 @@ def _find_heading_split(seg, cutoff):
     heading; ``words_after`` are the operative words that follow.  ``None`` when
     no heading terminator is found.
 
-    The scan stops at a grid-extracted TABLE, which can never be part of a
-    heading -- ``discover`` already refuses to let one open a section or carry a
-    structural heading, and this is the same rule on the build side.  Ledger
-    **P39**: page 30 of Federal Excise 11-03-2019 is read as a grid, so section
-    26's whole first block ("26. Power to seize.– (1) The counterfeited
+    The scan stops at a grid-extracted TABLE or a structural boundary, neither
+    of which can be part of a section heading -- ``discover`` already refuses to
+    let a table open a section or carry a structural heading, and this is the
+    same rule on the build side.
+
+    An omission is the one boundary case that needs a fallback rather than a
+    bare refusal.  Sales Tax section 32AA prints only ``6[32AA. ***]`` before
+    ``Chapter-VII``; without its own terminator, it used to borrow section 33's
+    dash beyond that chapter and absorb the chapter caption into its heading.
+    Returning ``None`` at the boundary loses 32AA entirely in body-driven
+    discovery.  When line zero is a code-led omission, return that whole line as
+    the heading region instead.
+
+    Ledger **P39**: page 30 of Federal Excise 11-03-2019 is read as a grid, so
+    section 26's whole first block ("26. Power to seize.– (1) The counterfeited
     cigarettes 1[or beverages] ...") arrived as ONE table line; the scan walked
     past it, found the split on the NEXT line's "(2)", and the caller then
     dropped everything up to and including the table as heading region.  The
@@ -2433,8 +2488,39 @@ def _find_heading_split(seg, cutoff):
     present in ``plain_text`` and absent from the ``html`` -- which the
     conservation audit cannot see, because it reads ``plain_text``.
     """
+    def untitled_body_split():
+        first_words = sorted(seg[0].line.words, key=lambda w: w.x0)
+        m = _DOTFORM_RE.match(seg[0].line.text()[:40])
+        if not m:
+            return None
+        code_i = _code_token_index(first_words)
+        if code_i is None:
+            return None
+        return 0, first_words[:code_i + 1], first_words[code_i + 1:]
+
     for li in range(min(4, cutoff)):
         if getattr(seg[li].line, "is_table", False):
+            return untitled_body_split() if li else None
+        next_boundary = li and (
+            is_structural_boundary(seg[li].line.text())
+            or _DOTFORM_RE.match(seg[li].line.text()[:40])
+            or seg[li].line.text().strip().upper() == "TABLE"
+        )
+        if next_boundary:
+            first_words = sorted(seg[0].line.words, key=lambda w: w.x0)
+            m = _DOTFORM_RE.match(seg[0].line.text()[:40])
+            if m and _OMISSION_AFTER_CODE_RE.match(
+                    seg[0].line.text()[m.end():]):
+                return 0, first_words, []
+            if m:
+                # A provision can consist of one operative sentence with no
+                # separately printed marginal heading (Customs rules 47A, 267,
+                # 482B and 484).  The next section/chapter is a hard boundary:
+                # borrowing its terminator makes that next title the current
+                # heading; returning None makes body discovery drop the current
+                # provision altogether.  Keep the code as the empty heading
+                # region and treat every following word as operative body.
+                return untitled_body_split()
             return None
         words = sorted(seg[li].line.words, key=lambda w: w.x0)
         # 1) preferred: the "<title>.—" heading dash
@@ -2839,8 +2925,11 @@ def normalize_document_text(result):
     RC-7 line-break de-hyphenation, RC-5 fused-marker spacing (leaf + footnote
     plain/html) and RC-5 bare-marker merging (leaf plain).  Runs once per
     document."""
-    leaves = [lf for root in ("chapters", "schedules")
-              for node in result.get(root, []) for lf in all_leaves(node)]
+    leaves = [
+        leaf
+        for _collection, _kind, node in iter_document_roots(result)
+        for leaf in all_leaves(node)
+    ]
     solid, hyph = _hyphenation_vocab(leaves)
     for lf in leaves:
         if lf.get("plain_text"):
@@ -3357,12 +3446,14 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
 def _demo() -> None:
     """Pure-function pin: gazette preamble HTML must not glue titles into recitals."""
     # ---- round 13: the separator the private copy never learned ------------
-    # grammar.CHAPTER_RE has always spelled it [\s\-]+; _STRUCTURAL_RE spelled it
-    # \s+, so nine chapter boundaries per Sales Tax Act edition were invisible and
-    # their headings sat in the preceding section's body (175 leaves, 21 docs).
+    # grammar.CHAPTER_RE spelled the ASCII forms [\s\-]+ while _STRUCTURAL_RE
+    # spelled only \s+, so nine chapter boundaries per Sales Tax Act edition were
+    # invisible and their headings sat in the preceding section's body (175
+    # leaves, 21 docs).  Both now also admit the measured CHAPTER en-dash form.
     for _line in ("CHAPTER II", "Chapter-II", "CHAPTER-II", "Chapter- I",
                   "CHAPTER - V", "4[Chapter-I", "128[CHAPTER-XLI",
-                  "150[CHAPTER- XLIII", "PART III", "1[PART VA"):
+                  "150[CHAPTER- XLIII", "CHAPTER – VI", "CHAPTER – VIAB",
+                  "PART III", "1[PART VA"):
         assert is_structural_boundary(_line), _line
     # ...and what the WHOLE-LINE anchor must still keep out.  These are the
     # false positives that disqualified delegating to grammar.CHAPTER_RE, whose

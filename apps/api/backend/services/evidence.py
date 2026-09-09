@@ -28,9 +28,12 @@ async def build_document_bundle(db: DatabaseConnection, document_id: str) -> dic
     sections = await _rows(
         db,
         """
-        SELECT id, occurrence_id, source_key, section_code, section_heading, start_page,
-               end_page, sort_order, reviewer_verdict, effective_status, review_status,
-               quality_flags, sanitizer_version, sanitized_changed, sanitizer_diagnostics
+        SELECT id, occurrence_id, source_key, instrument_code, instrument_heading,
+               chapter_code, chapter_heading, part_code, part_heading,
+               division_code, division_heading, hierarchy_kind,
+               section_code, section_heading, start_page, end_page, sort_order,
+               reviewer_verdict, effective_status, review_status, quality_flags,
+               sanitizer_version, sanitized_changed, sanitizer_diagnostics
         FROM sections WHERE document_id = ? ORDER BY sort_order
         """,
         (document_id,),

@@ -25,6 +25,32 @@ predates this contract and describes one lane. Where the two disagree, this file
 }
 ```
 
+For a compilation, the two root collections move under an optional instrument
+level. A producer emits either this shape or the legacy shape above; consumers
+must accept both:
+
+```
+{
+  "metadata":    { ... },
+  "preamble":    { ... },                                 # optional
+  "instruments": [
+    {
+      "code": str, "heading": str,                         # heading optional
+      "type": "instrument", "node_key": "inst:<slug>",
+      "chapters": [ container, ... ],
+      "schedules": [ container, ... ]
+    },
+    ...
+  ]
+}
+```
+
+A compilation instrument's `code` is its stable legal identity (normally its
+S.R.O. citation), not an array index or display-only title. `chapters_count`,
+`schedules_count`, and `sections_count` remain document-wide totals.
+`metadata.instruments_count` is optional and present when the instrument
+representation hook is used.
+
 A **container** nests `parts[]`, `divisions[]` and `sections[]`. A **leaf** is any node
 carrying `html`. Containers may also be leaves: `rvw_export` emits leaf-shaped parts
 under chapters for gazette continuations, and the portal's flattener allows it.
@@ -65,7 +91,8 @@ from stages that not every document goes through:
 
 Every node carries:
 
-- **`type`** — one of `chapter`, `part`, `division`, `schedule`, `section`. Before this
+- **`type`** — one of `instrument`, `chapter`, `part`, `division`, `schedule`,
+  `section`. Before this
   existed, the output used one dict shape for a chapter, a schedule part and a section
   leaf, and a consumer had to infer the kind from which keys happened to be present.
 - **`node_key`** — the ancestor chain **by code**: `ch:vii/pt:i/s:114`. Not by array
@@ -76,11 +103,13 @@ Every node carries:
 ```
 node_key   := segment ("/" segment)*
 segment    := abbrev ":" slug ("~" ordinal)?
-abbrev     := ch | pt | dv | sch | s
+abbrev     := inst | ch | pt | dv | sch | s
 slug       := the node's code, lowercased, leading kind-word stripped, spaces to hyphens
               "CHAPTER XIV-A" -> "xiv-a"    "114A" -> "114a"    "Schedule II" -> "ii"
               "FIRST SCHEDULE" -> "first-schedule"   (the word is not leading)
               ""  ->  "~root"   (the synthetic container a flat act gets)
+              instrument slugs additionally collapse punctuation, because S.R.O.
+              citations contain "/" and node-key segments cannot
 ordinal    := 2, 3, ...   appended when a sibling code repeats
 ```
 

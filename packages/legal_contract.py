@@ -36,13 +36,115 @@ from pathlib import Path
 CONTRACT_VERSION = 1
 
 #: Node type -> the abbreviation used in ``node_key``.
-KEY_ABBREV = {"chapter": "ch", "part": "pt", "division": "dv",
-              "schedule": "sch", "section": "s"}
+KEY_ABBREV = {"instrument": "inst", "chapter": "ch", "part": "pt",
+              "division": "dv", "schedule": "sch", "section": "s"}
 
 #: Where a child list sits in the tree, and what a node in it IS. This is the
 #: convention the output has always followed positionally; stamping it makes a
 #: consumer stop having to infer a node's kind from which keys happen to exist.
-CHILD_KINDS = (("parts", "part"), ("divisions", "division"), ("sections", "section"))
+CHILD_KINDS = (
+    ("chapters", "chapter"),
+    ("schedules", "schedule"),
+    ("parts", "part"),
+    ("divisions", "division"),
+    ("sections", "section"),
+)
+DOCUMENT_ROOTS = (("chapters", "chapter"), ("schedules", "schedule"))
+
+
+def iter_document_roots(result: dict):
+    """Yield every chapter/schedule root from legacy or instrument-shaped JSON.
+
+    Contract-v1 documents keep ``chapters`` and ``schedules`` at the document
+    root. A compilation may instead place those same collections under
+    ``instruments[]``. Walking both locations is intentionally tolerant of a
+    mixed transitional payload, so an older producer cannot make content
+    invisible merely by adding an empty or partial ``instruments`` key.
+    """
+    for instrument in result.get("instruments") or []:
+        if not isinstance(instrument, dict):
+            continue
+        for collection, kind in DOCUMENT_ROOTS:
+            for node in instrument.get(collection) or []:
+                yield collection, kind, node
+    for collection, kind in DOCUMENT_ROOTS:
+        for node in result.get(collection) or []:
+            yield collection, kind, node
+
+
+def represent_compilation(result: dict, partitions) -> dict:
+    """Move an assembled flat tree into deterministic instrument containers.
+
+    ``partitions`` is an ordered iterable of mappings with a stable legal
+    ``code`` and zero-based ``chapter_indexes`` / ``schedule_indexes``. An
+    optional ``heading`` is display text only. Every existing root must be
+    assigned exactly once: refusing an incomplete/overlapping partition is the
+    conservation guard that keeps a detector from silently dropping law.
+
+    This is the representation hook, not compilation detection. A PDF-specific
+    detector must still decide where instruments begin and, where a boundary
+    falls inside an existing chapter, split that chapter before calling here.
+    """
+    if result.get("instruments"):
+        raise ValueError("document already has instrument containers")
+    chapters = list(result.get("chapters") or [])
+    schedules = list(result.get("schedules") or [])
+    instruments = []
+    used_chapters: set[int] = set()
+    used_schedules: set[int] = set()
+
+    def selected(indexes, nodes, used, label):
+        chosen = []
+        for raw in indexes or []:
+            if not isinstance(raw, int) or raw < 0 or raw >= len(nodes):
+                raise ValueError(f"{label} index {raw!r} is out of range")
+            if raw in used:
+                raise ValueError(f"{label} index {raw} is assigned more than once")
+            used.add(raw)
+            chosen.append(nodes[raw])
+        return chosen
+
+    for position, partition in enumerate(partitions or []):
+        if not isinstance(partition, dict):
+            raise ValueError(f"instrument partition {position} is not a mapping")
+        code = str(partition.get("code") or "").strip()
+        if not code:
+            raise ValueError(f"instrument partition {position} has no stable code")
+        instrument = {
+            "code": code,
+            "chapters": selected(
+                partition.get("chapter_indexes"),
+                chapters,
+                used_chapters,
+                "chapter",
+            ),
+            "schedules": selected(
+                partition.get("schedule_indexes"),
+                schedules,
+                used_schedules,
+                "schedule",
+            ),
+        }
+        heading = str(partition.get("heading") or "").strip()
+        if heading:
+            instrument["heading"] = heading
+        instruments.append(instrument)
+
+    if not instruments:
+        raise ValueError("a compilation needs at least one instrument")
+    missing_chapters = sorted(set(range(len(chapters))) - used_chapters)
+    missing_schedules = sorted(set(range(len(schedules))) - used_schedules)
+    if missing_chapters or missing_schedules:
+        raise ValueError(
+            "instrument partitions do not conserve roots: "
+            f"chapters={missing_chapters}, schedules={missing_schedules}"
+        )
+
+    result.pop("chapters", None)
+    result.pop("schedules", None)
+    result["instruments"] = instruments
+    result.setdefault("metadata", {})["instruments_count"] = len(instruments)
+    return result
 
 
 def slug(code: str, kind: str) -> str:
@@ -55,6 +157,11 @@ def slug(code: str, kind: str) -> str:
     avoid depending on.
     """
     text = re.sub(rf"^\s*{kind}\b[\s\-]*", "", code.strip(), flags=re.IGNORECASE)
+    if kind == "instrument":
+        # Instrument identities are often S.R.O. citations containing "/" and
+        # parentheses. Those characters cannot enter a node-key segment because
+        # "/" separates ancestors. Collapse punctuation deterministically.
+        return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-") or "~root"
     return re.sub(r"\s+", "-", text.strip()).lower() or "~root"
 
 
@@ -97,6 +204,7 @@ def stamp_document(result: dict) -> dict:
     ``schedules`` are assembled and before the preamble and the footnote-adoption
     passes, neither of which adds or removes a node.
     """
+    stamp_identity(result.get("instruments") or [], "instrument")
     stamp_identity(result.get("chapters") or [], "chapter")
     stamp_identity(result.get("schedules") or [], "schedule")
     result.setdefault("metadata", {})["contract_version"] = CONTRACT_VERSION
@@ -207,6 +315,37 @@ def _demo() -> None:
     # x33, sch:the-first-schedule x27), not against what reads tidier.
     assert doc["schedules"][0]["node_key"] == "sch:first-schedule"
     assert slug("Schedule II", "schedule") == "ii"
+
+    # A compilation keeps each instrument's repeated hierarchy in a distinct,
+    # stable namespace. The representation hook conserves every assembled root.
+    compilation = {
+        "metadata": {"filename": "rules.pdf"},
+        "chapters": [
+            {"code": "I", "parts": [], "divisions": [],
+             "sections": [{"code": "1"}]},
+            {"code": "I", "parts": [], "divisions": [],
+             "sections": [{"code": "1"}]},
+        ],
+        "schedules": [],
+    }
+    represent_compilation(compilation, [
+        {"code": "S.R.O. 1(I)/2001", "heading": "First Rules",
+         "chapter_indexes": [0]},
+        {"code": "S.R.O. 2(I)/2001", "heading": "Second Rules",
+         "chapter_indexes": [1]},
+    ])
+    stamp_document(compilation)
+    assert "chapters" not in compilation and "schedules" not in compilation
+    assert [i["node_key"] for i in compilation["instruments"]] == [
+        "inst:s-r-o-1-i-2001", "inst:s-r-o-2-i-2001",
+    ]
+    assert [
+        i["chapters"][0]["sections"][0]["node_key"]
+        for i in compilation["instruments"]
+    ] == [
+        "inst:s-r-o-1-i-2001/ch:i/s:1",
+        "inst:s-r-o-2-i-2001/ch:i/s:1",
+    ]
 
     stamp_run_provenance(doc, "acts", revision="deadbeef")
     assert doc["metadata"]["lane"] == "acts"

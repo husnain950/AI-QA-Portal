@@ -7,7 +7,11 @@ import re as _re
 
 import pdfplumber
 
-from legal_contract import stamp_document
+from legal_contract import (
+    iter_document_roots,
+    represent_compilation,
+    stamp_document,
+)
 
 from .builder import LineRef, build_sections
 from .calibrate import calibrate
@@ -37,6 +41,133 @@ def _toc_lines(pdf, n_pages: int) -> list[str]:
         txt = pdf.pages[i].extract_text(layout=True) or ""
         lines.extend(txt.split("\n"))
     return lines
+
+
+_EMBEDDED_CONTENTS_TITLE = re.compile(r"^\s*CONTENTS\s*$", re.IGNORECASE)
+_EMBEDDED_CONTENTS_ROW = re.compile(
+    r"^\s*\d{1,4}[A-Z]{0,3}\s*\.\s+\S", re.IGNORECASE
+)
+_EMBEDDED_CONTENTS_END = re.compile(r"^\s*[-–—_]{4,}\s*$")
+_SECONDARY_INSTRUMENT_TITLE = re.compile(
+    r"\b(?:ACT|ORDINANCE|RULES|REGULATIONS),?\s+(?:19|20)\d{2}\b",
+    re.IGNORECASE,
+)
+
+
+def _drop_embedded_contents_blocks(body_refs):
+    """Remove a mid-body instrument's own contents rows before section binding.
+
+    A compiled publication can append a separately-notified instrument.  Its
+    miniature ``CONTENTS`` block is body text from the host document's point of
+    view, so the section binder otherwise chooses those rows before the real
+    provisions printed later on the same page.  Suppress only the measured,
+    self-delimiting shape: an exact CONTENTS title, at least two dot-form rows,
+    and a horizontal rule within the next twelve non-blank lines.
+
+    The density-based front-matter detector is deliberately not reused here:
+    this block can share a page with the appended instrument's notification and
+    first provisions, so classifying the whole page as TOC would lose law.
+    """
+    remove: set[int] = set()
+    for start, ref in enumerate(body_refs):
+        if not _EMBEDDED_CONTENTS_TITLE.fullmatch(ref.line.text().strip()):
+            continue
+        rows = 0
+        end = None
+        seen = 0
+        for idx in range(start + 1, min(len(body_refs), start + 20)):
+            text = body_refs[idx].line.text().strip()
+            if not text:
+                continue
+            seen += 1
+            if _EMBEDDED_CONTENTS_ROW.match(text):
+                rows += 1
+            elif rows >= 2 and _EMBEDDED_CONTENTS_END.fullmatch(text):
+                end = idx
+                break
+            elif seen > 12:
+                break
+        if end is not None:
+            remove.update(range(start, end + 1))
+    return [ref for idx, ref in enumerate(body_refs) if idx not in remove], len(remove)
+
+
+def _toc_needs_body_discovery(lines: list[str]) -> bool:
+    """Whether front matter is a chapter index plus a non-statutory memorandum.
+
+    Customs Rules 2001 prints a two-page ``Chapter / Contents / Page No.`` index
+    followed by a three-page MEMORANDUM whose rows begin ``1.``, ``2.``, ...
+    and carry old notification numbers.  ``parse_toc`` correctly reads those as
+    section-shaped rows but they are an index, not rules.  The legal body has
+    one notification (S.R.O. 450(I)/2001) and its own ascending rule numbers, so
+    the safe source of leaves is body discovery while the chapter index remains
+    useful only for container captions.
+    """
+    normalized = [" ".join(line.upper().split()) for line in lines]
+    has_chapter_index = any(
+        "CHAPTER" in line and "CONTENTS" in line and "PAGE NO" in line
+        for line in normalized
+    )
+    has_memorandum = any(line == "MEMORANDUM" for line in normalized)
+    return has_chapter_index and has_memorandum
+
+
+def _chapter_leaves(node):
+    for section in node.get("sections") or []:
+        yield section
+    for key in ("parts", "divisions"):
+        for child in node.get(key) or []:
+            yield from _chapter_leaves(child)
+
+
+def _automatic_instrument_partitions(result: dict):
+    """Partition roots when a later root is plainly a second legal instrument.
+
+    The first supported source is Federal Excise Rules 2005: after its final
+    chapter it appends ``ELECTRONIC FILING ... RULES, 2005``, restarts at rule
+    1, and carries a separate notification.  Requiring all three observable
+    properties -- a later root, a legal instrument title, and a code-1 restart
+    -- keeps ordinary caption-only/schedule roots in the host instrument.
+    """
+    chapters = list(result.get("chapters") or [])
+    if len(chapters) < 2:
+        return None
+    starts = []
+    for index, chapter in enumerate(chapters[1:], 1):
+        heading = str(chapter.get("heading") or "").strip()
+        leaves = list(_chapter_leaves(chapter))
+        first_code = str(leaves[0].get("code") or "").strip() if leaves else ""
+        if (
+            not str(chapter.get("code") or "").strip()
+            and _SECONDARY_INSTRUMENT_TITLE.search(heading)
+            and re.fullmatch(r"0*1", first_code)
+        ):
+            starts.append(index)
+    if not starts:
+        return None
+
+    metadata = result.get("metadata") or {}
+    boundaries = [0, *starts, len(chapters)]
+    partitions = []
+    for position, (begin, end) in enumerate(zip(boundaries, boundaries[1:])):
+        root = chapters[begin]
+        heading = str(root.get("heading") or "").strip()
+        if position == 0:
+            code = str(metadata.get("notified_by") or metadata.get("filename") or "primary")
+            heading = str(metadata.get("filename") or heading).strip()
+        else:
+            code = heading
+        partition = {
+            "code": code,
+            "chapter_indexes": list(range(begin, end)),
+            "schedule_indexes": list(range(len(result.get("schedules") or [])))
+            if position == 0
+            else [],
+        }
+        if heading:
+            partition["heading"] = heading
+        partitions.append(partition)
+    return partitions
 
 
 def cover_footnote_collector_pages(leaves, pages, has_body, has_notes) -> int:
@@ -462,7 +593,8 @@ def _resolve_profile(pdf_path: str, lane: "Profile", progress):
 
 def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = None,
         admit_below_floor: bool = False,
-        profile: "Profile" = ACTS, auto: bool = False) -> dict:
+        profile: "Profile" = ACTS, auto: bool = False,
+        instrument_partitions=None) -> dict:
     """Convert one PDF to the document dict.
 
     ``profile`` says how this document is printed; see
@@ -482,6 +614,11 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     ``ocr.AGREEMENT_FLOOR`` instead of refusing it, stamping
     ``metadata.ocr.provisional = True``.  Default off, so nothing about the
     existing corpus changes.
+
+    ``instrument_partitions`` is the corpus-detector hook for compilations. It
+    groups the assembled chapter/schedule roots through
+    :func:`legal_contract.represent_compilation`; absence preserves the legacy
+    top-level shape byte-for-byte.
 
     It exists because the user decided 2026-08-07 that the sub-floor files
     should be available WITH their per-token ``needs_review`` flags rather than
@@ -509,7 +646,9 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
              f"footnote={cal.footnote_size}pt, TOC pages={toc_pages}, "
              f"offset={cal.page_offset}")
 
-    chapters, schedules, ordered_sections = parse_toc(_toc_lines(pdf, toc_pages), profile)
+    toc_lines = _toc_lines(pdf, toc_pages)
+    force_body_discovery = _toc_needs_body_discovery(toc_lines)
+    chapters, schedules, ordered_sections = parse_toc(toc_lines, profile)
     progress(f"TOC parsed: {len(chapters)} chapters, {len(schedules)} schedules, "
              f"{len(ordered_sections)} sections")
 
@@ -650,6 +789,13 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
             body_refs.extend(sched_refs[:cut])
             sched_refs = sched_refs[cut:]
 
+    body_refs, dropped_contents_lines = _drop_embedded_contents_blocks(body_refs)
+    if dropped_contents_lines:
+        progress(
+            f"suppressed {dropped_contents_lines} embedded contents line(s) "
+            "before section binding"
+        )
+
     # splice footnotes that continue across a page break before assembling,
     # then rebuild the citation-title map so titles carry the full text
     from .footnotes import merge_footnote_continuations
@@ -695,7 +841,12 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     if ordered_sections and not usable_pages:
         progress(f"contents page unusable: {len(ordered_sections)} row(s), none "
                  f"landing inside {total_pages} pages -- using the body instead")
-    if not ordered_sections or not usable_pages:
+    if force_body_discovery:
+        progress(
+            "chapter index followed by memorandum: ignoring its section-shaped "
+            "index rows and using the legal body"
+        )
+    if force_body_discovery or not ordered_sections or not usable_pages:
         from .discover import discover_structure
         chapters, ordered_sections = discover_structure(
             body_refs, printed_by_page, page_footnotes, profile=profile)
@@ -1008,6 +1159,10 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         "chapters": [_node_to_dict(c) for c in chapters],
         "schedules": schedules_out,
     }
+    if instrument_partitions is None:
+        instrument_partitions = _automatic_instrument_partitions(result)
+    if instrument_partitions is not None:
+        represent_compilation(result, instrument_partitions)
     stamp_document(result)
     # the enacting preamble (text before section 1: "AN ORDINANCE ... WHEREAS ...")
     from .builder import _build_preamble_html, preamble_refs
@@ -1022,8 +1177,11 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     # completeness safety net: adopt any uncited footnote into the leaf covering
     # its page, so no footnote text is dropped anywhere in the document.
     from .builder import adopt_orphan_footnotes, all_leaves
-    leaves = [lf for root in ("chapters", "schedules")
-              for node in result[root] for lf in all_leaves(node)]
+    leaves = [
+        leaf
+        for _collection, _kind, node in iter_document_roots(result)
+        for leaf in all_leaves(node)
+    ]
     n = adopt_orphan_footnotes(leaves, page_footnotes, printed_by_page, offset,
                                note_body_pages=note_body_pages)
     progress(f"adopted {n} orphaned footnotes")

@@ -44,7 +44,9 @@ async def export_qa_report(
 
     # Fetch sections and their annotations
     sections_query = """
-        SELECT id, section_code, section_heading, chapter_code, chapter_heading, start_page, end_page, review_status
+        SELECT id, instrument_code, instrument_heading, section_code,
+               section_heading, chapter_code, chapter_heading, start_page,
+               end_page, review_status
         FROM sections
         WHERE document_id = ?
         ORDER BY sort_order ASC
@@ -93,6 +95,10 @@ async def export_qa_report(
             all_annotations.append({
                 "section_code": sec["section_code"],
                 "section_heading": sec["section_heading"],
+                "instrument": (
+                    f"{sec['instrument_code'] or ''} - "
+                    f"{sec['instrument_heading'] or ''}"
+                ).strip(" -"),
                 "chapter": f"{sec['chapter_code'] or ''} - {sec['chapter_heading'] or ''}".strip(" -"),
                 "pages": f"{sec['start_page'] or ''}-{sec['end_page'] or ''}".strip("-"),
                 "review_status": sec["review_status"],
@@ -110,6 +116,10 @@ async def export_qa_report(
         export_sections.append({
             "code": sec["section_code"],
             "heading": sec["section_heading"],
+            "instrument": (
+                f"{sec['instrument_code'] or ''} - "
+                f"{sec['instrument_heading'] or ''}"
+            ).strip(" -"),
             "chapter": chapter_str,
             "pages": pages_str,
             "review_status": sec["review_status"],

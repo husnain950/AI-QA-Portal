@@ -127,6 +127,21 @@ describe('leaf JSON path locator', () => {
         ]);
     });
 
+    it('puts instrument context above a repeated chapter hierarchy', () => {
+        expect(leafHierarchyLines({
+            instrument_code: 'SRO-ONE',
+            instrument_heading: 'Passenger Baggage Rules',
+            chapter_code: 'I',
+            chapter_heading: 'PRELIMINARY',
+            section_code: '1',
+            section_heading: 'Short title',
+        })).toEqual([
+            'Instrument SRO-ONE · Passenger Baggage Rules',
+            'Chapter I · PRELIMINARY',
+            'Section 1 · Short title',
+        ]);
+    });
+
     it('labels schedule containers as Schedule', () => {
         expect(leafHierarchyLines({
             chapter_code: 'I',

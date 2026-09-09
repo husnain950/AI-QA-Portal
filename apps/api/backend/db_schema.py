@@ -124,6 +124,8 @@ sections = Table(
     metadata,
     Column("id", Text, primary_key=True),
     Column("document_id", Text, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False),
+    Column("instrument_code", Text),
+    Column("instrument_heading", Text),
     Column("chapter_code", Text),
     Column("chapter_heading", Text),
     Column("part_code", Text),

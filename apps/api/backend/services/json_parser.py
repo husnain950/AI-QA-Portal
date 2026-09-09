@@ -200,7 +200,8 @@ def parse_json_document(
                     Always present, so it is what a pre-contract document is matched
                     by -- but inserting one leaf renames every later sibling.
 
-    ``node_key``    the pipeline's ancestor chain BY CODE (``ch:vii/pt:i/s:114``),
+    ``node_key``    the pipeline's ancestor chain BY CODE (``ch:vii/pt:i/s:114`` or
+                    ``inst:sro-1-i-2001/ch:i/s:1`` for a compilation),
                     present from ``contract_version`` 1. Survives an insertion above
                     it, which is the whole reason it exists. ``None`` for the
                     synthesised preamble leaf, which has no node in the tree.
@@ -257,6 +258,8 @@ def parse_json_document(
             "id": section_id,
             "source_key": source_key,
             "node_key": node_key,
+            "instrument_code": context.get("instrument_code"),
+            "instrument_heading": context.get("instrument_heading"),
             "chapter_code": context.get("chapter_code"),
             "chapter_heading": context.get("chapter_heading"),
             "part_code": context.get("part_code"),
@@ -320,7 +323,19 @@ def parse_json_document(
         code = _blank_to_none(node.get("code"))
         heading = _blank_to_none(normalize_heading(node.get("heading")))
 
-        if kind == "chapter" or kind == "schedule":
+        if kind == "instrument":
+            next_context.update(
+                instrument_code=code,
+                instrument_heading=heading,
+                chapter_code=None,
+                chapter_heading=None,
+                part_code=None,
+                part_heading=None,
+                division_code=None,
+                division_heading=None,
+                hierarchy_kind=None,
+            )
+        elif kind == "chapter" or kind == "schedule":
             next_context.update(
                 chapter_code=code,
                 chapter_heading=heading,
@@ -343,7 +358,9 @@ def parse_json_document(
                 division_heading=heading,
             )
 
-        child_collections = ("sections", "parts", "divisions")
+        child_collections = (
+            "chapters", "schedules", "sections", "parts", "divisions"
+        )
         has_children = any(node.get(key) for key in child_collections)
         if allow_content_leaf and "html" in node and not has_children:
             process_section(node, next_context, source_key)
@@ -380,7 +397,29 @@ def parse_json_document(
                     allow_content_leaf=True,
                 )
 
+        for index, chapter in enumerate(node.get("chapters") or []):
+            if isinstance(chapter, dict):
+                process_container(
+                    chapter,
+                    next_context,
+                    f"{source_key}/chapters/{index}",
+                    "chapter",
+                    allow_content_leaf=False,
+                )
+
+        for index, schedule in enumerate(node.get("schedules") or []):
+            if isinstance(schedule, dict):
+                process_container(
+                    schedule,
+                    next_context,
+                    f"{source_key}/schedules/{index}",
+                    "schedule",
+                    allow_content_leaf=False,
+                )
+
     empty_context = {
+        "instrument_code": None,
+        "instrument_heading": None,
         "chapter_code": None,
         "chapter_heading": None,
         "part_code": None,
@@ -394,7 +433,11 @@ def parse_json_document(
     # Newer exports also promote it into chapters[0].sections — avoid duplicating.
     preamble = data.get("preamble") or {}
     promoted = False
-    for chapter in data.get("chapters") or []:
+    chapter_nodes = list(data.get("chapters") or [])
+    for instrument in data.get("instruments") or []:
+        if isinstance(instrument, dict):
+            chapter_nodes.extend(instrument.get("chapters") or [])
+    for chapter in chapter_nodes:
         if not isinstance(chapter, dict):
             continue
         for section in chapter.get("sections") or []:
@@ -432,6 +475,16 @@ def parse_json_document(
             empty_context,
             "/preamble",
         )
+
+    for index, instrument in enumerate(data.get("instruments") or []):
+        if isinstance(instrument, dict):
+            process_container(
+                instrument,
+                empty_context,
+                f"/instruments/{index}",
+                "instrument",
+                allow_content_leaf=False,
+            )
 
     for index, chapter in enumerate(data.get("chapters") or []):
         if isinstance(chapter, dict):

@@ -15,6 +15,8 @@ deployment usually -- so "configured" here means *mounted on this host*, never
 
 from __future__ import annotations
 
+import importlib
+import inspect
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,6 +36,39 @@ def _infer_repo_root() -> Path:
 
 
 REPO_ROOT = _infer_repo_root()
+
+
+@dataclass(frozen=True)
+class ParserRoute:
+    """One parser entry point and the arguments the registry binds to it.
+
+    ``profile`` names a :mod:`legal_ingest.profiles` profile.  It stays a string
+    here so importing the corpus registry does not import either parser stack.
+    Conversion tools call :meth:`load` only after they have selected a route.
+    """
+
+    package: str
+    profile: Optional[str] = None
+    auto: bool = False
+
+    def load(self):
+        """Return ``(run, kwargs)`` and reject an invalid route before parsing."""
+        run = importlib.import_module(self.package).run
+        kwargs = {}
+        if self.profile is not None:
+            from legal_ingest.profiles import BY_LABEL
+
+            kwargs["profile"] = BY_LABEL[self.profile]
+        if self.auto:
+            kwargs["auto"] = True
+
+        unsupported = sorted(set(kwargs) - set(inspect.signature(run).parameters))
+        if unsupported:
+            raise ValueError(
+                f"the {self.package} parser does not accept "
+                f"{', '.join(unsupported)}"
+            )
+        return run, kwargs
 
 
 @dataclass(frozen=True)
@@ -92,6 +127,48 @@ class Corpus:
 
     def configured(self) -> bool:
         return corpus_root_configured(self.path())
+
+    def parser_for(
+        self,
+        pdf_path=None,
+        *,
+        profile: str = "auto",
+        signature=None,
+    ) -> ParserRoute:
+        """Choose the parser for one PDF.
+
+        ``lane`` is the compatibility route: it returns the package historically
+        bound to the corpus and performs no family measurement.  ``auto`` refines
+        that route from the document signature.
+
+        The Ordinance corpus contains structurally different laws.  The
+        Income Tax Ordinance is a containerized consolidated document and keeps
+        its dedicated ``fbr_ingest`` fork.  Flat consolidated documents (the
+        ICT Tax on Services editions) and amending instruments need
+        ``legal_ingest``'s body fallback/family profile.  Families that cannot be
+        parsed are also sent there so its existing auto guard refuses them with
+        the measured reason rather than letting the lane fork parse nonsense.
+        """
+        if profile not in ("lane", "auto"):
+            raise ValueError(f"unknown profile mode {profile!r}")
+        if profile == "lane":
+            return ParserRoute(self.package)
+        if self.label != "ordinance":
+            return ParserRoute(self.package, auto=True)
+
+        if signature is None:
+            if pdf_path is None:
+                raise ValueError("auto parser routing requires a PDF or signature")
+            from legal_ingest.signature import measure
+
+            signature = measure(pdf_path)
+
+        from legal_ingest.families import classify
+
+        assignment = classify(signature)
+        if assignment.family == "consolidated" and signature.container_order:
+            return ParserRoute(self.package)
+        return ParserRoute("legal_ingest", profile="acts", auto=True)
 
 
 CORPORA: tuple[Corpus, ...] = (

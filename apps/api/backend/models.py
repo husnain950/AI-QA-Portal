@@ -186,6 +186,8 @@ class SectionMetadataResponse(BaseModel):
 
     id: str
     document_id: str
+    instrument_code: Optional[str] = None
+    instrument_heading: Optional[str] = None
     chapter_code: Optional[str] = None
     chapter_heading: Optional[str] = None
     part_code: Optional[str] = None
@@ -274,6 +276,8 @@ class SearchResultResponse(BaseModel):
     section_id: str
     section_code: str
     section_heading: str
+    instrument_code: Optional[str] = None
+    instrument_heading: Optional[str] = None
     chapter_code: Optional[str] = None
     # ``snippet`` remains for the v1 frontend but is now plain text, never HTML.
     snippet: str

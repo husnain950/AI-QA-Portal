@@ -14,6 +14,9 @@ from functools import partial
 
 from ..loader import (
     iter_all_leaves,
+    iter_chapters,
+    iter_instrument_scopes,
+    iter_schedules,
     iter_section_leaves,
 )
 from . import _common
@@ -186,27 +189,37 @@ def inv_structure_counts(doc):
     """
     bad = []
     md = doc.get("metadata", {})
-    n_chapters = len(doc.get("chapters") or [])
+    chapters = list(iter_chapters(doc))
+    n_chapters = len(chapters)
     if n_chapters < 13:
         bad.append(f"chapters in tree {n_chapters} < 13")
     if md.get("chapters_count", -1) != n_chapters:
         bad.append(f"metadata chapters_count {md.get('chapters_count')} != "
                    f"chapters in tree {n_chapters}")
-    schedules = doc.get("schedules") or []
+    schedules = list(iter_schedules(doc))
     n_schedules = len(schedules)
     if md.get("schedules_count", -1) != n_schedules:
         bad.append(f"metadata schedules_count {md.get('schedules_count')} != "
                    f"schedules in tree {n_schedules}")
-    ords = sorted(o for o in (_schedule_ordinal(s.get("code")) for s in schedules)
-                  if o is not None)
-    if not ords:
-        bad.append("no ordinal-titled schedules in tree")
-    else:
-        if ords[0] != 1:
-            bad.append(f"schedules do not start at FIRST (lowest ordinal {ords[0]})")
-        missing = sorted(set(range(ords[0], ords[-1] + 1)) - set(ords))
-        if missing:
-            bad.append(f"schedule ordinals not contiguous; missing {missing}")
+    for scope in iter_instrument_scopes(doc):
+        ords = sorted(
+            o
+            for o in (
+                _schedule_ordinal(s.get("code"))
+                for s in scope.get("schedules") or []
+            )
+            if o is not None
+        )
+        if not ords:
+            bad.append("no ordinal-titled schedules in tree")
+        else:
+            if ords[0] != 1:
+                bad.append(
+                    f"schedules do not start at FIRST (lowest ordinal {ords[0]})"
+                )
+            missing = sorted(set(range(ords[0], ords[-1] + 1)) - set(ords))
+            if missing:
+                bad.append(f"schedule ordinals not contiguous; missing {missing}")
     return bad
 
 
@@ -221,13 +234,15 @@ def inv_section_codes_ordered(doc):
     the body-driven discovery fallback and the TOC matcher alike.
     """
     from fbr_ingest.discover import code_sort_key
-    bad, prev, prev_code = [], None, None
-    for leaf in iter_section_leaves(doc):
-        code = str(leaf.get("code") or "")
-        key = code_sort_key(code)
-        if prev is not None and key < prev:
-            bad.append(f"section {code!r} out of order after {prev_code!r}")
-        prev, prev_code = key, code
+    bad = []
+    for scope in iter_instrument_scopes(doc):
+        prev = prev_code = None
+        for leaf in iter_section_leaves(scope):
+            code = str(leaf.get("code") or "")
+            key = code_sort_key(code)
+            if prev is not None and key < prev:
+                bad.append(f"section {code!r} out of order after {prev_code!r}")
+            prev, prev_code = key, code
     return bad
 
 
@@ -356,7 +371,7 @@ def inv_preamble_no_chapter_heading(doc):
     pre = doc.get("preamble") or {}
     html = pre.get("html", "") or ""
     plain = pre.get("plain_text", "") or ""
-    chapters = doc.get("chapters") or []
+    chapters = list(iter_chapters(doc))
     code = str(chapters[0].get("code", "")).strip() if chapters else ""
     if code and (code in html or code in plain):
         return [f"preamble contains first chapter code {code!r}"]
@@ -392,7 +407,7 @@ def inv_schedule_parts_contiguous(doc):
     roman = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7,
              "VIII": 8, "IX": 9, "X": 10}
     bad = []
-    for sch in doc.get("schedules", []):
+    for sch in iter_schedules(doc):
         nums = []
         for p in sch.get("parts", []):
             m = re.match(r"PART\s+([IVX]+)$", str(p.get("code") or "").strip(), re.I)

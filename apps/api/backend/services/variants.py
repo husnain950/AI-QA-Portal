@@ -1,6 +1,9 @@
 """Section variant tracking across editions.
 
-variant_key = sha256(family_key | section_code | norm_text | html_shape)
+variant_key = sha256(family_key | [instrument_code |] section_code | norm_text | html_shape)
+
+The optional instrument scope prevents Rule 1 from two unrelated instruments
+inside one compilation being treated as the same cross-edition provision.
 """
 
 from __future__ import annotations
@@ -22,10 +25,16 @@ def compute_variant_key(
     section_code: str,
     plain_text: str,
     html_content: str,
+    instrument_code: str | None = None,
 ) -> str:
     norm = _norm_text(plain_text)
     shape = _html_shape(html_content)
-    raw = f"{fam_key}|{section_code}|{norm}|{shape}"
+    scope = (
+        f"{fam_key}|instrument:{instrument_code}|"
+        if instrument_code
+        else f"{fam_key}|"
+    )
+    raw = f"{scope}{section_code}|{norm}|{shape}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -54,8 +63,8 @@ async def _section_rows(
     document_id: Optional[str] = None,
 ) -> List[DatabaseRow]:
     query = """
-        SELECT s.id, s.document_id, s.section_code, s.plain_text, s.html_content,
-               d.name AS doc_name
+        SELECT s.id, s.document_id, s.instrument_code, s.section_code,
+               s.plain_text, s.html_content, d.name AS doc_name
         FROM sections s
         JOIN documents d ON d.id = s.document_id
     """
@@ -72,7 +81,13 @@ async def _insert_variant(db: DatabaseConnection, row: DatabaseRow) -> None:
     ed = edition_date(row["doc_name"])
     plain = row["plain_text"] or ""
     html = row["html_content"] or ""
-    vk = compute_variant_key(fk, row["section_code"], plain, html)
+    vk = compute_variant_key(
+        fk,
+        row["section_code"],
+        plain,
+        html,
+        row["instrument_code"],
+    )
     await db.execute(
         """
         INSERT INTO section_variants

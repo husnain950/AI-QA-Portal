@@ -135,6 +135,15 @@ def main() -> int:
             print(f"FAIL import {package}: {err}")
             continue
         _self_checks(package, errors)
+        # runner.run sees one JSON at a time, so it cannot detect an edition
+        # whose tree lost nearly all of the sections its siblings retain.  This
+        # separate corpus-level gate joins output trees to the committed
+        # discovery groups and compares siblings before the per-document suite.
+        _regression(
+            ["tools/check_cross_edition_quality.py", corpus.label],
+            corpus.output_path(),
+            errors,
+        )
         _regression(runner, corpus.output_path(), errors)
 
     if errors:

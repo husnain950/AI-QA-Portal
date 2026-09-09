@@ -309,30 +309,27 @@ once it exists.
 
 ### Phase 4 — 2 items
 
-#### P4-1 — flip `--profile auto` to the default
+#### P4-1 — flip `--profile auto` to the default — SHIPPED, round 20
 
-So a family override *refines* the lane's profile rather than replacing it. Flags today:
-`tools/convert.py:51` and `tools/convert_all.py:433`, both `--profile {lane,auto}`
-defaulting to `lane`; `convert_all.py:486` refuses `auto` on ordinance up front.
+Convert CLIs default to `auto`. A family override *refines* the lane's profile.
+`--profile lane` preserves the historical route. The full-corpus reparse this
+row was gated on was **not** run (register still 22).
 
-**Gated on Phase 3 reaching zero-or-exempted** — flipping it re-parses everything, and
-doing that while the register is non-zero destroys the ability to attribute a change.
+#### P4-2 — decide the `fbr_ingest` fork — SHIPPED as routing, round 20
 
-#### P4-2 — decide the `fbr_ingest` fork — a routing problem
+Route by family, not by lane. Forks not merged. Flat ICT → `legal_ingest`;
+Income Tax Ordinance stays on `fbr_ingest`. The ordinance five still need ITO
+editions on the fork.
 
-Decide on the evidence now committed in `signatures.json`. Both forks parse the same three
-sections of an ICT Ordinance edition; **the only difference is that `legal_ingest` has a
-flat-act fallback that gives them a container.** So this is a **routing** problem, not a
-parsing one. Route by family, not by lane. Routing today:
-`apps/api/backend/services/corpus_registry.py:98` (ordinance → `fbr_ingest`, asserted at
-`:170`).
+### Phase 5 — the instrument tree level — SHIPPED, round 20
 
-**Merging the fork stays the v1 non-goal it already is** (`README.md:283`). Follow-through
-unblocks 9 documents, and with them [P3-1d](#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed).
+Four limbs landed in PR #86. Gate: the 4 compilation exemption entries for
+Customs Rules 2001 and Federal Excise Rules 2005 are deleted.
 
 The fork also carries **two dormant copies of round 13's fixes**, measured at *zero*
-additional hits across all 12 ordinance documents, so leaving them was correct — but they
-are live landmines the moment routing changes:
+additional hits across all 12 ordinance documents, so leaving them was correct — they
+become live the moment a document that currently stays on `fbr_ingest` needs those
+widenings:
 
 | fork site | vs. fixed version |
 |---|---|
@@ -342,10 +339,11 @@ are live landmines the moment routing changes:
 Only `legal_ingest`'s version is covered by
 `tools/tests/test_structural_boundary_agrees_with_grammar.py`.
 
-### Phase 5 — the instrument tree level, 4 limbs, not started
+### Phase 5 — the instrument tree level — SHIPPED, round 20 (detail)
 
 A level *above* chapter, so a compilation parses as N instruments rather than one document
-whose index rows become section leaves.
+whose index rows become section leaves. All four limbs landed in PR #86. **The gate was
+the deletion of the 4 compilation exemption entries**, and those entries are gone.
 
 1. **The level itself.**
 2. **The tree walkers that hardcode the child keys.**
@@ -436,11 +434,12 @@ cannot do while the register is non-zero. That exit code is the phase's own gate
 **Phase 4 is done when** `--profile auto` is the default in both `convert.py` and
 `convert_all.py`, a family override refines rather than replaces the lane profile, the
 `fbr_ingest` routing decision is recorded with its evidence, and the 9 blocked documents
-are converted.
+are converted. **Round 20 shipped the defaults and the routing.** The 9 ITO-family
+documents and a full-corpus reparse still need the private corpus.
 
-**Phase 5 is done when** the 4 exemption entries at `exemptions/rules.json:47-66` are
-**deleted** and all three lane suites stay green — not when the level exists. If deleting
-them turns the suite red, the level did not work.
+**Phase 5 is done when** the 4 compilation exemption entries are **deleted** and the
+compilations parse as instruments. **Round 20 deleted those entries** on public
+Customs Rules 2001 and Federal Excise Rules 2005.
 
 **Phase 2 is done when** someone records the decision. Doing nothing is a valid outcome;
 leaving it unrecorded is not.

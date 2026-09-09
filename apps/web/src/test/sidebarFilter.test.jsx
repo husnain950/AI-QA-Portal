@@ -109,4 +109,53 @@ describe('large TOC filtering', () => {
         // ingest now, by the one normaliser, instead of twice.
         expect(screen.queryByText(/THE GAZETTE/)).not.toBeInTheDocument();
     });
+
+    it('renders repeated chapter and section codes under distinct instruments', () => {
+        const sections = [
+            {
+                id: 'first-rule',
+                instrument_code: 'SRO-ONE',
+                instrument_heading: 'First Rules',
+                chapter_code: 'CHAPTER I',
+                chapter_heading: 'PRELIMINARY',
+                hierarchy_kind: 'chapter',
+                section_code: '1',
+                section_heading: 'Short title',
+                review_status: 'pending',
+                annotation_count: 0,
+                start_page: 1,
+            },
+            {
+                id: 'second-rule',
+                instrument_code: 'SRO-TWO',
+                instrument_heading: 'Second Rules',
+                chapter_code: 'CHAPTER I',
+                chapter_heading: 'PRELIMINARY',
+                hierarchy_kind: 'chapter',
+                section_code: '1',
+                section_heading: 'Short title',
+                review_status: 'pending',
+                annotation_count: 0,
+                start_page: 3,
+            },
+        ];
+        useDocumentStore.setState({
+            sections,
+            activeSection: sections[0],
+            searchResults: [],
+            loading: { search: false },
+        });
+
+        const { container } = render(
+            <MemoryRouter>
+                <Sidebar documentId="document-1" />
+            </MemoryRouter>,
+        );
+
+        expect(screen.getByText('SRO-ONE: First Rules')).toBeInTheDocument();
+        expect(screen.getByText('SRO-TWO: Second Rules')).toBeInTheDocument();
+        expect(container.querySelectorAll('.toc-node.level-instrument')).toHaveLength(2);
+        expect(container.querySelectorAll('.toc-node.level-chapter')).toHaveLength(2);
+        expect(screen.getAllByText('Section 1: Short title')).toHaveLength(2);
+    });
 });

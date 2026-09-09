@@ -14,14 +14,41 @@ def load(path: str) -> dict:
         return json.load(fh)
 
 
+def iter_instrument_scopes(doc: dict):
+    """Yield trees whose chapter/rule numbering is independently scoped.
+
+    A legacy document is one implicit instrument. A compilation carries real
+    ``instruments[]`` nodes, each with its own chapter/schedule roots. Mixed
+    transitional JSON is tolerated without dropping its legacy roots.
+    """
+    instruments = [
+        instrument
+        for instrument in doc.get("instruments") or []
+        if isinstance(instrument, dict)
+    ]
+    yield from instruments
+    if doc.get("chapters") or doc.get("schedules") or not instruments:
+        yield doc
+
+
+def iter_chapters(doc: dict):
+    for scope in iter_instrument_scopes(doc):
+        yield from scope.get("chapters") or []
+
+
+def iter_schedules(doc: dict):
+    for scope in iter_instrument_scopes(doc):
+        yield from scope.get("schedules") or []
+
+
 def iter_section_leaves(doc: dict):
     """Yield every chapter-side section leaf (has a ``plain_text``)."""
-    for ch in doc.get("chapters", []):
+    for ch in iter_chapters(doc):
         yield from _iter_leaves(ch)
 
 
 def iter_schedule_leaves(doc: dict):
-    for sc in doc.get("schedules", []):
+    for sc in iter_schedules(doc):
         yield from _iter_leaves(sc)
 
 
@@ -51,7 +78,7 @@ def find_section(doc: dict, code: str):
 def find_schedule(doc: dict, code_contains: str):
     """First schedule whose code contains ``code_contains`` (case-insensitive)."""
     cc = code_contains.upper()
-    for sc in doc.get("schedules", []):
+    for sc in iter_schedules(doc):
         if cc in str(sc.get("code", "")).upper():
             return sc
     return None

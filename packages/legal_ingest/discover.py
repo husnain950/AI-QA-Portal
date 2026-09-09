@@ -364,6 +364,26 @@ def _alt_code(code: str, words, last_key) -> str:
     return code
 
 
+def _repair_digit_one_suffix(code: str, last_key) -> str:
+    """Recover a capital-I suffix emitted as the digit ``1`` in a code run.
+
+    Customs Rules 2001 prints the native-digital sequence ``556H, 556I, 556J``,
+    but the middle glyph's text mapping is ``5561``.  Accepting 5561 advances
+    the monotonic cursor beyond every later rule and folds the final 328 PDF
+    pages into that leaf.  The repair is intentionally sequence-bound: only an
+    all-digit ``<same numeric base>1`` immediately after suffix H can become I.
+    A genuine numeric section 5561 anywhere else is unchanged.
+    """
+    if (
+        last_key is not None
+        and last_key[1] == "H"
+        and code.isdigit()
+        and code == f"{last_key[0]}1"
+    ):
+        return f"{last_key[0]}I"
+    return code
+
+
 def _quoted_container(is_amendment: bool, last_key) -> bool:
     """Whether a structural heading here is material the instrument QUOTES.
 
@@ -426,19 +446,52 @@ def _front_matter_container(profile, is_amendment: bool, idx: int,
             and idx < section_start)
 
 
+def _gridless_table_indexes(body_refs) -> set[int]:
+    """Body indexes carrying fallback-detected table rows.
+
+    :mod:`pagemodel` replaces a ruled grid with a ``Table`` object, whose
+    ``is_table`` provenance the discovery loops already honour.  A text-only
+    grid has no such line metadata: :func:`tables.find_table_spans` recognises
+    it later, while rendering an already-discovered section.  That is too late
+    to stop one of its rows from becoming the section boundary that splits the
+    table in the first place.
+
+    Reuse the renderer's existing span detector here, but bound its answer at a
+    self-contained clause heading.  The renderer normally receives one
+    section at a time, so its span cannot cross the next clause; this caller
+    sees the whole document and must restore that bound explicitly.  A tariff
+    fragment such as ``8517.1390) shall be added.`` has no heading terminator
+    and stays table-owned, while ``8. Amendments ... .—`` ends the table and
+    remains eligible for normal discovery.
+    """
+    from .tables import find_table_spans
+
+    indexes: set[int] = set()
+    for start, end in find_table_spans(body_refs):
+        for idx in range(start, end):
+            text = body_refs[idx].line.text().strip()
+            if (idx > start and _HEADING_DASH_RE.search(text)
+                    and (_DOTFORM_RE.match(text[:40])
+                         or _DOTLESS_NUMERIC_RE.match(text[:40]))):
+                break
+            indexes.add(idx)
+    return indexes
+
+
 def _split_container_heading(text: str) -> tuple[str, str]:
     """A structural heading line -> its (KEYWORD, numeral).
 
-    Split on ``[\\s\\-]+``, the separator ``grammar.CHAPTER_RE`` uses and the one
-    ``builder.is_structural_boundary`` accepts, so the reader that decides a line
-    IS a container and the reader that decides WHICH container agree about one
-    spelling.  They did not: this split was ``core.split()``, so ``Chapter-II``
-    -- no space to split on -- yielded ``kw="CHAPTER-II"``, matched neither
-    "CHAPTER" nor "PART", fell through to the Division branch and emitted a
-    NAMELESS ``Node(kind="division", code="Division ")`` that then parented every
-    following section.  Ten per Sales Tax Act edition.  That is round 1's
-    duplicate-container failure, and it is why widening the boundary test without
-    widening this split would have been worse than leaving both narrow.
+    Split on ``[\\s\\-–]+``, the CHAPTER separators ``grammar.CHAPTER_RE`` uses
+    and ``builder.is_structural_boundary`` accepts, so the reader that decides a
+    line IS a container and the reader that decides WHICH container agree about
+    one spelling.  They did not: this split was ``core.split()``, so
+    ``Chapter-II`` -- no space to split on -- yielded ``kw="CHAPTER-II"``,
+    matched neither "CHAPTER" nor "PART", fell through to the Division branch
+    and emitted a NAMELESS ``Node(kind="division", code="Division ")`` that then
+    parented every following section.  Ten per Sales Tax Act edition.  That is
+    round 1's duplicate-container failure, and it is why widening the boundary
+    test without widening this split would have been worse than leaving both
+    narrow.
 
     ``maxsplit=1`` is what keeps it a no-op on every line that already matched:
     the numeral's OWN suffix separator stays in the numeral ("CHAPTER XVI-A" ->
@@ -446,7 +499,7 @@ def _split_container_heading(text: str) -> tuple[str, str]:
     ("Division III A" -> ("DIVISION", "III A")).
     """
     core = re.sub(r"\s+", " ", _STRUCT_DECOR_RE.sub("", text)).strip()
-    bits = re.split(r"[\s\-]+", core, maxsplit=1)
+    bits = re.split(r"[\s\-–]+", core, maxsplit=1)
     return bits[0].upper(), (bits[1] if len(bits) > 1 else "")
 
 
@@ -492,6 +545,7 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
     pending: Node | None = None      # structural node awaiting heading line(s)
     pending_left = 0
     last_key = None                  # code_sort_key of the last REAL section
+    gridless_table_indexes = _gridless_table_indexes(body_refs)
 
     # Where this act's OWN numbering begins.  A gazette Act reproduced inside a
     # Finance Act is preceded by the host instrument's enacting clause, which
@@ -562,9 +616,11 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
     # ---- pass 1: structural tree + real sections ---------------------------
     for idx, ref in enumerate(body_refs):
         container_at[idx] = container()
-        if getattr(ref.line, "is_table", False):
+        if (getattr(ref.line, "is_table", False)
+                or idx in gridless_table_indexes):
             # a grid-extracted table can neither open a section nor carry a
-            # structural heading, and it ends any pending heading capture
+            # structural heading.  The fallback detector covers the text-only
+            # tables which pagemodel necessarily leaves as Lines.
             pending, pending_left = None, 0
             continue
         text = ref.line.text().strip()
@@ -627,6 +683,7 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
             # `_multiline_heading` and the colon-dash fallback below strip it off
             # the heading text and need the spelling the page actually shows.
             code = _grammar_norm_code(_alt_code(printed_code, words, last_key))
+            code = _repair_digit_one_suffix(code, last_key)
             key = code_sort_key(code)
             # Gazette Finance Acts set their OWN clause titles in regular
             # ArialMT (FA2022 ``1. Short title...``, ``2. Amendments of Customs``);
@@ -635,9 +692,27 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
             # dropped every real clause into the preamble (104 uncovered pages)
             # and kept the one bold foreign section.  Amendment instruments
             # already have ``_is_own_clause_title`` (P06) as the gate; skip bold.
+            #
+            # A few Customs rules are operative lead-in sentences, not marginal
+            # headings, and therefore use the regular body font immediately
+            # before a grid table (216 and 218).  They still have strong local
+            # structure: a code-led prose line followed within three refs by an
+            # extracted table.  Without this branch both rules disappear and
+            # their tables are carried by rule 217, producing an orphan marker
+            # row and losing two legal leaves.
+            following_refs = body_refs[idx + 1:idx + 9]
+            table_follows = (
+                len(re.findall(r"[A-Za-z]", text[m.end():])) >= 20
+                and any(
+                    getattr(next_ref.line, "is_table", False)
+                    or next_ref.line.text().strip().upper() == "TABLE"
+                    for next_ref in following_refs
+                )
+            )
             title_ok = (
                 is_amendment
                 or _bold_title(words, _code_token_index(words), doc_has_bold)
+                or table_follows
             )
             if (last_key is None or key > last_key) and title_ok:
                 split = _find_heading_split(body_refs[idx:idx + 4],
@@ -785,7 +860,8 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
     placeholder_codes: set[str] = set()
     import bisect
     for idx, ref in enumerate(body_refs):
-        if getattr(ref.line, "is_table", False):
+        if (getattr(ref.line, "is_table", False)
+                or idx in gridless_table_indexes):
             continue
         text = ref.line.text().strip()
         if not text or "[" not in text or not BRACKETS_ONLY_RE.match(text):
@@ -830,6 +906,7 @@ def _demo() -> None:
     assert _split_container_heading("Chapter-II") == ("CHAPTER", "II")
     assert _split_container_heading("1[Chapter- I") == ("CHAPTER", "I")
     assert _split_container_heading("CHAPTER - V") == ("CHAPTER", "V")
+    assert _split_container_heading("CHAPTER – VI") == ("CHAPTER", "VI")
     assert _split_container_heading("128[CHAPTER-XLI") == ("CHAPTER", "XLI")
     # ...and what must not change.  Both fail if maxsplit=1 is dropped: the
     # numeral's own suffix separator belongs to the numeral.

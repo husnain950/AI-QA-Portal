@@ -17,6 +17,9 @@ The output JSON is
       "chapters":  [ {code, heading, parts, divisions, sections}, ... ],
       "schedules": [ ... ] }
 
+or, for a compilation, ``instruments[]`` contains those chapter/schedule
+collections and gives each instrument its own stable legal identity.
+
 where each leaf is
     { code, heading, page_number, html, plain_text,
       start_page, end_page, footnotes: [{ref, marker, text}, ...] }
@@ -25,7 +28,6 @@ where each leaf is
 from __future__ import annotations
 
 import argparse
-import importlib
 import inspect
 import json
 import os
@@ -40,7 +42,7 @@ from corpus_paths import LABELS, get  # noqa: E402
 from legal_contract import stamp_run_provenance  # noqa: E402
 
 
-def main(argv=None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("lane", choices=LABELS, help="which corpus this PDF belongs to")
@@ -48,15 +50,12 @@ def main(argv=None) -> int:
     ap.add_argument("-o", "--output", help="output JSON path "
                     "(default: alongside the PDF)")
     ap.add_argument("--quiet", action="store_true", help="suppress progress output")
-    ap.add_argument("--profile", choices=("lane", "auto"), default="lane",
-                    help="how to choose the parse profile. 'lane' (the default) "
-                         "uses the corpus the PDF was filed under, which is how "
-                         "this has always worked. 'auto' measures the document "
-                         "and asks legal_ingest.families -- the only way an "
-                         "amending instrument gets the amending profile, since "
-                         "the Acts corpus holds both kinds and a filename cannot "
-                         "tell them apart. A lane whose pipeline takes no profile "
-                         "ignores it.")
+    ap.add_argument("--profile", choices=("lane", "auto"), default="auto",
+                    help="how to choose the parser/profile. 'auto' (the default) "
+                         "measures the document, refines the lane profile by "
+                         "family, and routes flat Ordinance documents to "
+                         "legal_ingest. 'lane' preserves the historical "
+                         "lane-only parser and profile.")
     ap.add_argument("--admit-below-floor", action="store_true",
                     help="convert a scan whose inter-engine agreement is under "
                          "the fidelity floor instead of refusing it. The result "
@@ -64,33 +63,35 @@ def main(argv=None) -> int:
                          "never into it, and carries "
                          "metadata.ocr.provisional=true. Off by default. Only the "
                          "lanes with an OCR stage accept it.")
-    args = ap.parse_args(argv)
+    return ap
+
+
+def main(argv=None) -> int:
+    args = build_parser().parse_args(argv)
 
     if not os.path.exists(args.pdf):
         print(f"error: file not found: {args.pdf}", file=sys.stderr)
         return 2
 
-    run = importlib.import_module(get(args.lane).package).run
-
     def progress(msg):
         if not args.quiet:
             print(f"[{args.lane}] {msg}", file=sys.stderr)
 
-    # Asked of the pipeline rather than recorded as another per-lane fact: the
-    # Ordinance has no OCR stage, so its `run` has no such parameter, and a lane
-    # that grows one starts accepting the flag without an edit here.
-    kwargs = {}
-    if args.profile == "auto":
-        # ``auto``, not ``profile=None``: the lane's own profile stays bound by
-        # the partial in acts_ingest/rules_ingest and is the FALLBACK the family
-        # overrides. Passing None instead threw it away, which is how
-        # --profile auto came to parse all 34 consolidated Rules documents as
-        # Acts (wip/phase2-findings.md finding 1).
-        if "auto" not in inspect.signature(run).parameters:
-            print(f"error: the {args.lane} pipeline takes no profile, so "
-                  f"--profile auto does not apply", file=sys.stderr)
-            return 2
-        kwargs["auto"] = True
+    # The route is selected before loading a parser, so an Ordinance PDF can use
+    # either fork without importing or merging them.  ParserRoute.load validates
+    # its bound profile/auto kwargs before any conversion starts.
+    try:
+        route = get(args.lane).parser_for(args.pdf, profile=args.profile)
+        run, kwargs = route.load()
+    except (ImportError, KeyError, ValueError) as err:
+        print(f"error: {err}", file=sys.stderr)
+        return 2
+    progress(f"parser={route.package}"
+             + (f" profile={route.profile}" if route.profile else ""))
+
+    # Asked of the selected pipeline rather than recorded as another per-lane
+    # fact: a route that grows an OCR stage starts accepting the flag without an
+    # edit here.
     if "admit_below_floor" in inspect.signature(run).parameters:
         kwargs["admit_below_floor"] = args.admit_below_floor
     elif args.admit_below_floor:

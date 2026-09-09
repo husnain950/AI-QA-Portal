@@ -1,11 +1,17 @@
 # What is left
 
-19 open items — 17 carried, plus two located since (round 17 the schedule PART reader,
-round 18 the CHAPTER en-dash separator). Ranked by value, each with the one thing that
+Round 20 (PR #86) shipped Phase 4 routing, Phase 5 instruments, the Finance Act
+2024 clause cursor, the CHAPTER en-dash, and the schedule PART reader. The
+committed register is still **22** — it was not rewritten from a partial public
+corpus. OCR stays out.
+
+What is left is the **private-corpus remainder of Phase 3** plus the three
+optional integration leftovers. Ranked by value, each with the one thing that
 actually blocks it.
 State and verification are in [`README.md`](README.md); method is in
 [`working-rules.md`](working-rules.md); the executable ledger — **the file to work
-from** — is [`tasks.md`](tasks.md).
+from** — is [`tasks.md`](tasks.md). Artifact:
+[`wip/phase3-round20-wip-completion.md`](../wip/phase3-round20-wip-completion.md).
 
 > **This file, `tasks.md` and `plan.md` §4 each carry the same ranked list.** Three copies
 > of one fact is the very shape `working-rules.md` warns about under *"a cached artifact
@@ -161,34 +167,18 @@ same-line **title**, not as a separator. Closing this moves a regex three reader
 Round 17's "en/em dash widening gains zero" was measured on **PART** and does **not**
 transfer — the container guard refused those, and the CHAPTER branch has no guard.
 
-Pinned as `KNOWN_GAP_ENDASH_CHAPTERS` with
-`test_structural_boundary_agrees_with_grammar.py::test_the_en_dash_chapter_gap_is_still_open`,
-which fails the moment it is closed. Do not "fix" that test.
+### 9. The CHAPTER en-dash separator — **CLOSED, round 20**
 
-### 10. The schedule PART reader — 20 lines, cause unknown — **new, round 17**
+`CHAPTER – VI` is a real boundary. Grammar, builder, discover, and `_STRUCT_LINE`
+now agree. The known-gap test is a `BOUNDARIES` case.
 
-Round 17's scan turned up **20 hyphenated PART lines sitting in Finance Act *schedule*
-bodies** — a different reader from the one it fixed, and not reached by it.
+### 10. The schedule PART reader — **CLOSED, round 20** (public gazette PDFs)
 
-| document | lines |
-|---|---|
-| Finance Act, 2021 | 8 — `PART-I`..`PART-VIII`, Fifth Schedule and its TABLE-III |
-| Finance Act 2025 | 7 — `Part-1`, `Part-Il`, `Part-lll`, `Part-IV`..`Part-VIlI`, Fifth Schedule |
-| Finance Act, 2019 | 4 — Fifth Schedule, inside its own `PART I` and `PART VI` nodes |
-| Finance Act, 2014 | 1 — `Part-11`, Second Schedule |
-
-**Do not assume it is the same defect.** `schedules.py` has always accepted the hyphen
-(`_PART_RE`, `:64`) and `_kind()` returns `"part"` for **18 of the 20**, so for those 18 the
-pattern is not the cause and the cause is **not yet known** — candidates are
-`_is_heading_size`'s 8.5 pt gate (`:85`) and the schedule zoning. **Diagnose before
-fixing.** Nothing in the register sees these: no invariant looks for a PART line in a
-schedule leaf.
-
-Two things that *are* explained: `Part-1` and `Part-11` fail because `_PART_RE`'s numeral
-is `[IVXL]+` with **no digit branch** where `_TABLE_RE` beside it has one; and `Part-Il`,
-`Part-lll`, `Part-VIlI` are OCR letter confusion (lowercase `l` for capital `I`) that
-`_kind()` admits as roman only because it is IGNORECASE — they would normalise to `PART IL`
-/ `PART LLL`. Per the standing rule, do **not** collapse `l`→`I`.
+Cause on the public Finance Act 2021/2019 PDFs was **not** the 8.5pt gate: the
+page model emits `P ART -I` (glyph-split keyword). `_PART_RE` now uses
+`grammar.spaced('PART')`. Live reconvert: FA2021 Fifth Schedule `PART I`–`VIII`;
+FA2019 `PART I`–`VII`. Arabic `Part-1`/`Part-11` accepted; `l`→`I` still refused.
+Public FA2025 has no PART headings; public FA2014 has no text layer.
 
 ### Also open in Phase 3, off the ranked list
 
@@ -219,38 +209,24 @@ fidelity-floor invariants wake up, and a sub-floor scan routes to `_provisional/
 under the withdrawal shipped in the integration track, *removes that document from the
 portal*. Decide deliberately.
 
-## Phase 4 — 2 items
+## Phase 4 — shipped, round 20
 
-- **Flip `--profile auto` to the default** once Phase 3 is at zero-or-exempted, so a family
-  override *refines* the lane's profile rather than replacing it.
-- **Decide `fbr_ingest`** on the evidence now committed in `signatures.json`. Both forks
-  parse the same three sections of an ICT Ordinance edition; the only difference is that
-  `legal_ingest` has a flat-act fallback that gives them a container, so this is a
-  **routing** problem, not a parsing one. Route by family, not by lane. Merging the fork
-  stays the v1 non-goal it already is (`README.md:283`). Follow-through unblocks 9 documents.
+- **`--profile auto` is the convert default.** A family override refines the
+  lane's profile. The full-corpus reparse that the original gate asked for was
+  **not** run (register still 22; no private corpus on the round-20 host).
+- **`fbr_ingest` is a routing decision, not a merge.** Flat ICT → `legal_ingest`;
+  Income Tax Ordinance stays on `fbr_ingest`. The ordinance five still need ITO
+  editions.
 
 The transport-and-deploy limb of Phase 4 is **closed** — it ran as its own track in
-`wip/integration/`, PRs #59–#76. Any bullet in `wip/tasks.md` describing it as open predates
-that.
+`wip/integration/`, PRs #59–#76.
 
-## Phase 5 — 4 items, not started
+## Phase 5 — shipped, round 20
 
-The **instrument tree level**: a level above chapter, so a compilation parses as N
-instruments rather than one document whose index rows become section leaves.
-
-1. The level itself
-2. The six walkers that hardcode `chapter/part/division/section` as the child keys
-3. The portal renderer
-4. Re-convert the compilations
-
-**Its gate is the deletion of the 4 exemption entries that name it**, all in
-`tools/suite/exemptions/rules.json` — two for Customs Rules 2001 and two for Federal Excise
-Rules 2005, each a `section_carries_its_body` / `no_foreign_section_start_in_body` pair on
-the same evidence. That deletion is the honest test that it worked, and the suite reports
-them stale on its own once it does.
-
-(`wip/HANDOVER.md` says this gate is *two* entries and `wip/tasks.md` says *five*. It is
-four — verified at this commit.)
+The **instrument tree level** exists: `instruments[]`, walker sites, portal
+renderer. Gate met: the 4 compilation exemption entries for Customs Rules 2001
+and Federal Excise Rules 2005 are **deleted**. Remaining rules exemptions are
+jammed-tokens, split-ordinals, and the round-19 STR printing errors.
 
 ---
 

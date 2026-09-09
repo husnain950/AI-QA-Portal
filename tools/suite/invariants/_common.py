@@ -30,7 +30,9 @@ import re
 from ..loader import (
     html_fragments,
     iter_all_leaves,
+    iter_chapters,
     iter_schedule_leaves,
+    iter_schedules,
     iter_section_leaves,
 )
 
@@ -428,7 +430,7 @@ def inv_no_heading_word_duplication(doc):
 def inv_schedules_have_content(doc):
     """Every schedule must contain at least one content leaf (not an empty shell)."""
     bad = []
-    for sc in doc.get("schedules", []):
+    for sc in iter_schedules(doc):
         leaves = [lf for lf in iter_schedule_leaves({"schedules": [sc]}) if lf.get("html")]
         if not leaves:
             bad.append(f"schedule {sc.get('code')}: no content leaves (empty shell)")
@@ -451,12 +453,17 @@ def inv_schedules_have_content(doc):
 # re-converting took it back to 25.  A closed class whose instrument is narrower
 # than the defect is not closed, it is unmeasured.
 #
+# The CHAPTER separator also carries the measured EN DASH form: ``CHAPTER – VI``
+# / ``– VII`` in Customs and ``– V`` / ``– VIAB`` in Sales Tax Rules, 42 real
+# boundaries over 21 documents.  Keep this independent reader in step with the
+# parser so those leaks are observable before outputs are reconverted.
+#
 # ``PART`` stays on ``\s+`` here even though the parser widened it in round 17:
 # the vouched half of that widening is per-chapter and this line has no container
 # to consult, so widening it would report the nine annexure-FORM part lines in the
 # rules lane as defects.  See ``test_structural_boundary_agrees_with_grammar``.
 _STRUCT_LINE = re.compile(
-    r"^(CHAPTER[\s\-]+[IVXLC0-9]+(?:-?[A-Z]{1,2})?|PART\s+[IVXLC0-9]+[A-Z]{0,2}|"
+    r"^(CHAPTER[\s\-–]+[IVXLC0-9]+(?:-?[A-Z]{1,2})?|PART\s+[IVXLC0-9]+[A-Z]{0,2}|"
     r"DIVISION\s+[IVXLC0-9]+[A-Z]{0,2})$", re.IGNORECASE)
 
 
@@ -1044,7 +1051,9 @@ def inv_no_toc_row_in_heading(doc):
         m = _TOC_ROW_IN_HEADING.search(node.get("heading") or "")
         if m:
             bad.append(f"{'/'.join(here)}: heading contains TOC row {m.group(0)!r}")
-        for key in ("chapters", "schedules", "parts", "divisions", "sections"):
+        for key in (
+            "instruments", "chapters", "schedules", "parts", "divisions", "sections"
+        ):
             for child in node.get(key) or []:
                 walk(child, here)
 
@@ -1237,6 +1246,15 @@ _CODE_DECOR = r"[\s\[\]\d*.\-]*(?:[A-Z][\s\[\]\d*.\-]*)?"
 _LEGITIMATELY_EMPTY = re.compile(
     rf"^{_CODE_DECOR}(?:omitted|repealed|\*\*\*)", re.IGNORECASE)
 
+#: Two measured extraction defects which still unambiguously denote omissions.
+#: Keep these as whole-string literals: a per-character optional-space pattern
+#: would admit unmeasured spacing variants, which is unsafe for an exemption
+#: predicate.
+_BOUNDED_MALFORMED_OMISSIONS = frozenset({
+    "to Omitted 96u",
+    "A O mitted",
+})
+
 
 #: pdfplumber emits ``(cid:N)`` for a glyph whose font subset has no ToUnicode
 #: entry.  It is never text, and it is NOT recoverable: measured on The Sales Tax
@@ -1255,8 +1273,14 @@ _CID_GLYPH = re.compile(r"\(cid:\d+\)")
 def _is_omission(leaf) -> bool:
     def readable(v):
         return _CID_GLYPH.sub("", v or "")
-    return bool(_LEGITIMATELY_EMPTY.match(readable(leaf.get("heading")))
-                or _LEGITIMATELY_EMPTY.match(readable(leaf.get("plain_text"))))
+
+    def is_omission_text(v):
+        text = readable(v)
+        return (_LEGITIMATELY_EMPTY.match(text)
+                or text.strip() in _BOUNDED_MALFORMED_OMISSIONS)
+
+    return bool(is_omission_text(leaf.get("heading"))
+                or is_omission_text(leaf.get("plain_text")))
 
 
 def _body_beyond_heading(leaf) -> str:
@@ -1505,7 +1529,7 @@ def inv_preamble_no_chapter_heading(doc):
     pre = doc.get("preamble") or {}
     plain = pre.get("plain_text", "") or ""
     html = pre.get("html", "") or ""
-    chapters = doc.get("chapters") or []
+    chapters = list(iter_chapters(doc))
     code = str(chapters[0].get("code", "")).strip() if chapters else ""
     if not code:
         return []
@@ -1598,7 +1622,7 @@ def inv_no_glyph_spaced_cell(doc):
 
 def _division_containers(doc):
     """Yield (label, [division dicts]) for every part/schedule that owns divisions."""
-    for sch in doc.get("schedules", []):
+    for sch in iter_schedules(doc):
         code = sch.get("code", "?")
         if sch.get("divisions"):
             yield (f"{code}", sch["divisions"])
@@ -1697,7 +1721,7 @@ def inv_schedule_parts_contiguous(doc):
     bad = []
     if _is_amendment_instrument(doc):
         return []
-    for sch in doc.get("schedules", []):
+    for sch in iter_schedules(doc):
         nums = []
         for p in sch.get("parts", []):
             m = re.match(r"PART\s+([IVX]+)$", str(p.get("code") or "").strip(), re.I)
@@ -1931,7 +1955,7 @@ def inv_clause_codes_plausible(doc):
                 yield from _sections(child)
 
     nums = []
-    for chapter in doc.get("chapters") or []:
+    for chapter in iter_chapters(doc):
         for leaf in _sections(chapter):
             code = leaf.get("code")
             if not code:
@@ -2180,7 +2204,7 @@ def inv_no_chapter_caption_in_section_heading(doc):
     and 32AA's ``VII OFFENCES AND PENALTIES`` are both captions of their own
     tree, and 150ZQZA's is not.
     """
-    captions = {_caps_key(c.get("heading")) for c in doc.get("chapters") or []}
+    captions = {_caps_key(c.get("heading")) for c in iter_chapters(doc)}
     captions.discard("")
     bad = []
     for leaf in iter_section_leaves(doc):
@@ -2285,7 +2309,7 @@ def inv_body_chapters_in_tree(doc):
     numerals = (doc.get("metadata") or {}).get("body_chapter_numerals") or []
     if not numerals:
         return []
-    present = {k for ch in (doc.get("chapters") or [])
+    present = {k for ch in iter_chapters(doc)
                if (k := _numeral_key(ch.get("code"))) is not None}
     return [f"body CHAPTER {raw} has no tree node" for raw in numerals
             if _numeral_key(raw) not in present]
@@ -2296,12 +2320,14 @@ def _demo_structural_line() -> None:
     tariff exception that must not be generalised along with them.
 
     Round 13: ``_STRUCT_LINE`` spelled the keyword/numeral separator ``\\s+``
-    while ``grammar.CHAPTER_RE`` has always spelled it ``[\\s\\-]+``, so this
+    while ``grammar.CHAPTER_RE`` spelled the ASCII forms ``[\\s\\-]+``, so this
     invariant reported ZERO on 175 swallowed chapter headings across 21
-    documents -- blind for the same reason the parser was.
+    documents -- blind for the same reason the parser was.  Both readers now
+    also carry the measured CHAPTER en-dash separator.
     """
     for line in ("CHAPTER II", "Chapter-II", "CHAPTER-II", "4[Chapter-I",
-                 "CHAPTER - V", "128[CHAPTER-XLI", "PART III", "1[PART VA"):
+                 "CHAPTER - V", "128[CHAPTER-XLI", "CHAPTER – VI",
+                 "CHAPTER – VIAB", "PART III", "1[PART VA"):
         assert _STRUCT_LINE.match(_STRUCT_DECOR.sub("", line.strip())), line
     for line in ("Chapter-V of this Act;", "Chapter VII of", "Chapter X or",
                  "Chapter XII]", "PART-II", "34[PART-3"):
@@ -2514,16 +2540,35 @@ _CONTRACT_METADATA = (
 
 def _iter_contract_nodes(doc):
     """Every node the contract covers -- containers and leaves alike."""
-    def walk(node, trail):
+    child_kinds = (
+        ("chapters", "chapter"),
+        ("schedules", "schedule"),
+        ("parts", "part"),
+        ("divisions", "division"),
+        ("sections", "section"),
+    )
+
+    def walk(node, trail, kind):
         if not isinstance(node, dict):
             return
-        yield trail, node
-        for key in ("parts", "divisions", "sections"):
+        yield trail, node, kind
+        for key, child_kind in child_kinds:
             for child in node.get(key, []):
-                yield from walk(child, f"{trail}/{child.get('code') or '?'}")
+                yield from walk(
+                    child,
+                    f"{trail}/{child.get('code') or '?'}",
+                    child_kind,
+                )
+    for instrument in doc.get("instruments") or []:
+        yield from walk(
+            instrument,
+            f"instruments:{instrument.get('code') or '?'}",
+            "instrument",
+        )
     for root in ("chapters", "schedules"):
+        kind = "chapter" if root == "chapters" else "schedule"
         for node in doc.get(root, []):
-            yield from walk(node, f"{root}:{node.get('code') or '?'}")
+            yield from walk(node, f"{root}:{node.get('code') or '?'}", kind)
 
 
 def inv_contract_complete(doc):
@@ -2540,7 +2585,7 @@ def inv_contract_complete(doc):
     nodes = list(_iter_contract_nodes(doc))
 
     seen = {}
-    for trail, node in nodes:
+    for trail, node, _kind in nodes:
         key = node.get("node_key")
         if key:
             seen.setdefault(key, []).append(trail)
@@ -2557,11 +2602,21 @@ def inv_contract_complete(doc):
     missing = [k for k in _CONTRACT_METADATA if (doc.get("metadata") or {}).get(k) is None]
     if missing:
         bad.append(f"metadata: missing {', '.join(missing)}")
-    untyped = [trail for trail, node in nodes if not node.get("type")]
-    keyless = [trail for trail, node in nodes if not node.get("node_key")]
+    untyped = [trail for trail, node, _kind in nodes if not node.get("type")]
+    mistyped = [
+        trail
+        for trail, node, kind in nodes
+        if node.get("type") and node.get("type") != kind
+    ]
+    keyless = [trail for trail, node, _kind in nodes if not node.get("node_key")]
     if untyped:
         bad.append(f"identity: {len(untyped)} of {len(nodes)} nodes have no `type`"
                    f" (first: {untyped[0]})")
+    if mistyped:
+        bad.append(
+            f"identity: {len(mistyped)} of {len(nodes)} nodes have the wrong `type`"
+            f" (first: {mistyped[0]})"
+        )
     if keyless:
         bad.append(f"identity: {len(keyless)} of {len(nodes)} nodes have no `node_key`"
                    f" (first: {keyless[0]})")

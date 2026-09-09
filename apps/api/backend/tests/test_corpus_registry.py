@@ -7,10 +7,23 @@ in what order, and what happens to a label nobody recognises.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from backend.routes.corpus import SyncRequest
 from backend.services import corpus_registry as registry
+from legal_ingest.signature import Signature
+
+
+@pytest.fixture(scope="module")
+def committed_signatures():
+    path = registry.REPO_ROOT / "tools" / "discovery" / "signatures.json"
+    return json.loads(path.read_text(encoding="utf-8"))["records"]
+
+
+def _signature(record):
+    return Signature(**record["signature"])
 
 
 def test_registry_lists_every_corpus_in_order():
@@ -21,6 +34,95 @@ def test_registry_lists_every_corpus_in_order():
         "CORPUS_ACTS",
         "CORPUS_RULES",
     ]
+
+
+def test_flat_ict_ordinances_route_to_legal_ingest(committed_signatures):
+    """The body-driven fallback is selected from measured shape, not the lane."""
+    records = [
+        record
+        for record in committed_signatures
+        if record["lane"] == "ordinance"
+        and record["signature"]["group"]
+        == "The Islamabad Capital Territory (Tax on Services) Ordinance, 2001"
+        and record["assignment"]["family"] == "consolidated"
+        and record["assignment"]["source"] == "measured"
+    ]
+    assert records
+    assert all(record["signature"]["container_order"] == "" for record in records)
+
+    routes = {
+        registry.get("ordinance").parser_for(signature=_signature(record))
+        for record in records
+    }
+    assert routes == {
+        registry.ParserRoute("legal_ingest", profile="acts", auto=True)
+    }
+
+
+def test_income_tax_ordinance_stays_on_fbr_ingest(committed_signatures):
+    """A real container hierarchy remains evidence for the dedicated fork."""
+    records = [
+        record
+        for record in committed_signatures
+        if record["lane"] == "ordinance"
+        and record["signature"]["group"] == "Income Tax Ordinance, 2001"
+        and record["assignment"]["family"] == "consolidated"
+        and record["assignment"]["source"] == "measured"
+    ]
+    assert records
+    assert all(record["signature"]["container_order"] for record in records)
+
+    routes = {
+        registry.get("ordinance").parser_for(signature=_signature(record))
+        for record in records
+    }
+    assert routes == {registry.ParserRoute("fbr_ingest")}
+
+
+def test_ordinance_amending_family_routes_to_legal_ingest(committed_signatures):
+    records = [
+        record
+        for record in committed_signatures
+        if record["lane"] == "ordinance"
+        and record["assignment"]["family"] == "amending"
+        and record["assignment"]["source"] == "measured"
+    ]
+    assert records
+    routes = {
+        registry.get("ordinance").parser_for(signature=_signature(record))
+        for record in records
+    }
+    assert routes == {
+        registry.ParserRoute("legal_ingest", profile="acts", auto=True)
+    }
+
+
+def test_explicit_lane_profile_preserves_the_old_ordinance_route(
+    committed_signatures,
+):
+    record = next(
+        record
+        for record in committed_signatures
+        if record["lane"] == "ordinance"
+        and record["signature"]["group"].startswith(
+            "The Islamabad Capital Territory"
+        )
+    )
+    route = registry.get("ordinance").parser_for(
+        signature=_signature(record), profile="lane"
+    )
+    assert route == registry.ParserRoute("fbr_ingest")
+
+
+def test_parser_route_loader_guards_bound_arguments(monkeypatch):
+    class _Module:
+        @staticmethod
+        def run(pdf):
+            return pdf
+
+    monkeypatch.setattr(registry.importlib, "import_module", lambda package: _Module)
+    with pytest.raises(ValueError, match="does not accept auto"):
+        registry.ParserRoute("misconfigured", auto=True).load()
 
 
 def test_path_follows_the_environment_then_falls_back(monkeypatch):
