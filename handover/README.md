@@ -1,16 +1,20 @@
 # Handover — start here
 
 Written **2026-09-04**, on `main` after PR #83 (round 17); updated **2026-09-08**
-after PR #84 (round 18) and PR #85 (round 19). Every number below was
-measured on this machine at that commit, not carried forward; §4 says which command
-produces each one.
+after PR #84 (round 18) and PR #85 (round 19); updated **2026-09-09** after
+round 20 (PR #86) shipped parser, routing, and instrument-tree work against
+fixtures and public FBR PDFs. **`register.json` is still 22** — the private
+corpus was not on the round-20 host, so the snapshot was not rewritten.
 
 **One-line state:** the anomaly register is **22**, down from 210. It is committed and
-gated on CI. **17 of 66** checklist items remain open, plus two located since (one by round
-17, one by round 18) — the
-residue of Phase 3, all of Phase 4 and Phase 5, and the OCR work, which is now
+gated on CI. Round 20 closed the Phase 4 routing decision, the Phase 5
+instrument tree (compilation exemptions deleted), the Finance Act 2024 clause
+cursor, the CHAPTER en-dash, and the schedule PART reader on the public
+gazette PDFs. What remains of Phase 3 is the private-corpus remainder plus
+OCR, which is still
 **deliberately** out of scope (decided 2026-09-04; the decision and its consequences are
-in [`tasks.md`](tasks.md#decisions-on-record-2026-09-04)).
+in [`tasks.md`](tasks.md#decisions-on-record-2026-09-04)). Artifact:
+[`wip/phase3-round20-wip-completion.md`](../wip/phase3-round20-wip-completion.md).
 
 **Rounds 17 and 18 both moved the register by zero, on purpose.** Round 17 shipped the
 container-code guard and the PART separator widening it enables (**14 gained, 0 lost**).

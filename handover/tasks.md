@@ -3,13 +3,16 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **22**. **17 of 66** checklist items are open, plus 3 optional
-leftovers from the finished integration track. Reasoning for every row is in
+**State:** the register is **22** (unremeasured — round 20 did not rewrite
+`register.json` from a partial public corpus). Phase 4 routing, Phase 5
+instruments, and several Phase 3 parser gaps shipped in PR #86; the private
+corpus remainder of Phase 3 is still open. Reasoning for every row is in
 [`plan.md`](plan.md); state is in [`README.md`](README.md); the traps are in
 [`working-rules.md`](working-rules.md).
 
 Written 2026-09-04 on `main` after PR #83 (round 17); updated 2026-09-08 after PR #84
-(round 18) and PR #85 (round 19). **Next round is 20; next PR is #86.**
+(round 18) and PR #85 (round 19); updated 2026-09-09 after PR #86 (round 20).
+Artifact: [`wip/phase3-round20-wip-completion.md`](../wip/phase3-round20-wip-completion.md).
 
 **Six invariant classes are closed.** Round 15 closed `section_codes_ordered` — see
 [task 1's Result](#1-trace-section_codes_ordered--3-hits-acts--closed-round-15). Round 16
@@ -64,17 +67,17 @@ measured guard already failed at, and every row below it needs a trace before it
 
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
-| 1 | **the heading-terminator scan** | 3 | needs an **omission-aware fallback**; the obvious guard was measured losing section 32AA outright. | [P3-2](plan.md#p3-2--the-heading-terminator-scan-that-walks-through-a-boundary-3-acts) |
-| 2 | **the omission spellings** | 2 | `A O mitted` needs an intra-word-space tolerance a precision regex refused in round 3. Re-measure now the count is traceable. | [P3-1a](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 3 | **`preamble_carries_no_toc_tail`** | 2 | needs **a signal other than row density** — the `rows >= 3` floor is load-bearing and may not be lowered. | [P3-3](plan.md#p3-3--preamble_carries_no_toc_tail-2-acts) |
+| 1 | **the heading-terminator scan** | 3 | **code shipped, round 20.** Fixture green. Private Sales Tax 32AA editions not reconverted here, so the register is not −3 yet. | [P3-2](plan.md#p3-2--the-heading-terminator-scan-that-walks-through-a-boundary-3-acts) |
+| 2 | **the omission spellings** | 2 | **invariant widened, round 20**, whole-string only. Private Customs 2024/2025 pages not present. | [P3-1a](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| 3 | **`preamble_carries_no_toc_tail`** | 2 | **extra signal shipped, round 20**; floor stays at 3. Public Customs 2008 / Sales Tax 2023: 0 hits. | [P3-3](plan.md#p3-3--preamble_carries_no_toc_tail-2-acts) |
 | 4 | **the single-document remainder** | 7 | nothing shared — PSW ministry list, PFMA s.26, `R(cid:2)fund`. Three unrelated traces. | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 5 | **`clause_codes_plausible`** | 1 | **do not weaken the check.** Two routes suggested, neither measured. | [P3-7](plan.md#p3-7--clause_codes_plausible-1-finance-act-2024) |
-| 6 | **decide the `fbr_ingest` fork** | 5 ³ | **a decision, on evidence already committed.** Route by family, not by lane. Merging stays the v1 non-goal. | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
-| 7 | **the schedule PART reader** | 0 ⁶ | **newly located, cause not yet known.** `schedules._kind()` accepts 18 of the 20 lines, so the pattern is not it. Diagnose before fixing. | [round 17](../wip/phase3-round17-container-code-guard.md) |
-| 8 | **the CHAPTER en-dash separator** | 0 ⁷ | **grammar must move first.** `grammar.CHAPTER_RE` rejects `CHAPTER – VI` too, and its `[–—]` branch reads an en dash as a same-line TITLE. Round 18 located it, pinned it, and left it. | [round 18](../wip/phase3-round18-chapter-letter-suffix.md) |
-| 10 | **the cross-edition index** | 0 ⁴ | needs a new per-group index over `output/*.json`; `signatures.json`'s counts are PDF-regex, not tree counts. | [P3-8](plan.md#p3-8--no-invariant-can-see-a-document-that-lost-93-of-its-sections) |
-| 11 | **the instrument tree level** (4 limbs) | 0 ⁵ | limb 2 is **23 walker sites across 11 files** and a new `Node.kind` is dropped *silently*. | [Phase 5](plan.md#phase-5--the-instrument-tree-level-4-limbs-not-started) |
-| 12 | flip `--profile auto` to default | — | **BLOCKED: Phase 3 must reach zero-or-exempted first.** Flipping it re-parses everything and destroys attribution. | [P4-1](plan.md#p4-1--flip---profile-auto-to-the-default) |
+| 5 | **`clause_codes_plausible`** | ~~1~~ **0** | **CLOSED, round 20** on public Finance Act 2024 (clauses 1–12). Check not weakened. | [P3-7](plan.md#p3-7--clause_codes_plausible-1-finance-act-2024) |
+| 6 | **decide the `fbr_ingest` fork** | 5 ³ | **CLOSED as routing, round 20.** Family-aware; forks not merged. Ordinance five still need ITO editions on `fbr_ingest`. | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
+| 7 | **the schedule PART reader** | 0 ⁶ | **CLOSED, round 20** on public FA2021 (I–VIII) and FA2019 (I–VII). Cause was gazette glyph-split `P ART -I`, not the hyphen. | [round 20](../wip/phase3-round20-wip-completion.md) |
+| 8 | **the CHAPTER en-dash separator** | 0 ⁷ | **CLOSED, round 20.** Grammar moved first; known-gap test now a `BOUNDARIES` case. | [round 18](../wip/phase3-round18-chapter-letter-suffix.md) |
+| 10 | **the cross-edition index** | 0 ⁴ | **CLOSED, round 20.** Tree-count gate; skips without corpus. | [P3-8](plan.md#p3-8--no-invariant-can-see-a-document-that-lost-93-of-its-sections) |
+| 11 | **the instrument tree level** (4 limbs) | 0 ⁵ | **CLOSED, round 20.** Compilation exemptions for Customs Rules 2001 and FE Rules 2005 deleted. | [Phase 5](plan.md#phase-5--the-instrument-tree-level-4-limbs-not-started) |
+| 12 | flip `--profile auto` to default | — | **SHIPPED, round 20**, without a full-corpus reparse. Register still 22 — do not `convert-all`. | [P4-1](plan.md#p4-1--flip---profile-auto-to-the-default) |
 | 13 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded. | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
 | 14 | delete `_legacy_section_key` | — | **BLOCKED on row 13**, which is now decided as *no OCR* — so the 14 stale acts documents stay stale and this stays blocked. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it is step 1, and worth doing so the number is real. | [Deferred](#deferred-with-reasons) |
 | 15 | the `ReviewToolbar` approval gate | — | **DECIDED 2026-09-04: gate on CRITICAL flags only.** Switch to `hasCriticalQualityFlags`, which is already tested and unused. One line plus the test. Cheapest row on the board. | [Deferred](#deferred-with-reasons) |
@@ -486,11 +489,10 @@ That fork is gated on [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing
 and measured at zero additional hits. Do not match numerals by value: `XIVA` and `XIV-A`
 are two different chapters of Sales Tax Rules 2006.
 
-**Result** — _(empty)_
-
----
-
-### 4. The container-code guard — 0 hits, an enabler — **CLOSED, round 17**
+**Result** — **CLOSED, round 18** (PR #84). Artifact:
+`wip/phase3-round18-chapter-letter-suffix.md`. 80 swallowed boundary lines across
+24 documents to 0; register unchanged at 25. Round 20 later closed the en-dash
+gap on the same line.
 
 **Closed by PR #83 (round 17).** Artifact:
 `wip/phase3-round17-container-code-guard.md`. Kept here because half of what this row
@@ -618,11 +620,12 @@ heading, so an omitted section borrows the next section's terminator.
 `no_chapter_caption_in_section_heading` (4 → 1); **leaf count unchanged or higher** on all
 three editions; a test that fails without the fallback.
 
-**Do not** — **do not add a guard that stops the scan at a structural heading.** Measured,
-round 13: an omitted section has no terminator of its own, so refusing the borrowed one
-leaves nothing to open it with, and the section vanishes.
-
-**Result** — _(empty)_
+**Result** — **parser shipped, round 20** (PR #86). Omission-aware fallback: when the
+borrowed terminator is a structural boundary / next code / TABLE caption and the
+current line is an omission, the leaf opens on that line. Locked by
+`tools/tests/test_omitted_heading_stops_at_boundary.py`. Register **not** −3
+on this host: the three Sales Tax editions were not reconverted (private corpus
+absent).
 
 ---
 
@@ -644,7 +647,9 @@ a gained/lost measurement showing 2 gained / 0 lost.
 **Do not** — do not admit a general `\s*` between every character of `Omitted`. That is the
 form round 3 measured and rejected.
 
-**Result** — _(empty)_
+**Result** — **invariant widened, round 20** (PR #86). `_is_omission` accepts only the
+whole-string forms `"to Omitted 96u"` and `"A O mitted"`. No general `\s*` between
+letters. Register **not** −2 here: those two Customs editions were not staged.
 
 ---
 
@@ -668,7 +673,9 @@ a test covering both the two tails and the title page that must not be swallowed
 `SHCEUDLE`. A typo tolerance in a schedule-heading regex is a false-positive generator
 across 103 documents.
 
-**Result** — _(empty)_
+**Result** — **extra signal shipped, round 20** (PR #86). Floor stays at 3; `SHCEUDLE`
+still refused. Public Customs 30.06.2008 and Sales Tax 30.06.2023: **0**
+`preamble_carries_no_toc_tail` hits. The register's 2 are the private editions.
 
 ---
 
@@ -711,7 +718,10 @@ clause jump (prove it with a fixture that must stay red).
 `pagemodel.py:585` `_OPEN_QUOTE_CUE_RE` thinking it is the same thing as
 `_common._QUOTE_CUE` — different regex, different owner, different side of the fence.
 
-**Result** — _(empty)_
+**Result** — **CLOSED, round 20** (PR #86). `_DOTFORM_RE` uses `\.(?!\d)` so a
+quoted `8517.1430` is not a clause start. Public Finance Act 2024 reconverted:
+clauses **1–12**, `inv_clause_codes_plausible` **0**. The fixture that must stay
+red still stays red.
 
 ---
 
@@ -741,7 +751,12 @@ family, the 9 documents convert and the ordinance five are closed or exempted.
 not what the evidence asks for. Do not port round 13's fixes into the fork "while you are
 there" — that is a separate, measured, zero-value change today.
 
-**Result** — _(empty)_
+**Result** — **CLOSED as routing, round 20** (PR #86). Convert CLIs and
+`corpus_registry` route by family; `--profile auto` is the default. Flat ICT
+(empty `container_order`) uses `legal_ingest` + Acts profile; Income Tax
+Ordinance stays on `fbr_ingest`. Forks not merged. Nine public ICT PDFs
+convert to a synthetic root with three sections. The ordinance five still
+need ITO editions on `fbr_ingest` — public ICT files are a different family.
 
 ---
 
@@ -767,7 +782,10 @@ not. **A gate that cannot be made to fail on purpose is not a gate.**
 **Do not** — do not compare against `signatures.json`'s counts directly. They are PDF-regex
 measurements; comparing a tree count to a regex count produces noise on every document.
 
-**Result** — _(empty)_
+**Result** — **CLOSED, round 20** (PR #86). `tools/check_cross_edition_quality.py`
+indexes tree counts, joins `signatures.json` groups, flags a >50% collapse vs
+five or more siblings near the median. Wired into `tools/run_tests_smoke.py`.
+Skips without corpus; unit tests lock the fail-on-purpose gate.
 
 ---
 
@@ -800,22 +818,29 @@ suite reports them stale on its own once it does.
 **Do not** — do not add a `Node.kind` before auditing all 23 walker sites. A dropped node is
 silent, and a silent drop in limb 1 will be diagnosed as a limb 3 rendering bug.
 
-**Result** — _(empty)_
+**Result** — **CLOSED, round 20** (PR #86). Optional `instruments[]`, `type=instrument`,
+`inst:` keys in `legal_contract`; walkers updated; Alembic `0006_section_instrument_context.py`;
+portal breadcrumbs/sidebar/upload. Compilation exemptions for Customs Rules 2001
+and Federal Excise Rules 2005 **deleted**. Public FE 2015: two instruments,
+suite 60/60. Public Customs Rules 2001: body discovery, compilation case PASS.
+Remaining rules exemptions are jammed-tokens, split-ordinals, and the round-19
+STR printing errors.
 
 ---
 
-### 14. `--profile auto` as the default — BLOCKED
+### 14. `--profile auto` as the default — SHIPPED, round 20
 
-**Blocked: Phase 3 must reach zero-or-exempted first.** Flipping it re-parses everything,
-and doing that while the register is non-zero destroys the ability to attribute any change.
+**Shipped in PR #86** on `tools/convert.py` and `tools/convert_all.py`, both
+`--profile {lane,auto}` defaulting to `auto`. A family override refines the
+lane's profile. `lane` preserves the historical route.
 
-When unblocked: `tools/convert.py:51` and `tools/convert_all.py:433`, both
-`--profile {lane,auto}` defaulting to `lane`. A family override must **refine** the lane's
-profile, not replace it. `convert_all.py:486` refuses `auto` on ordinance — that refusal
-interacts with [task 11](#11-decide-the-fbr_ingest-fork--unblocks-5-hits-and-9-documents)
-and must be revisited with it.
+This was gated on Phase 3 reaching zero-or-exempted so a full reparse could be
+attributed. **That reparse was not run**: the register is still 22 and this
+host had no private corpus. Do not `make convert-all`. Explicit `--profile lane`
+is still the escape hatch.
 
-**Result** — _(empty)_
+**Result** — default is `auto`. Full-corpus attribution remains blocked until
+the register is remeasured on the private 103-document set.
 
 ---
 
