@@ -33,7 +33,7 @@ import re
 import statistics
 from dataclasses import asdict, dataclass
 
-from .grammar import SCHEDULE_TOC_RE, folio_value
+from .grammar import PAGE_TOC, SCHEDULE_TOC_RE, folio_value
 from .pagemodel import Word, _group_into_lines, normalize_text
 from .profiles import ACTS, Profile
 
@@ -74,6 +74,11 @@ TOC_DOT_LEADER_RE = re.compile(r"(?:[.…]{5,})[\s.…]*\d{0,4}\s*$")
 TOC_CODELESS_RE = re.compile(
     r"^\s*(?=.*[A-Za-z]{3})[^\d\n].{3,90}?[\s.\-…]+\d{1,4}\s*$")
 
+# A schedule TITLE alone can begin the body, so it is not enough to identify a
+# short contents tail.  The tail signal below requires the printed contents
+# folio too ("THE TWELFTH SCHEDULE........246").
+_TOC_PAGE_SUFFIX_RE = re.compile(rf"(?:{PAGE_TOC})\s*$")
+
 
 def _is_toc_row(line: str, profile: Profile = ACTS) -> bool:
     """Whether ``line`` looks like a contents row, in the forms this corpus sets.
@@ -106,6 +111,12 @@ def _is_toc_row(line: str, profile: Profile = ACTS) -> bool:
     if profile.toc_codeless_rows and TOC_CODELESS_RE.match(line):
         return True
     return False
+
+
+def _is_numbered_schedule_toc_row(line: str) -> bool:
+    """A schedule contents row with its printed page, not a body heading."""
+    return bool(SCHEDULE_TOC_RE.match(line) and _TOC_PAGE_SUFFIX_RE.search(line))
+
 
 # Folio grammar lives in `grammar` -- `pagemodel` reads the same forms per page and
 # cannot import this module (this module imports it).
@@ -262,13 +273,15 @@ def detect_toc_pages(pdf, max_scan: int = 40, profile: Profile = ACTS) -> int:
     never produce).
     """
     limit = min(max_scan, len(pdf.pages))
-    rows, ratio = [], []
+    rows, ratio, schedule_rows = [], [], []
     for i in range(limit):
         lns = [ln for ln in (pdf.pages[i].extract_text() or "").split("\n")
                if ln.strip()]
         r = sum(1 for ln in lns if _is_toc_row(ln, profile))
         rows.append(r)
         ratio.append(r / max(1, len(lns)))
+        schedule_rows.append(sum(1 for ln in lns
+                                 if _is_numbered_schedule_toc_row(ln)))
 
     # A page is TOC-dense when most of its lines ARE rows.  The absolute count
     # alone is not enough: a footnote page ("25. Inserted by the Finance Act,
@@ -296,8 +309,21 @@ def detect_toc_pages(pdf, max_scan: int = 40, profile: Profile = ACTS) -> int:
     # A real contents tail is SHORT but still DENSE: few lines, most of them rows.
     # The title page is long and sparse (8%). Requiring both separates them.
     floor = profile.toc_tail_density_floor
-    while (end + 1 < limit and rows[end + 1] >= 3
-           and (floor is None or ratio[end + 1] >= floor)):
+    while end + 1 < limit:
+        nxt = end + 1
+        density_tail = (rows[nxt] >= 3
+                        and (floor is None or ratio[nxt] >= floor))
+        # Two corpus tails carry only two recognisable rows. Do not lower the
+        # general row floor: the Income Tax Rules body title page has three
+        # generic row matches. Instead use the page's position immediately
+        # after the dense contents run, and require every recognised row to be a
+        # schedule title with its printed page. The misspelled ``SHCEUDLE`` row
+        # in Customs remains unrecognised; the two correctly spelled rows are
+        # sufficient context without widening the grammar.
+        schedule_tail = (end in dense and schedule_rows[nxt] == rows[nxt]
+                         and schedule_rows[nxt] == 2)
+        if not (density_tail or schedule_tail):
+            break
         end += 1
     return end + 1
 
