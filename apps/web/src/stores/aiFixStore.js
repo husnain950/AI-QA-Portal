@@ -47,9 +47,9 @@ export const useAiFixStore = create((set, get) => ({
         }
     },
 
-    requestFix: async (documentId, sectionId, instructions, modelName) => {
+    requestFix: async (documentId, sectionId, instructions, modelName, options = {}) => {
         const proposal = await aiFixApi.request(
-            documentId, sectionId, instructions, modelName,
+            documentId, sectionId, instructions, modelName, options,
         );
         set((state) => ({ proposals: [proposal, ...state.proposals] }));
         return proposal;

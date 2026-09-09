@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import HTTPException, Request
 
 from backend.database import DatabaseConnection
+from backend.services import jobs
 
 
 async def require_reviewer(request: Request) -> str:
@@ -20,6 +21,29 @@ async def require_reviewer(request: Request) -> str:
             detail={"code": "unauthenticated", "message": "sign in to use this API"},
         )
     return actor
+
+
+async def require_worker(db: DatabaseConnection) -> None:
+    """503 unless a worker has beaten recently.
+
+    Every enqueue route calls it: a job row written with nothing to claim it is not a
+    slow job, it is a job that never runs, and the caller polls it until it times out.
+
+    Called inline immediately before ``jobs.enqueue`` rather than declared as a
+    ``Depends``, so a route's own validation still answers first -- an unmounted corpus
+    should say so, not blame the worker.
+    """
+    if not await jobs.worker_online(db):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "worker_offline",
+                "message": (
+                    "no worker is running, so background jobs cannot be processed; "
+                    "check /health/worker"
+                ),
+            },
+        )
 
 
 #: Tables `ensure_exists` may probe. An allowlist rather than a formatted parameter,

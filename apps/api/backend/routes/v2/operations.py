@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import PlainTextResponse
 
 from backend.database import DatabaseConnection, get_db
-from backend.deps import require_reviewer
+from backend.deps import require_reviewer, require_worker
 from backend.services import jobs
 from backend.services.clock import iso_now
 from backend.services.detectors import DETECTOR_VERSION
@@ -80,6 +80,7 @@ async def run_detectors(
     db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
+    await require_worker(db)
     job = await jobs.enqueue(
         db,
         "detectors",

@@ -420,6 +420,84 @@ async def client(sign_in):
     return await sign_in("admin")
 
 
+FIXED_TEXT = "Second section, corrected by the model"
+FIXED_HTML = f"<p>{FIXED_TEXT}</p>"
+
+#: The leaf the sample document marks as "Repeated code" on page 3.
+LEAF_KEY = "/chapters/0/sections/1"
+
+
+def model_reply(**overrides) -> str:
+    """A well-formed model answer for the second sample leaf."""
+    payload = {
+        "code": "1",
+        "heading": "Repeated code",
+        "html": FIXED_HTML,
+        "plain_text": FIXED_TEXT,
+        "footnotes": [],
+    }
+    payload.update(overrides)
+    return json.dumps(payload)
+
+
+@pytest.fixture
+def gateway(monkeypatch):
+    """Configure the env and stub the LLM network call; tests set the canned reply."""
+    from backend.services import llm_client
+
+    monkeypatch.setenv("OPENPATHS_API_KEY", "op-test")
+    monkeypatch.setenv("OPENPATHS_BASE_URL", "https://gateway.test/v1")
+    monkeypatch.setenv("OPENPATHS_MODELS", "test-model, second-model")
+    monkeypatch.delenv("OPENPATHS_MODEL", raising=False)
+    monkeypatch.delenv("LLM_EXTRA_PROVIDERS", raising=False)
+    llm_client.clear_catalog_cache()
+
+    state = {"reply": model_reply(), "calls": [], "models": []}
+
+    async def fake_chat(messages, *, model=None, temperature=0.0):
+        state["calls"].append(messages)
+        state["models"].append(model)
+        if isinstance(state["reply"], Exception):
+            raise state["reply"]
+        return state["reply"]
+
+    async def fake_catalog(*, force=False):
+        return {}
+
+    monkeypatch.setattr(llm_client, "chat", fake_chat)
+    monkeypatch.setattr(llm_client, "fetch_openpaths_catalog", fake_catalog)
+    return state
+
+
+async def synced_document(runtime_sandbox):
+    """A synced sample document, plus the section id of its "Repeated code" leaf."""
+    from backend.sync_acts import run_sync
+
+    source = runtime_sandbox["root"] / "export"
+    write_pair(source)
+    await run_sync(source)
+    db = await open_connection()
+    async with db.execute("SELECT id FROM documents LIMIT 1") as cursor:
+        document_id = (await cursor.fetchone())["id"]
+    async with db.execute(
+        "SELECT id FROM sections WHERE source_key = ?", (LEAF_KEY,)
+    ) as cursor:
+        section_id = (await cursor.fetchone())["id"]
+    return db, document_id, section_id
+
+
+@pytest_asyncio.fixture
+async def worker_running(runtime_sandbox):
+    """A worker heartbeat, so an enqueue route answers 202 instead of 503.
+
+    The routes refuse to queue work nothing will claim -- see deps.require_worker. A
+    test that expects a job to be accepted has to say a worker exists.
+    """
+    from backend import worker
+
+    await worker._beat("idle")
+
+
 @pytest_asyncio.fixture
 async def db(runtime_sandbox):
     async with database.database_connection() as connection:

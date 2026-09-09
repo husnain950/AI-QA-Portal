@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.database import DatabaseConnection, get_db
-from backend.deps import require_reviewer
+from backend.deps import require_reviewer, require_worker
 from backend.services import jobs
 from backend.services.corpus_registry import CORPORA, LABELS
 
@@ -158,6 +158,7 @@ async def trigger_sync(
 
     payload = body.model_dump()
     payload["only"] = wanted
+    await require_worker(db)
     job = await jobs.enqueue(db, "corpus_sync", payload=payload, actor=actor)
     await db.commit()
     return {"job_id": job["id"], "state": job["state"]}

@@ -242,6 +242,7 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
     const [model, setModel] = useState('');
     const [proposal, setProposal] = useState(null);
     const [phase, setPhase] = useState('compose'); // compose | loading | compare
+    const [jobState, setJobState] = useState(''); // queued | running, from the job poll
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
 
@@ -299,15 +300,23 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
 
     if (!open || !section) return null;
 
+    // The compose hint and the loading line have to agree about whether page images
+    // were sent; the loading line used to claim they always were.
+    const selectedModel = models.find((row) => row.id === model) || models[0];
+    const usesVision = selectedModel ? selectedModel.vision : true;
+
     const handleRequest = async () => {
         if (!instructions.trim()) {
             setError('Describe what the pipeline got wrong first.');
             return;
         }
         setPhase('loading');
+        setJobState('');
         setError('');
         try {
-            const result = await requestFix(documentId, section.id, instructions, model);
+            const result = await requestFix(documentId, section.id, instructions, model, {
+                onProgress: (job) => setJobState(job.state),
+            });
             setProposal(result);
             setPhase('compare');
             if (result.status === 'failed') {
@@ -379,30 +388,22 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                 {phase === 'compose' && (
                     <div className="ai-fix-compose">
                         <p className="ai-fix-hint">
-                            {(() => {
-                                const selectedModel = models.find((row) => row.id === model)
-                                    || models[0];
-                                const usesVision = selectedModel ? selectedModel.vision : true;
-                                if (usesVision) {
-                                    return (
-                                        <>
-                                            The model receives this section&apos;s JSON, images of PDF page
-                                            {section.end_page !== section.start_page
-                                                ? `s ${section.start_page}–${section.end_page}`
-                                                : ` ${section.start_page}`}
-                                            , and your instructions. It proposes a corrected section —
-                                            nothing is applied until you approve it.
-                                        </>
-                                    );
-                                }
-                                return (
-                                    <>
-                                        This text-only model receives the section JSON and your
-                                        instructions (no PDF images). It proposes a corrected section —
-                                        nothing is applied until you approve it.
-                                    </>
-                                );
-                            })()}
+                            {usesVision ? (
+                                <>
+                                    The model receives this section&apos;s JSON, images of PDF page
+                                    {section.end_page !== section.start_page
+                                        ? `s ${section.start_page}–${section.end_page}`
+                                        : ` ${section.start_page}`}
+                                    , and your instructions. It proposes a corrected section —
+                                    nothing is applied until you approve it.
+                                </>
+                            ) : (
+                                <>
+                                    This text-only model receives the section JSON and your
+                                    instructions (no PDF images). It proposes a corrected section —
+                                    nothing is applied until you approve it.
+                                </>
+                            )}
                         </p>
                         <AiFixWorkspace
                             pdfUrl={pdfUrl}
@@ -436,8 +437,23 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                 {phase === 'loading' && (
                     <div className="ai-fix-loading">
                         <Loader2 className="animate-spin" size={28} />
-                        <p>Sending the section JSON and PDF pages to the model…</p>
-                        <p className="ai-fix-hint">This usually takes under a minute.</p>
+                        {jobState === 'queued' ? (
+                            <>
+                                <p>Queued — waiting for a worker to pick it up…</p>
+                                <p className="ai-fix-hint">
+                                    Nothing is being sent to the model yet. If this does not move,
+                                    the job queue is backed up or stopped.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <p>
+                                    Sending the section JSON
+                                    {usesVision ? ' and PDF pages' : ''} to the model…
+                                </p>
+                                <p className="ai-fix-hint">This usually takes under a minute.</p>
+                            </>
+                        )}
                         <button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>
                             Close and keep working — the proposal will be here when you reopen
                         </button>

@@ -181,9 +181,13 @@ async def run() -> None:
                 await jobs.succeed(db, job["id"], result)
             await _beat("idle")
         except asyncio.CancelledError:
+            # Shutdown, not a user cancel request (that arrives via jobs.heartbeat).
+            # Re-raise: swallowing it left the loop claiming new work after the
+            # process had been told to stop.
             async with database_connection() as db:
                 await jobs.mark_cancelled(db, job["id"])
-            await _beat("idle")
+            await _beat("stopped")
+            raise
         except Exception as exc:
             logger.exception("job failed", extra={"job_id": job["id"], "job_type": job["type"]})
             async with database_connection() as db:
