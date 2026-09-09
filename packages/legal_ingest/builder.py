@@ -2475,6 +2475,7 @@ def _find_heading_split(seg, cutoff):
         next_boundary = li and (
             is_structural_boundary(seg[li].line.text())
             or _DOTFORM_RE.match(seg[li].line.text()[:40])
+            or seg[li].line.text().strip().upper() == "TABLE"
         )
         if next_boundary:
             first_words = sorted(seg[0].line.words, key=lambda w: w.x0)
