@@ -14,9 +14,9 @@ the real geometry still requires the private PDFs.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import pathlib
 import sys
+from dataclasses import dataclass
 
 import pytest
 
