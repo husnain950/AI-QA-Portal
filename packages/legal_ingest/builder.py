@@ -2459,9 +2459,19 @@ def _find_heading_split(seg, cutoff):
     present in ``plain_text`` and absent from the ``html`` -- which the
     conservation audit cannot see, because it reads ``plain_text``.
     """
+    def untitled_body_split():
+        first_words = sorted(seg[0].line.words, key=lambda w: w.x0)
+        m = _DOTFORM_RE.match(seg[0].line.text()[:40])
+        if not m:
+            return None
+        code_i = _code_token_index(first_words)
+        if code_i is None:
+            return None
+        return 0, first_words[:code_i + 1], first_words[code_i + 1:]
+
     for li in range(min(4, cutoff)):
         if getattr(seg[li].line, "is_table", False):
-            return None
+            return untitled_body_split() if li else None
         next_boundary = li and (
             is_structural_boundary(seg[li].line.text())
             or _DOTFORM_RE.match(seg[li].line.text()[:40])
@@ -2480,9 +2490,7 @@ def _find_heading_split(seg, cutoff):
                 # heading; returning None makes body discovery drop the current
                 # provision altogether.  Keep the code as the empty heading
                 # region and treat every following word as operative body.
-                code_i = _code_token_index(first_words)
-                if code_i is not None:
-                    return 0, first_words[:code_i + 1], first_words[code_i + 1:]
+                return untitled_body_split()
             return None
         words = sorted(seg[li].line.words, key=lambda w: w.x0)
         # 1) preferred: the "<title>.—" heading dash

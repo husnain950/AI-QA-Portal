@@ -27,7 +27,7 @@ for _p in (str(_ROOT), str(_ROOT / "packages")):
 
 from legal_ingest.builder import LineRef, build_sections  # noqa: E402
 from legal_ingest.discover import discover_structure  # noqa: E402
-from legal_ingest.pagemodel import Line, Word  # noqa: E402
+from legal_ingest.pagemodel import Line, Table, Word  # noqa: E402
 
 
 def _line(words: list[tuple[str, float]]) -> Line:
@@ -121,3 +121,37 @@ def test_untitled_one_sentence_rule_keeps_body_and_stops_at_next_rule():
     leaf = built[id(by_code["47A"])]
     assert "Delayed perishable goods" in leaf.plain_text
     assert "48. Failure to comply" not in leaf.plain_text
+
+
+def test_untitled_rule_followed_by_table_is_not_dropped():
+    refs = [
+        LineRef(1, _ordinary("CHAPTER XII")),
+        LineRef(2, _ordinary(
+            "216. Repayment shall be made according to the table below:")),
+        LineRef(2, Table(
+            top=120.0,
+            bottom=180.0,
+            html="<table><tr><td>Period</td><td>Amount</td></tr></table>",
+            plain="Period Amount",
+        )),
+        LineRef(3, _ordinary(
+            "217. Temporary import is allowed subject to these conditions:- "
+            "The importer shall furnish a guarantee.")),
+    ]
+
+    chapters, entries = discover_structure(refs, {}, {}, _gate=False)
+    by_code = {entry.code: entry for entry in entries}
+    assert set(by_code) == {"216", "217"}
+    assert by_code["216"].heading == ""
+
+    built = build_sections(
+        refs,
+        entries,
+        {},
+        {},
+        page_offset=0,
+        containers=list(_flatten(chapters)),
+    )
+    leaf = built[id(by_code["216"])]
+    assert "Repayment shall be made" in leaf.plain_text
+    assert "Period Amount" in leaf.plain_text
