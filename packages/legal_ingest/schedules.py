@@ -57,11 +57,16 @@ def _sched_ordinal(text: str):
 # builder._STRUCT_DECOR_RE; leading decoration only, a trailing "]" alone
 # never qualifies a line.
 _LEAD = r'^' + _DECOR
-# allow "PART I", "PART-I", "PART - I" (the Schedules use a hyphen in places)
-# suffix up to TWO letters: "Division IIIAA" (inserted by the Finance Act,
-# 2025) must split like any other division -- [A-Z]? left it fused to the
-# previous division's body
-_PART_RE = re.compile(_LEAD + r"PART[\s\-]+[IVXL]+[A-Z]{0,2}\s*\]?$", re.IGNORECASE)
+# allow "PART I", "PART-I", "PART - I" (the Schedules use a hyphen in places),
+# plus the two Arabic forms the Finance Acts print ("Part-1", "Part-11").
+# Keep the Arabic branch narrow and preserve it as Arabic: "11" may be source
+# confusion for Roman "II", but guessing that here would change the legal text.
+# Roman suffixes still reach TWO letters, so inserted "PART IIIAA" splits like
+# any other part -- [A-Z]? left it fused to the previous part's body.
+_PART_RE = re.compile(
+    _LEAD + r"PART[\s\-]+(?:[IVXL]+[A-Z]{0,2}|\d{1,2})\s*\]?$",
+    re.IGNORECASE,
+)
 # The Federal Excise Act divides its First and Third Schedules into TABLEs where
 # the other acts use PARTs, so a table is a part-kind node (see grammar.TABLE_RE
 # for why no new Node.kind).  The numeral is Roman ("TABLE-II", "1[TABLE III") or
