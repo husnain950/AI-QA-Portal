@@ -363,10 +363,11 @@ NUMERAL = rf"(?:{ROMAN}|\d{{1,3}}[A-Z]{{0,3}})"
 #:     runs its chapter rows out to a folio ("Chapter-II ....... 29") and without
 #:     it NOT ONE of the ten chapters classified, leaving every section
 #:     container-less and the whole edition refusing to convert;
-#:   * an inline TITLE after an EN/EM DASH -- Federal Excise prints "Chapter I –
-#:     Preliminary 5" where the other acts put the title on the next line.  Only
-#:     the long dashes separate a title: a HYPHEN is the numeral's own suffix
-#:     separator ("CHAPTER XVI-A"), so admitting it would split that numeral.
+#:   * an EN DASH may separate the keyword from the numeral -- Customs prints
+#:     "CHAPTER – VI" where the caption follows on the next line.  Position keeps
+#:     that distinct from an inline TITLE after an EN/EM DASH: Federal Excise
+#:     prints "Chapter I – Preliminary 5".  A HYPHEN after the numeral remains
+#:     the numeral's own suffix separator ("CHAPTER XVI-A").
 #:   * an optional leading INSERTION BRACKET.  A chapter added by amendment is
 #:     printed "[CHAPTER XIV-A" (and once "[ CHAPTER XV"), the same square
 #:     bracket the amendment markers use.  Anchoring hard on the keyword left 15
@@ -376,7 +377,7 @@ NUMERAL = rf"(?:{ROMAN}|\d{{1,3}}[A-Z]{{0,3}})"
 #:     heading-continuation and glued themselves onto the preceding section's
 #:     title, and the sections under them were parented to the wrong chapter.
 CHAPTER_RE = re.compile(
-    rf"^\s*\[?\s*{spaced('CHAPTER')}[\s\-]+({NUMERAL})"
+    rf"^\s*\[?\s*{spaced('CHAPTER')}[\s\-–]+({NUMERAL})"
     rf"(?:\s*[–—]\s*(?P<title>\S.*?))?"
     rf"(?:\s+{PAGE_TOC})?\s*$",
     re.IGNORECASE)
@@ -510,8 +511,11 @@ def _demo() -> None:
     assert not is_year_like("263") and not is_year_like("831")
     assert not is_year_like("99") and not is_year_like("27a")
 
-    # structural headings, incl. the Customs "CHAPTER XVI-A" form
+    # structural headings, incl. the Customs "CHAPTER XVI-A" suffix and
+    # "CHAPTER – VI" en-dash separator forms
     assert CHAPTER_RE.match("CHAPTER XVI-A") and CHAPTER_RE.match("CHAPTER II")
+    m = CHAPTER_RE.match("CHAPTER – VI")
+    assert m and m.group(1) == "VI" and not m.group("title")
     assert PART_RE.match("PART IIB") and PART_RE.match("PART I 503")
     assert not CHAPTER_RE.match("CHAPTER II APPOINTMENT OF OFFICERS")
 

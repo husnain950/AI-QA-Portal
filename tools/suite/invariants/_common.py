@@ -451,12 +451,17 @@ def inv_schedules_have_content(doc):
 # re-converting took it back to 25.  A closed class whose instrument is narrower
 # than the defect is not closed, it is unmeasured.
 #
+# The CHAPTER separator also carries the measured EN DASH form: ``CHAPTER – VI``
+# / ``– VII`` in Customs and ``– V`` / ``– VIAB`` in Sales Tax Rules, 42 real
+# boundaries over 21 documents.  Keep this independent reader in step with the
+# parser so those leaks are observable before outputs are reconverted.
+#
 # ``PART`` stays on ``\s+`` here even though the parser widened it in round 17:
 # the vouched half of that widening is per-chapter and this line has no container
 # to consult, so widening it would report the nine annexure-FORM part lines in the
 # rules lane as defects.  See ``test_structural_boundary_agrees_with_grammar``.
 _STRUCT_LINE = re.compile(
-    r"^(CHAPTER[\s\-]+[IVXLC0-9]+(?:-?[A-Z]{1,2})?|PART\s+[IVXLC0-9]+[A-Z]{0,2}|"
+    r"^(CHAPTER[\s\-–]+[IVXLC0-9]+(?:-?[A-Z]{1,2})?|PART\s+[IVXLC0-9]+[A-Z]{0,2}|"
     r"DIVISION\s+[IVXLC0-9]+[A-Z]{0,2})$", re.IGNORECASE)
 
 
@@ -2296,12 +2301,14 @@ def _demo_structural_line() -> None:
     tariff exception that must not be generalised along with them.
 
     Round 13: ``_STRUCT_LINE`` spelled the keyword/numeral separator ``\\s+``
-    while ``grammar.CHAPTER_RE`` has always spelled it ``[\\s\\-]+``, so this
+    while ``grammar.CHAPTER_RE`` spelled the ASCII forms ``[\\s\\-]+``, so this
     invariant reported ZERO on 175 swallowed chapter headings across 21
-    documents -- blind for the same reason the parser was.
+    documents -- blind for the same reason the parser was.  Both readers now
+    also carry the measured CHAPTER en-dash separator.
     """
     for line in ("CHAPTER II", "Chapter-II", "CHAPTER-II", "4[Chapter-I",
-                 "CHAPTER - V", "128[CHAPTER-XLI", "PART III", "1[PART VA"):
+                 "CHAPTER - V", "128[CHAPTER-XLI", "CHAPTER – VI",
+                 "CHAPTER – VIAB", "PART III", "1[PART VA"):
         assert _STRUCT_LINE.match(_STRUCT_DECOR.sub("", line.strip())), line
     for line in ("Chapter-V of this Act;", "Chapter VII of", "Chapter X or",
                  "Chapter XII]", "PART-II", "34[PART-3"):
