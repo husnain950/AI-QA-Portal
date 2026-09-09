@@ -700,11 +700,13 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
             # extracted table.  Without this branch both rules disappear and
             # their tables are carried by rule 217, producing an orphan marker
             # row and losing two legal leaves.
+            following_refs = body_refs[idx + 1:idx + 9]
             table_follows = (
                 len(re.findall(r"[A-Za-z]", text[m.end():])) >= 20
                 and any(
                     getattr(next_ref.line, "is_table", False)
-                    for next_ref in body_refs[idx + 1:idx + 4]
+                    or next_ref.line.text().strip().upper() == "TABLE"
+                    for next_ref in following_refs
                 )
             )
             title_ok = (

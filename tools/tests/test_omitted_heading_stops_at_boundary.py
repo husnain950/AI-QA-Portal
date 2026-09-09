@@ -135,6 +135,10 @@ def test_untitled_rule_followed_by_table_is_not_dropped():
         LineRef(1, _ordinary("CHAPTER XII")),
         LineRef(2, _regular(
             "216. Repayment shall be made according to the table below:")),
+        LineRef(2, _regular("The period starts on the date of importation")),
+        LineRef(2, _regular("and ends on the date of exportation.")),
+        LineRef(2, _ordinary("TABLE")),
+        LineRef(2, _regular("Period Amount")),
         LineRef(2, Table(
             top=120.0,
             bottom=180.0,
@@ -162,3 +166,19 @@ def test_untitled_rule_followed_by_table_is_not_dropped():
     leaf = built[id(by_code["216"])]
     assert "Repayment shall be made" in leaf.plain_text
     assert "Period Amount" in leaf.plain_text
+
+
+def test_untitled_rule_before_gridless_table_title_is_discovered():
+    refs = [
+        LineRef(1, _ordinary("CHAPTER XII")),
+        LineRef(2, _regular(
+            "218. Repayment for motor vehicles shall follow the table below;")),
+        LineRef(2, _ordinary("TABLE")),
+        LineRef(2, _regular("S.No. Period Amount")),
+        LineRef(3, _ordinary(
+            "219. No repayment.- No repayment shall be made for these goods.")),
+    ]
+
+    _chapters, entries = discover_structure(refs, {}, {}, _gate=False)
+
+    assert [entry.code for entry in entries] == ["218", "219"]
