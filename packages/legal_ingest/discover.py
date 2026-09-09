@@ -364,6 +364,26 @@ def _alt_code(code: str, words, last_key) -> str:
     return code
 
 
+def _repair_digit_one_suffix(code: str, last_key) -> str:
+    """Recover a capital-I suffix emitted as the digit ``1`` in a code run.
+
+    Customs Rules 2001 prints the native-digital sequence ``556H, 556I, 556J``,
+    but the middle glyph's text mapping is ``5561``.  Accepting 5561 advances
+    the monotonic cursor beyond every later rule and folds the final 328 PDF
+    pages into that leaf.  The repair is intentionally sequence-bound: only an
+    all-digit ``<same numeric base>1`` immediately after suffix H can become I.
+    A genuine numeric section 5561 anywhere else is unchanged.
+    """
+    if (
+        last_key is not None
+        and last_key[1] == "H"
+        and code.isdigit()
+        and code == f"{last_key[0]}1"
+    ):
+        return f"{last_key[0]}I"
+    return code
+
+
 def _quoted_container(is_amendment: bool, last_key) -> bool:
     """Whether a structural heading here is material the instrument QUOTES.
 
@@ -663,6 +683,7 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
             # `_multiline_heading` and the colon-dash fallback below strip it off
             # the heading text and need the spelling the page actually shows.
             code = _grammar_norm_code(_alt_code(printed_code, words, last_key))
+            code = _repair_digit_one_suffix(code, last_key)
             key = code_sort_key(code)
             # Gazette Finance Acts set their OWN clause titles in regular
             # ArialMT (FA2022 ``1. Short title...``, ``2. Amendments of Customs``);

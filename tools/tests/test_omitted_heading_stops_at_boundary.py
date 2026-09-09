@@ -93,3 +93,31 @@ def test_omitted_32aa_survives_without_borrowing_the_next_heading():
         assert leaked not in leaf.heading, leaf.heading
         assert leaked not in leaf.html, leaf.html
         assert leaked not in leaf.plain_text, leaf.plain_text
+
+
+def test_untitled_one_sentence_rule_keeps_body_and_stops_at_next_rule():
+    refs = [
+        LineRef(1, _ordinary("CHAPTER I")),
+        LineRef(1, _ordinary("PRELIMINARY")),
+        LineRef(2, _ordinary(
+            "47A. Delayed perishable goods may be released on written request.")),
+        LineRef(2, _ordinary(
+            "48. Failure to comply.- A person who fails to comply is liable.")),
+    ]
+
+    chapters, entries = discover_structure(refs, {}, {}, _gate=False)
+    by_code = {entry.code: entry for entry in entries}
+    assert set(by_code) == {"47A", "48"}
+    assert by_code["47A"].heading == ""
+
+    built = build_sections(
+        refs,
+        entries,
+        {},
+        {},
+        page_offset=0,
+        containers=list(_flatten(chapters)),
+    )
+    leaf = built[id(by_code["47A"])]
+    assert "Delayed perishable goods" in leaf.plain_text
+    assert "48. Failure to comply" not in leaf.plain_text

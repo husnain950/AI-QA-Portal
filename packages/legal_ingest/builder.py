@@ -2462,12 +2462,27 @@ def _find_heading_split(seg, cutoff):
     for li in range(min(4, cutoff)):
         if getattr(seg[li].line, "is_table", False):
             return None
-        if li and is_structural_boundary(seg[li].line.text()):
+        next_boundary = li and (
+            is_structural_boundary(seg[li].line.text())
+            or _DOTFORM_RE.match(seg[li].line.text()[:40])
+        )
+        if next_boundary:
             first_words = sorted(seg[0].line.words, key=lambda w: w.x0)
             m = _DOTFORM_RE.match(seg[0].line.text()[:40])
             if m and _OMISSION_AFTER_CODE_RE.match(
                     seg[0].line.text()[m.end():]):
                 return 0, first_words, []
+            if m:
+                # A provision can consist of one operative sentence with no
+                # separately printed marginal heading (Customs rules 47A, 267,
+                # 482B and 484).  The next section/chapter is a hard boundary:
+                # borrowing its terminator makes that next title the current
+                # heading; returning None makes body discovery drop the current
+                # provision altogether.  Keep the code as the empty heading
+                # region and treat every following word as operative body.
+                code_i = _code_token_index(first_words)
+                if code_i is not None:
+                    return 0, first_words[:code_i + 1], first_words[code_i + 1:]
             return None
         words = sorted(seg[li].line.words, key=lambda w: w.x0)
         # 1) preferred: the "<title>.—" heading dash
