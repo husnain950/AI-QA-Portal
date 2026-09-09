@@ -25,7 +25,13 @@ from __future__ import annotations
 import re as _re
 from dataclasses import dataclass, field
 
-from .grammar import ROMAN_FOLIO_RE, folio_value, is_marker_text, is_year_like
+from .grammar import (
+    ROMAN_FOLIO_RE,
+    folio_value,
+    is_marker_text,
+    is_year_like,
+    spaced,
+)
 
 # Private-use glyph the PDF uses for the footnote asterisk. QA: "Different
 # Asterisk symbol is shown in JSON" -> normalise it to a plain "*".
@@ -592,7 +598,8 @@ _QUOTED_HEAD_RE = _re.compile(r'^\s*\d+[a-z]?\[\s*[A-Z0-9]')
 # continues with prose ("Division XIV substituted by...") and is small-font, so
 # only a real body heading matches this at >=11pt.
 _BARE_STRUCT_RE = _re.compile(
-    r'^\s*[\d*\[\]“”"\s]{0,12}(?:PART|Division)[\s\-]+[IVXLC]+[A-Z]{0,3}\s*\]?$',
+    rf'^\s*[\d*\[\]“”"\s]{{0,12}}(?:{spaced("PART")}|{spaced("Division")})'
+    rf'[\s\-]+[IVXLC]+[A-Z]{{0,3}}\s*\]?$',
     _re.IGNORECASE)
 
 

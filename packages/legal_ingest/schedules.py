@@ -27,6 +27,7 @@ from .builder import (
     content_rows_with_tables,
 )
 from .footnotes import ref_sort_key
+from .grammar import spaced
 
 _ORD_LIST = ["FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH", "SIXTH", "SEVENTH",
              "EIGHTH", "NINTH", "TENTH", "ELEVENTH", "TWELFTH", "THIRTEENTH",
@@ -63,8 +64,14 @@ _LEAD = r'^' + _DECOR
 # confusion for Roman "II", but guessing that here would change the legal text.
 # Roman suffixes still reach TWO letters, so inserted "PART IIIAA" splits like
 # any other part -- [A-Z]? left it fused to the previous part's body.
+#
+# ``spaced('PART')`` is the same glyph-split tolerance grammar.CHAPTER_RE
+# already carries.  Gazette Finance Acts print the schedule heading as
+# ``P ART -I`` (P/ART kerning plus a spaced hyphen); a contiguous PART
+# keyword left those lines in the enclosing leaf.  Whole-line anchored, so
+# interleaving ``\s*`` cannot match body prose.
 _PART_RE = re.compile(
-    _LEAD + r"PART[\s\-]+(?:[IVXL]+[A-Z]{0,2}|\d{1,2})\s*\]?$",
+    _LEAD + rf"{spaced('PART')}[\s\-]+(?:[IVXL]+[A-Z]{{0,2}}|\d{{1,2}})\s*\]?$",
     re.IGNORECASE,
 )
 # The Federal Excise Act divides its First and Third Schedules into TABLEs where
@@ -661,6 +668,10 @@ def _norm_code(text, kind):
     t = t.strip('[]“”" ').strip()
     t = re.sub(r"(?i)\b(PART|Division)[\s\-]+", lambda m: m.group(1) + " ", t)
     if kind == "part":
+        # Gazette Finance Acts glyph-split the keyword (``P ART -I`` /
+        # ``P ART - IV``).  Collapse only the keyword and its separator; the
+        # numeral stays as printed -- no ``l``→``I``, no arabic→roman.
+        t = re.sub(r"(?i)^P\s*A\s*R\s*T[\s\-]+", "PART ", t)
         return t.upper()
     return t  # schedule title / "Division X" kept as-is
 
@@ -945,6 +956,9 @@ def _demo() -> None:
     assert _norm("TABLE-II") == _norm("Table-II") == "TABLE II"
     assert _norm("THE FIRST SCHEDULE") == _norm("FIRST SCHEDULE") == "FIRST SCHEDULE"
     assert _norm("PART-I") == _norm("PART I") == "PART I"
+    assert _kind("P ART -I") == "part" and _norm_code("P ART -I", "part") == "PART I"
+    assert _kind("P ART - IV") == "part" and _norm_code("P ART - IV", "part") == "PART IV"
+    assert _kind("P ART -V(A)") is None   # parenthetical sub-part, not a PART node
 
     # a table heading is a PART-kind node; a tariff cross-reference is not one
     assert _kind("TABLE 1") == "part" and _kind("TABLE-II") == "part"
