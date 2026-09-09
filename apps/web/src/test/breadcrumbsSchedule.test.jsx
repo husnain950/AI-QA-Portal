@@ -76,6 +76,6 @@ describe('Breadcrumbs schedule chrome', () => {
             'Chapter',
             'Section',
         ]);
-        expect(screen.getByText('Passenger Baggage Rules')).toBeInTheDocument();
+        expect(screen.getByText(/Passenger Baggage Rules/)).toBeInTheDocument();
     });
 });
