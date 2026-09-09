@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import glob
-import importlib
 import json
 import os
 import sys
@@ -44,6 +43,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("lane", choices=LABELS, help="which corpus to test")
     ap.add_argument("json_path", nargs="?", help="converted JSON to test")
     ap.add_argument("--pdf", help="convert this PDF first, then test its output")
+    ap.add_argument("--profile", choices=("lane", "auto"), default="auto",
+                    help="parser routing for --pdf (default: auto)")
     ap.add_argument("--json", dest="report", help="write full JSON report to this path")
     return ap
 
@@ -53,10 +54,15 @@ def main(argv=None) -> int:
     lane = args.lane
 
     if args.pdf:
-        convert = importlib.import_module(get(lane).package).run
+        try:
+            route = get(lane).parser_for(args.pdf, profile=args.profile)
+            convert, kwargs = route.load()
+        except (ImportError, KeyError, ValueError) as err:
+            print(f"error: invalid parser route: {err}", file=sys.stderr)
+            return 2
         out = os.path.splitext(args.pdf)[0] + ".json"
         print(f"[tests] converting {args.pdf} ...", file=sys.stderr)
-        result = convert(args.pdf)
+        result = convert(args.pdf, **kwargs)
         with open(out, "w", encoding="utf-8") as fh:
             json.dump(result, fh, ensure_ascii=False, indent=2)
         targets = [out]

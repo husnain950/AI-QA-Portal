@@ -34,8 +34,6 @@ from __future__ import annotations
 import argparse
 import concurrent.futures as cf
 import datetime as _dt
-import importlib
-import inspect
 import json
 import os
 import pathlib
@@ -233,7 +231,7 @@ def _read_log(log: pathlib.Path) -> str:
 
 def convert(pdf: pathlib.Path, timeout: float | None = None,
             keep_log: bool = True, admit_below_floor: bool = False,
-            profile: str = "lane") -> dict:
+            profile: str = "auto") -> dict:
     dest = out_path(pdf)
     t0 = time.time()
     # The child writes STRAIGHT INTO its log file, unbuffered, rather than into a
@@ -249,9 +247,7 @@ def convert(pdf: pathlib.Path, timeout: float | None = None,
     if log is not None:
         RUN_DIR.mkdir(parents=True, exist_ok=True)
     argv = [sys.executable, str(_HERE / "convert.py"), LANE,
-            str(pdf), "-o", str(dest)]
-    if profile != "lane":
-        argv += ["--profile", profile]
+            str(pdf), "-o", str(dest), "--profile", profile]
     if admit_below_floor:
         argv.append("--admit-below-floor")
     env = {**os.environ, "PYTHONUNBUFFERED": "1"}
@@ -363,6 +359,18 @@ def scan_page_count(pdf: pathlib.Path) -> int:
         return 0
 
 
+def _validate_routes(files: list[pathlib.Path], profile: str) -> bool:
+    """Resolve every child route before one failure can quarantine old output."""
+    corpus = get(LANE)
+    try:
+        for pdf in files:
+            corpus.parser_for(pdf, profile=profile).load()
+    except (ImportError, KeyError, ValueError) as err:
+        print(f"error: invalid parser route: {err}", file=sys.stderr)
+        return False
+    return True
+
+
 def _write_status(state: dict) -> None:
     """Publish live counters for anything that wants to know if a run is alive.
 
@@ -430,14 +438,12 @@ def main(argv=None) -> int:
                          "swap thrash, not compute -- OMP_NUM_THREADS=1 does not "
                          "help. Raise this only after re-measuring on a box with "
                          "free RAM; do not tune it on intuition.")
-    ap.add_argument("--profile", choices=("lane", "auto"), default="lane",
-                    help="passed through to convert.py for every file. 'lane' "
-                         "(the default) parses each PDF as whatever corpus it "
-                         "was filed under; 'auto' measures it and asks "
-                         "legal_ingest.families, which is the only way the 36 "
-                         "amending instruments in this corpus get the amending "
-                         "profile. A lane whose pipeline takes no profile is "
-                         "refused up front -- see main().")
+    ap.add_argument("--profile", choices=("lane", "auto"), default="auto",
+                    help="passed through to convert.py for every file. 'auto' "
+                         "(the default) measures each document, refines the lane "
+                         "profile by family, and routes flat Ordinance documents "
+                         "to legal_ingest. 'lane' preserves the historical "
+                         "lane-only parser and profile.")
     ap.add_argument("--list", action="store_true", help="list targets and exit")
     ap.add_argument("--skip-scanned", action="store_true",
                     help="convert only the text-layer files, leaving the scans "
@@ -482,20 +488,6 @@ def main(argv=None) -> int:
         print(f"error: no source directory for the {args.lane} lane: {SOURCES}",
               file=sys.stderr)
         return 2
-    # Asked ONCE, here, rather than being discovered by every child.  The
-    # ordinance lane routes to fbr_ingest, whose ``run`` takes no profile, so
-    # ``convert.py`` exits 2 on each of its 45 files -- and that is not an
-    # _is_env_failure, so ``_quarantine`` would move all 12 existing ordinance
-    # JSONs out of the corpus.  A flag typo must not be able to empty a lane.
-    # Same check and same message as convert.py, asked of the pipeline rather
-    # than recorded here as another per-lane fact.
-    if args.profile == "auto":
-        run = importlib.import_module(get(args.lane).package).run
-        if "auto" not in inspect.signature(run).parameters:
-            print(f"error: the {args.lane} pipeline takes no profile, so "
-                  f"--profile auto does not apply", file=sys.stderr)
-            return 2
-
     fam = None if args.family in (None, "all") else args.family
     files = discover(fam, args.phase)
     if not files:
@@ -514,6 +506,13 @@ def main(argv=None) -> int:
         if not files:
             print("nothing to do -- every target already has output")
             return 0
+
+    # Validate every family-aware route before launching any child.  A bad route
+    # must stop the batch as one configuration error; discovering it per child
+    # would classify every failure as a document defect and quarantine the
+    # lane's existing JSON.
+    if not _validate_routes(files, args.profile):
+        return 2
 
     OUT.mkdir(exist_ok=True)
     t0 = time.time()

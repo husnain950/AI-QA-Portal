@@ -27,11 +27,11 @@ from legal_ingest.signature import Signature
 
 SIGNATURES = corpus_paths.REPO_ROOT / "tools" / "discovery" / "signatures.json"
 
-#: The profile each lane binds today -- acts_ingest.PROFILE / rules_ingest.PROFILE,
-#: named here rather than imported so the test does not depend on the parse stack
-#: those packages pull in.  The ordinance lane has none: fbr_ingest takes no
-#: profile at all, which is why --profile auto is refused there up front.
-LANE_PROFILE = {"acts": ACTS, "rules": RULES}
+#: The profile each legal_ingest route binds -- acts_ingest.PROFILE,
+#: rules_ingest.PROFILE, and the conservative Acts fallback used when a flat
+#: Ordinance document leaves its dedicated fbr_ingest fork. Named here rather
+#: than imported so the test does not depend on the lane wrapper packages.
+LANE_PROFILE = {"acts": ACTS, "rules": RULES, "ordinance": ACTS}
 
 
 def _records(lane: str, family: str) -> list[dict]:
@@ -62,6 +62,8 @@ def _resolve(record: dict, monkeypatch):
     ("rules", "consolidated", RULES),   # the regression: was resolving ACTS
     ("acts", "consolidated", ACTS),
     ("acts", "amending", AMENDING),     # the one family that DOES override
+    ("ordinance", "consolidated", ACTS),
+    ("ordinance", "amending", AMENDING),
 ])
 def test_every_document_resolves_to_the_right_profile(lane, family, expected,
                                                       monkeypatch):
