@@ -1237,6 +1237,15 @@ _CODE_DECOR = r"[\s\[\]\d*.\-]*(?:[A-Z][\s\[\]\d*.\-]*)?"
 _LEGITIMATELY_EMPTY = re.compile(
     rf"^{_CODE_DECOR}(?:omitted|repealed|\*\*\*)", re.IGNORECASE)
 
+#: Two measured extraction defects which still unambiguously denote omissions.
+#: Keep these as whole-string literals: a per-character optional-space pattern
+#: would admit unmeasured spacing variants, which is unsafe for an exemption
+#: predicate.
+_BOUNDED_MALFORMED_OMISSIONS = frozenset({
+    "to Omitted 96u",
+    "A O mitted",
+})
+
 
 #: pdfplumber emits ``(cid:N)`` for a glyph whose font subset has no ToUnicode
 #: entry.  It is never text, and it is NOT recoverable: measured on The Sales Tax
@@ -1255,8 +1264,14 @@ _CID_GLYPH = re.compile(r"\(cid:\d+\)")
 def _is_omission(leaf) -> bool:
     def readable(v):
         return _CID_GLYPH.sub("", v or "")
-    return bool(_LEGITIMATELY_EMPTY.match(readable(leaf.get("heading")))
-                or _LEGITIMATELY_EMPTY.match(readable(leaf.get("plain_text"))))
+
+    def is_omission_text(v):
+        text = readable(v)
+        return (_LEGITIMATELY_EMPTY.match(text)
+                or text.strip() in _BOUNDED_MALFORMED_OMISSIONS)
+
+    return bool(is_omission_text(leaf.get("heading"))
+                or is_omission_text(leaf.get("plain_text")))
 
 
 def _body_beyond_heading(leaf) -> str:

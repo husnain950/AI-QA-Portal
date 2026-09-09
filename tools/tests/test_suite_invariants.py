@@ -34,6 +34,29 @@ def test_section_attribution_helpers():
     _common._demo_section_attribution()
 
 
+def test_bounded_malformed_omission_forms_are_exempted():
+    for text in ("to Omitted 96u", "A O mitted"):
+        leaf = {"code": "79", "heading": "Live title", "plain_text": text}
+        assert _common._is_omission(leaf), text
+        assert _common.inv_section_carries_its_body(
+            {"chapters": [{"sections": [leaf]}]}) == []
+
+
+def test_malformed_omission_forms_do_not_exempt_ordinary_text():
+    ordinary_text = (
+        "Notice to Omitted 96u applicants",
+        "to Omitted 96u and retained",
+        "A O mitted provision remains operative",
+        "This section was O mitted from the listing",
+        "An omitted filing may be restored",
+    )
+    for text in ordinary_text:
+        leaf = {"code": "79", "heading": text, "plain_text": f"79. {text}"}
+        assert not _common._is_omission(leaf), text
+        assert _common.inv_section_carries_its_body(
+            {"chapters": [{"sections": [leaf]}]}), text
+
+
 def test_structural_line_helpers():
     """``no_structural_heading_in_body``: the separator, and the tariff-reference
     exception whose stated premise is false and must stay narrowly scoped."""
