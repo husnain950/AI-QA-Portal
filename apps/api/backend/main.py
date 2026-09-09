@@ -1,7 +1,6 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +36,7 @@ from backend.routes.v2 import operations as v2_operations
 from backend.routes.v2 import review as v2_review
 from backend.routes.v2 import uploads as v2_uploads
 from backend.runtime import UPLOAD_DIR, bootstrap_runtime
-from backend.services import blob_store
+from backend.services import blob_store, jobs
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -52,10 +51,40 @@ _raw = os.environ.get("ALLOWED_ORIGINS", "").strip()
 _origins = [o.strip() for o in _raw.split(",") if o.strip()] if _raw else _DEFAULT_ORIGINS
 
 
+WORKER_SHUTDOWN_SECONDS = 5.0
+
+
+def _worker_in_process() -> bool:
+    """Run the job queue inside this process unless a dedicated worker is deployed.
+
+    Default on: a deployment that forgets the worker does not fail loudly, it enqueues
+    jobs nothing ever claims (which is how AI Fix spun for 30 minutes in production).
+    Compose and the Northflank template, the two places that do run `python -m
+    backend.worker`, set WORKER_IN_PROCESS=0.
+    """
+    return (os.environ.get("WORKER_IN_PROCESS") or "1").strip().lower() not in {
+        "0",
+        "false",
+        "off",
+    }
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await bootstrap_runtime()
-    yield
+    task = None
+    if _worker_in_process():
+        from backend import worker
+
+        task = asyncio.create_task(worker.run())
+    try:
+        yield
+    finally:
+        if task is not None:
+            task.cancel()
+            # Bounded: a handler that swallows the cancellation must not hold up
+            # shutdown, and must not outlive it either.
+            await asyncio.wait({task}, timeout=WORKER_SHUTDOWN_SECONDS)
 
 
 app = FastAPI(title="FBR Corpus Platform API", lifespan=lifespan)
@@ -154,21 +183,12 @@ async def health_ready():
 async def health_worker():
     try:
         async with database_connection() as db:
-            async with db.execute(
-                """
-                SELECT worker_id, heartbeat_at, state, job_id
-                FROM worker_heartbeats
-                ORDER BY heartbeat_at DESC
-                LIMIT 1
-                """
-            ) as cur:
-                row = await cur.fetchone()
+            row = await jobs.latest_heartbeat(db)
         if not row:
             raise RuntimeError("no worker heartbeat")
-        heartbeat = datetime.fromisoformat(row["heartbeat_at"].replace("Z", "+00:00"))
-        if datetime.now(timezone.utc) - heartbeat > timedelta(seconds=30):
+        if not jobs.heartbeat_is_fresh(row):
             raise RuntimeError("worker heartbeat is stale")
-        return {"status": "ok", **dict(row)}
+        return {"status": "ok", **row}
     except Exception as exc:
         return JSONResponse(status_code=503, content={"status": "degraded", "detail": str(exc)})
 

@@ -120,7 +120,8 @@
               "SEED_CORPUS_RULES": "/seed/corpus/rules",
               "PYTHONPATH": "/app",
               "PYTHONUNBUFFERED": "1",
-              "CSP_ENFORCE": "1"
+              "CSP_ENFORCE": "1",
+              "WORKER_IN_PROCESS": "0"
             },
             "buildArguments": {},
             "ports": [

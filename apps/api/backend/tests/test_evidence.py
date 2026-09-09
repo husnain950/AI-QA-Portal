@@ -162,7 +162,9 @@ async def test_legal_approval_cannot_skip_the_reviewed_stage(runtime_sandbox, si
     assert skipped.status_code == 409
 
 
-async def test_an_evidence_request_is_one_job_per_document_revision(runtime_sandbox, client):
+async def test_an_evidence_request_is_one_job_per_document_revision(
+    runtime_sandbox, client, worker_running
+):
     async with database_connection() as db:
         await _reviewed_document(db)
 

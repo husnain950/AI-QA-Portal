@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.database import DatabaseConnection, get_db
-from backend.deps import require_reviewer
+from backend.deps import require_reviewer, require_worker
 from backend.services import events, jobs
 from backend.services.identity import confirm_identity, family_id_for_slug
 
@@ -163,6 +163,7 @@ async def request_evidence(
         row = await cur.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="document not found")
+    await require_worker(db)
     job = await jobs.enqueue(
         db,
         "export",

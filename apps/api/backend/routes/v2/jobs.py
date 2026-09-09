@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from backend.database import DatabaseConnection, get_db
-from backend.deps import require_reviewer
+from backend.deps import require_reviewer, require_worker
 from backend.services import jobs
 
 router = APIRouter(prefix="/jobs", tags=["v2-jobs"])
@@ -19,6 +19,7 @@ async def create_job(
     db: DatabaseConnection = Depends(get_db),
     actor: str = Depends(require_reviewer),
 ):
+    await require_worker(db)
     try:
         job = await jobs.enqueue(
             db,

@@ -286,7 +286,13 @@ export const aiFixApi = {
             section_id: sectionId,
             instructions,
             model: modelName || null,
-        }, options);
+        }, {
+            // The gateway itself gives up at 180s, so jobsApi's 30-minute default was
+            // never reachable; 750ms polling is 80 GET/min against a 120/min read limit.
+            pollMs: 1000,
+            timeoutMs: 5 * 60_000,
+            ...options,
+        });
         return this.get(result.proposal_id);
     },
 

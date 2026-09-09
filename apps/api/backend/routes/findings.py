@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.database import DatabaseConnection, get_db, json_column
-from backend.deps import require_reviewer
+from backend.deps import require_reviewer, require_worker
 from backend.services import events, findings_store, jobs, review_state
 from backend.services.editions import family_key_from_name
 
@@ -185,6 +185,7 @@ async def export_finding_case(
     if not row:
         raise HTTPException(status_code=404, detail="Finding not found")
     row = dict(row)
+    await require_worker(db)
     job = await jobs.enqueue(
         db,
         "regression_bundle",

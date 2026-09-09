@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from backend.database import DatabaseConnection
@@ -21,9 +21,42 @@ JOB_TYPES = frozenset(
         "ai_proposal",
     }
 )
-LEASE_SECONDS = 60
+# Longer than llm_client.REQUEST_TIMEOUT_SECONDS (180s): the ai_proposal handler holds
+# the lease for the whole gateway call without heartbeating, so a shorter lease lets a
+# second worker reclaim a proposal that is still in flight.
+LEASE_SECONDS = 240
+#: How long a worker heartbeat stays fresh. /health/worker and the enqueue guard agree.
+HEARTBEAT_STALE_SECONDS = 30
 
 
+async def latest_heartbeat(db: DatabaseConnection) -> dict[str, Any] | None:
+    """The newest worker heartbeat row, or None when no worker has ever beaten."""
+    async with db.execute(
+        """
+        SELECT worker_id, heartbeat_at, state, job_id
+        FROM worker_heartbeats
+        ORDER BY heartbeat_at DESC
+        LIMIT 1
+        """
+    ) as cur:
+        row = await cur.fetchone()
+    return dict(row) if row else None
+
+
+def heartbeat_is_fresh(row: dict[str, Any]) -> bool:
+    """Whether a heartbeat row is recent enough to mean "a worker is alive"."""
+    beat = datetime.fromisoformat(row["heartbeat_at"].replace("Z", "+00:00"))
+    return now() - beat <= timedelta(seconds=HEARTBEAT_STALE_SECONDS)
+
+
+async def worker_online(db: DatabaseConnection) -> bool:
+    """True when some worker beat within HEARTBEAT_STALE_SECONDS.
+
+    Enqueueing without this is what made a missing worker look like a slow model: the
+    row is written, nothing claims it, and the caller polls a job forever.
+    """
+    row = await latest_heartbeat(db)
+    return bool(row) and heartbeat_is_fresh(row)
 
 
 async def enqueue(
