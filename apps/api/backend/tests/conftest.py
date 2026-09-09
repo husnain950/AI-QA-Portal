@@ -128,6 +128,60 @@ def sample_document(*, second_text: str = "Second section") -> str:
     )
 
 
+def multi_instrument_document() -> str:
+    """Two independently-numbered instruments in one compilation."""
+    def instrument(code: str, title: str, page: int, text: str) -> dict:
+        key = code.lower().replace(" ", "-")
+        return {
+            "code": code,
+            "heading": title,
+            "type": "instrument",
+            "node_key": f"inst:{key}",
+            "chapters": [
+                {
+                    "code": "CHAPTER I",
+                    "heading": "PRELIMINARY",
+                    "type": "chapter",
+                    "node_key": f"inst:{key}/ch:i",
+                    "parts": [],
+                    "divisions": [],
+                    "sections": [
+                        {
+                            "code": "1",
+                            "heading": "Short title",
+                            "type": "section",
+                            "node_key": f"inst:{key}/ch:i/s:1",
+                            "start_page": page,
+                            "end_page": page,
+                            "html": f"<p>{text}</p>",
+                            "plain_text": text,
+                            "footnotes": [],
+                        }
+                    ],
+                }
+            ],
+            "schedules": [],
+        }
+
+    return json.dumps(
+        {
+            "metadata": {
+                "contract_version": 1,
+                "filename": "compilation.pdf",
+                "total_pages": 3,
+                "instruments_count": 2,
+                "chapters_count": 2,
+                "schedules_count": 0,
+                "sections_count": 2,
+            },
+            "instruments": [
+                instrument("SRO-ONE", "First Rules", 1, "First instrument"),
+                instrument("SRO-TWO", "Second Rules", 3, "Second instrument"),
+            ],
+        }
+    )
+
+
 def write_pair(root: Path, name: str = "Test Act") -> Path:
     directory = root / name
     directory.mkdir(parents=True)

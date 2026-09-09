@@ -7,7 +7,12 @@ import pytest
 from backend.database import database_connection
 from backend.services import ai_fix, llm_client, overlays
 from backend.sync_acts import run_sync
-from backend.tests.conftest import open_connection, sample_document, write_pair
+from backend.tests.conftest import (
+    multi_instrument_document,
+    open_connection,
+    sample_document,
+    write_pair,
+)
 
 FIXED_TEXT = "Second section, corrected by the model"
 FIXED_HTML = f"<p>{FIXED_TEXT}</p>"
@@ -86,6 +91,19 @@ def test_leaf_navigation_roundtrip():
     assert overlays.get_leaf(data, "/chapters/9/sections/0") is None
     assert not overlays.set_leaf(data, "/chapters/9/sections/0", replacement)
     assert overlays.get_leaf(data, "/not-a-key") is None
+
+
+def test_leaf_navigation_supports_instrument_source_keys():
+    data = json.loads(multi_instrument_document())
+    source_key = "/instruments/1/chapters/0/sections/0"
+    leaf = overlays.get_leaf(data, source_key)
+    assert leaf["plain_text"] == "Second instrument"
+
+    replacement = {**leaf, "plain_text": "Corrected second instrument"}
+    assert overlays.set_leaf(data, source_key, replacement)
+    assert overlays.get_leaf(data, source_key)["plain_text"] == (
+        "Corrected second instrument"
+    )
 
 
 def test_leaf_fingerprint_is_order_independent():

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from .loader import find_footnote, find_leaf, find_section
+from .loader import find_footnote, find_leaf, find_section, iter_chapters
 
 
 def _leaf(doc, case):
@@ -510,7 +510,7 @@ def chk_body_not_starts_with(doc, case):
 def chk_tree_division_heading_contains(doc, case):
     """A division under any *chapter* (code == case['div']) must exist with a
     heading containing arg -- e.g. Chapter III / Division II 'Deductions ...'."""
-    for ch in doc.get("chapters", []):
+    for ch in iter_chapters(doc):
         for node in _all_divisions(ch):
             if _code_eq(node.get("code"), case.get("div")) and \
                     case["arg"] in (node.get("heading") or ""):
@@ -526,14 +526,15 @@ def chk_chapter_heading_equals(doc, case):
     can't see a missing or mis-headed chapter node.
     """
     code = (case.get("target") or {}).get("code")
-    for ch in doc.get("chapters", []):
+    chapters = list(iter_chapters(doc))
+    for ch in chapters:
         if ch.get("code") == code:
             got = ch.get("heading") or ""
             if got == case["arg"]:
                 return None
             return f"chapter {code!r} heading {got!r} != {case['arg']!r}"
     return f"no chapter with code {code!r} " \
-           f"(have: {[c.get('code') for c in doc.get('chapters', [])]})"
+           f"(have: {[c.get('code') for c in chapters]})"
 
 
 def chk_section_heading_equals(doc, case):

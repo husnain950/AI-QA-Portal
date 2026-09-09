@@ -14,6 +14,9 @@ from functools import partial
 from ..loader import (
     _iter_leaves,
     iter_all_leaves,
+    iter_chapters,
+    iter_instrument_scopes,
+    iter_schedules,
 )
 from . import _common
 from ._common import (
@@ -93,7 +96,8 @@ def inv_structure_counts(doc):
     """
     bad = []
     md = doc.get("metadata", {})
-    n_chapters = len(doc.get("chapters") or [])
+    chapters = list(iter_chapters(doc))
+    n_chapters = len(chapters)
     if n_chapters < 1:
         bad.append("no chapters in tree")
     # Pair each key with its RAW code.  "CHAPTER XIVA" and "CHAPTER XIV-A" are
@@ -102,65 +106,53 @@ def inv_structure_counts(doc):
     # them apart, so they share a key.  Distinct codes at the same key are the
     # source's own spelling, not a misparse; only a STRICT decrease, or the same
     # code printed twice, means the tree assembled out of order.
-    seq = [(_chapter_numeral_value(c.get("code")), (c.get("code") or "").strip(),
-            _first_printed_page(c))
-           for c in doc.get("chapters") or []]
-    for (a, a_code, a_pg), (b, b_code, b_pg) in zip(seq, seq[1:]):
-        if a is None or b is None:
-            continue
-        if not (b < a or (b == a and b_code == a_code)):
-            continue
-        # A numeral that goes backwards WHILE the printed pages go forwards is
-        # the statute's own doing, not a misparse.  Sales Tax Rules 2006 prints
-        # CHAPTER VIA (p66), VIB (p68) and then VIAB (p70): VIAB was inserted
-        # after VIB and placed after it, so "AB" < "B" reads as a decrease while
-        # the document is in perfect order.  What this invariant is really for --
-        # a chapter row misparsed, or the tree assembled out of order -- moves the
-        # PAGES backwards too, and is still caught below.
-        if a_pg is not None and b_pg is not None and b_pg > a_pg:
-            continue
-        bad.append(f"chapter numerals not increasing: {a_code} then {b_code}")
+    for scope in iter_instrument_scopes(doc):
+        seq = [
+            (
+                _chapter_numeral_value(c.get("code")),
+                (c.get("code") or "").strip(),
+                _first_printed_page(c),
+            )
+            for c in scope.get("chapters") or []
+        ]
+        for (a, a_code, a_pg), (b, b_code, b_pg) in zip(seq, seq[1:]):
+            if a is None or b is None:
+                continue
+            if not (b < a or (b == a and b_code == a_code)):
+                continue
+            # A numeral that goes backwards WHILE printed pages go forwards is
+            # the statute's own insertion order, not a misparse.
+            if a_pg is not None and b_pg is not None and b_pg > a_pg:
+                continue
+            bad.append(f"chapter numerals not increasing: {a_code} then {b_code}")
     if md.get("chapters_count", -1) != n_chapters:
         bad.append(f"metadata chapters_count {md.get('chapters_count')} != "
                    f"chapters in tree {n_chapters}")
-    schedules = doc.get("schedules") or []
+    schedules = list(iter_schedules(doc))
     n_schedules = len(schedules)
     if md.get("schedules_count", -1) != n_schedules:
         bad.append(f"metadata schedules_count {md.get('schedules_count')} != "
                    f"schedules in tree {n_schedules}")
-    ords = sorted(o for o in (_schedule_ordinal(s.get("code")) for s in schedules)
-                  if o is not None)
-    if not ords:
-        # A document with NO schedules at all is not a defect -- it is most of
-        # Phase 2.  Verified 2026-08-08 over the 17 corpus editions that emit
-        # none: not one of their PDFs prints a schedule TITLE line (positive
-        # control: Customs 2009 shows 4), and the schedule ordinals their text
-        # does mention -- "the First Schedule to the Customs Act, 1969" -- belong
-        # to the instruments they amend, which is what an amendment Act is for.
-        # All 17 conserve their text, so nothing is hiding here.  This guard is
-        # about a schedule run with a HOLE in it; requiring the run to exist
-        # rejected every flat gazette Act (same class as the M3 work that made
-        # these invariants act-independent).
-        if schedules:
-            bad.append(f"{len(schedules)} schedule(s) but none ordinal-titled")
-    elif not _is_amendment_instrument(doc):
-        # The contiguity rule is about a CONSOLIDATED act, which prints all of its
-        # own schedules in order: a hole means one was dropped or its title went
-        # unrecognised (the 2020 Eleventh Schedule, printed as the freshly-inserted
-        # `1[“ELEVENTH SCHEDULE`), and Sales Tax July 2014 starting at THE THIRD is
-        # a real defect that must keep failing.
-        #
-        # An AMENDMENT instrument prints only the schedules it amends.  Finance Act
-        # 2019, 2021, 2022 and 2025 each carry the First, Second and Fifth of the
-        # Act they amend and nothing between -- "missing [3, 4]" is the document
-        # being faithful, not a drop, and Finance Act 2014 legitimately opens at the
-        # Second.  Scoped by the same measured classifier as
-        # ``inv_no_structural_heading_in_body`` and recorded as ``deliberate``.
-        if ords[0] != 1:
-            bad.append(f"schedules do not start at FIRST (lowest ordinal {ords[0]})")
-        missing = sorted(set(range(ords[0], ords[-1] + 1)) - set(ords))
-        if missing:
-            bad.append(f"schedule ordinals not contiguous; missing {missing}")
+    for scope in iter_instrument_scopes(doc):
+        scope_schedules = scope.get("schedules") or []
+        ords = sorted(
+            o
+            for o in (_schedule_ordinal(s.get("code")) for s in scope_schedules)
+            if o is not None
+        )
+        if not ords:
+            if scope_schedules:
+                bad.append(
+                    f"{len(scope_schedules)} schedule(s) but none ordinal-titled"
+                )
+        elif not _is_amendment_instrument(doc):
+            if ords[0] != 1:
+                bad.append(
+                    f"schedules do not start at FIRST (lowest ordinal {ords[0]})"
+                )
+            missing = sorted(set(range(ords[0], ords[-1] + 1)) - set(ords))
+            if missing:
+                bad.append(f"schedule ordinals not contiguous; missing {missing}")
     return bad
 
 
@@ -188,7 +180,7 @@ def inv_section_codes_ordered(doc):
     from legal_ingest.discover import code_sort_key
 
     bad = []
-    for chapter in doc.get("chapters", []):
+    for chapter in iter_chapters(doc):
         label = str(chapter.get("code") or "").strip() or "(unnamed chapter)"
         leaves = sorted(
             _iter_leaves(chapter), key=lambda leaf: (leaf.get("start_page") or 0)

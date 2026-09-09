@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { UploadCloud, AlertCircle, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
 import { api } from '../utils/api';
+import { summarizeJsonStructure } from '../utils/jsonStructure';
 
 const UploadPage = () => {
     const navigate = useNavigate();
@@ -108,38 +109,11 @@ const UploadPage = () => {
             try {
                 const parsed = JSON.parse(e.target.result);
                 
-                // Inspect structures
-                const chapters = parsed.chapters || [];
-                const schedules = parsed.schedules || [];
-                
-                let sectionCount = 0;
-                let sectionsWithHtml = 0;
-                let footnoteCount = 0;
-
-                const countSections = (secList) => {
-                    secList.forEach(s => {
-                        sectionCount++;
-                        if (s.html) sectionsWithHtml++;
-                        if (s.footnotes) footnoteCount += s.footnotes.length;
-                    });
-                };
-
-                const traverse = (node) => {
-                    if (node.sections) countSections(node.sections);
-                    if (node.parts) node.parts.forEach(traverse);
-                    if (node.divisions) node.divisions.forEach(traverse);
-                };
-
-                chapters.forEach(traverse);
-                schedules.forEach(traverse);
+                const structure = summarizeJsonStructure(parsed);
 
                 setJsonStats({
                     isValid: true,
-                    chaptersCount: chapters.length,
-                    schedulesCount: schedules.length,
-                    sectionsCount: sectionCount,
-                    sectionsWithHtml,
-                    footnoteCount,
+                    ...structure,
                     message: 'JSON Schema holds valid structure'
                 });
             } catch (err) {
@@ -302,6 +276,9 @@ const UploadPage = () => {
                             </h4>
                             {jsonStats.isValid && (
                                 <ul>
+                                    {jsonStats.instrumentsCount > 0 && (
+                                        <li>Detected <strong>{jsonStats.instrumentsCount}</strong> instruments</li>
+                                    )}
                                     <li>Detected <strong>{jsonStats.chaptersCount}</strong> chapters, <strong>{jsonStats.schedulesCount}</strong> schedules</li>
                                     <li>Found <strong>{jsonStats.sectionsCount}</strong> sections (<strong>{jsonStats.sectionsWithHtml}</strong> containing HTML content)</li>
                                     <li>Found <strong>{jsonStats.footnoteCount}</strong> footnotes</li>

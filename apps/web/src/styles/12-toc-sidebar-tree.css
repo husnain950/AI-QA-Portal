@@ -56,6 +56,7 @@
     white-space: normal;
 }
 
+.toc-node.level-instrument,
 .toc-node.level-chapter,
 .toc-node.level-part,
 .toc-node.level-division {
@@ -70,6 +71,15 @@
     background-color: var(--color-accent-light);
     color: var(--color-accent);
     font-weight: 600;
+}
+
+.toc-node.level-instrument {
+    font-family: var(--font-heading);
+    font-weight: 750;
+    padding-top: 14px;
+    padding-bottom: 7px;
+    color: var(--color-accent);
+    border-top: 1px solid var(--color-border);
 }
 
 .toc-node.level-chapter {
@@ -93,6 +103,22 @@
 .toc-node.level-section {
     padding-left: 52px;
     color: var(--color-text-primary);
+}
+
+.toc-node.level-chapter.under-instrument {
+    padding-left: 28px;
+}
+
+.toc-node.level-part.under-instrument {
+    padding-left: 40px;
+}
+
+.toc-node.level-division.under-instrument {
+    padding-left: 52px;
+}
+
+.toc-node.level-section.under-instrument {
+    padding-left: 64px;
 }
 
 .toc-node-status-container {

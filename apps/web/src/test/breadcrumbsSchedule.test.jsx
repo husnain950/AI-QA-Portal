@@ -54,4 +54,28 @@ describe('Breadcrumbs schedule chrome', () => {
         expect(screen.getByText('Chapter')).toBeInTheDocument();
         expect(screen.queryByText('Schedule')).not.toBeInTheDocument();
     });
+
+    it('renders instrument before a compilation chapter', () => {
+        render(
+            <Breadcrumbs
+                section={{
+                    instrument_code: 'SRO-ONE',
+                    instrument_heading: 'Passenger Baggage Rules',
+                    chapter_code: 'CHAPTER I',
+                    chapter_heading: 'PRELIMINARY',
+                    hierarchy_kind: 'chapter',
+                    section_code: '1',
+                    section_heading: 'Short title',
+                }}
+            />,
+        );
+
+        const types = screen.getAllByText(/Instrument|Chapter|Section/);
+        expect(types.map((node) => node.textContent)).toEqual([
+            'Instrument',
+            'Chapter',
+            'Section',
+        ]);
+        expect(screen.getByText('Passenger Baggage Rules')).toBeInTheDocument();
+    });
 });

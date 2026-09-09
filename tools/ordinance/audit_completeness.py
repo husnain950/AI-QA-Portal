@@ -31,6 +31,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from corpus_paths import output_dir  # noqa: E402 (sys.path bootstrap above)
+from legal_contract import iter_document_roots  # noqa: E402
 
 # key punctuation that carries legal meaning and must be conserved
 _PUNCT = "[](){}.,;:%—–\"'"
@@ -120,9 +121,8 @@ def output_text(doc: dict):
             for c in o.get(k, []):
                 visit(c)
 
-    for root in ("chapters", "schedules"):
-        for node in doc.get(root, []):
-            visit(node)
+    for _collection, _kind, node in iter_document_roots(doc):
+        visit(node)
     pre = doc.get("preamble") or {}
     body_parts.append(pre.get("plain_text", ""))
     return "\n".join(body_parts), "\n".join(foot_parts)

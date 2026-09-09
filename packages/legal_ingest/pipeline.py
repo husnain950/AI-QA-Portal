@@ -7,7 +7,11 @@ import re as _re
 
 import pdfplumber
 
-from legal_contract import stamp_document
+from legal_contract import (
+    iter_document_roots,
+    represent_compilation,
+    stamp_document,
+)
 
 from .builder import LineRef, build_sections
 from .calibrate import calibrate
@@ -462,7 +466,8 @@ def _resolve_profile(pdf_path: str, lane: "Profile", progress):
 
 def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = None,
         admit_below_floor: bool = False,
-        profile: "Profile" = ACTS, auto: bool = False) -> dict:
+        profile: "Profile" = ACTS, auto: bool = False,
+        instrument_partitions=None) -> dict:
     """Convert one PDF to the document dict.
 
     ``profile`` says how this document is printed; see
@@ -482,6 +487,11 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     ``ocr.AGREEMENT_FLOOR`` instead of refusing it, stamping
     ``metadata.ocr.provisional = True``.  Default off, so nothing about the
     existing corpus changes.
+
+    ``instrument_partitions`` is the corpus-detector hook for compilations. It
+    groups the assembled chapter/schedule roots through
+    :func:`legal_contract.represent_compilation`; absence preserves the legacy
+    top-level shape byte-for-byte.
 
     It exists because the user decided 2026-08-07 that the sub-floor files
     should be available WITH their per-token ``needs_review`` flags rather than
@@ -1008,6 +1018,8 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         "chapters": [_node_to_dict(c) for c in chapters],
         "schedules": schedules_out,
     }
+    if instrument_partitions is not None:
+        represent_compilation(result, instrument_partitions)
     stamp_document(result)
     # the enacting preamble (text before section 1: "AN ORDINANCE ... WHEREAS ...")
     from .builder import _build_preamble_html, preamble_refs
@@ -1022,8 +1034,11 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     # completeness safety net: adopt any uncited footnote into the leaf covering
     # its page, so no footnote text is dropped anywhere in the document.
     from .builder import adopt_orphan_footnotes, all_leaves
-    leaves = [lf for root in ("chapters", "schedules")
-              for node in result[root] for lf in all_leaves(node)]
+    leaves = [
+        leaf
+        for _collection, _kind, node in iter_document_roots(result)
+        for leaf in all_leaves(node)
+    ]
     n = adopt_orphan_footnotes(leaves, page_footnotes, printed_by_page, offset,
                                note_body_pages=note_body_pages)
     progress(f"adopted {n} orphaned footnotes")
