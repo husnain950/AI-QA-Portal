@@ -17,6 +17,7 @@ def _write_corpus(tmp_path, groups):
             records.append({
                 "lane": "acts",
                 "signature": {"path": f"{group}/{filename}", "group": group},
+                "assignment": {"family": "consolidated"},
             })
             doc = {
                 # Deliberately wrong: the gate must count the tree, not trust
@@ -90,6 +91,7 @@ def test_join_normalises_paths_case_and_unicode(tmp_path, capsys):
     signatures.write_text(json.dumps({"records": [{
         "lane": "acts",
         "signature": {"path": "Group/Édition.pdf", "group": "Group"},
+        "assignment": {"family": "consolidated"},
     }]}), encoding="utf-8")
 
     assert _run(output, signatures) == 0
@@ -109,17 +111,36 @@ def test_join_rejects_cross_group_basename_ambiguity(tmp_path, capsys):
         {
             "lane": "acts",
             "signature": {"path": "Group A/same.pdf", "group": "Group A"},
+            "assignment": {"family": "consolidated"},
         },
         {
             "lane": "acts",
             "signature": {"path": "Group B/same.pdf", "group": "Group B"},
+            "assignment": {"family": "consolidated"},
         },
     ]}), encoding="utf-8")
 
     assert _run(output, signatures) == 1
     report = capsys.readouterr().out
-    assert "ambiguous across groups ['Group A', 'Group B']" in report
+    assert "ambiguous across cohorts" in report
+    assert "('Group A', 'consolidated')" in report
+    assert "('Group B', 'consolidated')" in report
     assert "section outliers 0" in report
+
+
+def test_different_families_in_one_group_are_not_siblings(tmp_path, capsys):
+    output, signatures = _write_corpus(tmp_path, {
+        "Mixed filing folder": [4, 5, 130, 135, 140, 145, 150, 155],
+    })
+    payload = json.loads(signatures.read_text(encoding="utf-8"))
+    for record in payload["records"][:2]:
+        record["assignment"]["family"] = "amending"
+    signatures.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert _run(output, signatures) == 0
+    report = capsys.readouterr().out
+    assert "8 document(s)" in report
+    assert "1 sibling group(s) compared" in report
 
 
 def test_gate_skips_before_reading_signatures_when_no_corpus(tmp_path, capsys):

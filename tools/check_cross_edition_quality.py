@@ -58,6 +58,7 @@ class TreeCounts:
 class Edition:
     lane: str
     group: str
+    family: str
     filename: str
     json_path: Path
     counts: TreeCounts
@@ -81,12 +82,16 @@ def _group_label(value: str) -> str:
     return unicodedata.normalize("NFC", value).strip()
 
 
-def _signature_groups(path: Path, lane: str) -> dict[str, frozenset[str]]:
-    """Normalised source basename -> possible committed discovery groups.
+def _signature_groups(
+    path: Path, lane: str
+) -> dict[str, frozenset[tuple[str, str]]]:
+    """Normalised source basename -> possible committed (group, family) pairs.
 
     Multiple signatures with the same basename are safe only when they agree on
-    the group.  Cross-group basename collisions remain explicit and are rejected
-    if an output tries to use one; guessing would contaminate both sibling sets.
+    both fields.  Cross-group basename collisions remain explicit and are
+    rejected if an output tries to use one; guessing would contaminate sibling
+    sets.  Family keeps an amending instrument filed under a consolidated
+    statute's folder from being mistaken for a collapsed edition of that statute.
     """
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -97,13 +102,15 @@ def _signature_groups(path: Path, lane: str) -> dict[str, frozenset[str]]:
     if not isinstance(records, list):
         raise QualityInputError(f"{path}: records must be a list")
 
-    groups: dict[str, set[str]] = collections.defaultdict(set)
+    groups: dict[str, set[tuple[str, str]]] = collections.defaultdict(set)
     for position, record in enumerate(records):
         if not isinstance(record, dict) or record.get("lane") != lane:
             continue
         signature = record.get("signature")
+        assignment = record.get("assignment")
         source = signature.get("path") if isinstance(signature, dict) else None
         group = signature.get("group") if isinstance(signature, dict) else None
+        family = assignment.get("family") if isinstance(assignment, dict) else None
         if not isinstance(source, str) or not _basename_key(source):
             raise QualityInputError(
                 f"{path}: {lane} record {position} has no source path"
@@ -112,7 +119,11 @@ def _signature_groups(path: Path, lane: str) -> dict[str, frozenset[str]]:
             raise QualityInputError(
                 f"{path}: {lane} record {position} has no document group"
             )
-        groups[_basename_key(source)].add(_group_label(group))
+        if not isinstance(family, str) or not family.strip():
+            raise QualityInputError(
+                f"{path}: {lane} record {position} has no assigned family"
+            )
+        groups[_basename_key(source)].add((_group_label(group), family.strip()))
     return {key: frozenset(values) for key, values in groups.items()}
 
 
@@ -173,10 +184,10 @@ def tree_counts(doc: dict) -> TreeCounts:
 
 def build_group_index(
     lane: str, paths: Sequence[Path], signatures_path: Path = SIGNATURES
-) -> tuple[dict[str, list[Edition]], list[str]]:
+) -> tuple[dict[tuple[str, str], list[Edition]], list[str]]:
     """Join converted trees to committed groups without ambiguous fallbacks."""
     source_groups = _signature_groups(signatures_path, lane)
-    by_group: dict[str, list[Edition]] = collections.defaultdict(list)
+    by_group: dict[tuple[str, str], list[Edition]] = collections.defaultdict(list)
     issues: list[str] = []
     seen: dict[str, Path] = {}
 
@@ -203,7 +214,7 @@ def build_group_index(
         if len(candidates) != 1:
             issues.append(
                 f"{path.name}: metadata.filename {filename!r} is ambiguous across "
-                f"groups {sorted(candidates)!r}"
+                f"cohorts {sorted(candidates)!r}"
             )
             continue
         if key in seen:
@@ -219,9 +230,9 @@ def build_group_index(
         except QualityInputError as err:
             issues.append(f"{path.name}: invalid output tree: {err}")
             continue
-        group = next(iter(candidates))
-        by_group[group].append(
-            Edition(lane, group, filename, path, counts)
+        group, family = next(iter(candidates))
+        by_group[(group, family)].append(
+            Edition(lane, group, family, filename, path, counts)
         )
 
     return dict(by_group), issues
@@ -287,7 +298,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         edition = outlier.edition
         print(
             f"FAIL cross-edition sections {args.lane}/{edition.group}: "
-            f"{edition.filename!r} has {edition.counts.sections}, peer median "
+            f"{edition.filename!r} ({edition.family}) has "
+            f"{edition.counts.sections}, peer median "
             f"{outlier.peer_median:g}; {outlier.clustered_peers}/"
             f"{outlier.peer_count} peers are within +/-{PEER_BAND:.0%} "
             f"({_format_counts(edition.counts)})"
