@@ -1,7 +1,8 @@
 # What is left
 
-20 open items — 19 carried, plus one round 17 located. Ranked by value, each with the one
-thing that actually blocks it.
+20 open items — 18 carried, plus two located since (round 17 the schedule PART reader,
+round 18 the CHAPTER en-dash separator). Ranked by value, each with the one thing that
+actually blocks it.
 State and verification are in [`README.md`](README.md); method is in
 [`working-rules.md`](working-rules.md); the executable ledger — **the file to work
 from** — is [`tasks.md`](tasks.md).
@@ -10,14 +11,18 @@ from** — is [`tasks.md`](tasks.md).
 > of one fact is the very shape `working-rules.md` warns about under *"a cached artifact
 > cannot tell you its generator is wrong"*. Until they are consolidated, **`tasks.md` is
 > the authority** and every round must update all three. Flagged 2026-09-04, round 15;
-> still true after rounds 16 and 17, each of which had to touch all three again — and
+> still true after rounds 16, 17 and 18, each of which had to touch all three again — and
 > round 17 found this file and `plan.md` **both** asserting something the measurement
-> disproved (item 4 below), which is exactly the cost the warning predicts.
+> disproved (item 4 below), which is exactly the cost the warning predicts. **Round 18 paid
+> it again**, from `tasks.md` itself: its prescribed fix for item 5 (`[A-Z]{0,2}`, "the same
+> suffix class as PART and Division") cannot cross a hyphen and finds 9 of the 57 hits the
+> same row quotes. The measurement was right and the instruction derived from it was wrong.
 
 Expect a lower hits-per-round rate from here than the early rounds got. Rounds 1–7 each
 found *one cause explaining many hits*. What is left is mostly 1–2 hits per document with
-different causes — with one exception, item 5, still one-cause-many-hits at 57 and the
-reason it is now the top row. Rounds 16 and 17 spent the last of the cheap rows.
+different causes. **Round 18 spent the last one-cause-many-hits row** (item 5, at 57).
+Rounds 16, 17 and 18 took the three cheapest rows on the board; what is left needs a trace
+before it needs code, and the top row is now a judgement call rather than a fix.
 
 ---
 
@@ -88,18 +93,26 @@ The discriminator had to be per-chapter, not per-document: Sales Tax Rules 2006
 (01-01-2025) prints five real `PART-N` captions under CHAPTER XI *and* form STR-11's two
 under CHAPTER XVIII in the same document.
 
-### 5. The CHAPTER letter suffix — 57 hits, 24 documents, all real
+### 5. The CHAPTER letter suffix — **CLOSED, round 18**
 
-`_STRUCTURAL_RE`'s CHAPTER branch has no suffix class where PART and Division beside it both
-do, so `CHAPTER XVI-A` sits in section 155's body across twenty Customs editions. Measured
-and held out of round 13 because it doubles re-conversion to 44 documents, twenty of them
-the Customs chapter tree that rounds 1 and 6 rebuilt.
+**80 swallowed boundary lines across 24 documents went to 0**, register **unchanged at 25**
+(rise +57 on the invariant, fall -57 on the parser). **0 leaves and 0 chapter nodes gained
+or lost**: every one of these chapters was already in the tree off the contents page, so the
+fix **un-duplicates** a caption the body was printing twice. Artifact
+`wip/phase3-round18-chapter-letter-suffix.md`.
 
-**Pinned by a test that asserts the current *wrong* answer** and fails the moment the
-widening lands:
-`test_structural_boundary_agrees_with_grammar.py::test_the_letter_suffixed_chapter_gap_is_still_open`.
+Three things this entry had wrong, all measured:
 
-Do not "fix" that test — its failure is the signal.
+- **The prescribed class was wrong.** `[A-Z]{0,2}` — "the same suffix class as PART and
+  Division" — cannot cross a hyphen, and the separator usually *is* one (`CHAPTER XVI-A`).
+  It finds **9** hits, not 57. The shipped class is `(?:-?[A-Z]{1,2})?`: no spaced form,
+  because `grammar.ROMAN`'s spaced branch under `IGNORECASE` eats *of / or / for*.
+- **Two regexes were narrow, not one.** The suite's own `_STRUCT_LINE` carried the identical
+  narrow CHAPTER branch, which is *why* the register rises before it falls — the instrument
+  for this defect was as narrow as the defect.
+- **44 documents was a round-13-era estimate.** Measured at this commit: **24**.
+
+**A second gap on the same line was located and left open** — see item 9 below.
 
 ### 6. `section_codes_ordered` — **CLOSED, round 15**
 
@@ -127,7 +140,26 @@ matches `metadata.filename` on 80/80 acts documents — but its counts are PDF-r
 measurements, not tree counts, so a real parse-quality comparison needs a new per-group index
 over `output/*.json`.
 
-### 9. The schedule PART reader — 20 lines, cause unknown — **new, round 17**
+### 9. The CHAPTER en-dash separator — 42 lines, 21 documents — **new, round 18**
+
+`CHAPTER – VI` / `– VII` / `– V` / `– VIAB` are **real boundaries** — the next line is the
+caption (`DRAWBACK`, `ARRIVAL AND DEPARTURE OF CONVEYANCE`, `REFUND`) — and `[\s\-]+` is
+ASCII, so none of them is one. 20 Customs Act editions carry two each; Sales Tax Rules 2006
+carries the other two.
+
+**The blocker is that `grammar.CHAPTER_RE` rejects them too**, so this is not the same shape
+as round 18's row: there the grammar was already right and the parser had to catch up. Its
+separator is also `[\s\-]+`, and its `[–—]` branch reads an en dash as introducing a
+same-line **title**, not as a separator. Closing this moves a regex three readers share.
+
+Round 17's "en/em dash widening gains zero" was measured on **PART** and does **not**
+transfer — the container guard refused those, and the CHAPTER branch has no guard.
+
+Pinned as `KNOWN_GAP_ENDASH_CHAPTERS` with
+`test_structural_boundary_agrees_with_grammar.py::test_the_en_dash_chapter_gap_is_still_open`,
+which fails the moment it is closed. Do not "fix" that test.
+
+### 10. The schedule PART reader — 20 lines, cause unknown — **new, round 17**
 
 Round 17's scan turned up **20 hyphenated PART lines sitting in Finance Act *schedule*
 bodies** — a different reader from the one it fixed, and not reached by it.

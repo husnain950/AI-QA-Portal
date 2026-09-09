@@ -36,28 +36,32 @@ BOUNDARIES = [
     "CHAPTER II", "Chapter II", "Chapter-II", "CHAPTER-II", "Chapter- I",
     "CHAPTER - V", "4[Chapter-I", "128[CHAPTER-XLI", "150[CHAPTER- XLIII",
     "PART III", "1[PART VA",
+    # round 18: the letter suffix, fused and hyphenated.  ``grammar.CHAPTER_RE``
+    # accepted all four before the parser did -- its NUMERAL has carried the
+    # suffix all along -- which is the disagreement this closes.
+    "CHAPTER XVI-A", "1[CHAPTER XIX-A", "248[CHAPTER XIVA", "[CHAPTER - VIAB",
 ]
 
-#: The SECOND way ``_STRUCTURAL_RE``'s CHAPTER branch is narrower than
-#: ``grammar.CHAPTER_RE``: it has no letter-suffix class at all, where the PART
-#: and Division branches beside it both carry ``[A-Z]{0,2}``.  So a chapter added
-#: by amendment is not a boundary either, and its heading sits in the preceding
-#: section's body -- ``CHAPTER XVI-A`` in section 155 of twenty Customs Act
-#: editions, and the whole ``XIV-A``..``XIV-D`` / ``V-A``..``V-C`` / ``VIII-A`` /
-#: ``X-A`` / ``XVII-A``/``XVII-B`` family of Sales Tax Rules 2006, which is the
-#: exact set grammar.py's own comment records as previously unclassified.
+#: The gap round 18 LOCATED and did not close: the separator, not the suffix.
+#: Twenty Customs editions print ``CHAPTER – VI`` / ``CHAPTER – VII`` (EN DASH) as
+#: real boundaries -- the next line is the caption, ``DRAWBACK`` and ``ARRIVAL AND
+#: DEPARTURE OF CONVEYANCE`` -- and one Sales Tax Rules edition prints
+#: ``CHAPTER – V`` above ``REFUND``.  ``[\s\-]+`` is ASCII, so none of them is a
+#: boundary.
 #:
-#: Measured at **57 further hits across 24 documents**, zero of them false.  Held
-#: out of round 13 deliberately: it is a second narrowing on one line, it doubles
-#: the re-conversion from 21 documents to 44, and 20 of those 44 are the Customs
-#: editions whose chapter tree rounds 1 and 6 rebuilt -- that interaction earns
-#: its own conservation run, not a ride on this one.
+#: This is NOT round 18's row and was deliberately left open: ``grammar.CHAPTER_RE``
+#: rejects them too (its own separator is ``[\s\-]+``, and its ``[–—]`` branch reads
+#: an en dash as introducing a same-line TITLE, not as a separator).  Round 18
+#: widened the parser to agree with the grammar; closing this one has to move the
+#: grammar first, which is a different decision on a shared regex.  Round 17
+#: measured the en/em dash widening as gaining zero for PART -- that evidence does
+#: NOT transfer, because it was the container guard that refused those, and the
+#: CHAPTER branch has no such guard.
 #:
-#: These assertions pin the CURRENT, WRONG answer.  They fail the moment the
-#: suffix is widened, which is the point: the number then moves in the same PR
-#: that moved it, the way the register does.
-KNOWN_GAP_SUFFIXED_CHAPTERS = [
-    "CHAPTER XVI-A", "1[CHAPTER XIX-A", "248[CHAPTER XIVA", "[CHAPTER - VIAB",
+#: These assertions pin the CURRENT, WRONG answer, the way the letter-suffix gap
+#: was pinned before round 18 closed it.
+KNOWN_GAP_ENDASH_CHAPTERS = [
+    "CHAPTER – VI", "CHAPTER – VII", "CHAPTER – V", "CHAPTER – VIAB",
 ]
 
 #: Lines that are NOT -- read with no ``container_codes``, which is what every
@@ -99,12 +103,13 @@ def test_parser_and_invariant_agree():
         assert not _invariant_says(line), f"invariant over-reported: {line!r}"
 
 
-def test_the_letter_suffixed_chapter_gap_is_still_open():
-    """Pins the deferred half, so closing it has to move this file too."""
-    for line in KNOWN_GAP_SUFFIXED_CHAPTERS:
+def test_the_en_dash_chapter_gap_is_still_open():
+    """Pins the gap round 18 located, so closing it has to move this file too."""
+    for line in KNOWN_GAP_ENDASH_CHAPTERS:
         assert not is_structural_boundary(line), (
-            f"{line!r} is a boundary now -- the suffix widening landed; move it "
-            "into BOUNDARIES and re-measure the 57 hits / 24 documents")
+            f"{line!r} is a boundary now -- the en-dash separator widening "
+            "landed; move it into BOUNDARIES, widen grammar.CHAPTER_RE to match, "
+            "and re-measure the 42 lines across 21 documents")
         assert not _invariant_says(line), line
 
 

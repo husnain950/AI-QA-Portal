@@ -3,12 +3,13 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **25**. **19 of 66** checklist items are open, plus 3 optional
+**State:** the register is **25**. **18 of 66** checklist items are open, plus 3 optional
 leftovers from the finished integration track. Reasoning for every row is in
 [`plan.md`](plan.md); state is in [`README.md`](README.md); the traps are in
 [`working-rules.md`](working-rules.md).
 
-Written 2026-09-04 on `main` after PR #83 (round 17). **Next round is 18; next PR is #84.**
+Written 2026-09-04 on `main` after PR #83 (round 17); updated 2026-09-08 after PR #84
+(round 18). **Next round is 19; next PR is #85.**
 
 **Six invariant classes are closed.** Round 15 closed `section_codes_ordered` — see
 [task 1's Result](#1-trace-section_codes_ordered--3-hits-acts--closed-round-15). Round 16
@@ -17,8 +18,14 @@ closed one of `section_carries_its_body`'s four causes, taking that class 21 →
 
 **Round 17 closed the container-code guard** and shipped the PART separator widening it
 enables: 14 gained, 0 lost, register unchanged at 25 — see
-[task 4's Result](#4-the-container-code-guard--0-hits-an-enabler--closed-round-17). **The
-execution-order note that put it before row 1 is now spent; take the top row.**
+[task 4's Result](#4-the-container-code-guard--0-hits-an-enabler--closed-round-17).
+
+**Round 18 closed the CHAPTER letter suffix** — the row that had been top of the board:
+**80 swallowed boundary lines across 24 documents went to 0**, register **unchanged at 25**
+(rise +57 on the invariant, fall −57 on the parser) — see
+[task 3's Result](#3-the-chapter-letter-suffix--57-hits-24-documents--closed-round-18). It
+also **located a second gap on the same line of code** and left it open on evidence: the
+**en-dash separator**, 42 lines across 21 documents, now row 9.
 
 ### Decisions on record (2026-09-04)
 
@@ -45,21 +52,22 @@ in Customs Rules 2001. See [task 4's Result](#4-the-container-code-guard--0-hits
 ## Start here — pick one
 
 Ranked by value against cost, each with the ONE thing that actually blocks it. An agent
-with no other context can take a row and start. **Row 1 is the row to take** — round 17
-spent the one reordering this board had. Round 16 took the STSP pair and round 17 the
-guard, which were the two cheapest rows; nothing left here is that cheap again.
+with no other context can take a row and start. **Row 1 is the row to take.** Rounds 16, 17 and 18 spent the
+three cheapest rows on the board (the STSP pair, the container guard, the CHAPTER suffix);
+row 1 is now an exemption-with-evidence judgement call, and everything below it needs a
+trace before it needs code.
 
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
-| 1 | **the CHAPTER letter suffix** | **57** ¹ | 44 documents to re-convert, 20 of them the Customs chapter tree. Nothing else. Highest-value row. | [P3-5](plan.md#p3-5--the-chapter-letter-suffix--57-hits-24-documents-all-real) |
-| 2 | **the round-10 rules residue** | 3 | a judgement call, not code: all three are *printed* defects, so this is an **exemption-with-evidence** row. | [P3-1c](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 3 | **the heading-terminator scan** | 3 | needs an **omission-aware fallback**; the obvious guard was measured losing section 32AA outright. | [P3-2](plan.md#p3-2--the-heading-terminator-scan-that-walks-through-a-boundary-3-acts) |
-| 4 | **the omission spellings** | 2 | `A O mitted` needs an intra-word-space tolerance a precision regex refused in round 3. Re-measure now the count is traceable. | [P3-1a](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 5 | **`preamble_carries_no_toc_tail`** | 2 | needs **a signal other than row density** — the `rows >= 3` floor is load-bearing and may not be lowered. | [P3-3](plan.md#p3-3--preamble_carries_no_toc_tail-2-acts) |
-| 6 | **the single-document remainder** | 7 | nothing shared — PSW ministry list, PFMA s.26, `R(cid:2)fund`. Three unrelated traces. | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 7 | **`clause_codes_plausible`** | 1 | **do not weaken the check.** Two routes suggested, neither measured. | [P3-7](plan.md#p3-7--clause_codes_plausible-1-finance-act-2024) |
-| 8 | **decide the `fbr_ingest` fork** | 5 ³ | **a decision, on evidence already committed.** Route by family, not by lane. Merging stays the v1 non-goal. | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
-| 9 | **the schedule PART reader** | 0 ⁶ | **newly located, cause not yet known.** `schedules._kind()` accepts 18 of the 20 lines, so the pattern is not it. Diagnose before fixing. | [round 17](../wip/phase3-round17-container-code-guard.md) |
+| 1 | **the round-10 rules residue** | 3 | a judgement call, not code: all three are *printed* defects, so this is an **exemption-with-evidence** row. Cheapest row that moves the register. | [P3-1c](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| 2 | **the heading-terminator scan** | 3 | needs an **omission-aware fallback**; the obvious guard was measured losing section 32AA outright. | [P3-2](plan.md#p3-2--the-heading-terminator-scan-that-walks-through-a-boundary-3-acts) |
+| 3 | **the omission spellings** | 2 | `A O mitted` needs an intra-word-space tolerance a precision regex refused in round 3. Re-measure now the count is traceable. | [P3-1a](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| 4 | **`preamble_carries_no_toc_tail`** | 2 | needs **a signal other than row density** — the `rows >= 3` floor is load-bearing and may not be lowered. | [P3-3](plan.md#p3-3--preamble_carries_no_toc_tail-2-acts) |
+| 5 | **the single-document remainder** | 7 | nothing shared — PSW ministry list, PFMA s.26, `R(cid:2)fund`. Three unrelated traces. | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| 6 | **`clause_codes_plausible`** | 1 | **do not weaken the check.** Two routes suggested, neither measured. | [P3-7](plan.md#p3-7--clause_codes_plausible-1-finance-act-2024) |
+| 7 | **decide the `fbr_ingest` fork** | 5 ³ | **a decision, on evidence already committed.** Route by family, not by lane. Merging stays the v1 non-goal. | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
+| 8 | **the schedule PART reader** | 0 ⁶ | **newly located, cause not yet known.** `schedules._kind()` accepts 18 of the 20 lines, so the pattern is not it. Diagnose before fixing. | [round 17](../wip/phase3-round17-container-code-guard.md) |
+| 9 | **the CHAPTER en-dash separator** | 0 ⁷ | **grammar must move first.** `grammar.CHAPTER_RE` rejects `CHAPTER – VI` too, and its `[–—]` branch reads an en dash as a same-line TITLE. Round 18 located it, pinned it, and left it. | [round 18](../wip/phase3-round18-chapter-letter-suffix.md) |
 | 10 | **the cross-edition index** | 0 ⁴ | needs a new per-group index over `output/*.json`; `signatures.json`'s counts are PDF-regex, not tree counts. | [P3-8](plan.md#p3-8--no-invariant-can-see-a-document-that-lost-93-of-its-sections) |
 | 11 | **the instrument tree level** (4 limbs) | 0 ⁵ | limb 2 is **23 walker sites across 11 files** and a new `Node.kind` is dropped *silently*. | [Phase 5](plan.md#phase-5--the-instrument-tree-level-4-limbs-not-started) |
 | 12 | flip `--profile auto` to default | — | **BLOCKED: Phase 3 must reach zero-or-exempted first.** Flipping it re-parses everything and destroys attribution. | [P4-1](plan.md#p4-1--flip---profile-auto-to-the-default) |
@@ -77,6 +85,10 @@ moved 3.
 ⁶ 20 hyphenated PART lines in Finance Act *schedule* bodies (2021, 2025, 2019, 2014).
 A different reader from round 17's — `schedules.py` has always accepted the hyphen.
 Not in the register: no invariant looks for a PART line in a schedule leaf.
+⁷ 42 real chapter boundaries printed with an EN DASH separator, across 21 documents (20
+Customs Act editions + Sales Tax Rules 2006). Not in the register: `_STRUCT_LINE` is as
+ASCII as the parser, so the invariant cannot see them either — the same shape round 18's
+row had before it was closed.
 
 **Before touching any of them, read [Rules of engagement](#rules-of-engagement).** Every
 rule there was paid for, and three of them have drawn blood twice.
@@ -91,7 +103,7 @@ closed it**, and this file is the authority on that, not `wip/`.
 |---|---|
 | `:664` `section_codes_ordered` | **CLOSED, round 15.** It said **4** hits, the register said **3**, and it is now **0** |
 | `:401` container-code guard | **CLOSED, round 17.** 14 gained, 0 lost, register unchanged |
-| `:418` CHAPTER letter suffix | 1 |
+| `:418` CHAPTER letter suffix | **CLOSED, round 18.** 80 lines over 24 documents to 0; register unchanged |
 | `:436` `section_carries_its_body` — now **17** | 2, 4, 6 (one box, and **round 16 closed the fourth of its causes**) |
 | `:388` heading-terminator scan | 3 |
 | `:379` `preamble_carries_no_toc_tail` | 5 |
@@ -103,9 +115,10 @@ closed it**, and this file is the authority on that, not `wip/`.
 | `:184` OCR · `:190` the 9 provisional · `:192` the ordinance 10 | 13 (three boxes) |
 | `:536` `convert_all.py` cannot resume · `:671` the 29 low-confidence documents · `:79` rebuild api/worker images | [Deferred](#deferred-with-reasons) (three boxes) |
 
-Row **9** has no box in `wip/` at all: round 17 located it and it is new work, not a
-carried item. Rows 14–16 are also **not** among the unchecked boxes — they come from
-`wip/integration/tasks.md`'s own ledger. So: **19 checklist items + 1 new + 3 integration
+Rows **8** and **9** have no box in `wip/` at all: round 17 located the schedule PART reader
+and round 18 the CHAPTER en-dash separator, and both are new work, not carried items. Rows
+14–16 are also **not** among the unchecked boxes — they come from
+`wip/integration/tasks.md`'s own ledger. So: **18 checklist items + 2 new + 3 integration
 leftovers = 23 open things**, which is the honest total.
 
 ---
@@ -288,7 +301,7 @@ for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L; done
 .venv/bin/python tools/tests/test_register_snapshot.py --write
 
 # 8. Full gate.
-.venv/bin/python -m pytest tools/tests -q     # baseline: 92 passed, 1 skipped
+.venv/bin/python -m pytest tools/tests -q     # baseline: 98 passed, 1 skipped
 .venv/bin/ruff check                          # BARE
 du -sh data/ocr_cache                         # must still be 0B
 cd apps/web && npm run test                   # only if you touched the portal; 17-failed baseline
@@ -316,15 +329,15 @@ here* table as rows close. Current mapping:
 
 | Start here row | section below |
 |---|---|
-| 1 the CHAPTER letter suffix | [3](#3-the-chapter-letter-suffix--57-hits-24-documents) |
-| 2 the round-10 rules residue | [5](#5-the-round-10-rules-residue--3-hits-an-exemption-row) |
-| 3 the heading-terminator scan | [6](#6-the-heading-terminator-scan--3-hits-acts) |
-| 4 the omission spellings | [7](#7-the-omission-spellings--2-hits-acts) |
-| 5 `preamble_carries_no_toc_tail` | [8](#8-preamble_carries_no_toc_tail--2-hits-acts) |
-| 6 the single-document remainder | [9](#9-the-single-document-remainder--7-hits) |
-| 7 `clause_codes_plausible` | [10](#10-clause_codes_plausible--1-hit-finance-act-2024) |
-| 8 decide the `fbr_ingest` fork | [11](#11-decide-the-fbr_ingest-fork--unblocks-5-hits-and-9-documents) |
-| 9 the schedule PART reader | *none yet* — round 17 located it; see its artifact |
+| 1 the round-10 rules residue | [5](#5-the-round-10-rules-residue--3-hits-an-exemption-row) |
+| 2 the heading-terminator scan | [6](#6-the-heading-terminator-scan--3-hits-acts) |
+| 3 the omission spellings | [7](#7-the-omission-spellings--2-hits-acts) |
+| 4 `preamble_carries_no_toc_tail` | [8](#8-preamble_carries_no_toc_tail--2-hits-acts) |
+| 5 the single-document remainder | [9](#9-the-single-document-remainder--7-hits) |
+| 6 `clause_codes_plausible` | [10](#10-clause_codes_plausible--1-hit-finance-act-2024) |
+| 7 decide the `fbr_ingest` fork | [11](#11-decide-the-fbr_ingest-fork--unblocks-5-hits-and-9-documents) |
+| 8 the schedule PART reader | *none yet* — round 17 located it; see its artifact |
+| 9 the CHAPTER en-dash separator | *none yet* — round 18 located it; see its artifact |
 | 10 the cross-edition index | [12](#12-the-cross-edition-index--a-new-instrument) |
 | 11 the instrument tree level | [13](#13-the-instrument-tree-level--phase-5-4-limbs) |
 | 12 `--profile auto` default | [14](#14---profile-auto-as-the-default--blocked) |
@@ -332,7 +345,8 @@ here* table as rows close. Current mapping:
 
 Closed: section [1](#1-trace-section_codes_ordered--3-hits-acts--closed-round-15) (round
 15), [2](#2-the-stsp-58u58v-pair--4-hits-rules--closed-round-16) (round 16),
-[4](#4-the-container-code-guard--0-hits-an-enabler--closed-round-17) (round 17).
+[4](#4-the-container-code-guard--0-hits-an-enabler--closed-round-17) (round 17),
+[3](#3-the-chapter-letter-suffix--57-hits-24-documents--closed-round-18) (round 18).
 
 ### 1. Trace `section_codes_ordered` — 3 hits, acts — **CLOSED, round 15**
 
@@ -439,7 +453,7 @@ The letter suffix is the guard.
 
 ---
 
-### 3. The CHAPTER letter suffix — 57 hits, 24 documents
+### 3. The CHAPTER letter suffix — 57 hits, 24 documents — **CLOSED, round 18**
 
 `_STRUCTURAL_RE` (`packages/legal_ingest/builder.py:2104-2106`) has a CHAPTER branch of
 `CHAPTER[\s\-]+[IVXLC0-9]+` — **no letter-suffix class, where PART and Division beside it
