@@ -2302,6 +2302,12 @@ _DOT_DASH_RUN_RE = re.compile(r"[.,]-{1,3}")
 # i.e. inserted-code decoration -- NOT the "<title>.-" heading terminator.
 _CODE_DASH_RE = re.compile(r"^\[*\(?\d{1,3}[A-Z]{0,3}\)?\.?[-—–―─]$")
 
+# What may sit between a section code's dot and an omission cue: closing/opening
+# amendment brackets and superscript marker numbers.  ``***`` is itself the cue,
+# so ``*`` is deliberately not decoration here.
+_OMISSION_AFTER_CODE_RE = re.compile(
+    r"^[\s\[\]\d.,()\-]*(?:\*{3}|(?:omitted|repealed)\b)", re.IGNORECASE)
+
 
 def _words_after_heading_dash(words, allow_first=False):
     """Return the content words that follow the heading separator dash.
@@ -2421,11 +2427,21 @@ def _find_heading_split(seg, cutoff):
     heading; ``words_after`` are the operative words that follow.  ``None`` when
     no heading terminator is found.
 
-    The scan stops at a grid-extracted TABLE, which can never be part of a
-    heading -- ``discover`` already refuses to let one open a section or carry a
-    structural heading, and this is the same rule on the build side.  Ledger
-    **P39**: page 30 of Federal Excise 11-03-2019 is read as a grid, so section
-    26's whole first block ("26. Power to seize.– (1) The counterfeited
+    The scan stops at a grid-extracted TABLE or a structural boundary, neither
+    of which can be part of a section heading -- ``discover`` already refuses to
+    let a table open a section or carry a structural heading, and this is the
+    same rule on the build side.
+
+    An omission is the one boundary case that needs a fallback rather than a
+    bare refusal.  Sales Tax section 32AA prints only ``6[32AA. ***]`` before
+    ``Chapter-VII``; without its own terminator, it used to borrow section 33's
+    dash beyond that chapter and absorb the chapter caption into its heading.
+    Returning ``None`` at the boundary loses 32AA entirely in body-driven
+    discovery.  When line zero is a code-led omission, return that whole line as
+    the heading region instead.
+
+    Ledger **P39**: page 30 of Federal Excise 11-03-2019 is read as a grid, so
+    section 26's whole first block ("26. Power to seize.– (1) The counterfeited
     cigarettes 1[or beverages] ...") arrived as ONE table line; the scan walked
     past it, found the split on the NEXT line's "(2)", and the caller then
     dropped everything up to and including the table as heading region.  The
@@ -2435,6 +2451,13 @@ def _find_heading_split(seg, cutoff):
     """
     for li in range(min(4, cutoff)):
         if getattr(seg[li].line, "is_table", False):
+            return None
+        if li and is_structural_boundary(seg[li].line.text()):
+            first_words = sorted(seg[0].line.words, key=lambda w: w.x0)
+            m = _DOTFORM_RE.match(seg[0].line.text()[:40])
+            if m and _OMISSION_AFTER_CODE_RE.match(
+                    seg[0].line.text()[m.end():]):
+                return 0, first_words, []
             return None
         words = sorted(seg[li].line.words, key=lambda w: w.x0)
         # 1) preferred: the "<title>.—" heading dash
