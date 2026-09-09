@@ -1337,6 +1337,15 @@ _HEAD = r"^\s*" + MARKER_PREFIX
 #: (``2 [ (5) The Federal Government may ...``, the false accept the comment on
 #: ``_BRACKETPAREN_RE`` records as costing thirty sections) -- a subsection
 #: marker carries no dot after its code.
+#: A decimal dot is not a section delimiter.  This matters beyond ordinary
+#: table rows: Finance Act 2024 wraps a quoted PCT list so that the continuation
+#: line opens ``8517.1430 ...``.  Discovery matched ``8517`` here, then its
+#: multiline title scan borrowed the real clause 8 terminator and advanced the
+#: clause cursor past 8.  ``(?!\d)`` rejects only a digit fused directly to the
+#: dot; it keeps both real numeric-leading titles (``1. 2024 ...``) and an
+#: independently terminated ``8517. Amendment ...`` eligible for the normal
+#: plausibility invariant.
+#:
 #: A SUBSTITUTED section is printed inside its amendment bracket AND inside the
 #: quotation marks of the substituting instrument: Sales Tax 15.01.2022 prints
 #: s.47A as ``602[“47A. Alternative dispute resolution.—``.  Like the paren, the
@@ -1345,7 +1354,7 @@ _HEAD = r"^\s*" + MARKER_PREFIX
 #: section.  ``_BRACKETED_DOTLESS_RE`` already allowed a quote AFTER the code for
 #: the same reason; this is the other side of it.
 _OPEN = r"(?:\[\s*[“”\"'‘]?\s*\(?\s*|\[?\s*)"
-_DOTFORM_RE = re.compile(_HEAD + rf"{_OPEN}({CODE})\s*\.")
+_DOTFORM_RE = re.compile(_HEAD + rf"{_OPEN}({CODE})\s*\.(?!\d)")
 # A parenthesised code is only a SECTION when it carries a letter suffix.
 # ``CODE`` alone matched an inserted SUBSECTION -- "2 [ (5) The Federal
 # Government may, by notification..." on page 40 of the 2007 edition read as
