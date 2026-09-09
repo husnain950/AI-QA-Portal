@@ -2076,10 +2076,35 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
             if not t:
                 j += 1
                 continue
+            if _SUBCHAPTER_BODY_RE.fullmatch(t):
+                # Sub-chapters are deliberately not a tree level (the TOC
+                # reader consumes the same row). Consume its body caption and
+                # one following title line as structural furniture instead of
+                # handing ``(1)`` to the next section as an orphan list item.
+                j += 1
+                while j < hi and not body_refs[j].line.text().strip():
+                    j += 1
+                if j < hi and not (
+                    _candidate_code(body_refs[j].line)
+                    or getattr(body_refs[j].line, "is_table", False)
+                    or is_structural_boundary(body_refs[j].line.text(), codes)
+                ):
+                    j += 1
+                pending = 2
+                continue
             if is_structural_boundary(body_refs[j].line.text(), codes):
                 j, pending = j + 1, 2
                 continue
-            if any(t == c or (len(t) > 8 and t in c) for c in consumed):
+            if any(
+                t == c
+                or (len(t) > 8 and t in c)
+                or (
+                    len(t) >= 4
+                    and t.isupper()
+                    and c.upper().startswith(t.upper() + " ")
+                )
+                for c in consumed
+            ):
                 j, pending = j + 1, pending - 1
                 continue
             break
@@ -2249,6 +2274,10 @@ _STRUCTURAL_RE = re.compile(
 #: matches every PART line that is *not* the long-accepted spaced form, so a
 #: separator nobody anticipated is guarded rather than admitted.
 _GUARDED_PART_RE = re.compile(r"^PART(?!\s+[IVXLC0-9])", re.IGNORECASE)
+_SUBCHAPTER_BODY_RE = re.compile(
+    r"^SUB[\s\-]*CHAPTER[\s\-]*\(?[IVXLC0-9]+\)?$",
+    re.IGNORECASE,
+)
 
 # leading amendment decoration on a structural heading: superscript marker(s)
 # and/or opening bracket(s), e.g. "1[PART VA", "[PART III" (the marker can land

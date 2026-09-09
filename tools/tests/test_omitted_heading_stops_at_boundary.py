@@ -182,3 +182,43 @@ def test_untitled_rule_before_gridless_table_title_is_discovered():
     _chapters, entries = discover_structure(refs, {}, {}, _gate=False)
 
     assert [entry.code for entry in entries] == ["218", "219"]
+
+
+def test_unmodelled_subchapter_caption_is_not_a_section_list_item():
+    refs = [
+        LineRef(1, _ordinary("CHAPTER XI")),
+        LineRef(1, _ordinary("RECOVERY OF ARREARS")),
+        LineRef(1, _ordinary(
+            "215. Recovery procedure.- The officer shall recover arrears.")),
+        LineRef(2, _ordinary("CHAPTER XII")),
+        LineRef(2, _ordinary("EXPORTS")),
+        LineRef(2, _ordinary("SUB CHAPTER (1)")),
+        LineRef(2, _ordinary("THE DRAWBACK (SAME STATE GOODS)")),
+        LineRef(2, _regular(
+            "216. Repayment shall be made according to the table below:")),
+        LineRef(2, _ordinary("TABLE")),
+        LineRef(2, Table(
+            top=120.0,
+            bottom=180.0,
+            html="<table><tr><td>Period</td><td>Amount</td></tr></table>",
+            plain="Period Amount",
+        )),
+        LineRef(3, _ordinary(
+            "217. Temporary import.- The importer shall furnish a guarantee.")),
+    ]
+
+    chapters, entries = discover_structure(refs, {}, {}, _gate=False)
+    by_code = {entry.code: entry for entry in entries}
+    built = build_sections(
+        refs,
+        entries,
+        {},
+        {},
+        page_offset=0,
+        containers=list(_flatten(chapters)),
+    )
+    leaf = built[id(by_code["216"])]
+
+    assert leaf.plain_text.startswith("216.")
+    assert "SUB CHAPTER" not in leaf.plain_text
+    assert "<li>(1)" not in leaf.html
