@@ -19,9 +19,10 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 from corpus_paths import LABELS, REPO_ROOT, output_dir
-from legal_contract import CHILD_KINDS, iter_document_roots
+from legal_contract import CHILD_KINDS
 
 SIGNATURES = REPO_ROOT / "tools" / "discovery" / "signatures.json"
+DOCUMENT_ROOTS = (("chapters", "chapter"), ("schedules", "schedule"))
 
 # A comparison needs five peers.  Below that, one unusual edition can define the
 # "normal" shape, so the group is deliberately not judged.
@@ -129,6 +130,17 @@ def _walk_counts(node: dict, kind: str, counts: collections.Counter) -> None:
             _walk_counts(child, child_kind, counts)
 
 
+def _iter_document_roots(doc: dict):
+    """Yield roots from contract-v1 and instrument-shaped output."""
+    for instrument in doc.get("instruments") or []:
+        for collection, kind in DOCUMENT_ROOTS:
+            for node in instrument.get(collection) or []:
+                yield kind, node
+    for collection, kind in DOCUMENT_ROOTS:
+        for node in doc.get(collection) or []:
+            yield kind, node
+
+
 def tree_counts(doc: dict) -> TreeCounts:
     """Count the contract tree, including instrument-shaped compilations."""
     if not isinstance(doc, dict):
@@ -144,7 +156,7 @@ def tree_counts(doc: dict) -> TreeCounts:
 
     chapter_counts: collections.Counter = collections.Counter()
     schedule_counts: collections.Counter = collections.Counter()
-    for _collection, kind, node in iter_document_roots(doc):
+    for kind, node in _iter_document_roots(doc):
         target = chapter_counts if kind == "chapter" else schedule_counts
         _walk_counts(node, kind, target)
 
