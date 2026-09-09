@@ -1,12 +1,13 @@
 """The three readers of "is this line a container heading?" must not disagree.
 
-Round 13's defect was that they did.  ``grammar.CHAPTER_RE`` spells the separator
-between the keyword and the numeral ``[\\s\\-]+`` and has asserted so since it was
-written; ``builder._STRUCTURAL_RE`` and the suite's own ``_STRUCT_LINE`` both
-spelled it ``\\s+``.  So the Sales Tax Act's ``Chapter-II`` was not a boundary:
-nine chapter headings per edition were swallowed into the preceding section's
-body -- 175 leaves across 21 documents in two lanes -- and the invariant written
-to catch exactly that reported zero, because it carried the same narrow spelling.
+Round 13's defect was that they did.  ``grammar.CHAPTER_RE`` accepted ASCII
+hyphen separators while ``builder._STRUCTURAL_RE`` and the suite's own
+``_STRUCT_LINE`` accepted spaces only.  So the Sales Tax Act's ``Chapter-II`` was
+not a boundary: nine chapter headings per edition were swallowed into the
+preceding section's body -- 175 leaves across 21 documents in two lanes -- and
+the invariant written to catch exactly that reported zero, because it carried
+the same narrow spelling.  All three now also accept the measured EN DASH
+separator form.
 
 They stay INDEPENDENT implementations on purpose: an invariant that imports the
 parser's own regex checks nothing.  What they may not do is disagree, and nothing
@@ -40,27 +41,8 @@ BOUNDARIES = [
     # accepted all four before the parser did -- its NUMERAL has carried the
     # suffix all along -- which is the disagreement this closes.
     "CHAPTER XVI-A", "1[CHAPTER XIX-A", "248[CHAPTER XIVA", "[CHAPTER - VIAB",
-]
-
-#: The gap round 18 LOCATED and did not close: the separator, not the suffix.
-#: Twenty Customs editions print ``CHAPTER – VI`` / ``CHAPTER – VII`` (EN DASH) as
-#: real boundaries -- the next line is the caption, ``DRAWBACK`` and ``ARRIVAL AND
-#: DEPARTURE OF CONVEYANCE`` -- and one Sales Tax Rules edition prints
-#: ``CHAPTER – V`` above ``REFUND``.  ``[\s\-]+`` is ASCII, so none of them is a
-#: boundary.
-#:
-#: This is NOT round 18's row and was deliberately left open: ``grammar.CHAPTER_RE``
-#: rejects them too (its own separator is ``[\s\-]+``, and its ``[–—]`` branch reads
-#: an en dash as introducing a same-line TITLE, not as a separator).  Round 18
-#: widened the parser to agree with the grammar; closing this one has to move the
-#: grammar first, which is a different decision on a shared regex.  Round 17
-#: measured the en/em dash widening as gaining zero for PART -- that evidence does
-#: NOT transfer, because it was the container guard that refused those, and the
-#: CHAPTER branch has no such guard.
-#:
-#: These assertions pin the CURRENT, WRONG answer, the way the letter-suffix gap
-#: was pinned before round 18 closed it.
-KNOWN_GAP_ENDASH_CHAPTERS = [
+    # The gap located in round 18 is now a passing boundary case: twenty Customs
+    # editions print the first two, and Sales Tax Rules prints the latter two.
     "CHAPTER – VI", "CHAPTER – VII", "CHAPTER – V", "CHAPTER – VIAB",
 ]
 
@@ -103,16 +85,6 @@ def test_parser_and_invariant_agree():
         assert not _invariant_says(line), f"invariant over-reported: {line!r}"
 
 
-def test_the_en_dash_chapter_gap_is_still_open():
-    """Pins the gap round 18 located, so closing it has to move this file too."""
-    for line in KNOWN_GAP_ENDASH_CHAPTERS:
-        assert not is_structural_boundary(line), (
-            f"{line!r} is a boundary now -- the en-dash separator widening "
-            "landed; move it into BOUNDARIES, widen grammar.CHAPTER_RE to match, "
-            "and re-measure the 42 lines across 21 documents")
-        assert not _invariant_says(line), line
-
-
 def test_grammar_is_the_authority_on_the_bare_chapter_form():
     """A bare CHAPTER row the grammar accepts must also be a boundary.
 
@@ -121,9 +93,23 @@ def test_grammar_is_the_authority_on_the_bare_chapter_form():
     never has.  They may not differ on the bare form, which is the whole of the
     disagreement round 13 closed.
     """
-    for line in ("CHAPTER II", "Chapter-II", "CHAPTER - V", "Chapter I"):
+    for line in ("CHAPTER II", "Chapter-II", "CHAPTER - V", "Chapter I",
+                 "CHAPTER – VI", "CHAPTER – VIAB"):
         assert CHAPTER_RE.match(line), f"grammar rejects {line!r}"
         assert is_structural_boundary(line), f"parser rejects {line!r}"
+
+
+def test_grammar_distinguishes_en_dash_separator_from_inline_title():
+    """Dash before the numeral is a separator; dash after it starts the title."""
+    bare = CHAPTER_RE.match("CHAPTER – VI")
+    assert bare and bare.group(1) == "VI" and bare.group("title") is None
+
+    titled = CHAPTER_RE.match(
+        "Chapter-II – Levy, Collection and Payment of duty 12")
+    assert titled and titled.group(1) == "II"
+    assert titled.group("title") == "Levy, Collection and Payment of duty"
+    assert not is_structural_boundary(
+        "Chapter-II – Levy, Collection and Payment of duty 12")
 
 
 def test_a_boundary_the_split_cannot_read_would_become_a_nameless_division():

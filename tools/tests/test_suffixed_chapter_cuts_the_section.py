@@ -105,6 +105,17 @@ def test_the_fused_and_spaced_separator_forms_cut_too():
             f"{line!r} must cut section 155:\n{text}")
 
 
+def test_an_en_dash_chapter_separator_cuts_the_section():
+    """The measured Customs and Sales Tax separator forms reach the real cut."""
+    for line in ("CHAPTER – VI", "CHAPTER – VII", "CHAPTER – V",
+                 "CHAPTER – VIAB"):
+        text = _run(line)
+        assert line not in text, (
+            f"{line!r} is a chapter boundary, not section 155 body:\n{text}")
+        assert "CUSTOMS COMPUTERIZED SYSTEM" not in text, (
+            f"the caption following {line!r} must be cut too:\n{text}")
+
+
 def test_a_chapter_cross_reference_still_sits_in_the_body():
     """``Chapter XII]`` is a wrapped table cell, not a boundary.
 

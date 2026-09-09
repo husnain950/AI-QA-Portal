@@ -2181,12 +2181,11 @@ def preamble_refs(body_refs, ordered_sections, containers=()):
 # cross-references in body text ("...specified in Division V of Part I...") would
 # wrongly truncate a section.
 #
-# The separator between the keyword and the numeral is ``[\s\-]+`` for CHAPTER,
-# which is the spelling ``grammar.CHAPTER_RE`` has always used (and asserts, at
-# grammar.py's ``_demo``).  This private copy spelled it ``\s+`` for twelve
-# rounds, so the Sales Tax Act's ``Chapter-II`` was not a boundary: nine chapter
-# headings per edition were swallowed into the preceding section's body, 175
-# leaves across 21 documents, and the invariant written to catch exactly that
+# The separator between the keyword and the numeral is ``[\s\-–]+`` for CHAPTER,
+# in step with ``grammar.CHAPTER_RE``.  This private copy once spelled it ``\s+``,
+# so the Sales Tax Act's ``Chapter-II`` was not a boundary: nine chapter headings
+# per edition were swallowed into the preceding section's body, 175 leaves across
+# 21 documents, and the invariant written to catch exactly that
 # (``_STRUCT_LINE`` in tools/suite/invariants/_common.py) carried the same narrow
 # spelling and reported zero.  Round 1's chapter numeral again -- two readers of
 # one line, normalising differently.
@@ -2225,12 +2224,12 @@ def preamble_refs(body_refs, ordered_sections, containers=()):
 #   * ``{1,2}`` not ``{0,2}``, so a trailing bare hyphen (``CHAPTER XVI-``) is not
 #     a boundary.  Fail-closed on a form the corpus does not print.
 #
-# The EN DASH separator is a separate, still-open gap: ``CHAPTER – VI`` is 42 real
-# boundaries over 21 documents, and ``grammar.CHAPTER_RE`` rejects those too, so it
-# cannot be closed by agreeing with the grammar the way this one was.  Pinned in
-# ``test_structural_boundary_agrees_with_grammar.KNOWN_GAP_ENDASH_CHAPTERS``.
+# The EN DASH separator carries measured evidence of its own: ``CHAPTER – VI`` /
+# ``– VII`` in twenty Customs editions and ``– V`` / ``– VIAB`` in Sales Tax
+# Rules are 42 real boundaries over 21 documents.  It belongs only to CHAPTER:
+# PART's en-dash forms remain behind the separate container-evidence decision.
 _STRUCTURAL_RE = re.compile(
-    r"^(CHAPTER[\s\-]+[IVXLC0-9]+(?:-?[A-Z]{1,2})?|PART[\s\-]+[IVXLC0-9]+[A-Z]{0,2}|Division\s+[IVXLC0-9]+[A-Z]{0,2})$",
+    r"^(CHAPTER[\s\-–]+[IVXLC0-9]+(?:-?[A-Z]{1,2})?|PART[\s\-]+[IVXLC0-9]+[A-Z]{0,2}|Division\s+[IVXLC0-9]+[A-Z]{0,2})$",
     re.IGNORECASE)
 
 #: The PART form the widening admits and the old ``PART\s+`` spelling did not:
@@ -2259,7 +2258,7 @@ def _norm_container_code(text: str) -> str:
     folds more because a schedule's contents page and body disagree about more.
     """
     t = re.sub(r"\s+", " ", _STRUCT_DECOR_RE.sub("", text.strip())).upper()
-    return re.sub(r"^(CHAPTER|PART|DIVISION)[\s\-]+", r"\1 ", t).strip()
+    return re.sub(r"^(CHAPTER|PART|DIVISION)[\s\-–]+", r"\1 ", t).strip()
 
 
 def is_structural_boundary(text: str, container_codes=None) -> bool:
@@ -3380,12 +3379,14 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
 def _demo() -> None:
     """Pure-function pin: gazette preamble HTML must not glue titles into recitals."""
     # ---- round 13: the separator the private copy never learned ------------
-    # grammar.CHAPTER_RE has always spelled it [\s\-]+; _STRUCTURAL_RE spelled it
-    # \s+, so nine chapter boundaries per Sales Tax Act edition were invisible and
-    # their headings sat in the preceding section's body (175 leaves, 21 docs).
+    # grammar.CHAPTER_RE spelled the ASCII forms [\s\-]+ while _STRUCTURAL_RE
+    # spelled only \s+, so nine chapter boundaries per Sales Tax Act edition were
+    # invisible and their headings sat in the preceding section's body (175
+    # leaves, 21 docs).  Both now also admit the measured CHAPTER en-dash form.
     for _line in ("CHAPTER II", "Chapter-II", "CHAPTER-II", "Chapter- I",
                   "CHAPTER - V", "4[Chapter-I", "128[CHAPTER-XLI",
-                  "150[CHAPTER- XLIII", "PART III", "1[PART VA"):
+                  "150[CHAPTER- XLIII", "CHAPTER – VI", "CHAPTER – VIAB",
+                  "PART III", "1[PART VA"):
         assert is_structural_boundary(_line), _line
     # ...and what the WHOLE-LINE anchor must still keep out.  These are the
     # false positives that disqualified delegating to grammar.CHAPTER_RE, whose

@@ -429,16 +429,17 @@ def _front_matter_container(profile, is_amendment: bool, idx: int,
 def _split_container_heading(text: str) -> tuple[str, str]:
     """A structural heading line -> its (KEYWORD, numeral).
 
-    Split on ``[\\s\\-]+``, the separator ``grammar.CHAPTER_RE`` uses and the one
-    ``builder.is_structural_boundary`` accepts, so the reader that decides a line
-    IS a container and the reader that decides WHICH container agree about one
-    spelling.  They did not: this split was ``core.split()``, so ``Chapter-II``
-    -- no space to split on -- yielded ``kw="CHAPTER-II"``, matched neither
-    "CHAPTER" nor "PART", fell through to the Division branch and emitted a
-    NAMELESS ``Node(kind="division", code="Division ")`` that then parented every
-    following section.  Ten per Sales Tax Act edition.  That is round 1's
-    duplicate-container failure, and it is why widening the boundary test without
-    widening this split would have been worse than leaving both narrow.
+    Split on ``[\\s\\-–]+``, the CHAPTER separators ``grammar.CHAPTER_RE`` uses
+    and ``builder.is_structural_boundary`` accepts, so the reader that decides a
+    line IS a container and the reader that decides WHICH container agree about
+    one spelling.  They did not: this split was ``core.split()``, so
+    ``Chapter-II`` -- no space to split on -- yielded ``kw="CHAPTER-II"``,
+    matched neither "CHAPTER" nor "PART", fell through to the Division branch
+    and emitted a NAMELESS ``Node(kind="division", code="Division ")`` that then
+    parented every following section.  Ten per Sales Tax Act edition.  That is
+    round 1's duplicate-container failure, and it is why widening the boundary
+    test without widening this split would have been worse than leaving both
+    narrow.
 
     ``maxsplit=1`` is what keeps it a no-op on every line that already matched:
     the numeral's OWN suffix separator stays in the numeral ("CHAPTER XVI-A" ->
@@ -446,7 +447,7 @@ def _split_container_heading(text: str) -> tuple[str, str]:
     ("Division III A" -> ("DIVISION", "III A")).
     """
     core = re.sub(r"\s+", " ", _STRUCT_DECOR_RE.sub("", text)).strip()
-    bits = re.split(r"[\s\-]+", core, maxsplit=1)
+    bits = re.split(r"[\s\-–]+", core, maxsplit=1)
     return bits[0].upper(), (bits[1] if len(bits) > 1 else "")
 
 
@@ -830,6 +831,7 @@ def _demo() -> None:
     assert _split_container_heading("Chapter-II") == ("CHAPTER", "II")
     assert _split_container_heading("1[Chapter- I") == ("CHAPTER", "I")
     assert _split_container_heading("CHAPTER - V") == ("CHAPTER", "V")
+    assert _split_container_heading("CHAPTER – VI") == ("CHAPTER", "VI")
     assert _split_container_heading("128[CHAPTER-XLI") == ("CHAPTER", "XLI")
     # ...and what must not change.  Both fail if maxsplit=1 is dropped: the
     # numeral's own suffix separator belongs to the numeral.
