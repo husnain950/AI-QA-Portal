@@ -71,14 +71,14 @@
     {
       "id": "customs_2001_is_a_compilation",
       "source": "rules-pipeline",
-      "description": "KNOWN GAP -- Customs Rules 2001 is not one instrument: 563 pages bind 44 separate S.R.O. rule-sets (Baggage, Auction, Frustrated Cargo, ATA Carnet ...) behind a roman-numeral 'Chapter Contents' index and a MEMORANDUM table. The tree models one instrument, so it comes out as 1 chapter / 62 sections whose codes are the MEMORANDUM's S.No. column. Supporting compilations is a document-class feature, not a parser fix; until then this edition should not be in output/. Tracked by section_codes_ordered (32 failures).",
+      "description": "Customs Rules 2001 is one consolidated instrument notified by S.R.O. 450(I)/2001. Its three-page MEMORANDUM maps earlier notifications to rule ranges but is not a section listing. The parser must ignore those section-shaped index rows and discover the actual rule body, including rule 1's short-title text.",
       "target": {
         "kind": "section",
         "code": "1"
       },
       "check": "plain_contains",
       "arg": "Short title and commencement",
-      "status": "known_gap",
+      "status": "active",
       "applies_to": "Customs Rules, 2001"
     },
     {
