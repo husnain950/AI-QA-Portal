@@ -692,9 +692,25 @@ def discover_structure(body_refs, printed_by_page, page_footnotes,
             # dropped every real clause into the preamble (104 uncovered pages)
             # and kept the one bold foreign section.  Amendment instruments
             # already have ``_is_own_clause_title`` (P06) as the gate; skip bold.
+            #
+            # A few Customs rules are operative lead-in sentences, not marginal
+            # headings, and therefore use the regular body font immediately
+            # before a grid table (216 and 218).  They still have strong local
+            # structure: a code-led prose line followed within three refs by an
+            # extracted table.  Without this branch both rules disappear and
+            # their tables are carried by rule 217, producing an orphan marker
+            # row and losing two legal leaves.
+            table_follows = (
+                len(re.findall(r"[A-Za-z]", text[m.end():])) >= 20
+                and any(
+                    getattr(next_ref.line, "is_table", False)
+                    for next_ref in body_refs[idx + 1:idx + 4]
+                )
+            )
             title_ok = (
                 is_amendment
                 or _bold_title(words, _code_token_index(words), doc_has_bold)
+                or table_follows
             )
             if (last_key is None or key > last_key) and title_ok:
                 split = _find_heading_split(body_refs[idx:idx + 4],

@@ -43,6 +43,13 @@ def _ordinary(text: str) -> Line:
     return _line([(word, 10.0) for word in text.split()])
 
 
+def _regular(text: str) -> Line:
+    line = _line([(word, 10.0) for word in text.split()])
+    for word in line.words:
+        word.fontname = "ArialMT"
+    return line
+
+
 def _flatten(nodes):
     for node in nodes:
         yield node
@@ -126,7 +133,7 @@ def test_untitled_one_sentence_rule_keeps_body_and_stops_at_next_rule():
 def test_untitled_rule_followed_by_table_is_not_dropped():
     refs = [
         LineRef(1, _ordinary("CHAPTER XII")),
-        LineRef(2, _ordinary(
+        LineRef(2, _regular(
             "216. Repayment shall be made according to the table below:")),
         LineRef(2, Table(
             top=120.0,
