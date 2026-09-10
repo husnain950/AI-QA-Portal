@@ -23,8 +23,9 @@ Method: [`working-rules.md`](working-rules.md)
 
 Two tracks have finished. The **integration seam** closed as PRs #59–#76 — every problem
 in `wip/integration/plan.md` §3, and the corpus-wide identity hole went from 5,047 leaves
-(30%) to 89 (0.5%). The **anomaly register** went 210 → 22 over nineteen rounds, and is
-now committed and gated (`tools/suite/register.json`) — nineteen rounds as of PR #85.
+(30%) to 89 (0.5%). The **anomaly register** went 210 → **13** over twenty-eight rounds,
+and is committed and gated (`tools/suite/register.json`) — 13 as of PR #89, and verified
+against a live three-lane run on a corpus converted at one revision.
 
 What remains is the residue of both, and it is **harder per hit than what came before.**
 Rounds 1–7 each found *one cause explaining many hits*: the cursor cascade, the header
@@ -37,10 +38,21 @@ separator widening, and P3-5's own instrument was as narrow as its defect, so th
 appeared and vanished inside one round.
 
 **Expect a lower hits-per-round rate from here.** A round that closes two hits is not a bad
-round now, and the top row in `tasks.md` is an exemption-with-evidence judgement call rather
-than a fix. Two rounds in a row have also *located* new work while closing old
-(round 17 the schedule PART reader, round 18 the CHAPTER en-dash separator), so the open
-count is flat at 20 even though both rounds shipped.
+round now. Rounds have repeatedly *located* new work while closing old — round 17 the
+schedule PART reader, round 18 the CHAPTER en-dash separator, rounds 21-28 the
+letter-suffixed marker class — so the open count falls more slowly than the register does.
+
+**Rounds 21-28 are the counter-example to "one cause, many hits is spent."** Eight rounds
+against a single Customs Act edition closed 21 reviewer-logged defects and took the register
+22 → 13, and the class they left behind — 22 uppercase-suffixed citation markers refused by
+a lowercase-only character class — is itself one cause with 22 sites. They also demonstrated
+the sharper lesson twice over: **rounds 23 and 25 were each measured on one document, looked
+clean, and were both wrong in the rules lane**, caught only by the lane suites over a fully
+re-converted corpus.
+
+**And they showed that shipped is not measured.** Four rows of `tasks.md` had working code
+from round 20 and stayed open for a full round because the editions carrying their hits were
+absent from that host. The re-conversion, not the code, is what moved them to zero.
 
 ---
 
@@ -53,20 +65,21 @@ lane per invariant, no document attribution.
 
 | invariant | acts | rules | ordinance | total | implementation |
 |---|---|---|---|---|---|
-| `section_carries_its_body` | 8 | 4 | 5 | **17** | `tools/suite/invariants/_common.py:1267` |
-| `no_chapter_caption_in_section_heading` | 4 | — | — | **4** | `_common.py:2151` |
-| `preamble_carries_no_toc_tail` | 2 | — | — | **2** | `_common.py:1086` |
+| `section_carries_its_body` | 6 | 1 | 5 | **12** | `tools/suite/invariants/_common.py:1267` |
 | `no_foreign_section_start_in_body` | — | 1 | — | **1** | `_common.py:1371` |
-| `clause_codes_plausible` | 1 | — | — | **1** | `_common.py:1874` |
-| **per lane** | **15** | **5** | **5** | **25** | |
+| **per lane** | **6** | **2** | **5** | **13** | |
 
-These five are shared in `_common.py`, bound by name via `all_invariants`
+Both are shared in `_common.py`, bound by name via `all_invariants`
 (`_common.py:2558-2570`), where a lane module's `inv_<name>` overrides `_common`'s.
 
-**Six invariant classes are closed:** `body_chapters_in_tree`, `no_footnote_text_in_body`,
+**Nine invariant classes are closed:** `body_chapters_in_tree`, `no_footnote_text_in_body`,
 `structure_counts`, `no_code_fragment_in_section_heading` (round 12, was 31),
-`no_structural_heading_in_body` (round 13, was 175), and **`section_codes_ordered`
-(round 15, was 3)**. Note that last one still has **no shared implementation** — it is
+`no_structural_heading_in_body` (round 13, was 175), **`section_codes_ordered`
+(round 15, was 3)**, and — in rounds 21-28 —
+`no_chapter_caption_in_section_heading` (was 4, `_common.py:2151`),
+`preamble_carries_no_toc_tail` (was 2, `_common.py:1086`) and
+`clause_codes_plausible` (was 1, `_common.py:1874`). Note `section_codes_ordered` still has
+**no shared implementation** — it is
 three independent per-lane functions, `invariants/acts.py:121`, `rules.py:167` and
 `ordinance.py:213` (the last importing `fbr_ingest.discover.code_sort_key` at `:223`) — so
 a future regression can appear in one lane and not the others.
@@ -101,20 +114,22 @@ Each carries the evidence, the measurement already taken, and — for the three 
 one — **the approach already known to be wrong.** Read that part before proposing a fix;
 it is there because someone already spent a round on it.
 
-### Phase 3 — the register's 22
+### Phase 3 — the register's 13
 
-#### P3-1 — `section_carries_its_body` (14) — four unrelated causes, two of them closed
+#### P3-1 — `section_carries_its_body` (12) — several unrelated causes, three of them closed
 
 The largest class, and no longer a single defect. Invariant: `_common.py:1267`. Split so
 the causes can be worked separately:
 
 | cause | hits | lane | state |
 |---|---|---|---|
-| **a.** Omission spellings the invariant cannot read | 2 | acts | open |
+| **a.** Omission spellings the invariant cannot read | ~~2~~ **0** | acts | **CLOSED, rounds 21-28** (PR #89) |
 | **b.** The STSP 58U/58V pair | ~~4~~ **0** | rules | **CLOSED, round 16** (PR #82) |
-| **c.** The round-10 residue — printed defects | 3 | rules | traced, each individually |
-| **d.** The ordinance five | 5 | ordinance | **blocked on [P4-2](#p4-2--decide-the-fbr_ingest-fork--a-routing-problem)** |
-| **e.** Single-document remainder | 7 | acts/rules | open |
+| **c.** The round-10 residue — printed defects | ~~3~~ **0** | rules | **EXEMPTED, round 19** (PR #85) |
+| **d.** The ordinance five | 5 | ordinance | open — routing decided, now a `fbr_ingest` parser round |
+| **e.** Single-document remainder | 4 | acts/rules | open |
+| **f.** Customs 2008 ss.181 / 189 | 2 | acts | open — newly visible, pages unread |
+| **g.** Sales Tax Rules 30-06-2025 rule 150 | 1 | rules | open — the `150ZQ*` family again |
 
 **b** is closed. Both editions print `111[58U]. Application:--`: S.R.O. 188(I)/2015
 *renamed* rules 59 and 60, so the amendment bracket wraps the code and the terminating dot
@@ -125,10 +140,15 @@ the title's opening capital — returning rule **`58`**. Fixed by one new patter
 suffix is what keeps a penalty **table row serial** (`2[21].Where any person repeats an
 offence`) out. Trace: `wip/phase3-round16-bracketed-code-dot.md`.
 
-**a.** Customs 30.06.2024 s.196K prints `to Omitted 96u`; 30.06.2025 s.79 prints
-`A O mitted` — an intra-word space that round 3 measured and refused to admit into a regex
-whose job is precision. Worth re-measuring now the count is small enough to trace
-individually.
+**a** is closed. Customs 30.06.2024 s.196K prints `to Omitted 96u`; 30.06.2025 s.79 prints
+`A O mitted` — an intra-word space round 3 measured and refused to admit into a regex whose
+job is precision. Round 20 widened `_is_omission` to accept those two **whole strings only**,
+never a general `\s*` between letters, and could not measure it because neither edition was
+staged. Rounds 21-28 converted both; neither is a hit.
+
+**d** is no longer blocked on a decision. Round 20 decided the routing — Income Tax
+Ordinance stays on `fbr_ingest`, flat ICT goes to `legal_ingest` — so this is now a parser
+round inside the fork, and at 5 hits it is the largest single block left.
 
 **c.** Sales Tax Rules 01-01-2025, each already traced to a printed defect: 44A opens with
 a left double quote, 150ZQZI is printed `150ZQZl` (lowercase L for capital i), and 150W's
@@ -312,8 +332,10 @@ once it exists.
 #### P4-1 — flip `--profile auto` to the default — SHIPPED, round 20
 
 Convert CLIs default to `auto`. A family override *refines* the lane's profile.
-`--profile lane` preserves the historical route. The full-corpus reparse this
-row was gated on was **not** run (register still 22).
+`--profile lane` preserves the historical route. The **full-corpus** reparse this row was
+gated on has still not been run. Rounds 21-28 re-converted **77 of 103** — the acts and
+rules lanes — which is what took the register to 13; the 12-document ordinance lane and 14
+skipped acts documents are untouched, so full-corpus attribution stays blocked.
 
 #### P4-2 — decide the `fbr_ingest` fork — SHIPPED as routing, round 20
 
@@ -431,6 +453,14 @@ hit has an entry in `tools/suite/exemptions/<lane>.json` carrying evidence trace
 source PDF page — and `.venv/bin/python tools/run_tests_smoke.py` exits **zero**, which it
 cannot do while the register is non-zero. That exit code is the phase's own gate.
 
+Two facts about that escape hatch, verified 2026-09-10. An entry is exactly three keys —
+`applies_to` (a substring of `metadata.filename`), `invariant`, `reason` — with **no expiry
+field** in the schema or the loader; expiry exists only as prose inside `reason`. And
+`tools/suite/exemptions/` holds **only `rules.json`**: the acts and ordinance lanes have no
+exemptions file at all, so the first acts or ordinance exemption creates one. An exempted
+invariant still runs and still counts; it just stops gating, and a *passing* exempt
+invariant is reported as stale so the entry gets deleted.
+
 **Phase 4 is done when** `--profile auto` is the default in both `convert.py` and
 `convert_all.py`, a family override refines rather than replaces the lane profile, the
 `fbr_ingest` routing decision is recorded with its evidence, and the 9 blocked documents
@@ -451,10 +481,10 @@ leaving it unrecorded is not.
 Every command below was run at this commit and produced exactly the output shown.
 
 ```sh
-.venv/bin/python tools/run_suite.py acts        # 15 hits
-.venv/bin/python tools/run_suite.py rules       #  5 hits
+.venv/bin/python tools/run_suite.py acts        #  6 hits
+.venv/bin/python tools/run_suite.py rules       #  2 hits
 .venv/bin/python tools/run_suite.py ordinance   #  5 hits
-.venv/bin/python -m pytest tools/tests -q       # 98 passed, 1 skipped in ~33s
+.venv/bin/python -m pytest tools/tests -q       # 231 passed, 1 skipped in ~33s
 .venv/bin/python tools/run_tests_smoke.py       # package self-checks + lane suites
 .venv/bin/python tools/discover_corpus.py --check   # "no drift"
 .venv/bin/ruff check                            # "All checks passed!"  -- BARE

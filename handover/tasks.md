@@ -3,21 +3,32 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **22** (unremeasured — round 20 did not rewrite
-`register.json` from a partial public corpus). Phase 4 routing, Phase 5
-instruments, and several Phase 3 parser gaps shipped in PR #86; the private
-corpus remainder of Phase 3 is still open. Reasoning for every row is in
-[`plan.md`](plan.md); state is in [`README.md`](README.md); the traps are in
-[`working-rules.md`](working-rules.md).
+**State:** the register is **13**, regenerated in PR #89 and **verified against a live
+three-lane run** on a corpus converted at one revision — acts 6, rules 2, ordinance 5, delta
+zero, no lane skipped. Reasoning for every row is in [`plan.md`](plan.md); state is in
+[`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
 
-Written 2026-09-04 on `main` after PR #83 (round 17); updated 2026-09-08 after PR #84
-(round 18) and PR #85 (round 19); updated 2026-09-09 after PR #86 (round 20).
-Artifact: [`wip/phase3-round20-wip-completion.md`](../wip/phase3-round20-wip-completion.md).
+Written 2026-09-04 on `main` after PR #83 (round 17); updated after PR #84 (round 18),
+PR #85 (round 19), PR #86 (round 20), and **2026-09-10 after PR #89 (rounds 21-28)**.
+Artifact: [`wip/phase3-round21-28-customs-qa.md`](../wip/phase3-round21-28-customs-qa.md).
 
-**Six invariant classes are closed.** Round 15 closed `section_codes_ordered` — see
+**Nine invariant classes are closed.** Round 15 closed `section_codes_ordered` — see
 [task 1's Result](#1-trace-section_codes_ordered--3-hits-acts--closed-round-15). Round 16
-closed one of `section_carries_its_body`'s four causes, taking that class 21 → 17 — see
+closed one of `section_carries_its_body`'s causes, taking that class 21 → 17 — see
 [task 2's Result](#2-the-stsp-58u58v-pair--4-hits-rules--closed-round-16).
+
+**Rounds 21-28 (PR #89) closed three more and took the register 22 → 13.** Eight rounds
+against one Customs Act edition, closing 21 reviewer-logged defects; the acts lane went
+**15 → 6**. `no_chapter_caption_in_section_heading`, `preamble_carries_no_toc_tail` and
+`clause_codes_plausible` are all **0**, and so are the two omission spellings. Those were
+rows 1, 2, 3 and 5 of the board below — see each row's Result.
+
+**Read this before believing any Result below that credits round 20.** Round 20 shipped
+working code for rows 1, 2, 3 and 5 and could not move the register, because the private
+editions carrying the hits were absent from that host. The rounds 21-28 re-conversion is
+what turned those into zeroes. **Shipped and measured are two different states**, and this
+ledger carried four rows as open for a full round because it conflated them. When a Result
+says "code shipped, register not moved", the row is *not* closed — it is unmeasured.
 
 **Round 17 closed the container-code guard** and shipped the PART separator widening it
 enables: 14 gained, 0 lost, register unchanged at 25 — see
@@ -28,11 +39,11 @@ enables: 14 gained, 0 lost, register unchanged at 25 — see
 (rise +57 on the invariant, fall −57 on the parser) — see
 [task 3's Result](#3-the-chapter-letter-suffix--57-hits-24-documents--closed-round-18). It
 also **located a second gap on the same line of code** and left it open on evidence: the
-**en-dash separator**, 42 lines across 21 documents, now row 8.
+**en-dash separator**, 42 lines across 21 documents, closed by round 20.
 
-**Round 19 closed the round-10 rules residue** — the register's first movement in three
-rounds, **25 → 22**, by *exemption with evidence*: all three are printing errors traced to
-PDF pages 66, 109 and 151. **Two of the three traces this file carried were wrong** — see
+**Round 19 closed the round-10 rules residue** — **25 → 22**, by *exemption with evidence*:
+all three are printing errors traced to PDF pages 66, 109 and 151. **Two of the three traces
+this file carried were wrong** — see
 [task 5's Result](#5-the-round-10-rules-residue--3-hits-an-exemption-row).
 
 ### Decisions on record (2026-09-04)
@@ -60,45 +71,76 @@ in Customs Rules 2001. See [task 4's Result](#4-the-container-code-guard--0-hits
 ## Start here — pick one
 
 Ranked by value against cost, each with the ONE thing that actually blocks it. An agent
-with no other context can take a row and start. **Row 1 is the row to take.** Rounds 16-19 spent the four
-cheapest rows on the board (the STSP pair, the container guard, the CHAPTER suffix, the
-round-10 residue). Nothing left is cheap: row 1 needs an **omission-aware fallback** that a
-measured guard already failed at, and every row below it needs a trace before it needs code.
+with no other context can take a row and start.
+
+**This board was rebuilt on 2026-09-10 from a live three-lane run, not from the previous
+board.** Rounds 21-28 closed four of its rows, and the register they close against is
+**13**, not 22. Every hit count below is the live one.
 
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
-| 1 | **the heading-terminator scan** | 3 | **code shipped, round 20.** Fixture green. Private Sales Tax 32AA editions not reconverted here, so the register is not −3 yet. | [P3-2](plan.md#p3-2--the-heading-terminator-scan-that-walks-through-a-boundary-3-acts) |
-| 2 | **the omission spellings** | 2 | **invariant widened, round 20**, whole-string only. Private Customs 2024/2025 pages not present. | [P3-1a](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 3 | **`preamble_carries_no_toc_tail`** | 2 | **extra signal shipped, round 20**; floor stays at 3. Public Customs 2008 / Sales Tax 2023: 0 hits. | [P3-3](plan.md#p3-3--preamble_carries_no_toc_tail-2-acts) |
-| 4 | **the single-document remainder** | 7 | nothing shared — PSW ministry list, PFMA s.26, `R(cid:2)fund`. Three unrelated traces. | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 5 | **`clause_codes_plausible`** | ~~1~~ **0** | **CLOSED, round 20** on public Finance Act 2024 (clauses 1–12). Check not weakened. | [P3-7](plan.md#p3-7--clause_codes_plausible-1-finance-act-2024) |
-| 6 | **decide the `fbr_ingest` fork** | 5 ³ | **CLOSED as routing, round 20.** Family-aware; forks not merged. Ordinance five still need ITO editions on `fbr_ingest`. | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
-| 7 | **the schedule PART reader** | 0 ⁶ | **CLOSED, round 20** on public FA2021 (I–VIII) and FA2019 (I–VII). Cause was gazette glyph-split `P ART -I`, not the hyphen. | [round 20](../wip/phase3-round20-wip-completion.md) |
-| 8 | **the CHAPTER en-dash separator** | 0 ⁷ | **CLOSED, round 20.** Grammar moved first; known-gap test now a `BOUNDARIES` case. | [round 18](../wip/phase3-round18-chapter-letter-suffix.md) |
-| 10 | **the cross-edition index** | 0 ⁴ | **CLOSED, round 20.** Tree-count gate; skips without corpus. | [P3-8](plan.md#p3-8--no-invariant-can-see-a-document-that-lost-93-of-its-sections) |
-| 11 | **the instrument tree level** (4 limbs) | 0 ⁵ | **CLOSED, round 20.** Compilation exemptions for Customs Rules 2001 and FE Rules 2005 deleted. | [Phase 5](plan.md#phase-5--the-instrument-tree-level-4-limbs-not-started) |
-| 12 | flip `--profile auto` to default | — | **SHIPPED, round 20**, without a full-corpus reparse. Register still 22 — do not `convert-all`. | [P4-1](plan.md#p4-1--flip---profile-auto-to-the-default) |
-| 13 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded. | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
-| 14 | delete `_legacy_section_key` | — | **BLOCKED on row 13**, which is now decided as *no OCR* — so the 14 stale acts documents stay stale and this stays blocked. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it is step 1, and worth doing so the number is real. | [Deferred](#deferred-with-reasons) |
-| 15 | the `ReviewToolbar` approval gate | — | **DECIDED 2026-09-04: gate on CRITICAL flags only.** Switch to `hasCriticalQualityFlags`, which is already tested and unused. One line plus the test. Cheapest row on the board. | [Deferred](#deferred-with-reasons) |
-| 16 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect. | [Deferred](#deferred-with-reasons) |
+| 1 | **letter-suffixed citation markers** | 0 ¹ | **nothing.** 22 marker-size words carrying an UPPERCASE suffix (`59&59A`, `66A`, `27/27A`, `2/2A`, `18/18A`) render as literal body text and build no footnote record, because `grammar.MARKER` (`:132`) allows `[a-z]` only. One cause, 9 sections, 6 chapters | *(new — see the row below)* |
+| 2 | **the ordinance five** | 5 | all in `fbr_ingest` on ITO editions (233AA, 214E ×2, 122C ×2). **No longer blocked on a decision** — round 20 decided routing, and ITO stays on `fbr_ingest`. It is a parser round in the fork | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
+| 3 | **the single-document remainder** | 4 | nothing shared — PSW ministry list (ss.27/28), PFMA s.26, Sales Tax 2014 s.10 `R(cid:2)fund`. Three unrelated traces | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| 4 | **Customs 2008 ss.181 / 189** | 2 | **newly visible, and nobody has read those pages.** Two heading-only leaves in one edition — the only shared-cause candidate left in acts | *(none yet)* |
+| 5 | **the two rules hits** | 2 | Sales Tax Rules 30-06-2025 rule 150 is the `150ZQ*` family again; 01-01-2025 rule 13 carries the start of 44A under `no_foreign_section_start_in_body`, which the round-19 exemption does **not** cover — that entry names `section_carries_its_body` | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — so the 14 stale acts documents stay stale. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it is step 1 | [Deferred](#deferred-with-reasons) |
+| 7 | the `ReviewToolbar` approval gate | — | **DECIDED 2026-09-04: gate on CRITICAL flags only.** Switch to `hasCriticalQualityFlags`, already tested and unused. One line plus the test. Cheapest row on the board | [Deferred](#deferred-with-reasons) |
+| 8 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect | [Deferred](#deferred-with-reasons) |
+| 12 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
 
-³ Unblocks the ordinance five in `section_carries_its_body`, and 9 documents. Round 15 confirmed the ordinance lane is unreachable from `legal_ingest`: it runs `fbr_ingest`, which carries its own `toc.py` and its own `insert_missing_body_chapters`.
-⁴ A new instrument, not a fix. Round 11 lost 93% of a document's sections and the register
-moved 3.
-⁵ Measured by the *deletion* of 4 exemption entries, not by hits.
-⁶ 20 hyphenated PART lines in Finance Act *schedule* bodies (2021, 2025, 2019, 2014).
-A different reader from round 17's — `schedules.py` has always accepted the hyphen.
-Not in the register: no invariant looks for a PART line in a schedule leaf.
-⁷ 42 real chapter boundaries printed with an EN DASH separator, across 21 documents (20
-Customs Act editions + Sales Tax Rules 2006). Not in the register: `_STRUCT_LINE` is as
-ASCII as the parser, so the invariant cannot see them either — the same shape round 18's
-row had before it was closed.
+¹ **Zero in the register, and that is the point.** The invariants share the parser's marker
+grammar, so `inv_leading_marker_cited`, `inv_citation_refs_resolve` and
+`inv_footnote_on_citing_leaf` are all as blind to an uppercase suffix as the builder is.
+This is the exact shape row 5 of the old board had before round 18 closed it: **expect the
+register to rise when the invariant is widened and fall when the parser is.** Measure the
+two halves separately. `inv_footnotes_in_numeric_order` sees ordering only, so a *missing*
+note is invisible to it in any case.
+
+### Closed by rounds 21-28 (PR #89) — kept so they are not re-picked
+
+| old row | was | now |
+|---|---|---|
+| the heading-terminator scan | 3 | **0** — `no_chapter_caption_in_section_heading` is gone from the register |
+| the omission spellings | 2 | **0** — neither Customs 30.06.2024 s.196K nor 30.06.2025 s.79 is a hit |
+| `preamble_carries_no_toc_tail` | 2 | **0** — the class is closed |
+| `clause_codes_plausible` | 1 | **0** — closed by round 20's code, measured by round 21-28's re-conversion |
+
+Rows 7-12 of the old board (the schedule PART reader, the CHAPTER en-dash, the cross-edition
+index, the instrument tree, `--profile auto`) were closed by round 20 and are dropped from
+the ranking rather than carried as zeroes. Their Results are still below.
+
+### Traced but not taken — evidence recorded, no row opened
+
+Found on 2026-09-10 while tracing the rounds 21-28 leftovers. Each is a **different cause**
+from row 1, and this file forbids batching unrelated causes into one round:
+
+- **s.156's `69.` and `81,`** — the two cells the rounds 21-28 handoff called "penalty-table
+  marker cells". Its named cause was wrong: `pagemodel._true_table_marker` is never reached
+  (that table is not grid-extracted; its `<tbody>` is empty). `69.` dies on the trailing-dot
+  guard (`pagemodel.py:152`), `81,` because `_MARKER_RUN_SEP_RE` splits `"81,"` into
+  `['81','']` and the empty tail fails `MARKER_RE` (`grammar.py:257`). The printed run is
+  `81, 89` with a space, so the comma dangles. `grammar.MARKER_PREFIX` already tolerates
+  this shape — but only for the section-heading prefix.
+- **`1b[(7)` in s.185A** — the genuine part-marker/part-text token. `_render_words`
+  (`builder.py:240-259`) treats a word as all-marker or all-text; there is no partial-consume
+  path. The handoff ascribed this to s.2, whose cross-reference **renders correctly today**.
+- **`pagemodel.CITE_SENT_RE_TEXT` is dead code.** Nothing consumes it; the live pattern is
+  the hand-duplicated `builder.py:726` `_CITE_SENT_RE`, with a third looser copy at `:845`.
+  Any widening has to touch the copies that run.
+- **Chapter V footnotes 42 and 66** — source defects (66 is never printed, the block runs
+  65 → 67; 42 is printed indented under 41's quotation). **They cannot be exempted**: an
+  exemption keys on `applies_to` + `invariant`, and no invariant reports a missing footnote.
+  Recorded here because "fixed, or exempted with evidence" has no third state for a defect
+  no instrument can see — which makes this an argument for an instrument, not for a waiver.
+- **s.29's mid-title bracket** — `Restriction on amendment of [goods declaration`. Round 21's
+  strip (`builder.py:3114`) is anchored `^[\s\[(]+`, so a mid-string bracket never reaches
+  its count test. Cosmetic.
 
 **Before touching any of them, read [Rules of engagement](#rules-of-engagement).** Every
 rule there was paid for, and three of them have drawn blood twice.
 
-### How this reconciles to "19 of 66"
+### How this reconciles to `wip/tasks.md`
 
 The unchecked boxes in `wip/tasks.md` map onto the rows above exactly. `wip/` is frozen,
 so its box for `section_codes_ordered` (`:664`) is still unticked there — **round 15
@@ -109,10 +151,10 @@ closed it**, and this file is the authority on that, not `wip/`.
 | `:664` `section_codes_ordered` | **CLOSED, round 15.** It said **4** hits, the register said **3**, and it is now **0** |
 | `:401` container-code guard | **CLOSED, round 17.** 14 gained, 0 lost, register unchanged |
 | `:418` CHAPTER letter suffix | **CLOSED, round 18.** 80 lines over 24 documents to 0; register unchanged |
-| `:436` `section_carries_its_body` — now **14** | 2, 4 (one box; **round 16 closed the fourth of its causes and round 19 exempted the round-10 residue**) |
-| `:388` heading-terminator scan | 3 |
-| `:379` `preamble_carries_no_toc_tail` | 5 |
-| `:668` `clause_codes_plausible` | 7 |
+| `:436` `section_carries_its_body` — now **12** | rows 2, 3, 5 (one box; round 16 closed one cause, round 19 exempted the round-10 residue, rounds 21-28 closed the omission spellings) |
+| `:388` heading-terminator scan | **CLOSED, rounds 21-28.** The class is 0 |
+| `:379` `preamble_carries_no_toc_tail` | **CLOSED, rounds 21-28.** The class is 0 |
+| `:668` `clause_codes_plausible` | **CLOSED, round 20, measured rounds 21-28.** The class is 0 |
 | `:712` decide `fbr_ingest` · `:430` its dormant copies | 8 (two boxes) |
 | `:503` no invariant sees a 93% loss | 10 |
 | `:741` `:742` `:743` `:744` the four Phase 5 limbs | 11 (four boxes) |
@@ -120,11 +162,14 @@ closed it**, and this file is the authority on that, not `wip/`.
 | `:184` OCR · `:190` the 9 provisional · `:192` the ordinance 10 | 13 (three boxes) |
 | `:536` `convert_all.py` cannot resume · `:671` the 29 low-confidence documents · `:79` rebuild api/worker images | [Deferred](#deferred-with-reasons) (three boxes) |
 
-Rows **8** and **9** have no box in `wip/` at all: round 17 located the schedule PART reader
-and round 18 the CHAPTER en-dash separator, and both are new work, not carried items. Rows
-14–16 are also **not** among the unchecked boxes — they come from
-`wip/integration/tasks.md`'s own ledger. So: **17 checklist items + 2 new + 3 integration
-leftovers = 22 open things**, which is the honest total.
+The schedule PART reader and the CHAPTER en-dash separator had no box in `wip/` at all —
+round 17 and round 18 located them as new work, and round 20 closed both. The three
+integration leftovers (rows 6-8 above) come from `wip/integration/tasks.md`'s own ledger,
+not from `wip/tasks.md`.
+
+Recounted 2026-09-10: **5 register-bearing rows + 3 integration leftovers + the OCR decision
+= 9 open things**, down from 22. Four of the register rows are 1-2 hits each on unrelated
+single documents, which is the shape `open-work.md` predicted for the tail.
 
 ---
 
@@ -284,7 +329,7 @@ cd .worktrees/r18
 # 2. Baseline, before touching anything. The corpus lives in the MAIN tree
 #    (data/corpora is gitignored, so a worktree has no copy) -- run suites from there.
 cd /Users/muhammad.husnain/Downloads/code/crx
-for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L > /tmp/pre-$L.txt; done
+for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L > /tmp/pre-$L.txt; done   # 6 / 2 / 5 today
 
 # 3. Snapshot the outputs you are about to overwrite.
 mkdir -p data/corpora/acts/output/_pre_18 \
@@ -300,13 +345,13 @@ make convert-acts PYTHON=/Users/muhammad.husnain/Downloads/code/crx/.venv/bin/py
 #    Do not edit packages/ while this runs. Mind the 19 files with no .pdf extension.
 
 # 6. Re-measure ALL THREE lanes -- a fix in one lane can move another.
-for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L; done   # 15 / 2 / 5
+for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L; done   # 6 / 2 / 5
 
 # 7. Regenerate the register IN THIS PR. No Make target, no pytest flag.
 .venv/bin/python tools/tests/test_register_snapshot.py --write
 
 # 8. Full gate.
-.venv/bin/python -m pytest tools/tests -q     # baseline: 98 passed, 1 skipped
+.venv/bin/python -m pytest tools/tests -q     # baseline: 231 passed, 1 skipped
 .venv/bin/ruff check                          # BARE
 du -sh data/ocr_cache                         # must still be 0B
 cd apps/web && npm run test                   # only if you touched the portal; 17-failed baseline
@@ -334,24 +379,23 @@ here* table as rows close. Current mapping:
 
 | Start here row | section below |
 |---|---|
-| 1 the heading-terminator scan | [6](#6-the-heading-terminator-scan--3-hits-acts) |
-| 2 the omission spellings | [7](#7-the-omission-spellings--2-hits-acts) |
-| 3 `preamble_carries_no_toc_tail` | [8](#8-preamble_carries_no_toc_tail--2-hits-acts) |
-| 4 the single-document remainder | [9](#9-the-single-document-remainder--7-hits) |
-| 5 `clause_codes_plausible` | [10](#10-clause_codes_plausible--1-hit-finance-act-2024) |
-| 6 decide the `fbr_ingest` fork | [11](#11-decide-the-fbr_ingest-fork--unblocks-5-hits-and-9-documents) |
-| 7 the schedule PART reader | *none yet* — round 17 located it; see its artifact |
-| 8 the CHAPTER en-dash separator | *none yet* — round 18 located it; see its artifact |
-| 10 the cross-edition index | [12](#12-the-cross-edition-index--a-new-instrument) |
-| 11 the instrument tree level | [13](#13-the-instrument-tree-level--phase-5-4-limbs) |
-| 12 `--profile auto` default | [14](#14---profile-auto-as-the-default--blocked) |
-| 13 the OCR decision | [15](#15-the-ocr-decision--blocked-needs-a-human) |
+| 1 letter-suffixed citation markers | *none yet* — traced 2026-09-10; the trace is in the Start here table above |
+| 2 the ordinance five | [11](#11-decide-the-fbr_ingest-fork--unblocks-5-hits-and-9-documents) |
+| 3 the single-document remainder | [9](#9-the-single-document-remainder--7-hits) |
+| 4 Customs 2008 ss.181 / 189 | *none yet* — newly visible on the live run |
+| 5 the two rules hits | *none yet* |
+| 12 the OCR decision | [15](#15-the-ocr-decision--blocked-needs-a-human) |
 
 Closed: section [1](#1-trace-section_codes_ordered--3-hits-acts--closed-round-15) (round
 15), [2](#2-the-stsp-58u58v-pair--4-hits-rules--closed-round-16) (round 16),
 [4](#4-the-container-code-guard--0-hits-an-enabler--closed-round-17) (round 17),
 [3](#3-the-chapter-letter-suffix--57-hits-24-documents--closed-round-18) (round 18),
-[5](#5-the-round-10-rules-residue--3-hits-an-exemption-row) (round 19).
+[5](#5-the-round-10-rules-residue--3-hits-an-exemption-row) (round 19),
+[12](#12-the-cross-edition-index--a-new-instrument), [13](#13-the-instrument-tree-level--phase-5-4-limbs),
+[14](#14---profile-auto-as-the-default--blocked) (round 20), and
+[6](#6-the-heading-terminator-scan--3-hits-acts), [7](#7-the-omission-spellings--2-hits-acts),
+[8](#8-preamble_carries_no_toc_tail--2-hits-acts), [10](#10-clause_codes_plausible--1-hit-finance-act-2024)
+(**rounds 21-28** — code from round 20, measured by the round-27 re-conversion).
 
 ### 1. Trace `section_codes_ordered` — 3 hits, acts — **CLOSED, round 15**
 
@@ -620,12 +664,13 @@ heading, so an omitted section borrows the next section's terminator.
 `no_chapter_caption_in_section_heading` (4 → 1); **leaf count unchanged or higher** on all
 three editions; a test that fails without the fallback.
 
-**Result** — **parser shipped, round 20** (PR #86). Omission-aware fallback: when the
-borrowed terminator is a structural boundary / next code / TABLE caption and the
-current line is an omission, the leaf opens on that line. Locked by
-`tools/tests/test_omitted_heading_stops_at_boundary.py`. Register **not** −3
-on this host: the three Sales Tax editions were not reconverted (private corpus
-absent).
+**Result** — **CLOSED, rounds 21-28** (PR #89). The parser shipped in round 20: an
+omission-aware fallback, so when the borrowed terminator is a structural boundary / next
+code / TABLE caption and the current line is an omission, the leaf opens on that line.
+Locked by `tools/tests/test_omitted_heading_stops_at_boundary.py`. **Round 20 could not
+measure it** — the three Sales Tax editions were not on that host. The round-27
+re-conversion put them at one revision and the class went to **0**:
+`no_chapter_caption_in_section_heading` is gone from the register entirely (was 4).
 
 ---
 
@@ -647,9 +692,13 @@ a gained/lost measurement showing 2 gained / 0 lost.
 **Do not** — do not admit a general `\s*` between every character of `Omitted`. That is the
 form round 3 measured and rejected.
 
-**Result** — **invariant widened, round 20** (PR #86). `_is_omission` accepts only the
-whole-string forms `"to Omitted 96u"` and `"A O mitted"`. No general `\s*` between
-letters. Register **not** −2 here: those two Customs editions were not staged.
+**Result** — **CLOSED, rounds 21-28** (PR #89). The invariant widened in round 20:
+`_is_omission` accepts only the whole-string forms `"to Omitted 96u"` and `"A O mitted"`,
+with no general `\s*` between letters — the form round 3 measured and rejected. Round 20
+could not measure it because neither Customs edition was staged. Both are now converted at
+one revision and **neither is a hit**. Note this row's own instruction — "if a bounded
+tolerance still measures false positives, this is an exemption row instead" — was never
+needed: the whole-string form cost nothing.
 
 ---
 
@@ -673,13 +722,15 @@ a test covering both the two tails and the title page that must not be swallowed
 `SHCEUDLE`. A typo tolerance in a schedule-heading regex is a false-positive generator
 across 103 documents.
 
-**Result** — **extra signal shipped, round 20** (PR #86). Floor stays at 3; `SHCEUDLE`
-still refused. Public Customs 30.06.2008 and Sales Tax 30.06.2023: **0**
-`preamble_carries_no_toc_tail` hits. The register's 2 are the private editions.
+**Result** — **CLOSED, rounds 21-28** (PR #89). The extra signal shipped in round 20 — the
+floor stayed at 3 and `SHCEUDLE` is still refused, both of which this row insisted on. Round
+20 measured 0 on the *public* editions and left the register's 2 standing on the private
+ones. Those are now converted, and the class is **0**: `preamble_carries_no_toc_tail` is
+gone from the register.
 
 ---
 
-### 9. The single-document remainder — 7 hits
+### 9. The single-document remainder — 4 hits
 
 Three unrelated traces, no shared cause: the Pakistan Single Window Act's ministry list read
 as sections 27/28; PFMA 2019 s.26; Sales Tax 2014 s.10 printing `R(cid:2)fund` (a
@@ -690,8 +741,9 @@ fix-with-test or exempt-with-evidence. `R(cid:2)fund` is a `(cid:N)` glyph fallb
 belong to a broader font-encoding class worth grepping the corpus for before fixing it
 locally.
 
-**Definition of done** — register **−7** across however many PRs it takes; each hit closed
-individually with its own evidence.
+**Definition of done** — register **−4** across however many PRs it takes; each hit closed
+individually with its own evidence. (This row said **7** until 2026-09-10; the live run
+counts **4** — PSW ss.27/28, PFMA s.26, Sales Tax 2014 s.10.)
 
 **Do not** — do not batch these into one "misc" fix. Three unrelated causes in one PR is
 what makes a round unattributable.
@@ -718,10 +770,11 @@ clause jump (prove it with a fixture that must stay red).
 `pagemodel.py:585` `_OPEN_QUOTE_CUE_RE` thinking it is the same thing as
 `_common._QUOTE_CUE` — different regex, different owner, different side of the fence.
 
-**Result** — **CLOSED, round 20** (PR #86). `_DOTFORM_RE` uses `\.(?!\d)` so a
-quoted `8517.1430` is not a clause start. Public Finance Act 2024 reconverted:
-clauses **1–12**, `inv_clause_codes_plausible` **0**. The fixture that must stay
-red still stays red.
+**Result** — **CLOSED, round 20** (PR #86), **measured rounds 21-28** (PR #89).
+`_DOTFORM_RE` uses `\.(?!\d)` so a quoted `8517.1430` is not a clause start. Public Finance
+Act 2024 reconverted: clauses **1–12**. The fixture that must stay red still stays red, and
+the check was not weakened — which this row and `working-rules.md` both forbid. The
+register's last hit cleared with the round-27 re-conversion; the class is **0**.
 
 ---
 
@@ -835,12 +888,14 @@ STR printing errors.
 lane's profile. `lane` preserves the historical route.
 
 This was gated on Phase 3 reaching zero-or-exempted so a full reparse could be
-attributed. **That reparse was not run**: the register is still 22 and this
-host had no private corpus. Do not `make convert-all`. Explicit `--profile lane`
-is still the escape hatch.
+attributed, and that full reparse has still **not** been run. What rounds 21-28 did run is
+narrower and worth not confusing with it: **77 documents** (the acts and rules lanes) at one
+revision, which is what took the register to 13. The 14 skipped acts documents and the whole
+12-document ordinance lane are untouched. Do not `make convert-all` — it converts the whole
+*lane*, not the corpus. Explicit `--profile lane` is still the escape hatch.
 
-**Result** — default is `auto`. Full-corpus attribution remains blocked until
-the register is remeasured on the private 103-document set.
+**Result** — default is `auto`. Full-corpus attribution remains blocked until the ordinance
+lane and the 14 skipped acts documents are converted at the same revision as the other 77.
 
 ---
 
@@ -881,7 +936,7 @@ it isn't.
 Nothing in `wip/` is edited to keep this file current — each round only *adds* its own
 write-up there. `wip/` is the historical record and shipping code cites it. Note that
 **every file under `wip/integration/` states the register as 34** and `wip/HANDOVER.md`
-states it as **64**; it is **25**. `wip/tasks.md:664` states `section_codes_ordered` as
+states it as **64**; it is **13**. `wip/tasks.md:664` states `section_codes_ordered` as
 **4**; the class is **closed**. When those disagree with this folder, this folder is
 right — and `tools/suite/register.json` is right about the register over everything,
 including this file.

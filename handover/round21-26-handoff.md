@@ -1,10 +1,16 @@
-# Handoff — rounds 21-27, the Customs Act QA pass
+# Handoff — rounds 21-28, the Customs Act QA pass
+
+> **Superseded 2026-09-10. PR #89 is MERGED** (and #90 landed on top of it). Everything in
+> §4 and §4b is done. **§8 was re-measured and three of its four items were wrong** — see
+> the corrections at the foot of §8. `handover/README.md`, `tasks.md`, `open-work.md` and
+> `plan.md` were **not** updated by PR #89 and described a register of 22 until they were
+> reconciled from a live run; they are now current and this file is history.
+> The filename says 21-26; the content is rounds 21-28.
 
 Written **2026-09-10**. Branch **`fix/phase3-round21-fused-citation-markers`**, ten
-commits, working tree clean. **PR #89 is open**
+commits. **PR #89 is merged**
 (<https://github.com/husnain950/AI-QA-Portal/pull/89>) and **the portal has been
-re-pushed** — everything in §4 below is done. What is left is review of the PR and
-the small follow-ups in §8.
+re-pushed** — everything in §4 below is done.
 
 > Read [`README.md`](README.md) for standing state and
 > [`working-rules.md`](working-rules.md) for method. `wip/` is the frozen historical
@@ -138,6 +144,11 @@ All of the following completed on 2026-09-10:
 
 ## 5. The trap that will cost you an hour if you skip it
 
+> **SPENT, 2026-09-10.** The round-27 re-conversion put all 77 acts and rules documents at
+> one revision, and `test_register_snapshot.py` is **green** on this machine with nothing
+> stashed. The warning below is kept as history and still applies to the **ordinance** lane
+> and the 14 skipped acts documents, which were not re-converted.
+
 **The corpus on this disk measures 133 register hits against the committed 22, and that is
 not from this work.** Verified by stashing every change and re-running: baseline is
 acts 49 / ordinance 5 / rules 79. It is mixed-revision drift — output files written by
@@ -200,6 +211,25 @@ Consequences:
   marker is gone; the amendment bracket remains mid-title. Cosmetic.
 - **One legal cross-reference** left unrendered in s.2: `sections 79, 104[,121], 131`.
   The token carries both a marker and ordinary text.
+
+### Corrections to §8, measured 2026-09-10
+
+Three of the four items above are wrong as written. Trust this section's *existence*, not
+its mechanisms — the same lesson round 19 learned when two of three traces failed at the
+source pages.
+
+| §8 said | measured |
+|---|---|
+| s.2's cross-reference is unrendered | **it renders**: `104<sup class="cite">9.39</sup>[,121], 131, 139 <sup class="cite">9.42</sup>[,] 144 <sup class="cite">9.42</sup>[ or 147]`. The reviewer almost certainly read `plain_text`, which keeps markers as bare digits by design. The genuine part-marker/part-text token is `1b[(7)` in **s.185A** |
+| the two s.156 cells fail in `pagemodel._true_table_marker` | **that function is never reached.** s.156's penalty table is not grid-extracted here (its `<tbody>` is empty), so the rows go through the body-line renderer. The pair is `69.` — killed by the trailing-dot guard (`pagemodel.py:152`) — and `81,`, killed because `_MARKER_RUN_SEP_RE` splits `"81,"` into `['81','']` and the empty tail fails `MARKER_RE` |
+| `CITE_SENT_RE_TEXT` has no `[a-z]` group | true, and **irrelevant: it is dead code.** Nothing consumes it. The live pattern with the same gap is `builder.py:726` `_CITE_SENT_RE`, with a looser third copy at `:845` |
+| footnotes 42 and 66 are "exemption candidates" | **they cannot be exempted.** An entry keys on `applies_to` + `invariant`, and no invariant reports a missing footnote — `inv_footnotes_in_numeric_order` sees ordering only, so a gap is invisible to it. There is no third state for a defect no instrument can see |
+
+**And §8 missed the largest thing in the document.** 22 citation markers carry an
+**uppercase** letter suffix (`59&59A`, `66A`, `27/27A`, `2/2A`, `18/18A`, …) at marker size,
+across 9 sections and 6 chapters, and `grammar.MARKER` allows `[a-z]` only. All 22 render as
+literal body text and build no footnote record. That is one cause with 22 sites, and it is
+now row 1 of [`tasks.md`](tasks.md).
 
 ## 9. Where the evidence is
 

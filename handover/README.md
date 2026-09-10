@@ -1,20 +1,37 @@
 # Handover — start here
 
-Written **2026-09-04**, on `main` after PR #83 (round 17); updated **2026-09-08**
-after PR #84 (round 18) and PR #85 (round 19); updated **2026-09-09** after
-round 20 (PR #86) shipped parser, routing, and instrument-tree work against
-fixtures and public FBR PDFs. **`register.json` is still 22** — the private
-corpus was not on the round-20 host, so the snapshot was not rewritten.
+Written **2026-09-04**, on `main` after PR #83 (round 17); updated after PR #84
+(round 18), PR #85 (round 19), round 20 (PR #86), and **2026-09-10 after PR #89
+(rounds 21-28)**. `register.json` reads **13**, regenerated in PR #89 from a
+corpus converted at one revision.
 
-**One-line state:** the anomaly register is **22**, down from 210. It is committed and
-gated on CI. Round 20 closed the Phase 4 routing decision, the Phase 5
-instrument tree (compilation exemptions deleted), the Finance Act 2024 clause
-cursor, the CHAPTER en-dash, and the schedule PART reader on the public
-gazette PDFs. What remains of Phase 3 is the private-corpus remainder plus
-OCR, which is still
-**deliberately** out of scope (decided 2026-09-04; the decision and its consequences are
-in [`tasks.md`](tasks.md#decisions-on-record-2026-09-04)). Artifact:
-[`wip/phase3-round20-wip-completion.md`](../wip/phase3-round20-wip-completion.md).
+**One-line state:** the anomaly register is **13**, down from 210. It is committed, gated
+on CI, and **matches a live three-lane run on this machine** — acts 6, rules 2, ordinance 5,
+delta zero, no lane skipped. Rounds 21-28 closed the Customs Act QA pass and took the acts
+lane **15 → 6**, closing three invariant classes outright. What remains of Phase 3 is
+thirteen hits across ten documents plus OCR, which is still **deliberately** out of scope
+(decided 2026-09-04; the decision and its consequences are in
+[`tasks.md`](tasks.md#decisions-on-record-2026-09-04)). Artifact:
+[`wip/phase3-round21-28-customs-qa.md`](../wip/phase3-round21-28-customs-qa.md).
+
+**Rounds 21-28 were measured on one document and then corrected by the lane suites.**
+Eight rounds against `Customs Act, 1969 … 30th June, 2025`, closing 21 reviewer-logged
+defects: fused citation markers, a footnote zone vetoed by a footnote-sized heading, body
+sections the contents page never lists, contents-row repairs, chapter membership following
+the body spine, and a quoted heading refused as a footnote definition. Sections **325 → 339**,
+footnote records **707 → 794**, unrendered marker sites **55 → 3**, duplicate codes **1 → 0**.
+
+**Round 27 is the one to read first.** Rounds 23 and 25 were each measured on one document,
+looked clean, and were both wrong in the rules lane — round 23 collapsed 860 of 1,102 rules
+to stubs, round 25 re-parented 98 sections. Both were caught only by running the lane suites
+over a fully re-converted corpus. **A round measured on one document is measured on one
+document.**
+
+**Three acts classes closed in that pass**, which is where 15 → 6 comes from:
+`no_chapter_caption_in_section_heading` (was 4), `preamble_carries_no_toc_tail` (was 2) and
+`clause_codes_plausible` (was 1) are all **0**, as are the two omission spellings inside
+`section_carries_its_body`. Every one of those was a row on the ranked board; see
+[`tasks.md`](tasks.md).
 
 **Rounds 17 and 18 both moved the register by zero, on purpose.** Round 17 shipped the
 container-code guard and the PART separator widening it enables (**14 gained, 0 lost**).
@@ -24,10 +41,10 @@ documents went to 0**, with 0 leaves and 0 chapter nodes gained or lost — the 
 A round that moves the register by zero and says so is working as designed; see §3's last
 rule.
 
-**Round 19 took the register to 22** — the first movement in three rounds — by **exemption
-with evidence**, not by a fix: the three heading-only leaves of Sales Tax Rules 2006
-(01-01-2025) are each a printing error in the source, traced to PDF pages 66, 109 and 151.
-Two of the three traces the ledger carried for them were **wrong**; see
+**Round 19 took the register to 22** — by **exemption with evidence**, not by a fix: the
+three heading-only leaves of Sales Tax Rules 2006 (01-01-2025) are each a printing error in
+the source, traced to PDF pages 66, 109 and 151. Two of the three traces the ledger carried
+for them were **wrong**; see
 [`tasks.md` task 5](tasks.md#5-the-round-10-rules-residue--3-hits-an-exemption-row).
 
 > **This folder supersedes `wip/HANDOVER.md`.** That file was written 2026-08-30 at
@@ -52,22 +69,27 @@ against a live three-lane run at this commit.
 
 | invariant | acts | rules | ordinance | total |
 |---|---|---|---|---|
-| `section_carries_its_body` | 8 | 1 | 5 | **14** |
-| `no_chapter_caption_in_section_heading` | 4 | — | — | **4** |
-| `preamble_carries_no_toc_tail` | 2 | — | — | **2** |
+| `section_carries_its_body` | 6 | 1 | 5 | **12** |
 | `no_foreign_section_start_in_body` | — | 1 | — | **1** |
-| `clause_codes_plausible` | 1 | — | — | **1** |
-| **per lane** | **15** | **2** | **5** | **22** |
+| **per lane** | **6** | **2** | **5** | **13** |
 
-Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22`.
+Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22 → 13`.
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
 
-**Six invariant classes are closed:** `body_chapters_in_tree`, `no_footnote_text_in_body`,
+**Nine invariant classes are closed:** `body_chapters_in_tree`, `no_footnote_text_in_body`,
 `structure_counts`, `no_code_fragment_in_section_heading` (round 12, was 31),
-`no_structural_heading_in_body` (round 13, was 175), and **`section_codes_ordered`
-(round 15, was 3)** — which turned out to be three mislabelled *chapters*, not three
-misread section codes.
+`no_structural_heading_in_body` (round 13, was 175), `section_codes_ordered` (round 15,
+was 3) — which turned out to be three mislabelled *chapters*, not three misread section
+codes — and **three more in rounds 21-28**: `no_chapter_caption_in_section_heading`
+(was 4), `preamble_carries_no_toc_tail` (was 2) and `clause_codes_plausible` (was 1).
+
+Those last three are worth a second look, because **none of them was closed by a round
+aimed at it.** Round 20 had shipped the code for all three against public PDFs and could not
+move the register, because the private editions carrying the hits were not on that host. The
+rounds 21-28 re-conversion put them at one revision and the hits went with them. A fix that
+is shipped and a fix that is *measured* are two different states, and the board carried them
+as open for a full round in between.
 
 `no_structural_heading_in_body` is closed **more strongly** since round 18: its own pattern
 carried the same narrow CHAPTER branch as the parser, so it was blind to 57 hits it should
@@ -75,11 +97,11 @@ have reported. Both were widened together, and it is back to 0 with an instrumen
 the defect. A closed class whose instrument is narrower than the bug is not closed -- it is
 unmeasured.
 
-`section_carries_its_body` is **not** among them, and its 21 → 17 → **14** across rounds 16
-and 19 is why the distinction matters: that class has four unrelated causes, round 16 closed
-one of them (the STSP 58U/58V pair) and round 19 **exempted** another with evidence (the
-round-10 rules residue). Two remain, plus the ordinance five behind the `fbr_ingest`
-decision.
+`section_carries_its_body` is **not** among them, and its 21 → 17 → 14 → **12** across rounds
+16, 19 and 21-28 is why the distinction matters: that class has several unrelated causes.
+Round 16 closed one (the STSP 58U/58V pair), round 19 **exempted** another with evidence (the
+round-10 rules residue), and rounds 21-28 closed the two omission spellings. What is left is
+six single-document traces plus the ordinance five behind the `fbr_ingest` decision.
 
 **The rule has not changed: fixed, or exempted with evidence traced to the source PDF.
 There is no third state.** "Tracked and deferred" without an exemption entry is a red gate.
@@ -90,33 +112,33 @@ There is no third state.** "Tracked and deferred" without an exemption entry is 
 
 | lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 15 | 11 | **80** | 93 |
-| rules | 5 | 2 | **11** | **48** |
+| acts | 6 | 4 | **80** | 93 |
+| rules | 2 | 2 | **11** | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
-103 documents converted, against the source-file counts in the last column. The rules lane converts **11 of 48** — the other 36
-are scans and one is Urdu, and every scan in the corpus was skipped by instruction. Acts
-has the same shape smaller: 25 editions carrying 2,065 image-backed pages.
+103 documents converted, against the source-file counts in the last column. The rules lane
+converts **11 of 48** — the other 36 are scans and one is Urdu, and every scan in the corpus
+was skipped by instruction. Acts has the same shape smaller: 25 editions carrying 2,065
+image-backed pages.
 
-It is also still a **mixed-revision** corpus. Each round re-converts only the documents its
-fix touches, so 61 scanned documents keep whatever revision last wrote them. At this commit:
+**The acts and rules lanes are now at ONE revision.** This is new, and it is the single
+biggest change to how much any measurement here can be trusted. Recounted at this commit:
 
 | documents | `pipeline_revision` |
 |---|---|
-| 29 | `7cc5d34…-dirty` |
-| **24** | **`e9d7e74…-dirty` (round 18)** |
-| 14 | *(none recorded)* |
-| 13 | `8e01b27…` (round 13) |
-| 12 | `4827840…` (round 12) |
-| 8 | `6824850…-dirty` (round 15) |
-| 2 | `06d8bfb…` (round 14) |
-| 1 | `e09d156…-dirty` (round 17) |
+| **77** (66 acts + 11 rules) | **`f3a37e0…` (round 27)** |
+| 14 | *(none recorded)* — the acts documents rounds 21-28 deliberately skipped |
+| 12 | `4827840…` (round 12) — the whole ordinance lane, which runs `fbr_ingest` |
 
-Recounted at this commit, and it sums to 103. Round 18's 24 documents superseded whatever
-revision they held before, which is why five of these rows fell — round 17's bucket from 5
-to **1**, round 15's from 12 to **8**, round 14's from 8 to **2**. A re-conversion does not
-only add a row to this table, it drains the others, and the rows are worth recounting rather
-than incrementing.
+The 14 skipped are 8 OCR-backed (out of scope; `data/ocr_cache` must stay at 0 B) and 6 with
+no `source_kind` recorded (five Finance Acts, Benami, Income Tax Third Amendment). They stay
+at their old revision, and the corpus stays mixed to exactly that extent.
+
+**The consequence: the standing "mixed-revision drift" warning is spent for acts and rules.**
+It used to be that `test_register_snapshot.py` failed on this machine *before* you changed
+anything, and so did the rules-lane regression case `customs_2001_is_a_compilation`. Both
+are green now. Do not carry that warning forward as if it still applied — but do not extend
+the all-clear to the ordinance lane either, which nothing in rounds 21-28 touched.
 
 Round 15 re-converted 15 documents, chosen by measurement rather than by guess: each
 acts/rules document's contents were parsed twice at the same commit, with the fix on and
@@ -155,8 +177,8 @@ is the cross-check that the scope was right.
 ## 4. Verification
 
 ```sh
-.venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 15 / 2 / 5
-.venv/bin/python -m pytest tools/tests -q       # 98 passed, 1 skipped
+.venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 6 / 2 / 5
+.venv/bin/python -m pytest tools/tests -q       # 231 passed, 1 skipped
 .venv/bin/python tools/run_tests_smoke.py       # package self-checks + lane suites
 .venv/bin/python tools/discover_corpus.py --check
 .venv/bin/ruff check                            # BARE -- matches ci.yml
@@ -205,7 +227,7 @@ factual below it has moved.
 
 | it says | actually |
 |---|---|
-| register **64** | **22** |
+| register **64** | **13** |
 | **16 of 48** items open | **17 of 66**, plus two located since |
 | after eight merged PRs (#46–#53) | #54–#85 have merged since |
 | **three** invariant classes closed | **six** |
@@ -215,11 +237,11 @@ factual below it has moved.
 | Phase 5's gate is "the deletion of the **two** Round 3 exemptions" | **4 entries**, across 2 documents. (`wip/tasks.md` says *five*; that is also wrong — verified by grep at this commit) |
 | "4c — transport and deploy … Docker is down on this host" | done, as the `wip/integration/` track, #59–#76 |
 | an exported transcript "is **not gitignored**" | resolved — `.gitignore:80` |
-| `pytest tools/tests` → 56 passed | **98 passed, 1 skipped** |
+| `pytest tools/tests` → 56 passed | **231 passed, 1 skipped** |
 
 One more, not in HANDOVER: every file under `wip/integration/` still states the register as
 **34**. Round 14 took it to 32, round 15 to 29, round 16 to 25, where rounds 17 and 18 left it,
-and round 19 to **22**. `wip/tasks.md:664` also states `section_codes_ordered` as **4** open hits; the class is
+and round 19 to 22, and rounds 21-28 to **13**. `wip/tasks.md:664` also states `section_codes_ordered` as **4** open hits; the class is
 **closed**. And `wip/tasks.md:401`'s container-code guard box is unticked there; **round 17
 closed it**, and this folder is the authority on that.
 

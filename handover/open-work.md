@@ -1,17 +1,20 @@
 # What is left
 
-Round 20 (PR #86) shipped Phase 4 routing, Phase 5 instruments, the Finance Act
-2024 clause cursor, the CHAPTER en-dash, and the schedule PART reader. The
-committed register is still **22** — it was not rewritten from a partial public
-corpus. OCR stays out.
+Rounds 21-28 (PR #89) closed the Customs Act QA pass and took the register **22 → 13**,
+regenerated from a corpus converted at one revision. Round 20 (PR #86) had shipped Phase 4
+routing, Phase 5 instruments, the Finance Act 2024 clause cursor, the CHAPTER en-dash and
+the schedule PART reader. OCR stays out.
 
-What is left is the **private-corpus remainder of Phase 3** plus the three
-optional integration leftovers. Ranked by value, each with the one thing that
-actually blocks it.
+**Four of this file's ranked items are now zero** — the heading-terminator scan, the
+omission spellings, `preamble_carries_no_toc_tail` and `clause_codes_plausible`. Three of
+them had working code since round 20 and were only ever waiting on a corpus at one revision.
+
+What is left is **13 hits across ten documents**, plus the three optional integration
+leftovers. Ranked by value, each with the one thing that actually blocks it.
 State and verification are in [`README.md`](README.md); method is in
 [`working-rules.md`](working-rules.md); the executable ledger — **the file to work
 from** — is [`tasks.md`](tasks.md). Artifact:
-[`wip/phase3-round20-wip-completion.md`](../wip/phase3-round20-wip-completion.md).
+[`wip/phase3-round21-28-customs-qa.md`](../wip/phase3-round21-28-customs-qa.md).
 
 > **This file, `tasks.md` and `plan.md` §4 each carry the same ranked list.** Three copies
 > of one fact is the very shape `working-rules.md` warns about under *"a cached artifact
@@ -21,7 +24,9 @@ from** — is [`tasks.md`](tasks.md). Artifact:
 > round 17 found this file and `plan.md` **both** asserting something the measurement
 > disproved (item 4 below), which is exactly the cost the warning predicts. **Rounds 18 and
 > 19 both paid it again** — round 19 found *two of the three* traces for its row wrong at the
-> source pages. **Round 18 paid it**, from `tasks.md` itself: its prescribed fix for item 5 (`[A-Z]{0,2}`, "the same
+> source pages. **PR #89 paid it worst: it updated none of the three**, so all four files
+> described a register of 22 for a day while the committed one read 13, and this file's item
+> 9 was duplicated — once as open, once as closed. Reconciled 2026-09-10 from a live run. **Round 18 paid it**, from `tasks.md` itself: its prescribed fix for item 5 (`[A-Z]{0,2}`, "the same
 > suffix class as PART and Division") cannot cross a hyphen and finds 9 of the 57 hits the
 > same row quotes. The measurement was right and the instruction derived from it was wrong.
 
@@ -33,16 +38,17 @@ before it needs code, and the top row is now a judgement call rather than a fix.
 
 ---
 
-## Phase 3 — the register's 22
+## Phase 3 — the register's 13
 
-### 1. `section_carries_its_body` (14) — four unrelated causes, two of them closed
+### 1. `section_carries_its_body` (12) — several unrelated causes, three of them closed
 
 The largest class, and no longer a single defect:
 
-- **Omission spellings the invariant cannot read (2, acts).** Customs 30.06.2024 s.196K
-  prints `to Omitted 96u`; 30.06.2025 s.79 prints `A O mitted` — an intra-word space that
-  round 3 measured and refused to admit into a regex whose job is precision. Worth
-  re-measuring now the count is small enough to trace individually.
+- ~~**Omission spellings the invariant cannot read (2, acts).**~~ **CLOSED, rounds 21-28**
+  (PR #89). Round 20 widened `_is_omission` to the whole-string forms `to Omitted 96u` and
+  `A O mitted` — no general `\s*` between letters, which is the form round 3 measured and
+  rejected — and could not measure it, because neither Customs edition was staged on that
+  host. Both are converted now and neither is a hit.
 - ~~**The STSP 58U/58V pair (4, rules).**~~ **CLOSED, round 16** (PR #82). Both editions
   print `111[58U].` — S.R.O. 188(I)/2015 renamed rules 59/60, so the amendment bracket
   wraps the code and the dot prints after the `]`. `_BRACKETED_DOTLESS_RE` read that as
@@ -56,13 +62,24 @@ The largest class, and no longer a single defect:
   carries a genuinely different rule `150ZQZL`**, so the two cannot be folded. Entered with
   **no expiry**: this document is never OCR'd, so the earlier "OCR-class, may expire on the
   OCR decision" note was wrong on both counts.
-- **The ordinance five**, which live in the `fbr_ingest` fork and are sequenced behind the
-  Phase 4 decision on it.
+- **The ordinance five (5)** — ITO 2001 editions, ss.233AA, 214E ×2, 122C ×2, all in the
+  `fbr_ingest` fork. **No longer blocked on a decision**: round 20 decided routing and ITO
+  stays on `fbr_ingest`. This is now a parser round in the fork, and it is the largest single
+  block left.
+- **Customs 1969 (30.06.2008) ss.181 and 189 (2)** — two heading-only leaves in one edition,
+  newly the only shared-cause candidate in the acts lane. Nobody has read those pages.
+- **Sales Tax Rules 2006 (30-06-2025) rule 150 (1)** — the `150ZQ*` family again, a different
+  edition from the one round 19 exempted.
 
 The remainder are single documents: the Pakistan Single Window Act's ministry list read as
 sections 27/28, PFMA 2019 s.26, and Sales Tax 2014 s.10 (`R(cid:2)fund`).
 
-### 2. The heading-terminator scan that walks through a boundary (3, acts)
+**One hit is not in this class at all**: Sales Tax Rules 2006 (01-01-2025) rule 13 carries
+the start of 44A under `no_foreign_section_start_in_body`. Round 19's exemption for that
+document names `section_carries_its_body`, so it does **not** cover this one — the entry is
+scoped to three enumerated hits on purpose.
+
+### 2. The heading-terminator scan — **CLOSED, rounds 21-28**
 
 `builder._find_heading_split` looks up to four lines ahead for a heading terminator and
 stops at a grid table but **not** at a structural heading, so an omitted section borrows the
@@ -75,7 +92,11 @@ cluster of `no_chapter_caption_in_section_heading`, across three Sales Tax editi
 refusing the borrowed one leaves nothing to open it with. This needs an omission-aware
 fallback, not a guard. Trace: `wip/phase3-round13-chapter-hyphen.md`.
 
-### 3. `preamble_carries_no_toc_tail` (2, acts)
+**Closed.** Round 20 shipped exactly that fallback and could not measure it — the three
+Sales Tax editions were not on that host. The rounds 21-28 re-conversion put them at one
+revision and `no_chapter_caption_in_section_heading` went to **0**.
+
+### 3. `preamble_carries_no_toc_tail` — **CLOSED, rounds 21-28**
 
 Round 14 closed eight of the ten documents that had this. The two survivors are the same
 shape and both are now *visible*, which they were not before that round: Customs 30.06.2008
@@ -86,6 +107,10 @@ which `grammar.SCHEDULE_TOC_RE` rightly refuses.
 **The floor is load-bearing** — that function's own comment records a lower one swallowing
 the Income Tax Rules' body title page and starting the body a page late. A fix needs a
 signal other than row density.
+
+**Closed.** Round 20 added the extra signal, left the floor at 3 and kept refusing
+`SHCEUDLE`, then measured 0 on the *public* editions only. Both private editions are now
+converted and the class is **0**.
 
 ### 4. The container-code guard — **CLOSED, round 17**
 
@@ -137,13 +162,16 @@ position. See `wip/phase3-round15-chapter-numeral-pairing.md`.
 The hits were: Customs 2025 `'9' after '119'`; Sales Tax 2014 `'3' after '32AA'` and `'22' after '75'`.
 Nobody has read the source pages for these.
 
-### 7. `clause_codes_plausible` (1, Finance Act 2024)
+### 7. `clause_codes_plausible` — **CLOSED, round 20, measured rounds 21-28**
 
 The jump `7->8517` is an HS tariff heading read from a **table row**; the check excludes
-schedules but not table-derived codes (ledger P06). **Do not weaken it.** Two routes were
-suggested: bound the clause cursor by the measured gap, or reuse `_common._QUOTE_CUE`.
+schedules but not table-derived codes (ledger P06). **Do not weaken it.**
 
-### 8. No invariant can see a document that lost 93% of its sections
+**Closed.** Round 20 took neither suggested route: `_DOTFORM_RE` uses `\.(?!\d)`, so a
+quoted `8517.1430` is not a clause start. The check was not weakened and its
+must-stay-red fixture still stays red. Measured to **0** by the rounds 21-28 re-conversion.
+
+### 8. No invariant can see a document that lost 93% of its sections — **CLOSED, round 20**
 
 Round 11's document gained 118 sections while the register moved 3. What would catch that is
 a **cross-edition** fact, and invariants run per document: `runner.run` is handed one `doc`
@@ -151,21 +179,6 @@ with no lane, no path and no siblings. The join exists — `signatures.json`'s `
 matches `metadata.filename` on 80/80 acts documents — but its counts are PDF-regex
 measurements, not tree counts, so a real parse-quality comparison needs a new per-group index
 over `output/*.json`.
-
-### 9. The CHAPTER en-dash separator — 42 lines, 21 documents — **new, round 18**
-
-`CHAPTER – VI` / `– VII` / `– V` / `– VIAB` are **real boundaries** — the next line is the
-caption (`DRAWBACK`, `ARRIVAL AND DEPARTURE OF CONVEYANCE`, `REFUND`) — and `[\s\-]+` is
-ASCII, so none of them is one. 20 Customs Act editions carry two each; Sales Tax Rules 2006
-carries the other two.
-
-**The blocker is that `grammar.CHAPTER_RE` rejects them too**, so this is not the same shape
-as round 18's row: there the grammar was already right and the parser had to catch up. Its
-separator is also `[\s\-]+`, and its `[–—]` branch reads an en dash as introducing a
-same-line **title**, not as a separator. Closing this moves a regex three readers share.
-
-Round 17's "en/em dash widening gains zero" was measured on **PART** and does **not**
-transfer — the container guard refused those, and the CHAPTER branch has no guard.
 
 ### 9. The CHAPTER en-dash separator — **CLOSED, round 20**
 
@@ -179,6 +192,31 @@ page model emits `P ART -I` (glyph-split keyword). `_PART_RE` now uses
 `grammar.spaced('PART')`. Live reconvert: FA2021 Fifth Schedule `PART I`–`VIII`;
 FA2019 `PART I`–`VII`. Arabic `Part-1`/`Part-11` accepted; `l`→`I` still refused.
 Public FA2025 has no PART headings; public FA2014 has no text layer.
+
+### 11. Letter-suffixed citation markers — 22 sites, 1 document — **new, 2026-09-10**
+
+`grammar.MARKER` (`:132`) is `(?:\d{1,4}[a-z]?|\*)` — a **lowercase-only** suffix. Customs
+1969 (30.06.2025) prints 22 citation markers with an **uppercase** suffix at marker size
+(8.04pt against a 12.0pt dominant): `59&59A`, `59/59A`, `66A`, `66B`, `30A`, `36/36A`,
+`27/27A` ×3, `2/2A` ×3, `2A` ×2, `14/14A`, `18/18A`, across 9 sections in 6 chapters. Every
+one renders as literal body text and builds no footnote record. The same document prints
+**90** lowercase-suffixed markers that parse correctly, so this is a case inconsistency in
+the source's own marker printing, not a size or layout problem.
+
+**Not in the register, and that is the shape to recognise.** The invariants share the
+parser's marker grammar, so `inv_leading_marker_cited`, `inv_citation_refs_resolve` and
+`inv_footnote_on_citing_leaf` are as blind to an uppercase suffix as the builder is — the
+same shape item 5 had before round 18 closed it. **Expect the register to rise when the
+invariant is widened and fall when the parser is**, and measure the two halves separately.
+
+**The blocker is a source question, not a code one.** p62 prints `55&55a` and p64 prints
+`66A`. If the *note* for `66A` is printed `66a.`, the fix is a case-fold on the citation
+join and a wider class would mint a marker resolving to no note. The affected body pages
+carry no footnote block of their own, so the definitions are on other pages: find them first.
+
+**Do not widen `MARKER` globally.** `79A` is a real section code in this document — round 24
+shipped a repair to rejoin its split `79` `A` — and `155A`…`155R`, `32A`, `26B`, `129A` all
+print at body size as codes.
 
 ### Also open in Phase 3, off the ranked list
 
@@ -213,7 +251,10 @@ portal*. Decide deliberately.
 
 - **`--profile auto` is the convert default.** A family override refines the
   lane's profile. The full-corpus reparse that the original gate asked for was
-  **not** run (register still 22; no private corpus on the round-20 host).
+  **not** run: no private corpus on the round-20 host. Rounds 21-28 converted 77 of the
+  103 documents at one revision, which is what moved the register to 13 — but the ordinance
+  lane and 14 skipped acts documents are still at older revisions, so full-corpus
+  attribution stays blocked.
 - **`fbr_ingest` is a routing decision, not a merge.** Flat ICT → `legal_ingest`;
   Income Tax Ordinance stays on `fbr_ingest`. The ordinance five still need ITO
   editions.
@@ -255,4 +296,4 @@ work:
   parser round must first stop emitting a leading `]` and the truncated `[...`. Then it is
   one deletion.
 
-> Every file under `wip/integration/` still states the register as **34**. It is **25**.
+> Every file under `wip/integration/` still states the register as **34**. It is **13**.
