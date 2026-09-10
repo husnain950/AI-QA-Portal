@@ -114,6 +114,15 @@ describe('validationSummary', () => {
         expect(summary.blocked).toBe(false);
     });
 
+    it('does not block on a truncated page-cap warning, even if stored as an error', () => {
+        const summary = validationSummary([
+            { level: 'error', code: 'evidence_incomplete', message: 'Every source page must render and fit within provider input limits' },
+        ]);
+        expect(summary.errors).toEqual([]);
+        expect(summary.warnings).toEqual(['Every source page must render and fit within provider input limits']);
+        expect(summary.blocked).toBe(false);
+    });
+
     it('tolerates missing input', () => {
         expect(validationSummary(null)).toEqual({
             errors: [],
@@ -137,10 +146,18 @@ describe('canApplyProposal', () => {
         )).toBe(true);
     });
 
+    it('allows a stored evidence_incomplete row that still has a payload', () => {
+        expect(canApplyProposal(
+            { status: 'evidence_incomplete', proposed },
+            { blocked: false },
+        )).toBe(true);
+    });
+
     it('refuses when there is nothing to apply or a hard error', () => {
         expect(canApplyProposal({ status: 'failed', proposed: null }, { blocked: false })).toBe(false);
         expect(canApplyProposal({ status: 'failed', proposed }, { blocked: true })).toBe(false);
         expect(canApplyProposal({ status: 'rejected', proposed }, { blocked: false })).toBe(false);
+        expect(canApplyProposal({ status: 'evidence_incomplete', proposed: null }, { blocked: false })).toBe(false);
     });
 });
 

@@ -250,7 +250,7 @@ class FixProposalResponse(BaseModel):
     source_key: str
     instructions: str
     model_name: Optional[str] = None
-    status: str  # "proposed" | "approved" | "rejected" | "failed"
+    status: str  # "proposed" | "applied" | "rejected" | "failed" | "evidence_incomplete"
     error: Optional[str] = None
     created_at: str
     created_by: Optional[str] = None

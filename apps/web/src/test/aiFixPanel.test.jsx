@@ -132,4 +132,44 @@ describe('AiFixPanel Approve & apply', () => {
 
         expect(screen.getByRole('button', { name: /Approve & apply/i })).toBeDisabled();
     });
+
+    it('enables Approve on a stored evidence_incomplete proposal and applies it', async () => {
+        const approve = vi.fn().mockResolvedValue({ version_no: 2 });
+        const incomplete = {
+            ...parityProposal,
+            status: 'evidence_incomplete',
+            error: 'Every source page must render and fit within provider input limits',
+            validation: [{
+                level: 'error',
+                code: 'evidence_incomplete',
+                message: 'Every source page must render and fit within provider input limits',
+            }],
+        };
+        useAiFixStore.setState({
+            proposals: [incomplete],
+            models: [{ id: 'kimi', label: 'kimi', vision: false }],
+            defaultModel: 'kimi',
+            modelsError: null,
+            fetchModels: vi.fn().mockResolvedValue([]),
+            fetchProposals: vi.fn().mockResolvedValue([incomplete]),
+            approve,
+            reject: vi.fn(),
+            requestFix: vi.fn(),
+        });
+
+        render(
+            <AiFixPanel
+                open
+                documentId="doc-1"
+                section={{ ...section, start_page: 5, end_page: 12 }}
+                onClose={vi.fn()}
+                onApplied={vi.fn()}
+            />,
+        );
+
+        const button = screen.getByRole('button', { name: /Approve & apply/i });
+        expect(button).toBeEnabled();
+        fireEvent.click(button);
+        await waitFor(() => expect(approve).toHaveBeenCalledWith('prop-1'));
+    });
 });
