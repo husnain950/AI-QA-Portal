@@ -1,7 +1,10 @@
 # Handoff — rounds 21-27, the Customs Act QA pass
 
-Written **2026-09-10**. Branch **`fix/phase3-round21-fused-citation-markers`**, seven
-commits, `e40badd` at the tip, working tree clean. **No PR opened yet.**
+Written **2026-09-10**. Branch **`fix/phase3-round21-fused-citation-markers`**, ten
+commits, working tree clean. **PR #89 is open**
+(<https://github.com/husnain950/AI-QA-Portal/pull/89>) and **the portal has been
+re-pushed** — everything in §4 below is done. What is left is review of the PR and
+the small follow-ups in §8.
 
 > Read [`README.md`](README.md) for standing state and
 > [`working-rules.md`](working-rules.md) for method. `wip/` is the frozen historical
@@ -68,7 +71,35 @@ was lost).
 79 that round 24 removed. Eleven are in Chapters XIX-A and XX, which the QA pass never
 reached.
 
-## 4. Where the work stopped — do these next, in this order
+## 4. Done since this was first written
+
+All of the following completed on 2026-09-10:
+
+- Corpus re-converted at `f3a37e0` — 77 text-layer acts and rules documents at one
+  revision, 0 failures, `data/ocr_cache` still 0 B.
+- **Register regenerated: 22 → 13** with `tools/tests/test_register_snapshot.py --write`.
+  acts 15 → 6 (three classes closed outright), ordinance 5 → 5, rules 2 → 2. No lane
+  worse. Committed in `0be9068`.
+- `tools/tests`: **231 passed, 1 skipped** — up from 2 failed / 229 passed. Both former
+  failures predate this work and are now fixed (see §5).
+- Artifact written: `wip/phase3-round21-28-customs-qa.md`, generated from two
+  conversions of the same PDF.
+- **PR #89 opened.**
+- **Portal re-pushed** — `POST /api/documents/{id}/replace-json` with `If-Match` on the
+  active version, HTTP 200. Verified on the live API: Chapter III correct, Chapter XI
+  present, VI 35-41 / VII 42-59 / VIII 60-72A, Chapter XIX-A 196K-196U, **0 duplicate
+  section codes**, schedule headings clean, s.2's footnote tail in order
+  (9.45 … 9.50), s.3A has its 2 footnotes, s.55 no longer shows the bogus "footnote 43",
+  s.34 at 685 characters. 345 rows, 784 footnotes.
+- **Review-state cost of the re-push, as warned:** 331 → 345 sections, reviewed
+  327 → 226, approved **204 → 163**, has_issues 123 → 63. About 41 approvals no longer
+  count, because their `node_key` changed — chiefly Chapter XI's 36 sections, which the
+  old parse had under Chapter X (`ch:x/s:84` → `ch:xi/s:84`), plus the four sections that
+  moved chapter and the fourteen new ones. Every one of them is recoverable for reference
+  from `data/backups/review-snapshot-20260910-070706.json`. The has_issues drop is the
+  good half: 60 sections were flagged for defects that are now fixed.
+
+## 4b. The original next-steps list, kept for the record
 
 1. **Wait for the corpus re-conversion to finish.** Restarted 2026-09-10 ~13:55 at round
    27 — the earlier run produced the bad round-26 output for the rules lane and must not be
