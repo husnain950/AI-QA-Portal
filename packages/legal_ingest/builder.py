@@ -65,6 +65,10 @@ class BuiltSection:
     # which of the two ``heading`` came from -- see ``_build_one``
     toc_heading: str = ""
     heading_source: str = "toc"
+    # Index of this section's heading line in ``body_refs``.  The tree needs it
+    # to place a section under the chapter the BODY prints it beneath, which
+    # page granularity cannot do when a chapter heading falls mid-page.
+    start_index: int | None = None
     # Tokens in this section that the two OCR engines read differently, in
     # document order.  Empty for every text-layer document; non-empty only where
     # the text came from a scan, and then it is the record of exactly which
@@ -2159,13 +2163,15 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
         seg = body_refs[start_idx:end_idx]
         if seg:
             try:
-                built[id(entry)] = _build_one(entry, seg, footnote_map,
-                                              page_footnotes, page_offset,
-                                              is_last=(k + 1 == len(starts)),
-                                              printed_by_page=printed_by_page,
-                                              cited_footnotes=cited_footnotes,
-                                              container_codes=part_codes.get(
-                                                  id(entry), frozenset()))
+                bs = _build_one(entry, seg, footnote_map,
+                                page_footnotes, page_offset,
+                                is_last=(k + 1 == len(starts)),
+                                printed_by_page=printed_by_page,
+                                cited_footnotes=cited_footnotes,
+                                container_codes=part_codes.get(
+                                    id(entry), frozenset()))
+                bs.start_index = start_idx
+                built[id(entry)] = bs
             except Exception as exc:  # never let one bad section kill the run
                 import sys
                 print(f"[fbr] warning: section {entry.code} failed: {exc}",

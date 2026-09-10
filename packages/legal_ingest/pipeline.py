@@ -475,6 +475,35 @@ def _demo() -> None:
     _c3, _s3, secs3 = parse_toc(toc_rows)
     assert insert_missing_body_sections(secs3, [body2[0], body2[2]]) == 0
 
+    # reparent_sections_to_body_chapters: the contents page files s.42 under
+    # DRAWBACK; the body prints CHAPTER VII directly above it.
+    from .toc import Node as _Node
+    from .toc import SectionEntry
+    ch6 = _Node(kind="chapter", code="CHAPTER VI", heading="DRAWBACK")
+    ch7 = _Node(kind="chapter", code="CHAPTER VII", heading="ARRIVAL")
+    secs4 = [SectionEntry(code="41", heading="", printed_page=59, parent=ch6),
+             SectionEntry(code="42", heading="", printed_page=60, parent=ch6)]
+    body4 = [
+        _ln("CHAPTER - VI", 80),
+        _ln("41. Declaration by parties claiming drawback.- No drawback", 81),
+        _ln("CHAPTER - VII", 82),
+        _ln("42. Arrival of conveyance.- (1) The person-in-charge", 82),
+    ]
+
+    class _BS:
+        def __init__(self, i): self.start_index = i
+    built4 = {id(secs4[0]): _BS(1), id(secs4[1]): _BS(3)}
+    n_re = reparent_sections_to_body_chapters([ch6, ch7], secs4, built4, body4)
+    assert n_re == 1, n_re
+    assert secs4[0].parent is ch6 and secs4[1].parent is ch7
+    # with no body line for one of the chapters there is no spine, so the
+    # contents page keeps the last word rather than half the tree moving
+    secs5 = [SectionEntry(code="42", heading="", printed_page=60, parent=ch6)]
+    built5 = {id(secs5[0]): _BS(3)}
+    assert reparent_sections_to_body_chapters(
+        [ch6, ch7], secs5, built5, [body4[0], body4[1], body4[3]]) == 0
+    assert secs5[0].parent is ch6
+
     # A chapter heading wearing a footnote marker AND the amendment bracket is
     # still a chapter heading. The Sales Tax Act, 1990 prints its first one as
     # "4 [Chapter-I" and the rest bare, so CHAPTER I was invisible to the body
@@ -926,6 +955,11 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         progress(f"claimed {len(claimed_ids)} bracket lines for "
                  f"{len(placeholder_lines)} omitted sections")
     progress(f"assembled {len(built)} / {len(ordered_sections)} sections")
+
+    n_re = reparent_sections_to_body_chapters(chapters, ordered_sections, built,
+                                              body_refs)
+    if n_re:
+        progress(f"{n_re} section(s) moved to the chapter the body prints them under")
 
     schedules_out = build_schedules(sched_refs, cited_footnotes, footnote_map,
                                     printed_by_page, toc_schedules=schedules)
@@ -1586,6 +1620,93 @@ def _previous_chapter(chapters, numeral: str):
 #: A section heading prints its title then a dash: "Rounding off of duty, etc.-".
 #: Hyphen, en dash and em dash all occur across the corpus.
 _HEADING_DASH_RE = _re.compile(r"[.,]\s*[-\u2013\u2014\u2015\u2500]")
+
+
+def reparent_sections_to_body_chapters(chapters, ordered_sections, built,
+                                       body_refs) -> int:
+    """Put each section under the chapter the BODY prints it beneath.
+
+    Chapter membership comes from the contents page, and a contents page can be
+    wrong about it.  Page 7 of the 30.06.2025 Customs Act lists
+
+        41   Declaration by parties claiming drawback.   59
+        42   Arrival of conveyance.                      60
+                          CHAPTER VII
+             ARRIVAL AND DEPARTURE OF CONVEYANCE.
+        43   Delivery of import manifest ...             61
+
+-- s.42 filed under DRAWBACK -- while the body (page 82) prints CHAPTER - VII
+    directly ABOVE s.42, where it belongs.  Page 8 makes the mirror-image error,
+    listing ss.57-59 below the CHAPTER VIII row when the body opens Chapter VIII
+    above s.60.  Four sections in the wrong chapter, and every Customs edition
+    carries the same misprint.
+
+    Detecting the chapter heading is not what fixes this.  Round 20 taught the
+    parser the en-dash form, so both headings are now found in the body and
+    ``heading_source`` says ``body`` for all 22 chapters -- and not one section
+    moved, because membership never consulted them.  This is the pass that does.
+
+    It runs only when the body prints a line for EVERY chapter in the tree.
+    Partial evidence is worse than none here: a chapter whose body heading was
+    never found has no position, sections after it would fall to the chapter
+    before, and a document that lists its chapters only on the contents page
+    would be reorganised on the strength of the few headings that happened to
+    parse.  With no complete body spine, the contents page keeps the last word.
+
+    Position is compared by BODY LINE INDEX, not by page: a chapter heading that
+    falls mid-page would otherwise claim the sections printed above it.
+    """
+    if not chapters or not ordered_sections:
+        return 0
+
+    by_num = {}
+    for idx, num, _cap in body_chapter_entries(body_refs):
+        by_num.setdefault(num, idx)
+
+    def body_index_of(num: str):
+        """This chapter's body line, bridging the arabic/roman notation gap.
+
+        The Customs Act prints its first chapter as ``CHAPTER 1`` on page 23
+        while its contents page and every other chapter say ``I``.  Matching as
+        strings left chapter I with no body line, the spine came out incomplete,
+        and this whole pass returned 0 -- the same notation gap
+        ``insert_missing_body_chapters`` already bridges, and by the same means.
+        """
+        if num in by_num:
+            return by_num[num]
+        value = _roman_value(num)
+        if value == 9999.0:
+            return None
+        for t, idx in by_num.items():
+            if t.isdigit() != num.isdigit() and _roman_value(t) == value:
+                return idx
+        return None
+
+    spine = []
+    for ch in chapters:
+        num = _chapter_numeral_of(ch)
+        idx = body_index_of(num) if num else None
+        if idx is None:
+            return 0            # no complete body spine -- leave the tree alone
+        spine.append((idx, ch))
+    spine.sort()
+
+    moved = 0
+    for entry in ordered_sections:
+        bs = built.get(id(entry))
+        pos = getattr(bs, "start_index", None) if bs is not None else None
+        if pos is None:
+            continue            # a placeholder has no body position to judge by
+        owner = None
+        for idx, ch in spine:
+            if idx < pos:
+                owner = ch
+            else:
+                break
+        if owner is not None and entry.parent is not owner:
+            entry.parent = owner
+            moved += 1
+    return moved
 
 
 def insert_missing_body_sections(ordered_sections, body_refs) -> int:
