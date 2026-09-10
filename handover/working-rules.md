@@ -6,6 +6,13 @@ integration track added since.
 
 State is in [`README.md`](README.md); the work itself is in [`open-work.md`](open-work.md).
 
+**One rule below changed state on 2026-09-10.** The corpus is no longer mixed-revision for
+acts and rules: the round-27 re-conversion put all **77** of those documents at `f3a37e0`,
+and `test_register_snapshot.py` now passes on this machine with nothing stashed. The
+mixed-revision rules still apply to the **ordinance** lane (12 documents at round 12) and the
+14 acts documents rounds 21-28 deliberately skipped — and they apply again the moment
+anyone converts a subset. Do not read the all-clear as permanent.
+
 ---
 
 ## Conversion
@@ -59,6 +66,13 @@ in round 15: **the Bash tool's cwd resets between calls**, so a `python - <<PY` 
 using a *relative* path silently patched `packages/` in the **main tree** instead of the
 worktree. Half the round's changes landed on the wrong branch. Use absolute paths in
 every edit, and `git status` in **both** trees before you trust a measurement.
+
+**Two rounds shipped code that moved nothing, because the documents carrying the hits were
+not staged.** Rounds 20's fixes for the heading-terminator scan, the omission spellings,
+`preamble_carries_no_toc_tail` and `clause_codes_plausible` were all correct and all
+measured zero, and the ledger carried the four rows as open for a full round. **A fix that
+is shipped and a fix that is measured are two different states** — say which one a round
+reached, and never write a Result that implies the second when only the first happened.
 
 **Clear `__pycache__` after any mutate-and-restore verification.** Patching a module,
 re-importing and restoring leaves stale bytecode: the source is right while the module in
