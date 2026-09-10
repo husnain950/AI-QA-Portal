@@ -954,6 +954,25 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
                                cited_footnotes=cited_footnotes)
         progress(f"claimed {len(claimed_ids)} bracket lines for "
                  f"{len(placeholder_lines)} omitted sections")
+    # An inserted section that ``build_sections`` could not give a body to
+    # recovered nothing and costs something: it ships as an empty heading-only
+    # leaf, which is a defect in its own right (``section_carries_its_body``) and
+    # a phantom row in the portal's TOC.  Sales Tax Rules 2006 (30-06-2025) grew
+    # two of them -- 150U and 150ZEQ, both with no text at all -- while the same
+    # pass recovered nineteen real sections in that document.
+    #
+    # Backing them out is safe precisely because they are empty: with no segment
+    # ``_build_one`` was never called, so nothing was sliced away from the
+    # section before them.  A section that is genuinely heading-only in the
+    # SOURCE keeps its place -- s.79A of the Customs Act builds
+    # "79A. Omitted]." and is in ``built``.
+    dropped = [e for e in ordered_sections
+               if getattr(e, "inserted_from_body", False) and id(e) not in built]
+    if dropped:
+        drop_ids = {id(e) for e in dropped}
+        ordered_sections[:] = [e for e in ordered_sections if id(e) not in drop_ids]
+        progress(f"{len(dropped)} inserted section(s) backed out -- no body text")
+
     progress(f"assembled {len(built)} / {len(ordered_sections)} sections")
 
     n_re = reparent_sections_to_body_chapters(chapters, ordered_sections, built,
@@ -1914,6 +1933,7 @@ def insert_missing_body_sections(ordered_sections, body_refs) -> int:
                                  printed_page=getattr(prev, "printed_page", 0),
                                  parent=prev.parent)
             entry.anchor = ref
+            entry.inserted_from_body = True
             additions.append((k, entry))
 
     for offset, (k, entry) in enumerate(additions):
