@@ -79,14 +79,30 @@ export function classifyDiffLine(line) {
 }
 
 /** Split validation issues into { errors, warnings } lists of messages. */
+export const NON_BLOCKING_ERROR_CODES = new Set(['html_plain_parity']);
+
 export function validationSummary(issues) {
     const errors = [];
     const warnings = [];
+    let blocked = false;
     for (const issue of issues || []) {
         if (!issue || !issue.message) continue;
-        (issue.level === 'error' ? errors : warnings).push(issue.message);
+        const soft = NON_BLOCKING_ERROR_CODES.has(issue.code);
+        if (issue.level === 'error' && !soft) {
+            errors.push(issue.message);
+            blocked = true;
+        } else {
+            warnings.push(issue.message);
+        }
     }
-    return { errors, warnings, blocked: errors.length > 0 };
+    return { errors, warnings, blocked };
+}
+
+/** True when Approve & apply should be enabled for this compare-screen proposal. */
+export function canApplyProposal(proposal, validation) {
+    if (!proposal?.proposed) return false;
+    if (validation?.blocked) return false;
+    return proposal.status === 'proposed' || proposal.status === 'failed';
 }
 
 /** Seed the instructions textarea from the section's open annotations. */

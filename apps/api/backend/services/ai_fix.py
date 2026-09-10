@@ -31,10 +31,23 @@ from backend.services.html_sanitizer import visible_text
 
 MAX_PAGES_SENT = 4
 PROMPT_VERSION = "ai-fix-prompt-v1"
-VALIDATOR_VERSION = "legal-leaf-validator-v2"
+VALIDATOR_VERSION = "legal-leaf-validator-v3"
 RENDER_DPI = 150
 DIFF_CONTEXT_LINES = 2
 MAX_DIFF_LINES = 400
+
+# Errors that still store the merged leaf for the reviewer to look at, but must
+# not freeze Approve. ``visible_text`` concatenates adjacent blocks, so models
+# that emit <ol>/<p> plus naturally-spaced plain_text used to fail hard.
+NON_BLOCKING_ERROR_CODES = frozenset({"html_plain_parity"})
+
+# Insert a break before comparing HTML textContent to plain_text. ``<p>a</p><p>b</p>``
+# is "ab" to ``visible_text`` and "a b" to a reviewer (and to the model's plain_text).
+_BLOCK_BOUNDARY = re.compile(
+    r"<br\s*/?>|</?(?:p|div|h[1-6]|li|tr|dt|dd|blockquote|section|"
+    r"article|caption|ol|ul|table)(?:\s[^>]*)?>",
+    re.IGNORECASE,
+)
 
 # Fields the model is allowed to change on a leaf. Everything else on the
 # original node (acts extras like toc_heading, ocr_review, ...) is preserved.
@@ -178,10 +191,24 @@ def merge_proposal(original: Dict[str, Any], proposal: Dict[str, Any]) -> Dict[s
     return merged
 
 
+def normalized_visible_text(html: str) -> str:
+    """Prose comparable to ``plain_text``: block tags become spaces, then collapse."""
+    spaced = _BLOCK_BOUNDARY.sub(" ", html or "")
+    return re.sub(r"\s+", " ", visible_text(spaced)).strip()
+
+
+def _as_json(value: Any, default: Any = None) -> Any:
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    return json.loads(value)
+
+
 def validate_leaf(
     merged: Dict[str, Any], original: Dict[str, Any]
 ) -> List[Dict[str, str]]:
-    """Issues with the merged leaf. Any ``error`` level issue blocks approval."""
+    """Issues with the merged leaf. Hard ``error``s block approval; ``html_plain_parity`` does not."""
     issues: List[Dict[str, str]] = []
 
     def error(code: str, message: str) -> None:
@@ -201,10 +228,12 @@ def validate_leaf(
         error("unsafe_html", "html contains active content (script/style/event handlers)")
     if isinstance(plain, str) and not plain.strip() and (original.get("plain_text") or "").strip():
         error("empty_body", "plain_text became empty while the original had content")
-    normalized_html_text = re.sub(r"\s+", " ", visible_text(html)).strip()
+    normalized_html_text = normalized_visible_text(html)
     normalized_plain = re.sub(r"\s+", " ", plain).strip()
     if normalized_html_text != normalized_plain:
-        error("html_plain_parity", "HTML textContent and plain_text differ")
+        # Advisory: the reviewer is looking at the HTML vs the PDF. Blocking
+        # Approve here stranded otherwise-correct list/paragraph fixes.
+        warning("html_plain_parity", "HTML textContent and plain_text differ")
 
     original_start = original.get("start_page") or original.get("page_number")
     original_end = original.get("end_page") or original_start
@@ -259,6 +288,15 @@ def validate_leaf(
 
 def has_errors(issues: List[Dict[str, str]]) -> bool:
     return any(issue["level"] == "error" for issue in issues)
+
+
+def blocks_approval(issues: List[Dict[str, str]]) -> bool:
+    """True when a human must not be able to apply this leaf as-is."""
+    return any(
+        (issue or {}).get("level") == "error"
+        and (issue or {}).get("code") not in NON_BLOCKING_ERROR_CODES
+        for issue in (issues or [])
+    )
 
 
 def diff_leaf(original: Dict[str, Any], merged: Dict[str, Any]) -> Dict[str, Any]:
@@ -438,12 +476,15 @@ async def create_proposal(
             "evidence_incomplete"
             if not evidence_complete
             else "failed"
-            if has_errors(issues)
+            if blocks_approval(issues)
             else "proposed"
         )
-        if has_errors(issues):
+        if blocks_approval(issues):
             row["error"] = "; ".join(
-                issue["message"] for issue in issues if issue["level"] == "error"
+                issue["message"]
+                for issue in issues
+                if issue["level"] == "error"
+                and issue.get("code") not in NON_BLOCKING_ERROR_CODES
             )
     except (llm_client.LLMError, ValueError) as error:
         row["error"] = str(error)
@@ -481,8 +522,16 @@ async def approve_proposal(
     db: DatabaseConnection, proposal, *, actor: str
 ) -> Dict[str, Any]:
     """Apply a proposal as a new pending version; legal approval is separate."""
-    if proposal["status"] != "proposed":
-        raise ValueError(f"proposal is {proposal['status']}, not open for approval")
+    status = proposal["status"]
+    proposed_json = proposal["proposed_json"]
+    if status == "failed":
+        if not proposed_json:
+            raise ValueError("proposal has no payload to apply")
+        issues = _as_json(proposal["validation_json"], []) or []
+        if blocks_approval(issues):
+            raise ValueError("proposal failed validation and cannot be applied")
+    elif status != "proposed":
+        raise ValueError(f"proposal is {status}, not open for approval")
 
     document_id = proposal["document_id"]
     source_key = proposal["source_key"]
@@ -499,7 +548,7 @@ async def approve_proposal(
             "the section changed since this proposal was made; request a new fix"
         )
 
-    merged = json.loads(proposal["proposed_json"])
+    merged = _as_json(proposal["proposed_json"])
     if not overlays.set_leaf(data, source_key, merged):
         raise LookupError(f"no leaf at {source_key} in the active JSON")
 

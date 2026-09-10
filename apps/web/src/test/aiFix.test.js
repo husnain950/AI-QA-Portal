@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    canApplyProposal,
     changeSummary,
     classifyDiffLine,
     formatModelPricing,
@@ -104,12 +105,42 @@ describe('validationSummary', () => {
         expect(summary.blocked).toBe(false);
     });
 
+    it('does not block on html/plain-text mismatch, even if stored as an error', () => {
+        const summary = validationSummary([
+            { level: 'error', code: 'html_plain_parity', message: 'HTML textContent and plain_text differ' },
+        ]);
+        expect(summary.errors).toEqual([]);
+        expect(summary.warnings).toEqual(['HTML textContent and plain_text differ']);
+        expect(summary.blocked).toBe(false);
+    });
+
     it('tolerates missing input', () => {
         expect(validationSummary(null)).toEqual({
             errors: [],
             warnings: [],
             blocked: false,
         });
+    });
+});
+
+describe('canApplyProposal', () => {
+    const proposed = { html: '<p>ok</p>', plain_text: 'ok' };
+
+    it('allows a proposed leaf with only a parity warning', () => {
+        expect(canApplyProposal(
+            { status: 'failed', proposed },
+            { blocked: false },
+        )).toBe(true);
+        expect(canApplyProposal(
+            { status: 'proposed', proposed },
+            { blocked: false },
+        )).toBe(true);
+    });
+
+    it('refuses when there is nothing to apply or a hard error', () => {
+        expect(canApplyProposal({ status: 'failed', proposed: null }, { blocked: false })).toBe(false);
+        expect(canApplyProposal({ status: 'failed', proposed }, { blocked: true })).toBe(false);
+        expect(canApplyProposal({ status: 'rejected', proposed }, { blocked: false })).toBe(false);
     });
 });
 
