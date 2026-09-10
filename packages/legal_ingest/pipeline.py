@@ -1691,7 +1691,7 @@ def reparent_sections_to_body_chapters(chapters, ordered_sections, built,
         spine.append((idx, ch))
     spine.sort()
 
-    moved = 0
+    proposed = {}
     for entry in ordered_sections:
         bs = built.get(id(entry))
         pos = getattr(bs, "start_index", None) if bs is not None else None
@@ -1704,9 +1704,82 @@ def reparent_sections_to_body_chapters(chapters, ordered_sections, built,
             else:
                 break
         if owner is not None and entry.parent is not owner:
+            proposed[id(entry)] = owner
+    if not proposed:
+        return 0
+
+    # ACCEPTANCE TEST.  The body spine is not always trustworthy, and one
+    # document proves it: Customs Rules 2001 (30.06.2023), 563 pages and 41
+    # chapters, had 98 of its 1,002 rules moved by this pass -- rule 45 from
+    # CHAPTER IV to IX, rule 52 to XII, some as far as 34 chapters away -- and
+    # section_carries_its_body went from 0 hits to 1,011.  Whatever that
+    # document's body prints, it is not a spine.
+    #
+    # So the move has to earn its way in.  Sections are printed in ascending
+    # code order, chapter by chapter, and that is checkable without tuning
+    # anything: count the places where the order breaks, before and after, and
+    # apply the re-parenting only if it does not make the count worse.  The
+    # Customs Act 1969 scores 0 either way -- VI 35-41 / VII 42-59 /
+    # VIII 60-72A is as ordered as VI 35-42 / VII 43-56 / VIII 57-72A, and the
+    # move is about which chapter is RIGHT, not about order -- so it passes.
+    # Customs Rules 2001 goes from 0 to hundreds, and is refused.
+    #
+    # A tie is allowed through deliberately: this test is a floor against making
+    # the tree worse, not a proof that the move is right.
+    if _order_breaks(chapters, ordered_sections, proposed) > \
+            _order_breaks(chapters, ordered_sections, None):
+        return 0
+
+    for entry in ordered_sections:
+        owner = proposed.get(id(entry))
+        if owner is not None:
             entry.parent = owner
-            moved += 1
-    return moved
+    return len(proposed)
+
+
+def _order_breaks(chapters, ordered_sections, proposed) -> int:
+    """How many places the section order breaks, under a proposed re-parenting.
+
+    Two kinds of break, counted the same: a chapter whose own codes stop
+    ascending, and a pair of neighbouring chapters whose code ranges overlap.
+    ``proposed`` of None scores the tree as it stands.
+    """
+    from .grammar import code_sort_key
+
+    owner_of = {}
+    for entry in ordered_sections:
+        ch = (proposed or {}).get(id(entry), entry.parent)
+        if ch is not None:
+            owner_of.setdefault(id(ch), []).append(entry.code)
+
+    breaks = 0
+    spans = []
+    for ch in chapters:
+        codes = owner_of.get(id(ch)) or []
+        keys = [code_sort_key(c) for c in codes]
+        breaks += sum(1 for i in range(len(keys) - 1) if keys[i + 1] < keys[i])
+        if keys:
+            spans.append((min(keys), max(keys)))
+    breaks += sum(1 for i in range(len(spans) - 1)
+                  if spans[i + 1][0] < spans[i][1])
+    return breaks
+
+
+def _tight_against_neighbour(code: str, prev_code: str, next_code: str) -> bool:
+    """Whether ``code`` is the immediate sibling of one of its neighbours.
+
+    Same numeric stem, or the next/previous stem.  ``19B`` beside ``19A``,
+    ``32C`` beside ``32B``, ``79A`` beside ``79``, ``196L`` beside ``196K``,
+    ``208`` between ``207`` and ``209``.  Not ``27`` between ``2`` and ``39``.
+    """
+    from .grammar import code_sort_key
+
+    stem = code_sort_key(code)[0]
+    for other in (prev_code, next_code):
+        n = code_sort_key(other)[0]
+        if abs(stem - n) <= 1:
+            return True
+    return False
 
 
 def insert_missing_body_sections(ordered_sections, body_refs) -> int:
@@ -1814,6 +1887,21 @@ def insert_missing_body_sections(ordered_sections, body_refs) -> int:
         lo_pos, hi_pos = one_body_pos(prev.code), one_body_pos(nxt.code)
         for code, pos in sorted(candidates.items(), key=lambda kv: code_sort_key(kv[0])):
             if not lo < code_sort_key(code) < hi:
+                continue
+            # The candidate must sit TIGHT against a neighbour, not merely
+            # somewhere between them.  Code order alone is far too weak wherever
+            # the contents page has a wide gap: Customs Rules 2001 lists rules
+            # 1, 2 and then 39, so rule 27 "sorts between neighbours" and was
+            # inserted into CHAPTER I, which holds rules 1 and 2.  That one false
+            # start collapsed 860 of the document's 1,102 rules to heading-only
+            # stubs -- the monotonic cursor again.
+            #
+            # A section the contents page merely OMITS shares its neighbour's
+            # stem (19A -> 19B, 32B -> 32C, 79 -> 79A, 196K -> 196L) or follows
+            # it by one (207 -> 208).  A wide gap means the contents page is
+            # incomplete over a whole range, and guessing what belongs there is
+            # not this pass's job.
+            if not _tight_against_neighbour(code, prev.code, nxt.code):
                 continue
             if lo_pos is not None and pos < lo_pos:
                 continue
