@@ -199,6 +199,68 @@ def marker_token(text: str) -> str | None:
     return m.group(1) if m else None
 
 
+#: The separators that fuse several markers into ONE extracted word.  Kept in
+#: step with ``builder._MARKER_RUN_SEPS_RE``, which rebuilds them for rendering.
+_MARKER_RUN_SEP_RE = re.compile(r"\s*[,&/]\s*")
+
+
+def marker_run(text: str) -> list[str]:
+    """Every marker carried by one inline citation token, in printed order.
+
+    ``MARKER_NOTE_RE`` anchors the WHOLE token, so a marker that the text layer
+    hands over fused with punctuation is not a marker at all: it renders as
+    literal body text, never reaches the ``cited`` list, and therefore builds no
+    footnote record.  Four fusion shapes occur, and the 30.06.2025 Customs
+    edition prints all four:
+
+        11[        the bracket kerned onto the digits   (s.2, footnote 11)
+        7,45[      a comma-separated run                (s.2)
+        5&7[       an ampersand-separated run           (s.14A)
+        1/2[       a slash-separated run                (s.35)
+
+    Measured over the shipped acts output before this function existed: 420
+    comma-fused, 78 ampersand-fused and 80 slash-fused occurrences in 59 distinct
+    forms, none of which produced a ``<sup>`` or a note.  ``MARKER_PREFIX`` above
+    already understands ``,`` and ``&`` runs, but only to STRIP them so a section
+    code can parse -- it never emitted a citation, which is why s.14A parsed as a
+    section and still printed ``5&7[`` inside its own heading.
+
+    A trailing dot still disqualifies the token: inline a citation prints bare,
+    and sharing the note grammar with the inline one turned every numbered
+    heading on a scanned page into a citation (see ``Word.is_marker``).
+
+    Returns ``[]`` for anything that is not a marker run, so the caller's
+    behaviour on today's tokens is unchanged.
+
+    The obvious hazard -- splitting a thousands-grouped number (``100,000``) or a
+    PCT tariff code (``1005.9000,5[``) on its comma -- is answered by the SIZE
+    gate that runs FIRST, in ``Word.marker_run``, and not by any shape test here.
+    Both are body-size words.  ``1005.9000,5[`` only looks fused: in the text
+    layer it is two words, ``'0101.9000,'`` at 12pt and ``'5'`` at 8pt, so the
+    tariff code never reaches this function at all.
+
+    A shape test WAS tried here first and had to be removed: refusing a run whose
+    head is shorter than its three-digit tail rejects ``100,000`` but also
+    rejects ``35,106``, ``91,118``, ``79,104``, ``8,137`` and ``7&110`` -- five
+    genuine runs in the 30.06.2025 Customs edition alone.  No shape separates
+    them, because there is no difference in shape; the difference is type size,
+    which the caller has already measured.  Verified on that edition after the
+    guard came out: no ``<sup>`` in the converted output carries a grouped
+    number, and ``50,001 to US $ 100,000`` in s.156 stays plain text.
+    """
+    t = (text or "").strip()
+    if t.endswith("["):
+        t = t[:-1].rstrip()
+    if not t or t.endswith("."):
+        return []
+    parts = _MARKER_RUN_SEP_RE.split(t)
+    if not all(MARKER_RE.match(p) for p in parts):
+        return []
+    if any(is_year_like(p) for p in parts):
+        return []
+    return parts
+
+
 def is_marker_text(text: str) -> bool:
     return marker_token(text) is not None
 
@@ -500,6 +562,31 @@ def _demo() -> None:
     assert marker_token("*") == "*"
     assert marker_token("Inserted") is None
     assert marker_token("2.5") is None
+
+    # marker_run: the four fusion shapes the text layer produces
+    assert marker_run("12") == ["12"]
+    assert marker_run("27a") == ["27a"]
+    assert marker_run("*") == ["*"]
+    assert marker_run("11[") == ["11"]
+    assert marker_run("7,45[") == ["7", "45"]
+    assert marker_run("1a,25[") == ["1a", "25"]
+    assert marker_run("5&7[") == ["5", "7"]
+    assert marker_run("5&7") == ["5", "7"]
+    assert marker_run("1/2[") == ["1", "2"]
+    assert marker_run("12/13") == ["12", "13"]
+    assert marker_run("7&110[") == ["7", "110"]
+    assert marker_run("120,122,129,130,133,135") == [
+        "120", "122", "129", "130", "133", "135"]
+    # and what the token grammar must refuse
+    assert marker_run("14.") == []          # a numbered heading, not a citation
+    assert marker_run("1962") == []         # a year
+    assert marker_run("0101.9000,") == []   # a PCT tariff code -- the dot
+    assert marker_run("Inserted") == []
+    assert marker_run("") == []
+    assert marker_run("[") == []
+    # A grouped number IS run-shaped.  Only the caller's size gate separates
+    # them, which is why this function must not try: see the docstring.
+    assert marker_run("100,000") == ["100", "000"]
 
     # numeric-then-suffix ordering, never lexical
     ms = ["36b", "9", "36", "100", "36a", "10", "*"]

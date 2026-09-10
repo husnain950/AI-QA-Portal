@@ -30,6 +30,7 @@ from .grammar import (
     folio_value,
     is_marker_text,
     is_year_like,
+    marker_run,
     spaced,
 )
 
@@ -123,11 +124,24 @@ class Word:
         years.  Real markers in this corpus reach 1027 (the Sales Tax editions
         number their notes past a thousand), well clear of the 1900-2099 band.
         """
+        return bool(self.marker_run)
+
+    @property
+    def marker_run(self) -> list[str]:
+        """Every marker this word carries, in printed order; ``[]`` if none.
+
+        One extracted word can hold a whole run of markers, because the text
+        layer fuses them: ``7,45[``, ``5&7[``, ``1/2[``, and even a lone marker
+        with its bracket kerned on (``11[``).  ``grammar.marker_run`` reads the
+        token; the gates below are this class's own and run first -- in
+        particular the SIZE gate, which is what keeps a body-size tariff code
+        (``0101.9000,``) out of the token grammar entirely.
+        """
         if self.size > self.marker_max:
-            return False
+            return []
         t = self.text.strip()
         if is_year_like(t):
-            return False
+            return []
         # A trailing DOT means this is a numbered heading, not an inline marker.
         # ``marker_token`` strips it on purpose -- in the footnote ZONE a note
         # prints as "14. Substituted by the Finance Act, 2019" -- but inline a
@@ -136,8 +150,12 @@ class Word:
         # page a citation: the Benami Transactions Act 2017 rendered 27 of them
         # (``8.14.``, ``12.23.``, ``14.27.``), each pointing at no footnote.
         if t.endswith("."):
-            return False
-        return is_marker_text(t) or (t.endswith("*") and t[:-1].isdigit())
+            return []
+        run = marker_run(t)
+        if run:
+            return run
+        # a digit-and-asterisk marker ("12*") is not part of a run
+        return [t] if (t.endswith("*") and t[:-1].isdigit()) else []
 
 
 @dataclass

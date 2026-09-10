@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.database import DatabaseConnection, get_db
@@ -13,6 +15,56 @@ from backend.services import events, review_state
 from backend.services.parse_quality import deserialize_quality_flags
 
 router = APIRouter(prefix="/documents", tags=["sections"])
+
+
+_FOOTNOTE_COLS = ("SELECT id, section_id, marker, page, text, html_content, "
+                  "review_status FROM footnotes WHERE section_id = ?")
+
+#: A footnote marker is the pipeline's ref, "<printed page>.<marker>" -- "7.2",
+#: "9.45", "7.1a".  Splitting it is what makes it sortable.
+_REF_RE = re.compile(r"^(\d+)\.(\d+)([a-z]*)$", re.IGNORECASE)
+
+
+def _footnote_sort_key(marker: str):
+    """Order footnotes the way the document prints them.
+
+    The query that reads them carries no ORDER BY, so Postgres returned physical
+    row order, which an UPDATE-in-place version sync shuffles: the 30.06.2025
+    Customs Act served s.2's fifty notes ending 45, 49, 50, 46, 47, 48 while the
+    pipeline JSON had them in order.  QA logged it as a parser defect; it was
+    this.
+
+    A plain ``ORDER BY marker`` in SQL does not fix it either -- the marker is
+    text, so "7.10" sorts before "7.2".  The three parts have to be compared as
+    (page, number, suffix), which is what ``legal_ingest.footnotes.ref_sort_key``
+    does on the pipeline side.  It is reimplemented here rather than imported:
+    the API deliberately does not depend on the pipeline package at request time.
+
+    Anything that does not parse sorts last, in its own text order, so a marker
+    shape nobody anticipated is never silently dropped or interleaved.
+    """
+    m = _REF_RE.match((marker or "").strip())
+    if not m:
+        return (1, 0, 0, "", marker or "")
+    return (0, int(m.group(1)), int(m.group(2)), m.group(3).lower(), "")
+
+
+async def _footnotes_for_section(db, section_id) -> list[FootnoteResponse]:
+    """Every footnote on one section, in printed order."""
+    async with db.execute(_FOOTNOTE_COLS, (section_id,)) as cursor:
+        rows = await cursor.fetchall()
+    return sorted(
+        (FootnoteResponse(
+            id=fn["id"],
+            section_id=fn["section_id"],
+            marker=fn["marker"],
+            page=fn["page"],
+            text=fn["text"],
+            html_content=fn["html_content"],
+            review_status=fn["review_status"],
+        ) for fn in rows),
+        key=lambda fn: _footnote_sort_key(fn.marker),
+    )
 
 
 def _quality_flags_from_row(row) -> list[QualityFlag]:
@@ -121,19 +173,7 @@ async def get_section(document_id: str, section_id: str, db: DatabaseConnection 
     if not r:
         raise HTTPException(status_code=404, detail="Section not found")
 
-    # Get footnotes for this section
-    async with db.execute("SELECT id, section_id, marker, page, text, html_content, review_status FROM footnotes WHERE section_id = ?", (section_id,)) as cursor:
-        fn_rows = await cursor.fetchall()
-
-    footnotes = [FootnoteResponse(
-        id=fn["id"],
-        section_id=fn["section_id"],
-        marker=fn["marker"],
-        page=fn["page"],
-        text=fn["text"],
-        html_content=fn["html_content"],
-        review_status=fn["review_status"]
-    ) for fn in fn_rows]
+    footnotes = await _footnotes_for_section(db, section_id)
 
     return SectionResponse(
         **_section_metadata_kwargs(r),
@@ -173,19 +213,7 @@ async def get_sections_by_page(document_id: str, page_number: int, db: DatabaseC
         
     results = []
     for r in rows:
-        # Fetch footnotes for each section
-        async with db.execute("SELECT id, section_id, marker, page, text, html_content, review_status FROM footnotes WHERE section_id = ?", (r["id"],)) as cursor:
-            fn_rows = await cursor.fetchall()
-
-        footnotes = [FootnoteResponse(
-            id=fn["id"],
-            section_id=fn["section_id"],
-            marker=fn["marker"],
-            page=fn["page"],
-            text=fn["text"],
-            html_content=fn["html_content"],
-            review_status=fn["review_status"]
-        ) for fn in fn_rows]
+        footnotes = await _footnotes_for_section(db, r["id"])
 
         results.append(SectionResponse(
             **_section_metadata_kwargs(r),
