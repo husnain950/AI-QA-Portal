@@ -453,6 +453,28 @@ def _demo() -> None:
     assert by["15"].parent is ch4, (by["15"].parent and by["15"].parent.code)
     assert by["18"].parent is chs[2]
 
+    # insert_missing_body_sections: the body prints a section the contents page
+    # never lists (19B), and a penalty-TABLE row that must not be mistaken for
+    # one.  Admitting that row destroyed the monotonic cursor when it was tried.
+    toc_rows = [
+        "        19A. Presumption that incidence of duty has been passed.   26",
+        "        19C. Minimal duties not to be demanded.                    27",
+    ]
+    _c2, _s2, secs2 = parse_toc(toc_rows)
+    body2 = [
+        _ln("19A. Presumption that incidence of duty has been passed.- Every", 48),
+        _ln("19B. Rounding off of duty, etc.- The amount of duty, interest", 49),
+        _ln("14a,129 [19C. Minimal duties not to be demanded.- Where the value", 49),
+        _ln("83 [7A. If any agency or person Such agency or person or 14A]", 143),
+    ]
+    n_sec = insert_missing_body_sections(secs2, body2)
+    assert n_sec == 1, n_sec
+    assert [e.code for e in secs2] == ["19A", "19B", "19C"], [e.code for e in secs2]
+    assert secs2[1].anchor is body2[1]
+    # and it is a no-op when the contents page already lists everything
+    _c3, _s3, secs3 = parse_toc(toc_rows)
+    assert insert_missing_body_sections(secs3, [body2[0], body2[2]]) == 0
+
     # A chapter heading wearing a footnote marker AND the amendment bracket is
     # still a chapter heading. The Sales Tax Act, 1990 prints its first one as
     # "4 [Chapter-I" and the rest bare, so CHAPTER I was invisible to the body
@@ -859,6 +881,9 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     n_ins = insert_missing_body_chapters(chapters, ordered_sections, body_refs)
     if n_ins:
         progress(f"{n_ins} chapter(s) filled/inserted from body (omitted from TOC)")
+    n_sec = insert_missing_body_sections(ordered_sections, body_refs)
+    if n_sec:
+        progress(f"{n_sec} section(s) inserted from body (omitted from TOC)")
 
     # Every container, flattened: both ``build_sections`` (which hands a cut region
     # to the section that follows the heading) and ``preamble_refs`` need to know
@@ -1556,6 +1581,135 @@ def _previous_chapter(chapters, numeral: str):
         if v < val and v > best:
             best, best_ch = v, ch
     return best_ch
+
+
+#: A section heading prints its title then a dash: "Rounding off of duty, etc.-".
+#: Hyphen, en dash and em dash all occur across the corpus.
+_HEADING_DASH_RE = _re.compile(r"[.,]\s*[-\u2013\u2014\u2015\u2500]")
+
+
+def insert_missing_body_sections(ordered_sections, body_refs) -> int:
+    """Insert sections the BODY prints that the contents page never lists.
+
+    ``build_sections`` walks ``ordered_sections`` -- the contents page -- and
+    looks each entry up in the body.  A section the contents page omits is
+    therefore never looked for, however plainly the body prints it, and its text
+    is swept into the section above.  The 30.06.2025 Customs Act loses two whole
+    sections this way:
+
+        19B. Rounding off of duty, etc.-        contents jump 19A -> 19C
+        128[32C. Mis-declaration of Value ...   contents jump 32B -> 33
+
+    Both lines yield a clean candidate code; nothing about the parse is
+    ambiguous.  QA reported them as separate defects with separate causes (a
+    page break, an unresolved marker) and they are neither -- they are the same
+    hole, and the contents page is where it is.  The body owns what exists; the
+    contents page is consulted for order and naming.
+
+    Three conditions, all of them necessary, because the cost of a false insert
+    is a phantom section in the tree:
+
+      * the code opens EXACTLY ONE body line.  A code printed twice is a
+        cross-reference or a penalty-table serial as often as a heading, and
+        this pass has no cursor to disambiguate with;
+      * it sorts strictly between the two contents entries it would go between,
+        so a stray code cannot land anywhere but its own gap;
+      * that body line sits between those two neighbours' own body lines, so
+        code order and print order agree before anything is inserted.
+
+    The entry carries an ``anchor``, which is what body-driven discovery already
+    gives its entries, so ``build_sections`` places it by identity and the
+    monotonic cursor treats it exactly like a discovered section.
+    """
+    from .builder import _candidate_code, _dotless_candidate_code
+    from .grammar import code_sort_key
+    from .toc import SectionEntry
+
+    order = list(ordered_sections)
+    if len(order) < 2:
+        return 0
+
+    hits: dict[str, list[int]] = {}
+    for i, ref in enumerate(body_refs):
+        cc = _candidate_code(ref.line) or _dotless_candidate_code(ref.line)
+        if cc:
+            hits.setdefault(cc, []).append(i)
+
+    def looks_like_a_heading(ref, pos: int) -> bool:
+        """Whether this line opens a section rather than merely printing a code.
+
+        Two refusals, both measured on the 30.06.2025 Customs edition, where a
+        first cut of this pass inserted nineteen sections of which four were
+        table rows:
+
+            83 [7A.  If any agency or person   Such agency or person or   14A]
+            85 [14B  If any person commits an  Such person shall be liable 32C]
+            21 [39A. The person incharge of a  such person, master, agent 72A]
+            35 [95A. If any person furnishes a Such person shall be liable ...]
+
+        Those are s.156's penalty table with its columns flattened into one
+        line.  ``is_table`` already marks them, and both ``_find_heading_split``
+        and ``discover`` already refuse to let a table line carry a structural
+        heading -- this pass has to agree with them.
+
+        The heading DASH is the second signal and it is the load-bearing one: a
+        section heading prints ``Title.-`` and a table row does not.  ``is_table``
+        alone was tried and is not enough -- those four lines are not flagged,
+        and admitting them destroyed the monotonic cursor: 202 sections moved,
+        s.9 ran from 884 characters to 60,500 and s.156 collapsed from 80,811 to
+        28.  One false start really does poison every section after it, exactly
+        as ``build_sections`` warns.
+
+        The dash is looked for across TWO lines, because a title wraps:
+        ``128 [32C. Mis-declaration of Value for illegal transfer of funds into
+        or out of`` breaks before ``Pakistan.-``, and a one-line window refused
+        the very section this pass was written to recover.
+        """
+        if getattr(ref.line, "is_table", False):
+            return False
+        window = ref.line.text() or ""
+        nxt = body_refs[pos + 1] if pos + 1 < len(body_refs) else None
+        if nxt is not None and not getattr(nxt.line, "is_table", False):
+            window += " " + (nxt.line.text() or "")
+        return bool(_HEADING_DASH_RE.search(window[:220]))
+
+    known = {e.code for e in order}
+    candidates = {c: pos[0] for c, pos in hits.items()
+                  if c not in known and len(pos) == 1}
+    if not candidates:
+        return 0
+
+    def one_body_pos(code: str):
+        pos = hits.get(code) or []
+        return pos[0] if len(pos) == 1 else None
+
+    additions: list[tuple[int, object]] = []
+
+    for k in range(len(order) - 1):
+        prev, nxt = order[k], order[k + 1]
+        lo, hi = code_sort_key(prev.code), code_sort_key(nxt.code)
+        if not lo < hi:
+            continue
+        lo_pos, hi_pos = one_body_pos(prev.code), one_body_pos(nxt.code)
+        for code, pos in sorted(candidates.items(), key=lambda kv: code_sort_key(kv[0])):
+            if not lo < code_sort_key(code) < hi:
+                continue
+            if lo_pos is not None and pos < lo_pos:
+                continue
+            if hi_pos is not None and pos > hi_pos:
+                continue
+            ref = body_refs[pos]
+            if not looks_like_a_heading(ref, pos):
+                continue
+            entry = SectionEntry(code=code, heading="",
+                                 printed_page=getattr(prev, "printed_page", 0),
+                                 parent=prev.parent)
+            entry.anchor = ref
+            additions.append((k, entry))
+
+    for offset, (k, entry) in enumerate(additions):
+        ordered_sections.insert(k + 1 + offset, entry)
+    return len(additions)
 
 
 def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:
