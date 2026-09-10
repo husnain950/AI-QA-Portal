@@ -424,6 +424,9 @@
 .ai-fix-compare .ai-fix-actions {
     padding-top: 8px;
     border-top: 1px solid var(--color-border);
+    position: relative;
+    z-index: 2;
+    background: var(--color-bg-secondary);
 }
 
 @media (max-width: 960px) {

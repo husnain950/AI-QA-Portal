@@ -79,10 +79,32 @@ def test_validate_leaf_blocks_bad_proposals():
     )
 
     desynced = ai_fix.merge_proposal(original, {"plain_text": "Something else entirely"})
-    assert any(
-        issue["code"] == "html_plain_parity"
-        for issue in ai_fix.validate_leaf(desynced, original)
+    desynced_issues = ai_fix.validate_leaf(desynced, original)
+    parity = next(issue for issue in desynced_issues if issue["code"] == "html_plain_parity")
+    assert parity["level"] == "warning"
+    assert not ai_fix.blocks_approval(desynced_issues), (
+        "html vs plain_text mismatch is a warning the reviewer can override"
     )
+
+    listed = ai_fix.merge_proposal(
+        original,
+        {
+            "html": (
+                "<ol class='subsection'>"
+                "<li>(1) This Act may be called the Federal Excise Act, 2005.</li>"
+                "<li>(2) It extends to the whole of Pakistan.</li>"
+                "</ol>"
+            ),
+            "plain_text": (
+                "(1) This Act may be called the Federal Excise Act, 2005. "
+                "(2) It extends to the whole of Pakistan."
+            ),
+        },
+    )
+    assert not any(
+        issue["code"] == "html_plain_parity"
+        for issue in ai_fix.validate_leaf(listed, original)
+    ), "block tags must not glue adjacent list items into a false mismatch"
 
     with_footnotes = json.loads(sample_document())["chapters"][0]["sections"][0]
     dropped = ai_fix.merge_proposal(with_footnotes, {"footnotes": []})
@@ -95,6 +117,13 @@ def test_validate_leaf_blocks_bad_proposals():
     issues = ai_fix.validate_leaf(unchanged, original)
     assert not ai_fix.has_errors(issues)
     assert any(issue["code"] == "no_change" for issue in issues)
+
+
+def test_normalized_visible_text_inserts_space_at_block_boundaries():
+    assert ai_fix.normalized_visible_text(
+        "<ol><li>(1) First.</li><li>(2) Second.</li></ol>"
+    ) == "(1) First. (2) Second."
+    assert ai_fix.normalized_visible_text("<p>a</p><p>b</p>") == "a b"
 
 
 def test_parse_model_reply_tolerates_fences():
@@ -319,6 +348,102 @@ async def test_gateway_error_is_stored_as_failed(runtime_sandbox, gateway):
         )
         assert row["status"] == "failed"
         assert "500" in row["error"]
+        async with db.execute(
+            "SELECT * FROM fix_proposals WHERE id = ?", (row["id"],)
+        ) as cursor:
+            stored = await cursor.fetchone()
+        with pytest.raises(ValueError, match="no payload"):
+            await ai_fix.approve_proposal(db, stored, actor="approver")
+    finally:
+        await db.close()
+
+
+async def test_html_plain_mismatch_is_proposed_and_approvable(runtime_sandbox, gateway):
+    """List-shaped HTML vs naturally-spaced plain_text used to fail the whole apply."""
+    gateway["reply"] = model_reply(
+        html=(
+            "<ol class='subsection'>"
+            "<li>(1) This Act may be called the Federal Excise Act, 2005.</li>"
+            "<li>(2) It extends to the whole of Pakistan.</li>"
+            "</ol>"
+        ),
+        plain_text=(
+            "(1) This Act may be called the Federal Excise Act, 2005. "
+            "(2) It extends to the whole of Pakistan."
+        ),
+    )
+    db, document_id, section_id = await synced_document(runtime_sandbox)
+    try:
+        row = await ai_fix.create_proposal(
+            db, document_id, section_id, "restore subsections (2) and (3)", actor="tester"
+        )
+        assert row["status"] == "proposed"
+        issues = json.loads(row["validation_json"])
+        assert not any(issue["code"] == "html_plain_parity" for issue in issues)
+
+        async with db.execute(
+            "SELECT * FROM fix_proposals WHERE id = ?", (row["id"],)
+        ) as cursor:
+            stored = await cursor.fetchone()
+        result = await ai_fix.approve_proposal(db, stored, actor="approver")
+        assert result["version_no"] == 2
+    finally:
+        await db.close()
+
+
+async def test_legacy_failed_parity_proposal_can_still_be_applied(runtime_sandbox, gateway):
+    """Rows stored before html_plain_parity was demoted still have a payload to apply."""
+    gateway["reply"] = model_reply(plain_text="Something else entirely")
+    db, document_id, section_id = await synced_document(runtime_sandbox)
+    try:
+        row = await ai_fix.create_proposal(
+            db, document_id, section_id, "fix it", actor="tester"
+        )
+        # New validator records this as proposed+warning; rewrite the row to the
+        # pre-fix shape the compare screen still has to handle.
+        await db.execute(
+            """
+            UPDATE fix_proposals
+            SET status = 'failed',
+                error = 'HTML textContent and plain_text differ',
+                validation_json = ?
+            WHERE id = ?
+            """,
+            (
+                json.dumps([{
+                    "level": "error",
+                    "code": "html_plain_parity",
+                    "message": "HTML textContent and plain_text differ",
+                }]),
+                row["id"],
+            ),
+        )
+        await db.commit()
+        async with db.execute(
+            "SELECT * FROM fix_proposals WHERE id = ?", (row["id"],)
+        ) as cursor:
+            stored = await cursor.fetchone()
+        assert stored["status"] == "failed"
+        result = await ai_fix.approve_proposal(db, stored, actor="approver")
+        assert result["version_no"] == 2
+    finally:
+        await db.close()
+
+
+async def test_unsafe_failed_proposal_still_cannot_be_applied(runtime_sandbox, gateway):
+    gateway["reply"] = model_reply(html="<script>alert(1)</script>")
+    db, document_id, section_id = await synced_document(runtime_sandbox)
+    try:
+        row = await ai_fix.create_proposal(
+            db, document_id, section_id, "fix it", actor="tester"
+        )
+        assert row["status"] == "failed"
+        async with db.execute(
+            "SELECT * FROM fix_proposals WHERE id = ?", (row["id"],)
+        ) as cursor:
+            stored = await cursor.fetchone()
+        with pytest.raises(ValueError, match="failed validation"):
+            await ai_fix.approve_proposal(db, stored, actor="approver")
     finally:
         await db.close()
 

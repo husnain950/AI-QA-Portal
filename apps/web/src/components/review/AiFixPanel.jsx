@@ -16,6 +16,7 @@ import { useReviewStore } from '../../stores/reviewStore';
 import { useUiStore } from '../../stores/uiStore';
 import { api } from '../../utils/api';
 import {
+    canApplyProposal,
     changeSummary,
     classifyDiffLine,
     formatModelPricing,
@@ -251,7 +252,11 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
         let cancelled = false;
         const applyPending = (list) => {
             const pending = (list || []).find(
-                (item) => item.section_id === section.id && item.status === 'proposed' && item.proposed,
+                (item) => (
+                    item.section_id === section.id
+                    && item.proposed
+                    && (item.status === 'proposed' || item.status === 'failed')
+                ),
             );
             if (cancelled) return pending;
             setError('');
@@ -320,7 +325,10 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
             setProposal(result);
             setPhase('compare');
             if (result.status === 'failed') {
-                setError(result.error || 'The model reply failed validation.');
+                const failedSummary = validationSummary(result.validation);
+                if (!result.proposed || failedSummary.blocked) {
+                    setError(result.error || 'The model reply failed validation.');
+                }
             }
         } catch (e) {
             setError(e.message || 'The fix request failed.');
@@ -534,7 +542,7 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                                 type="button"
                                 className="btn btn-secondary"
                                 onClick={handleReject}
-                                disabled={busy || proposal.status === 'failed'}
+                                disabled={busy || !['proposed', 'failed'].includes(proposal.status)}
                             >
                                 <X size={14} />
                                 Reject
@@ -543,11 +551,15 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                                 type="button"
                                 className="btn btn-primary"
                                 onClick={handleApprove}
-                                disabled={busy || proposal.status !== 'proposed' || validation.blocked}
+                                disabled={busy || !canApplyProposal(proposal, validation)}
                                 title={
-                                    validation.blocked
-                                        ? 'Validation errors block approval'
-                                        : 'Apply as a new version + persistent overlay'
+                                    canApplyProposal(proposal, validation)
+                                        ? 'Apply as a new version + persistent overlay'
+                                        : validation.blocked
+                                            ? 'Validation errors block approval'
+                                            : !proposal.proposed
+                                                ? 'Nothing to apply — the model did not return a leaf'
+                                                : 'This proposal is no longer open for approval'
                                 }
                             >
                                 {busy ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
