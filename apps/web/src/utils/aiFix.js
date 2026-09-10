@@ -79,7 +79,15 @@ export function classifyDiffLine(line) {
 }
 
 /** Split validation issues into { errors, warnings } lists of messages. */
-export const NON_BLOCKING_ERROR_CODES = new Set(['html_plain_parity']);
+export const NON_BLOCKING_ERROR_CODES = new Set([
+    'html_plain_parity',
+    'evidence_incomplete',
+]);
+export const OPEN_PROPOSAL_STATUSES = new Set([
+    'proposed',
+    'failed',
+    'evidence_incomplete',
+]);
 
 export function validationSummary(issues) {
     const errors = [];
@@ -102,7 +110,7 @@ export function validationSummary(issues) {
 export function canApplyProposal(proposal, validation) {
     if (!proposal?.proposed) return false;
     if (validation?.blocked) return false;
-    return proposal.status === 'proposed' || proposal.status === 'failed';
+    return OPEN_PROPOSAL_STATUSES.has(proposal.status);
 }
 
 /** Seed the instructions textarea from the section's open annotations. */

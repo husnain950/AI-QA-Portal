@@ -17,7 +17,7 @@ from backend.database import (
     dispose_engine,
     engine_settings,
 )
-from backend.middleware.security import HEAVY, READ, _limit_for
+from backend.middleware.security import AI, HEAVY, READ, REVIEW, _limit_for
 from backend.services import auth, blob_store
 from backend.tests.conftest import (
     ADMIN_EMAIL,
@@ -395,6 +395,24 @@ def test_blob_reads_are_reads_not_heavy_writes():
     assert _limit_for("DELETE", f"/api/documents/{DOCUMENT_ID}") is HEAVY
 
 
+def test_ai_token_bucket_is_only_the_model_call():
+    """Opening the compare screen does GET /ai-fixes/models plus list, then
+    Approve POSTs /ai-fixes/{id}/approve. Those used to share the 20/hour AI
+    window with the job that actually spends tokens, so the 21st panel open
+    429'd with "ai request limit exceeded" and the apply click was dead."""
+    assert _limit_for("GET", "/api/ai-fixes/models") is READ
+    assert _limit_for("GET", f"/api/documents/{DOCUMENT_ID}/ai-fixes") is READ
+    assert _limit_for("GET", "/api/ai-fixes/abc") is READ
+    assert _limit_for("GET", "/api/v2/jobs/abc") is READ
+    assert _limit_for("POST", "/api/ai-fixes/abc/approve") is REVIEW
+    assert _limit_for("POST", "/api/ai-fixes/abc/reject") is REVIEW
+    assert _limit_for("POST", "/api/v2/jobs/ai_proposal") is AI
+    assert _limit_for(
+        "POST",
+        f"/api/documents/{DOCUMENT_ID}/sections/{SECTION_ID}/ai-fix",
+    ) is AI
+
+
 async def test_a_pdf_streams_more_ranges_than_the_old_heavy_bucket_allowed(
     runtime_sandbox, sign_in, monkeypatch
 ):
@@ -407,4 +425,19 @@ async def test_a_pdf_streams_more_ranges_than_the_old_heavy_bucket_allowed(
         response = await reader.get(f"/uploads/{name}", headers=headers)
         assert response.status_code == 200, (
             f"range request {attempt + 1} answered {response.status_code}"
+        )
+
+
+async def test_opening_the_ai_fix_panel_does_not_exhaust_the_token_budget(
+    runtime_sandbox, sign_in, monkeypatch
+):
+    """GET /ai-fixes/models used to sit in the 20/hour AI bucket. The 21st
+    catalog fetch of the hour then 429'd every later Approve."""
+    monkeypatch.setenv("RATE_LIMITS", "on")
+    reviewer = await sign_in("reviewer")
+    headers = {"X-Forwarded-For": "198.51.100.24"}
+    for attempt in range(21):
+        response = await reviewer.get("/api/ai-fixes/models", headers=headers)
+        assert response.status_code != 429, (
+            f"catalog fetch {attempt + 1} answered 429 — reads must not share the AI bucket"
         )

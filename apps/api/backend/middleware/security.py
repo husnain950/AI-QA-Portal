@@ -113,7 +113,15 @@ def required_role(method: str, path: str) -> str | None:
 
 
 def _limit_for(method: str, path: str) -> Limit:
-    if "/ai-fix" in path or "/jobs/ai_proposal" in path:
+    # Only the call that spends model tokens belongs in the AI bucket.
+    # Listing proposals, fetching the catalog, polling the job, and
+    # Approve/Reject used to share that 20/hour window, so opening the
+    # compare screen a handful of times 429'd with "ai request limit exceeded"
+    # — including the click that applies the fix.
+    stripped = path.rstrip("/")
+    if method == "POST" and (
+        stripped.endswith("/ai-fix") or stripped.endswith("/jobs/ai_proposal")
+    ):
         return AI
     if "/corpus/sync" in path or "/jobs/corpus_sync" in path:
         return SYNC

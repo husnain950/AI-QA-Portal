@@ -38,8 +38,11 @@ MAX_DIFF_LINES = 400
 
 # Errors that still store the merged leaf for the reviewer to look at, but must
 # not freeze Approve. ``visible_text`` concatenates adjacent blocks, so models
-# that emit <ol>/<p> plus naturally-spaced plain_text used to fail hard.
-NON_BLOCKING_ERROR_CODES = frozenset({"html_plain_parity"})
+# that emit <ol>/<p> plus naturally-spaced plain_text used to fail hard. A leaf
+# longer than ``MAX_PAGES_SENT`` is truncated on purpose — that used to land as
+# ``evidence_incomplete`` and disable Approve on the compare screen.
+NON_BLOCKING_ERROR_CODES = frozenset({"html_plain_parity", "evidence_incomplete"})
+OPEN_PROPOSAL_STATUSES = frozenset({"proposed", "failed", "evidence_incomplete"})
 
 # Insert a break before comparing HTML textContent to plain_text. ``<p>a</p><p>b</p>``
 # is "ab" to ``visible_text`` and "a b" to a reviewer (and to the model's plain_text).
@@ -91,6 +94,15 @@ Rules:
 # context gathering
 # ---------------------------------------------------------------------------
 
+def source_pages(start_page: Optional[int], end_page: Optional[int]) -> List[int]:
+    """Inclusive 1-based page span for a leaf, in document order."""
+    first = int(start_page or 1)
+    last = int(end_page or first)
+    if last < first:
+        first, last = last, first
+    return list(range(first, last + 1))
+
+
 def render_pdf_pages(
     pdf_path: str,
     start_page: Optional[int],
@@ -102,11 +114,7 @@ def render_pdf_pages(
     """Render the leaf's 1-based page span to PNGs: ``[(page_no, png_bytes), ...]``."""
     import pypdfium2  # lazy: native library, only needed when a fix is requested
 
-    first = int(start_page or 1)
-    last = int(end_page or first)
-    if last < first:
-        first, last = last, first
-    pages = list(range(first, last + 1))[:max_pages]
+    pages = source_pages(start_page, end_page)[:max_pages]
 
     rendered: List[Tuple[int, bytes]] = []
     doc = pypdfium2.PdfDocument(pdf_path)
@@ -208,7 +216,7 @@ def _as_json(value: Any, default: Any = None) -> Any:
 def validate_leaf(
     merged: Dict[str, Any], original: Dict[str, Any]
 ) -> List[Dict[str, str]]:
-    """Issues with the merged leaf. Hard ``error``s block approval; ``html_plain_parity`` does not."""
+    """Issues with the merged leaf. Hard ``error``s block approval; parity/evidence do not."""
     issues: List[Dict[str, str]] = []
 
     def error(code: str, message: str) -> None:
@@ -408,13 +416,15 @@ async def create_proposal(
         )
     except Exception:
         page_images = []  # a fix without page images is degraded, not impossible
-    first_page = int(section["start_page"] or 1)
-    last_page = int(section["end_page"] or first_page)
-    if last_page < first_page:
-        first_page, last_page = last_page, first_page
-    expected_pages = list(range(first_page, last_page + 1))
+    expected_pages = source_pages(section["start_page"], section["end_page"])
+    attempted_pages = expected_pages[:MAX_PAGES_SENT]
     rendered_pages = [number for number, _image in page_images]
-    evidence_complete = rendered_pages == expected_pages
+    truncated = len(expected_pages) > MAX_PAGES_SENT
+    # Completeness is "did the pages we meant to send actually render?", not
+    # "does the whole leaf fit in the provider cap". A 12-page definitions
+    # section is supposed to send four pages; treating that cap as a hard
+    # error froze Approve & apply on the compare screen.
+    evidence_complete = rendered_pages == attempted_pages
     # Text-only models still get pages rendered for the reviewer UI; images are
     # omitted from the gateway payload when the model lacks vision.
     images_for_model = page_images if vision else []
@@ -426,12 +436,14 @@ async def create_proposal(
         "images_sent": bool(images_for_model),
         "source_pdf_sha256": await pdf_digest(db, document),
         "expected_pages": expected_pages,
+        "attempted_pages": attempted_pages,
         "rendered_pages": [
             {"page": number, "sha256": hashlib.sha256(image).hexdigest(), "bytes": len(image)}
             for number, image in page_images
         ],
         "render_result": "complete" if evidence_complete else "evidence_incomplete",
         "provider_page_limit": MAX_PAGES_SENT,
+        "truncated": truncated,
     }
 
     proposal_id = str(uuid.uuid4())
@@ -461,10 +473,21 @@ async def create_proposal(
         proposal = parse_model_reply(reply)
         merged = merge_proposal(dict(leaf), proposal)
         issues = validate_leaf(merged, dict(leaf))
-        if not evidence_complete:
+        if truncated:
             issues.append(
                 {
-                    "level": "error",
+                    "level": "warning",
+                    "code": "evidence_incomplete",
+                    "message": (
+                        f"Only the first {MAX_PAGES_SENT} of {len(expected_pages)} "
+                        "source pages were sent (provider input limit)"
+                    ),
+                }
+            )
+        elif not evidence_complete:
+            issues.append(
+                {
+                    "level": "warning",
                     "code": "evidence_incomplete",
                     "message": "Every source page must render and fit within provider input limits",
                 }
@@ -472,13 +495,7 @@ async def create_proposal(
         row["proposed_json"] = json.dumps(merged, ensure_ascii=False)
         row["validation_json"] = json.dumps(issues, ensure_ascii=False)
         row["diff_json"] = json.dumps(diff_leaf(dict(leaf), merged), ensure_ascii=False)
-        row["status"] = (
-            "evidence_incomplete"
-            if not evidence_complete
-            else "failed"
-            if blocks_approval(issues)
-            else "proposed"
-        )
+        row["status"] = "failed" if blocks_approval(issues) else "proposed"
         if blocks_approval(issues):
             row["error"] = "; ".join(
                 issue["message"]
@@ -523,15 +540,14 @@ async def approve_proposal(
 ) -> Dict[str, Any]:
     """Apply a proposal as a new pending version; legal approval is separate."""
     status = proposal["status"]
-    proposed_json = proposal["proposed_json"]
-    if status == "failed":
-        if not proposed_json:
-            raise ValueError("proposal has no payload to apply")
-        issues = _as_json(proposal["validation_json"], []) or []
-        if blocks_approval(issues):
-            raise ValueError("proposal failed validation and cannot be applied")
-    elif status != "proposed":
+    if status not in OPEN_PROPOSAL_STATUSES:
         raise ValueError(f"proposal is {status}, not open for approval")
+    proposed_json = proposal["proposed_json"]
+    if not proposed_json:
+        raise ValueError("proposal has no payload to apply")
+    issues = _as_json(proposal["validation_json"], []) or []
+    if blocks_approval(issues):
+        raise ValueError("proposal failed validation and cannot be applied")
 
     document_id = proposal["document_id"]
     source_key = proposal["source_key"]
@@ -591,7 +607,7 @@ async def approve_proposal(
 
 
 async def reject_proposal(db: DatabaseConnection, proposal, *, actor: str) -> None:
-    if proposal["status"] not in ("proposed", "failed"):
+    if proposal["status"] not in OPEN_PROPOSAL_STATUSES:
         raise ValueError(f"proposal is {proposal['status']}, not open for rejection")
     await db.execute(
         """

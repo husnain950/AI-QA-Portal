@@ -21,6 +21,7 @@ import {
     classifyDiffLine,
     formatModelPricing,
     htmlChangeHints,
+    OPEN_PROPOSAL_STATUSES,
     pagesSentToModel,
     seedInstructions,
     validationSummary,
@@ -255,7 +256,7 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                 (item) => (
                     item.section_id === section.id
                     && item.proposed
-                    && (item.status === 'proposed' || item.status === 'failed')
+                    && OPEN_PROPOSAL_STATUSES.has(item.status)
                 ),
             );
             if (cancelled) return pending;
@@ -266,7 +267,7 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
             return pending;
         };
         applyPending(storedProposals);
-        fetchModels({ force: true });
+        fetchModels();
         if (documentId) {
             fetchProposals(documentId).then((list) => applyPending(list));
         }
@@ -324,7 +325,7 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
             });
             setProposal(result);
             setPhase('compare');
-            if (result.status === 'failed') {
+            if (result.status === 'failed' || result.status === 'evidence_incomplete') {
                 const failedSummary = validationSummary(result.validation);
                 if (!result.proposed || failedSummary.blocked) {
                     setError(result.error || 'The model reply failed validation.');
@@ -471,7 +472,13 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                 {phase === 'compare' && proposal && (
                     <div className="ai-fix-compare">
                         <div className="ai-fix-meta">
-                            <span className={`badge badge-${proposal.status === 'proposed' ? 'pending' : 'flagged'}`}>
+                            <span className={`badge badge-${
+                                proposal.status === 'proposed'
+                                    ? 'pending'
+                                    : proposal.status === 'evidence_incomplete'
+                                        ? 'warning'
+                                        : 'flagged'
+                            }`}>
                                 {proposal.status}
                             </span>
                             {proposal.model_name && <span>model: {proposal.model_name}</span>}
@@ -542,7 +549,7 @@ const AiFixPanel = ({ open, onClose, documentId, section, onApplied }) => {
                                 type="button"
                                 className="btn btn-secondary"
                                 onClick={handleReject}
-                                disabled={busy || !['proposed', 'failed'].includes(proposal.status)}
+                                disabled={busy || !OPEN_PROPOSAL_STATUSES.has(proposal.status)}
                             >
                                 <X size={14} />
                                 Reject

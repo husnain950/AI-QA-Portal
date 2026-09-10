@@ -55,6 +55,12 @@ def test_leaf_fingerprint_is_order_independent():
     assert overlays.leaf_fingerprint(a) != overlays.leaf_fingerprint({"x": 2, "y": [1, 2]})
 
 
+def test_source_pages_is_inclusive_and_swaps_inverted_ranges():
+    assert ai_fix.source_pages(5, 8) == [5, 6, 7, 8]
+    assert ai_fix.source_pages(4, 2) == [2, 3, 4]
+    assert ai_fix.source_pages(None, None) == [1]
+
+
 def test_validate_leaf_blocks_bad_proposals():
     original = json.loads(sample_document())["chapters"][0]["sections"][1]
 
@@ -424,6 +430,88 @@ async def test_legacy_failed_parity_proposal_can_still_be_applied(runtime_sandbo
         ) as cursor:
             stored = await cursor.fetchone()
         assert stored["status"] == "failed"
+        result = await ai_fix.approve_proposal(db, stored, actor="approver")
+        assert result["version_no"] == 2
+    finally:
+        await db.close()
+
+
+async def test_long_leaf_is_proposed_when_only_the_page_cap_is_hit(
+    runtime_sandbox, gateway, monkeypatch
+):
+    """A definitions leaf spanning more pages than MAX_PAGES_SENT used to freeze Approve."""
+    monkeypatch.setattr(
+        ai_fix,
+        "render_pdf_pages",
+        lambda *_args, **_kwargs: [
+            (page, b"png") for page in range(3, 3 + ai_fix.MAX_PAGES_SENT)
+        ],
+    )
+    db, document_id, section_id = await synced_document(runtime_sandbox)
+    try:
+        await db.execute(
+            "UPDATE sections SET start_page = 3, end_page = 12 WHERE id = ?",
+            (section_id,),
+        )
+        await db.commit()
+        row = await ai_fix.create_proposal(
+            db, document_id, section_id, "restore the missing subsections", actor="tester"
+        )
+        assert row["status"] == "proposed"
+        issues = json.loads(row["validation_json"])
+        truncated = next(issue for issue in issues if issue["code"] == "evidence_incomplete")
+        assert truncated["level"] == "warning"
+        assert not ai_fix.blocks_approval(issues)
+        evidence = row["evidence_json"]
+        if isinstance(evidence, str):
+            evidence = json.loads(evidence)
+        assert evidence["truncated"] is True
+        assert evidence["attempted_pages"] == [3, 4, 5, 6]
+        assert evidence["render_result"] == "complete"
+
+        async with db.execute(
+            "SELECT * FROM fix_proposals WHERE id = ?", (row["id"],)
+        ) as cursor:
+            stored = await cursor.fetchone()
+        result = await ai_fix.approve_proposal(db, stored, actor="approver")
+        assert result["version_no"] == 2
+    finally:
+        await db.close()
+
+
+async def test_legacy_evidence_incomplete_proposal_can_still_be_applied(
+    runtime_sandbox, gateway
+):
+    """Rows stored when the page cap was a hard error still have a payload to apply."""
+    gateway["reply"] = model_reply()
+    db, document_id, section_id = await synced_document(runtime_sandbox)
+    try:
+        row = await ai_fix.create_proposal(
+            db, document_id, section_id, "fix it", actor="tester"
+        )
+        await db.execute(
+            """
+            UPDATE fix_proposals
+            SET status = 'evidence_incomplete',
+                error = 'Every source page must render and fit within provider input limits',
+                validation_json = ?
+            WHERE id = ?
+            """,
+            (
+                json.dumps([{
+                    "level": "error",
+                    "code": "evidence_incomplete",
+                    "message": "Every source page must render and fit within provider input limits",
+                }]),
+                row["id"],
+            ),
+        )
+        await db.commit()
+        async with db.execute(
+            "SELECT * FROM fix_proposals WHERE id = ?", (row["id"],)
+        ) as cursor:
+            stored = await cursor.fetchone()
+        assert stored["status"] == "evidence_incomplete"
         result = await ai_fix.approve_proposal(db, stored, actor="approver")
         assert result["version_no"] == 2
     finally:
