@@ -65,6 +65,10 @@ class BuiltSection:
     # which of the two ``heading`` came from -- see ``_build_one``
     toc_heading: str = ""
     heading_source: str = "toc"
+    # Index of this section's heading line in ``body_refs``.  The tree needs it
+    # to place a section under the chapter the BODY prints it beneath, which
+    # page granularity cannot do when a chapter heading falls mid-page.
+    start_index: int | None = None
     # Tokens in this section that the two OCR engines read differently, in
     # document order.  Empty for every text-layer document; non-empty only where
     # the text came from a scan, and then it is the record of exactly which
@@ -107,6 +111,54 @@ def _marker_or_cite_sup(ref: str, marker: str, title: str) -> str:
                 f'{_html.escape(marker)}</sup>')
     return (f'<sup class="cite" '
             f'title="{_html.escape(title, quote=True)}">{ref}</sup>')
+
+
+#: The separators that fuse a run of markers into one extracted word.  Kept in
+#: step with ``grammar.marker_run``, which splits on the same three.
+_MARKER_RUN_SEPS_RE = re.compile(r"[,&/]")
+
+
+def _render_marker_token(token: str, run: list[str], page: int,
+                         footnote_map: dict, page_offset: int, cited) -> str:
+    """One ``<sup>`` per marker in a citation token, however many it carries.
+
+    The text layer hands over ``7,45[`` as a single word, so a run has to be
+    rendered from one token: each marker becomes its own ``<sup>`` -- separately
+    resolvable, separately bindable by the review pane -- with the printed
+    separator kept between them and raised, because that is how the source sets
+    it.  The trailing bracket stays at BASELINE: it opens the amended text and
+    belongs to the sentence, not to the superscript.
+
+    A token carrying exactly one marker and nothing else takes the same path it
+    always did, so single-marker output is unchanged byte for byte.
+    """
+    seps = _MARKER_RUN_SEPS_RE.findall(token)
+    out = []
+    for i, marker in enumerate(run):
+        title, note_pg = _cite_entry(footnote_map, page, marker)
+        # ref names the page the NOTE is printed on, not the citing page --
+        # identical in a bottom-of-page layout, different where notes are
+        # collected onto their own pages (Customs).  Keeping them in step is
+        # what lets a reader match the superscript to the note.
+        ref = f"{(note_pg if note_pg is not None else page) - page_offset}.{marker}"
+        if cited is not None:
+            cited.append((page, marker))
+        if i:
+            sep = seps[i - 1] if i - 1 < len(seps) else ""
+            if sep:
+                out.append(f'<sup class="cite-sep">{_html.escape(sep)}</sup>')
+        # Missing OR blank title: not a citation.  A note extracted as
+        # marker-only (Customs zone-split left 42's body in the quote under
+        # 41) used to emit ``<sup class="cite" title="">37.42</sup>`` because
+        # this branch required ``note_pg is None`` as well as empty text.
+        # The marker is still real printed text; ``data-ref`` keeps the
+        # reference it WOULD have made so ``inv_citation_refs_resolve`` can
+        # tell a binding break from a source defect (ledger O04).
+        out.append(_marker_or_cite_sup(ref, marker, title))
+    tail = token[len(token.rstrip("[")):]
+    if tail:
+        out.append(_html.escape(tail))
+    return "".join(out)
 
 
 def _ocr_marker_fn(words):
@@ -192,22 +244,14 @@ def _render_words(words, page: int, footnote_map: dict,
         sep = "" if glue else " "
         if is_marker_fn(w) if is_marker_fn else w.is_marker:
             marker = w.text.strip()
-            title, note_pg = _cite_entry(footnote_map, page, marker)
-            # ref names the page the NOTE is printed on, not the citing page --
-            # identical in a bottom-of-page layout, different where notes are
-            # collected onto their own pages (Customs).  Keeping them in step is
-            # what lets a reader match the superscript to the note.
-            ref = f"{(note_pg if note_pg is not None else page) - page_offset}.{marker}"
-            if cited is not None:
-                cited.append((page, marker))
-            # Missing OR blank title: not a citation.  A note extracted as
-            # marker-only (Customs zone-split left 42's body in the quote under
-            # 41) used to emit ``<sup class="cite" title="">37.42</sup>`` because
-            # this branch required ``note_pg is None`` as well as empty text.
-            # The marker is still real printed text; ``data-ref`` keeps the
-            # reference it WOULD have made so ``inv_citation_refs_resolve`` can
-            # tell a binding break from a source defect (ledger O04).
-            frag = _marker_or_cite_sup(ref, marker, title)
+            # One word can carry a whole run of markers ("7,45[", "5&7[",
+            # "1/2["), or one marker with its bracket kerned on ("11[").  A
+            # custom ``is_marker_fn`` (the OCR predicate) may admit a word the
+            # token grammar cannot split, so fall back to the whole token --
+            # which is what this branch always did.
+            run = getattr(w, "marker_run", None) or [marker]
+            frag = _render_marker_token(marker, run, page, footnote_map,
+                                        page_offset, cited)
             bold = False
             # RC-5: a superscript marker must never fuse into the preceding word or
             # number ("2005"+"4" -> "2005 4[", not "20054["), but must stay glued to
@@ -2119,13 +2163,15 @@ def build_sections(body_refs: list[LineRef], ordered_sections,
         seg = body_refs[start_idx:end_idx]
         if seg:
             try:
-                built[id(entry)] = _build_one(entry, seg, footnote_map,
-                                              page_footnotes, page_offset,
-                                              is_last=(k + 1 == len(starts)),
-                                              printed_by_page=printed_by_page,
-                                              cited_footnotes=cited_footnotes,
-                                              container_codes=part_codes.get(
-                                                  id(entry), frozenset()))
+                bs = _build_one(entry, seg, footnote_map,
+                                page_footnotes, page_offset,
+                                is_last=(k + 1 == len(starts)),
+                                printed_by_page=printed_by_page,
+                                cited_footnotes=cited_footnotes,
+                                container_codes=part_codes.get(
+                                    id(entry), frozenset()))
+                bs.start_index = start_idx
+                built[id(entry)] = bs
             except Exception as exc:  # never let one bad section kill the run
                 import sys
                 print(f"[fbr] warning: section {entry.code} failed: {exc}",
@@ -3049,6 +3095,25 @@ def _body_heading_title(h4_inner: str, code: str) -> str:
     s = s[m.end():]
     # drop the heading terminator (".—" / ",-" / a bare dash) and any bracket
     s = re.sub(r"[\s\]\[]*[.,]?\s*[—–―─-]+\s*$", "", s).strip()
+    # A marker printed BETWEEN the code and the title leaves its opening bracket
+    # at the head of the title once the <sup> refs above are dropped: the
+    # 30.06.2025 Customs edition prints s.3C as "3C. 22,23[Directorate General of
+    # Customs Academy of Pakistan (CAP).-" and the heading came out
+    # "22,23[Directorate General ...", which is what the TOC sidebar, the
+    # breadcrumb and the section header all render.  The marker-BEFORE-code form
+    # ("2,7[12.power to appoint") never had this problem, because MARKER_PREFIX
+    # strips the run as part of the code prefix.
+    #
+    # Only an UNBALANCED bracket goes.  s.32 prints "113[False] statement, error"
+    # -- there the bracket closes inside the title and is part of the amended
+    # wording, so stripping it leaves "False] statement", which reads worse than
+    # it started.  Counting tells the two apart: s.3C and s.25 open a bracket the
+    # title never closes, s.32 closes its own.  It has to run AFTER the
+    # terminator strip above -- the terminator carries a "]" of its own, which
+    # makes an unbalanced title look balanced ("[Value of ... goods].-").
+    lead = re.match(r"^[\s\[(]+", s)
+    if lead and s.count("[") > s.count("]"):
+        s = s[lead.end():]
     s = re.sub(r"\s{2,}", " ", s).strip()
     return s if any(c.isalpha() for c in s) else ""
 

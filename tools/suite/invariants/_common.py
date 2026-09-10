@@ -281,7 +281,17 @@ def inv_no_split_ordinals(doc, *, split_ordinal=_SPLIT_ORDINAL):
 # a leaf whose text opens with an amendment marker ("1[236Y. ..." or a bare
 # bracket line "3[ ]") cites a footnote -- the rendered html must carry a
 # visible <sup class="cite"> for it (in the h4 prefix or the body)
-_LEADING_AMEND_MARKER = re.compile(r"^\d{1,3}\[")
+#
+# The run form is load-bearing, not decoration.  Until 2026-09-10 this pattern
+# was ``^\d{1,3}\[`` and could not see a marker printed as a RUN -- ``7,45[``,
+# ``5&7[``, ``1/2[``, ``1a,25[`` -- which is exactly the population that failed
+# to render: the parser's token grammar rejected the fused word, so the marker
+# stayed literal text and this check, blind to the same shape, reported nothing.
+# An instrument narrower than the defect does not measure it.  Widening it alone,
+# parser untouched, raised this class from 0 to 61 across the acts lane -- measured
+# on the corpus as it stood, by running the three lane suites with and without
+# this line and nothing else changed.
+_LEADING_AMEND_MARKER = re.compile(r"^\d{1,3}[a-z]?(?:[,&/]\d{1,3}[a-z]?)*\[")
 
 
 def inv_leading_marker_cited(doc):

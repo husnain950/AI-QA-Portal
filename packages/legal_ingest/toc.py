@@ -452,6 +452,50 @@ def _page_furniture(lines) -> set:
     return out
 
 
+#: A contents line that ends in a printed page number, however the words before
+#: it are spelled.  Used to tell a schedule ROW from a schedule's title.
+_TRAILING_PAGE_RE = re.compile(rf"\s{PAGE_TOC}$")
+
+#: A contents row whose title opens with a lone capital letter, the shape a
+#: split code suffix takes: "79 A O mitted".
+_LONE_CAPITAL_HEAD_RE = re.compile(r"^([A-Z])\s+(?=\S)")
+
+
+def _rejoin_split_suffix(code: str, heading: str, last_section):
+    r"""Put a code's letter suffix back when the text layer split it off.
+
+    ``CODE_TOC`` already tolerates a glyph-split space between DIGITS
+    (``\d(?:\s?\d){0,3}``) because the contents pages print them that way.  It
+    does not tolerate one before the letter suffix, so page 9 of the 30.06.2025
+    Customs Act --
+
+        79      Declaration and assessment for home-consumption or   76
+        79A     Omitted                                              76
+
+    -- whose second row the text layer hands over as the four words
+    ``79`` ``A`` ``O`` ``mitted``, parses as code ``79`` with the title
+    "A O mitted".  That is a SECOND section 79: the contents page then carries
+    the code twice, the tree ships two Chapter IX nodes numbered 79, s.79A never
+    gets one of its own, and its footnote is filed under s.79.  QA read the
+    result as the portal inventing the spelling "O mitted"; the portal did not,
+    the contents page did, and ``pdftotext`` silently rejoins it while the text
+    layer does not.
+
+    Widening ``CODE_TOC`` itself was the obvious repair and is wrong: a spaced
+    ``[A-Z]{1,4}`` would eat the first word of any title that opens with a
+    capital.  The narrow signal is the DUPLICATE -- a row repeating the code
+    immediately above it, whose title then opens with a lone capital, is that
+    code's suffixed sibling and nothing else.  Nothing legitimate prints the
+    same code twice in a row.
+    """
+    if last_section is None or last_section.code != code:
+        return code, heading
+    m = _LONE_CAPITAL_HEAD_RE.match(heading or "")
+    if not m:
+        return code, heading
+    return code + m.group(1), heading[m.end():].strip()
+
+
 def parse_toc(lines: list[str], profile: Profile = ACTS):
     """Parse TOC text lines into (chapters, schedules, ordered_sections)."""
     chapters: list[Node] = []
@@ -636,6 +680,7 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
         if m and not in_schedules:
             code = norm_code(m.group("code"))
             heading = _clean_heading(m.group("heading"))
+            code, heading = _rejoin_split_suffix(code, heading, last_section)
             page = page_num(m.group("page"))
             entry = SectionEntry(code=code, heading=heading,
                                  printed_page=page, parent=container_for_section())
@@ -747,6 +792,27 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
             if leadered:
                 txt = _clean_heading(_FOLIO_TAIL_RE.sub("", txt))
             if not txt:
+                continue
+            # A SCHEDULE's title never carries a printed page of its own -- the
+            # page sat on the code row above.  A line that does carry one is the
+            # NEXT row, and absorbing it puts one schedule's name (and page
+            # number, and the source's own typo) on the schedule before it.
+            # Page 22 of the 30.06.2025 Customs Act:
+            #
+            #     THE FIRST SCHEDULE      254
+            #     THE SECOND SHCEUDLE     254
+            #     THE THIRD SCHEDULE      255
+            #     T HE FOURTH SCHEDULE    2 55
+            #
+            # ``SCHEDULE_TOC_RE`` opens a node on rows 1 and 3 and rejects rows 2
+            # and 4 -- "SHCEUDLE" is not "SCHEDULE" and "T HE" breaks the ``THE``
+            # prefix -- so those two became the headings of the schedules above
+            # them, and the portal's TOC showed THE FIRST SCHEDULE as
+            # "THE SECOND SHCEUDLE 254".  Matching on the word cannot work when
+            # the word is the thing misprinted; the trailing page number is the
+            # signal that survives the typo.
+            if (pending_heading_for.kind == "schedule"
+                    and _TRAILING_PAGE_RE.search(txt)):
                 continue
             if (pending_boundary and in_schedules
                     and pending_heading_for.kind == "division"):

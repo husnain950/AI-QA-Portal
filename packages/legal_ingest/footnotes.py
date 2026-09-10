@@ -57,6 +57,17 @@ BRACKETS_ONLY_RE = re.compile(r"^[\d\s\[\]]+$")
 # and must never be re-claimed
 _ANON_HISTORY_RE = re.compile(
     r"^\s*(?:Inserted|Added|Substituted)\s+by\b", re.IGNORECASE)
+#: A SECTION HEADING being quoted inside a footnote: a code, a dot, a
+#: capitalised title and the heading dash.  See ``_accept_marker``.
+_QUOTED_SECTION_HEAD_RE = re.compile(
+    r"^\s*\d{1,4}[A-Z]{0,3}\.\s+[A-Z][^.]{2,90}\.\s*[-\u2013\u2014]")
+
+#: The edit verb a real note opens with.  A line carrying one is a note however
+#: much of a heading the rest of it looks like.
+_EDIT_VERB_RE = re.compile(
+    r"^\s*(?:Substituted|Inserted|Added|Omitted|Deleted|Re-?numbered|"
+    r"Re-?lettered|The\s+words|The\s+figures?|By\s+the)\b", re.IGNORECASE)
+
 _NAMED_TARGET_RE = re.compile(
     r"\b(?:sections?|sub-?sections?|clauses?|paras?|paragraphs?|divisions?|"
     r"parts?|provisos?|explanations?|schedules?|tables?)\b",
@@ -1149,6 +1160,28 @@ def _accept_marker(t: str, rest, accepted: set, has_lead: bool) -> bool:
         return False                       # nested repeat of an existing marker
     if bracket and not accepted and has_lead:
         return False                       # still inside a continuing quotation
+    # A note quoting a SECTION HEADING prints that section's own code at the left
+    # margin, and the code then reads as a marker.  Chapter VII of the 30.06.2025
+    # Customs Act has footnote 4 quote the whole of s.43 --
+    #
+    #     4. Substituted by the Finance Act, 2003 ... At the time of substitution
+    #        section 43 was as under:-
+    #     43. Delivery of import manifest in respect of a vessel.- (1) The Board
+    #        may, by notification in the official Gazette, fix a place ...
+    #
+    # -- so a footnote "43" was minted in a chapter whose notes run 1-18, and
+    # s.55 then showed a whole section of the Act as an amendment note, with
+    # nothing in its text pointing at it.  The most misleading defect in the QA
+    # pass, because it looks like a footnote a reviewer is meant to verify.
+    #
+    # The shape is the evidence: a real note opens with an edit verb, a quoted
+    # heading opens with a title and closes it with the heading dash.  Requiring
+    # BOTH -- heading-shaped and not verb-led -- is what keeps a note like
+    # "36. Section 36 omitted by the Finance Act, 2005.- ..." on the right side.
+    if (rest and not _EDIT_VERB_RE.match(rest[0].text or "")
+            and _QUOTED_SECTION_HEAD_RE.match(
+                " ".join([t + "."] + [w.text for w in rest]))):
+        return False
     return True
 
 

@@ -30,6 +30,7 @@ from .grammar import (
     folio_value,
     is_marker_text,
     is_year_like,
+    marker_run,
     spaced,
 )
 
@@ -123,11 +124,24 @@ class Word:
         years.  Real markers in this corpus reach 1027 (the Sales Tax editions
         number their notes past a thousand), well clear of the 1900-2099 band.
         """
+        return bool(self.marker_run)
+
+    @property
+    def marker_run(self) -> list[str]:
+        """Every marker this word carries, in printed order; ``[]`` if none.
+
+        One extracted word can hold a whole run of markers, because the text
+        layer fuses them: ``7,45[``, ``5&7[``, ``1/2[``, and even a lone marker
+        with its bracket kerned on (``11[``).  ``grammar.marker_run`` reads the
+        token; the gates below are this class's own and run first -- in
+        particular the SIZE gate, which is what keeps a body-size tariff code
+        (``0101.9000,``) out of the token grammar entirely.
+        """
         if self.size > self.marker_max:
-            return False
+            return []
         t = self.text.strip()
         if is_year_like(t):
-            return False
+            return []
         # A trailing DOT means this is a numbered heading, not an inline marker.
         # ``marker_token`` strips it on purpose -- in the footnote ZONE a note
         # prints as "14. Substituted by the Finance Act, 2019" -- but inline a
@@ -136,8 +150,12 @@ class Word:
         # page a citation: the Benami Transactions Act 2017 rendered 27 of them
         # (``8.14.``, ``12.23.``, ``14.27.``), each pointing at no footnote.
         if t.endswith("."):
-            return False
-        return is_marker_text(t) or (t.endswith("*") and t[:-1].isdigit())
+            return []
+        run = marker_run(t)
+        if run:
+            return run
+        # a digit-and-asterisk marker ("12*") is not part of a run
+        return [t] if (t.endswith("*") and t[:-1].isdigit()) else []
 
 
 @dataclass
@@ -335,26 +353,26 @@ def _size_zone_top(ordered, cal) -> float | None:
         if k < n and not small[k]:
             big_before += 1
     if best_k >= n:
-        cap_k = _caption_zone_index(ordered)
+        cap_k = _caption_zone_index(ordered, cal)
         return None if cap_k is None else ordered[cap_k].top
     if not any(_is_amendment_note(ln.text()) for ln in ordered[best_k:]):
-        cap_k = _caption_zone_index(ordered)
+        cap_k = _caption_zone_index(ordered, cal)
         return None if cap_k is None else ordered[cap_k].top
     best_k = _pull_quoted_notes_into_zone(ordered, small, best_k, cal)
     if best_k >= n:
-        cap_k = _caption_zone_index(ordered)
+        cap_k = _caption_zone_index(ordered, cal)
         return None if cap_k is None else ordered[cap_k].top
     if not any(_is_amendment_note(ln.text()) for ln in ordered[best_k:]):
-        cap_k = _caption_zone_index(ordered)
+        cap_k = _caption_zone_index(ordered, cal)
         return None if cap_k is None else ordered[cap_k].top
     # The apparatus's own caption belongs to the apparatus, not to the section
     # above it.  Only ever the line IMMEDIATELY above the zone, and only when it
     # is that caption by name -- see ``_FOOTNOTE_CAPTION_RE``.
     while best_k > 0 and _FOOTNOTE_CAPTION_RE.match(ordered[best_k - 1].text()):
         best_k -= 1
-    if _zone_swallows_heading(ordered, best_k):
-        cap_k = _caption_zone_index(ordered)
-        if cap_k is not None and not _zone_swallows_heading(ordered, cap_k):
+    if _zone_swallows_heading(ordered, best_k, cal):
+        cap_k = _caption_zone_index(ordered, cal)
+        if cap_k is not None and not _zone_swallows_heading(ordered, cap_k, cal):
             return ordered[cap_k].top
         return None
     return ordered[best_k].top
@@ -536,25 +554,51 @@ def _is_chapter_line(ln) -> bool:
     return bool(CHAPTER_RE.match((ln.text() or "").strip()))
 
 
-def _zone_swallows_heading(ordered, k: int) -> bool:
+def _is_apparatus_sized(ln, cal) -> bool:
+    """Whether this line is set at footnote size, so it cannot be a live heading.
+
+    A live section or CHAPTER heading is printed at BODY size, always.  A heading
+    that appears at footnote size is a footnote QUOTING one -- the apparatus
+    reprinting the wording it replaced -- and quoting a heading must not be
+    allowed to veto the zone that the quotation itself lives in.
+    """
+    return cal is not None and _line_max_size(ln) <= cal.footnote_text_max
+
+
+def _zone_swallows_heading(ordered, k: int, cal=None) -> bool:
     """True when a live CHAPTER/section start would fall into the footnote zone.
 
     Quoted repealed headings after "as under:" / "as follows:" are apparatus,
     not a sandwich.  A live heading below the notes (14A under LEGAL REFERENCE)
     is the sandwich this must refuse to eat.
+
+    The quote cue is not enough on its own, because a quotation can outlive the
+    page it opened on.  ``in_quote`` starts False on every page, so a note whose
+    "as under:" sat on the PREVIOUS page arrives here looking like a live
+    heading: page 79 of the 30.06.2025 Customs edition opens with
+    ``15 [20. Board's power to grant exemption from duty ...``, which is
+    footnote 15 continuing its quotation of the repealed s.20 from page 78.
+    That one line vetoed the zone, the whole page was read as body, and
+    **footnotes 113-137 -- twenty-five of them -- were never built at all**,
+    leaving twenty-two visible superscripts in Chapter V pointing at nothing
+    while 2,550 characters of amendment notes ran on inside s.34.
+
+    Size settles it without needing the cue to cross the page boundary: the
+    quoted heading is set at 9pt with the notes around it, and a live heading
+    never is.
     """
     in_quote = False
     for ln in ordered[k:]:
         if _OPEN_QUOTE_CUE_RE.search(ln.text() or ""):
             in_quote = True
-        if in_quote:
+        if in_quote or _is_apparatus_sized(ln, cal):
             continue
         if _is_clause_heading_line(ln) or _is_chapter_line(ln):
             return True
     return False
 
 
-def _caption_zone_index(ordered) -> int | None:
+def _caption_zone_index(ordered, cal=None) -> int | None:
     """Index of a LEGAL REFERENCE caption that can open the footnote zone.
 
     Used when the changepoint finds no zone (notes overleaf: the caption is
@@ -571,7 +615,8 @@ def _caption_zone_index(ordered) -> int | None:
             continue
         below = [ordered[j] for j in range(i + 1, len(ordered))
                  if (ordered[j].text() or "").strip()]
-        if any(_is_clause_heading_line(x) or _is_chapter_line(x) for x in below):
+        if any((_is_clause_heading_line(x) or _is_chapter_line(x))
+               and not _is_apparatus_sized(x, cal) for x in below):
             continue
         if i == last_nonempty:
             return i

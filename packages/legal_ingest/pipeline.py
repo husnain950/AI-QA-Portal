@@ -453,6 +453,57 @@ def _demo() -> None:
     assert by["15"].parent is ch4, (by["15"].parent and by["15"].parent.code)
     assert by["18"].parent is chs[2]
 
+    # insert_missing_body_sections: the body prints a section the contents page
+    # never lists (19B), and a penalty-TABLE row that must not be mistaken for
+    # one.  Admitting that row destroyed the monotonic cursor when it was tried.
+    toc_rows = [
+        "        19A. Presumption that incidence of duty has been passed.   26",
+        "        19C. Minimal duties not to be demanded.                    27",
+    ]
+    _c2, _s2, secs2 = parse_toc(toc_rows)
+    body2 = [
+        _ln("19A. Presumption that incidence of duty has been passed.- Every", 48),
+        _ln("19B. Rounding off of duty, etc.- The amount of duty, interest", 49),
+        _ln("14a,129 [19C. Minimal duties not to be demanded.- Where the value", 49),
+        _ln("83 [7A. If any agency or person Such agency or person or 14A]", 143),
+    ]
+    n_sec = insert_missing_body_sections(secs2, body2)
+    assert n_sec == 1, n_sec
+    assert [e.code for e in secs2] == ["19A", "19B", "19C"], [e.code for e in secs2]
+    assert secs2[1].anchor is body2[1]
+    # and it is a no-op when the contents page already lists everything
+    _c3, _s3, secs3 = parse_toc(toc_rows)
+    assert insert_missing_body_sections(secs3, [body2[0], body2[2]]) == 0
+
+    # reparent_sections_to_body_chapters: the contents page files s.42 under
+    # DRAWBACK; the body prints CHAPTER VII directly above it.
+    from .toc import Node as _Node
+    from .toc import SectionEntry
+    ch6 = _Node(kind="chapter", code="CHAPTER VI", heading="DRAWBACK")
+    ch7 = _Node(kind="chapter", code="CHAPTER VII", heading="ARRIVAL")
+    secs4 = [SectionEntry(code="41", heading="", printed_page=59, parent=ch6),
+             SectionEntry(code="42", heading="", printed_page=60, parent=ch6)]
+    body4 = [
+        _ln("CHAPTER - VI", 80),
+        _ln("41. Declaration by parties claiming drawback.- No drawback", 81),
+        _ln("CHAPTER - VII", 82),
+        _ln("42. Arrival of conveyance.- (1) The person-in-charge", 82),
+    ]
+
+    class _BS:
+        def __init__(self, i): self.start_index = i
+    built4 = {id(secs4[0]): _BS(1), id(secs4[1]): _BS(3)}
+    n_re = reparent_sections_to_body_chapters([ch6, ch7], secs4, built4, body4)
+    assert n_re == 1, n_re
+    assert secs4[0].parent is ch6 and secs4[1].parent is ch7
+    # with no body line for one of the chapters there is no spine, so the
+    # contents page keeps the last word rather than half the tree moving
+    secs5 = [SectionEntry(code="42", heading="", printed_page=60, parent=ch6)]
+    built5 = {id(secs5[0]): _BS(3)}
+    assert reparent_sections_to_body_chapters(
+        [ch6, ch7], secs5, built5, [body4[0], body4[1], body4[3]]) == 0
+    assert secs5[0].parent is ch6
+
     # A chapter heading wearing a footnote marker AND the amendment bracket is
     # still a chapter heading. The Sales Tax Act, 1990 prints its first one as
     # "4 [Chapter-I" and the rest bare, so CHAPTER I was invisible to the body
@@ -859,6 +910,9 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     n_ins = insert_missing_body_chapters(chapters, ordered_sections, body_refs)
     if n_ins:
         progress(f"{n_ins} chapter(s) filled/inserted from body (omitted from TOC)")
+    n_sec = insert_missing_body_sections(ordered_sections, body_refs)
+    if n_sec:
+        progress(f"{n_sec} section(s) inserted from body (omitted from TOC)")
 
     # Every container, flattened: both ``build_sections`` (which hands a cut region
     # to the section that follows the heading) and ``preamble_refs`` need to know
@@ -900,7 +954,31 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
                                cited_footnotes=cited_footnotes)
         progress(f"claimed {len(claimed_ids)} bracket lines for "
                  f"{len(placeholder_lines)} omitted sections")
+    # An inserted section that ``build_sections`` could not give a body to
+    # recovered nothing and costs something: it ships as an empty heading-only
+    # leaf, which is a defect in its own right (``section_carries_its_body``) and
+    # a phantom row in the portal's TOC.  Sales Tax Rules 2006 (30-06-2025) grew
+    # two of them -- 150U and 150ZEQ, both with no text at all -- while the same
+    # pass recovered nineteen real sections in that document.
+    #
+    # Backing them out is safe precisely because they are empty: with no segment
+    # ``_build_one`` was never called, so nothing was sliced away from the
+    # section before them.  A section that is genuinely heading-only in the
+    # SOURCE keeps its place -- s.79A of the Customs Act builds
+    # "79A. Omitted]." and is in ``built``.
+    dropped = [e for e in ordered_sections
+               if getattr(e, "inserted_from_body", False) and id(e) not in built]
+    if dropped:
+        drop_ids = {id(e) for e in dropped}
+        ordered_sections[:] = [e for e in ordered_sections if id(e) not in drop_ids]
+        progress(f"{len(dropped)} inserted section(s) backed out -- no body text")
+
     progress(f"assembled {len(built)} / {len(ordered_sections)} sections")
+
+    n_re = reparent_sections_to_body_chapters(chapters, ordered_sections, built,
+                                              body_refs)
+    if n_re:
+        progress(f"{n_re} section(s) moved to the chapter the body prints them under")
 
     schedules_out = build_schedules(sched_refs, cited_footnotes, footnote_map,
                                     printed_by_page, toc_schedules=schedules)
@@ -1556,6 +1634,311 @@ def _previous_chapter(chapters, numeral: str):
         if v < val and v > best:
             best, best_ch = v, ch
     return best_ch
+
+
+#: A section heading prints its title then a dash: "Rounding off of duty, etc.-".
+#: Hyphen, en dash and em dash all occur across the corpus.
+_HEADING_DASH_RE = _re.compile(r"[.,]\s*[-\u2013\u2014\u2015\u2500]")
+
+
+def reparent_sections_to_body_chapters(chapters, ordered_sections, built,
+                                       body_refs) -> int:
+    """Put each section under the chapter the BODY prints it beneath.
+
+    Chapter membership comes from the contents page, and a contents page can be
+    wrong about it.  Page 7 of the 30.06.2025 Customs Act lists
+
+        41   Declaration by parties claiming drawback.   59
+        42   Arrival of conveyance.                      60
+                          CHAPTER VII
+             ARRIVAL AND DEPARTURE OF CONVEYANCE.
+        43   Delivery of import manifest ...             61
+
+-- s.42 filed under DRAWBACK -- while the body (page 82) prints CHAPTER - VII
+    directly ABOVE s.42, where it belongs.  Page 8 makes the mirror-image error,
+    listing ss.57-59 below the CHAPTER VIII row when the body opens Chapter VIII
+    above s.60.  Four sections in the wrong chapter, and every Customs edition
+    carries the same misprint.
+
+    Detecting the chapter heading is not what fixes this.  Round 20 taught the
+    parser the en-dash form, so both headings are now found in the body and
+    ``heading_source`` says ``body`` for all 22 chapters -- and not one section
+    moved, because membership never consulted them.  This is the pass that does.
+
+    It runs only when the body prints a line for EVERY chapter in the tree.
+    Partial evidence is worse than none here: a chapter whose body heading was
+    never found has no position, sections after it would fall to the chapter
+    before, and a document that lists its chapters only on the contents page
+    would be reorganised on the strength of the few headings that happened to
+    parse.  With no complete body spine, the contents page keeps the last word.
+
+    Position is compared by BODY LINE INDEX, not by page: a chapter heading that
+    falls mid-page would otherwise claim the sections printed above it.
+    """
+    if not chapters or not ordered_sections:
+        return 0
+
+    by_num = {}
+    for idx, num, _cap in body_chapter_entries(body_refs):
+        by_num.setdefault(num, idx)
+
+    def body_index_of(num: str):
+        """This chapter's body line, bridging the arabic/roman notation gap.
+
+        The Customs Act prints its first chapter as ``CHAPTER 1`` on page 23
+        while its contents page and every other chapter say ``I``.  Matching as
+        strings left chapter I with no body line, the spine came out incomplete,
+        and this whole pass returned 0 -- the same notation gap
+        ``insert_missing_body_chapters`` already bridges, and by the same means.
+        """
+        if num in by_num:
+            return by_num[num]
+        value = _roman_value(num)
+        if value == 9999.0:
+            return None
+        for t, idx in by_num.items():
+            if t.isdigit() != num.isdigit() and _roman_value(t) == value:
+                return idx
+        return None
+
+    spine = []
+    for ch in chapters:
+        num = _chapter_numeral_of(ch)
+        idx = body_index_of(num) if num else None
+        if idx is None:
+            return 0            # no complete body spine -- leave the tree alone
+        spine.append((idx, ch))
+    spine.sort()
+
+    proposed = {}
+    for entry in ordered_sections:
+        bs = built.get(id(entry))
+        pos = getattr(bs, "start_index", None) if bs is not None else None
+        if pos is None:
+            continue            # a placeholder has no body position to judge by
+        owner = None
+        for idx, ch in spine:
+            if idx < pos:
+                owner = ch
+            else:
+                break
+        if owner is not None and entry.parent is not owner:
+            proposed[id(entry)] = owner
+    if not proposed:
+        return 0
+
+    # ACCEPTANCE TEST.  The body spine is not always trustworthy, and one
+    # document proves it: Customs Rules 2001 (30.06.2023), 563 pages and 41
+    # chapters, had 98 of its 1,002 rules moved by this pass -- rule 45 from
+    # CHAPTER IV to IX, rule 52 to XII, some as far as 34 chapters away -- and
+    # section_carries_its_body went from 0 hits to 1,011.  Whatever that
+    # document's body prints, it is not a spine.
+    #
+    # So the move has to earn its way in.  Sections are printed in ascending
+    # code order, chapter by chapter, and that is checkable without tuning
+    # anything: count the places where the order breaks, before and after, and
+    # apply the re-parenting only if it does not make the count worse.  The
+    # Customs Act 1969 scores 0 either way -- VI 35-41 / VII 42-59 /
+    # VIII 60-72A is as ordered as VI 35-42 / VII 43-56 / VIII 57-72A, and the
+    # move is about which chapter is RIGHT, not about order -- so it passes.
+    # Customs Rules 2001 goes from 0 to hundreds, and is refused.
+    #
+    # A tie is allowed through deliberately: this test is a floor against making
+    # the tree worse, not a proof that the move is right.
+    if _order_breaks(chapters, ordered_sections, proposed) > \
+            _order_breaks(chapters, ordered_sections, None):
+        return 0
+
+    for entry in ordered_sections:
+        owner = proposed.get(id(entry))
+        if owner is not None:
+            entry.parent = owner
+    return len(proposed)
+
+
+def _order_breaks(chapters, ordered_sections, proposed) -> int:
+    """How many places the section order breaks, under a proposed re-parenting.
+
+    Two kinds of break, counted the same: a chapter whose own codes stop
+    ascending, and a pair of neighbouring chapters whose code ranges overlap.
+    ``proposed`` of None scores the tree as it stands.
+    """
+    from .grammar import code_sort_key
+
+    owner_of = {}
+    for entry in ordered_sections:
+        ch = (proposed or {}).get(id(entry), entry.parent)
+        if ch is not None:
+            owner_of.setdefault(id(ch), []).append(entry.code)
+
+    breaks = 0
+    spans = []
+    for ch in chapters:
+        codes = owner_of.get(id(ch)) or []
+        keys = [code_sort_key(c) for c in codes]
+        breaks += sum(1 for i in range(len(keys) - 1) if keys[i + 1] < keys[i])
+        if keys:
+            spans.append((min(keys), max(keys)))
+    breaks += sum(1 for i in range(len(spans) - 1)
+                  if spans[i + 1][0] < spans[i][1])
+    return breaks
+
+
+def _tight_against_neighbour(code: str, prev_code: str, next_code: str) -> bool:
+    """Whether ``code`` is the immediate sibling of one of its neighbours.
+
+    Same numeric stem, or the next/previous stem.  ``19B`` beside ``19A``,
+    ``32C`` beside ``32B``, ``79A`` beside ``79``, ``196L`` beside ``196K``,
+    ``208`` between ``207`` and ``209``.  Not ``27`` between ``2`` and ``39``.
+    """
+    from .grammar import code_sort_key
+
+    stem = code_sort_key(code)[0]
+    for other in (prev_code, next_code):
+        n = code_sort_key(other)[0]
+        if abs(stem - n) <= 1:
+            return True
+    return False
+
+
+def insert_missing_body_sections(ordered_sections, body_refs) -> int:
+    """Insert sections the BODY prints that the contents page never lists.
+
+    ``build_sections`` walks ``ordered_sections`` -- the contents page -- and
+    looks each entry up in the body.  A section the contents page omits is
+    therefore never looked for, however plainly the body prints it, and its text
+    is swept into the section above.  The 30.06.2025 Customs Act loses two whole
+    sections this way:
+
+        19B. Rounding off of duty, etc.-        contents jump 19A -> 19C
+        128[32C. Mis-declaration of Value ...   contents jump 32B -> 33
+
+    Both lines yield a clean candidate code; nothing about the parse is
+    ambiguous.  QA reported them as separate defects with separate causes (a
+    page break, an unresolved marker) and they are neither -- they are the same
+    hole, and the contents page is where it is.  The body owns what exists; the
+    contents page is consulted for order and naming.
+
+    Three conditions, all of them necessary, because the cost of a false insert
+    is a phantom section in the tree:
+
+      * the code opens EXACTLY ONE body line.  A code printed twice is a
+        cross-reference or a penalty-table serial as often as a heading, and
+        this pass has no cursor to disambiguate with;
+      * it sorts strictly between the two contents entries it would go between,
+        so a stray code cannot land anywhere but its own gap;
+      * that body line sits between those two neighbours' own body lines, so
+        code order and print order agree before anything is inserted.
+
+    The entry carries an ``anchor``, which is what body-driven discovery already
+    gives its entries, so ``build_sections`` places it by identity and the
+    monotonic cursor treats it exactly like a discovered section.
+    """
+    from .builder import _candidate_code, _dotless_candidate_code
+    from .grammar import code_sort_key
+    from .toc import SectionEntry
+
+    order = list(ordered_sections)
+    if len(order) < 2:
+        return 0
+
+    hits: dict[str, list[int]] = {}
+    for i, ref in enumerate(body_refs):
+        cc = _candidate_code(ref.line) or _dotless_candidate_code(ref.line)
+        if cc:
+            hits.setdefault(cc, []).append(i)
+
+    def looks_like_a_heading(ref, pos: int) -> bool:
+        """Whether this line opens a section rather than merely printing a code.
+
+        Two refusals, both measured on the 30.06.2025 Customs edition, where a
+        first cut of this pass inserted nineteen sections of which four were
+        table rows:
+
+            83 [7A.  If any agency or person   Such agency or person or   14A]
+            85 [14B  If any person commits an  Such person shall be liable 32C]
+            21 [39A. The person incharge of a  such person, master, agent 72A]
+            35 [95A. If any person furnishes a Such person shall be liable ...]
+
+        Those are s.156's penalty table with its columns flattened into one
+        line.  ``is_table`` already marks them, and both ``_find_heading_split``
+        and ``discover`` already refuse to let a table line carry a structural
+        heading -- this pass has to agree with them.
+
+        The heading DASH is the second signal and it is the load-bearing one: a
+        section heading prints ``Title.-`` and a table row does not.  ``is_table``
+        alone was tried and is not enough -- those four lines are not flagged,
+        and admitting them destroyed the monotonic cursor: 202 sections moved,
+        s.9 ran from 884 characters to 60,500 and s.156 collapsed from 80,811 to
+        28.  One false start really does poison every section after it, exactly
+        as ``build_sections`` warns.
+
+        The dash is looked for across TWO lines, because a title wraps:
+        ``128 [32C. Mis-declaration of Value for illegal transfer of funds into
+        or out of`` breaks before ``Pakistan.-``, and a one-line window refused
+        the very section this pass was written to recover.
+        """
+        if getattr(ref.line, "is_table", False):
+            return False
+        window = ref.line.text() or ""
+        nxt = body_refs[pos + 1] if pos + 1 < len(body_refs) else None
+        if nxt is not None and not getattr(nxt.line, "is_table", False):
+            window += " " + (nxt.line.text() or "")
+        return bool(_HEADING_DASH_RE.search(window[:220]))
+
+    known = {e.code for e in order}
+    candidates = {c: pos[0] for c, pos in hits.items()
+                  if c not in known and len(pos) == 1}
+    if not candidates:
+        return 0
+
+    def one_body_pos(code: str):
+        pos = hits.get(code) or []
+        return pos[0] if len(pos) == 1 else None
+
+    additions: list[tuple[int, object]] = []
+
+    for k in range(len(order) - 1):
+        prev, nxt = order[k], order[k + 1]
+        lo, hi = code_sort_key(prev.code), code_sort_key(nxt.code)
+        if not lo < hi:
+            continue
+        lo_pos, hi_pos = one_body_pos(prev.code), one_body_pos(nxt.code)
+        for code, pos in sorted(candidates.items(), key=lambda kv: code_sort_key(kv[0])):
+            if not lo < code_sort_key(code) < hi:
+                continue
+            # The candidate must sit TIGHT against a neighbour, not merely
+            # somewhere between them.  Code order alone is far too weak wherever
+            # the contents page has a wide gap: Customs Rules 2001 lists rules
+            # 1, 2 and then 39, so rule 27 "sorts between neighbours" and was
+            # inserted into CHAPTER I, which holds rules 1 and 2.  That one false
+            # start collapsed 860 of the document's 1,102 rules to heading-only
+            # stubs -- the monotonic cursor again.
+            #
+            # A section the contents page merely OMITS shares its neighbour's
+            # stem (19A -> 19B, 32B -> 32C, 79 -> 79A, 196K -> 196L) or follows
+            # it by one (207 -> 208).  A wide gap means the contents page is
+            # incomplete over a whole range, and guessing what belongs there is
+            # not this pass's job.
+            if not _tight_against_neighbour(code, prev.code, nxt.code):
+                continue
+            if lo_pos is not None and pos < lo_pos:
+                continue
+            if hi_pos is not None and pos > hi_pos:
+                continue
+            ref = body_refs[pos]
+            if not looks_like_a_heading(ref, pos):
+                continue
+            entry = SectionEntry(code=code, heading="",
+                                 printed_page=getattr(prev, "printed_page", 0),
+                                 parent=prev.parent)
+            entry.anchor = ref
+            entry.inserted_from_body = True
+            additions.append((k, entry))
+
+    for offset, (k, entry) in enumerate(additions):
+        ordered_sections.insert(k + 1 + offset, entry)
+    return len(additions)
 
 
 def insert_missing_body_chapters(chapters, ordered_sections, body_refs) -> int:

@@ -3,6 +3,7 @@ import { ArrowUp, ChevronDown, ChevronUp, Check, AlertCircle } from 'lucide-reac
 import { useReviewStore } from '../../stores/reviewStore';
 import { sanitizeLegalHtml } from '../../utils/sanitizeHtml';
 import { getSelectionCharacterOffsetsWithin, highlightFromOffsets } from '../../hooks/useTextSelection';
+import EmptyState from '../ui/EmptyState';
 
 const JUMP_HIGHLIGHT_MS = 1600;
 
@@ -126,7 +127,13 @@ const FootnotePanel = ({ footnotes, annotations, onFootnoteSelect }) => {
         return () => clearTimeout(timer);
     }, [activeFootnoteId, isCollapsed, footnoteJumpNonce]);
 
-    if (!footnotes || footnotes.length === 0) return null;
+    // A leaf with no footnotes used to render NOTHING -- no heading, no box, just
+    // white space below the text.  That makes "this section has no footnotes" and
+    // "this section's footnotes failed to parse" look identical, and QA approved
+    // a section on the strength of it (s.3A of the 30.06.2025 Customs Act, whose
+    // two notes were lost to the fused-marker defect).  Saying so costs one line
+    // and is the difference between a reviewer checking and a reviewer assuming.
+    const isEmpty = !footnotes || footnotes.length === 0;
 
     const handlePageClick = (page, e) => {
         e.preventDefault();
@@ -149,12 +156,12 @@ const FootnotePanel = ({ footnotes, annotations, onFootnoteSelect }) => {
         <div className="footnotes-panel surface-panel">
             <div className="footnotes-header">
                 <h3 className="footnotes-title">
-                    Footnotes ({footnotes.length})
+                    Footnotes ({isEmpty ? 0 : footnotes.length})
                 </h3>
                 <button
                     className="btn btn-ghost btn-icon footnotes-toggle"
                     aria-expanded={!isCollapsed}
-                    aria-controls={listId}
+                    aria-controls={isEmpty ? undefined : listId}
                     aria-label={isCollapsed ? 'Expand footnotes' : 'Collapse footnotes'}
                     onClick={(e) => {
                         e.stopPropagation();
@@ -165,7 +172,15 @@ const FootnotePanel = ({ footnotes, annotations, onFootnoteSelect }) => {
                 </button>
             </div>
 
-            {!isCollapsed && (
+            {!isCollapsed && isEmpty && (
+                <EmptyState
+                    compact
+                    title="No footnotes on this leaf"
+                    message="The parsed JSON carries none for this section. If the page shows raised numbers or bracketed markers in the text, they did not resolve — flag the section rather than approving it."
+                />
+            )}
+
+            {!isCollapsed && !isEmpty && (
                 <div className="footnotes-list" id={listId}>
                     {footnotes.map((fn) => (
                         <div
