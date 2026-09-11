@@ -59,7 +59,15 @@ _EXCLUDE_ID = re.compile(
 _MIRROR_PREFIX = re.compile(r"^(or|fireworks|together|nvidia|cursor|alibaba|zai)/")
 # Within a family, skip the cheap/small SKU so the dropdown shows the flagship.
 _TIER_PENALTY = re.compile(
-    r"(?:^|[-/.])(nano|mini|lite|flash-lite|haiku)(?:$|[-/.])",
+    r"(?:^|[-/.])(nano|mini|lite|flash-lite|haiku|small)(?:$|[-/.])",
+    re.IGNORECASE,
+)
+# Preview / dated-latest aliases are less stable than a versioned SKU.
+_LATEST_ID = re.compile(r"(?:^|[-/.])latest(?:$|[-/.])", re.IGNORECASE)
+_PREVIEW_ID = re.compile(r"(?:^|[-/.])preview(?:$|[-/.])", re.IGNORECASE)
+# Experimental SKUs (deepseek-…-exp) 404 more often than the flagship.
+_EXPERIMENTAL_ID = re.compile(
+    r"(?:^|[-/.])(exp|experimental)(?:$|[-/.])",
     re.IGNORECASE,
 )
 # Image/video/audio request pricing — not a chat-completions model.
@@ -274,6 +282,13 @@ def _is_chat_model(entry: Dict[str, Any]) -> bool:
     model_id = str(entry.get("id") or "")
     if not model_id or _EXCLUDE_ID.search(model_id):
         return False
+    if entry.get("deprecated"):
+        return False
+    if _EXPERIMENTAL_ID.search(model_id):
+        return False
+    # Together chat routes currently 502 / "no healthy provider" (kimi-k2.5, qwen3.8).
+    if str(entry.get("owned_by") or "").lower() == "together":
+        return False
     pricing = _pricing_dict(entry)
     inp, out = _token_prices(entry)
     has_token_price = inp is not None or out is not None
@@ -299,8 +314,11 @@ def _score_model(entry: Dict[str, Any]) -> float:
         score += 10
     if _MIRROR_PREFIX.match(model_id):
         score -= 40
-    if model_id.endswith("-latest"):
-        score += 6
+    # Versioned SKUs beat *-latest aliases (gpt-5.4 over gpt-5-chat-latest).
+    if _LATEST_ID.search(model_id):
+        score -= 12
+    if _PREVIEW_ID.search(model_id):
+        score -= 20
     if _TIER_PENALTY.search(model_id.split("/")[-1]):
         score -= 55
     inp, out = _token_prices(entry)
@@ -339,35 +357,93 @@ def _stub_info(model_id: str) -> Dict[str, Any]:
     }
 
 
+def _id_has_kimi(model_id: str) -> bool:
+    return "kimi" in model_id.lower()
+
+
+def _extras_include_kimi() -> bool:
+    """True when LLM_EXTRA_PROVIDERS already supplies a Kimi endpoint."""
+    try:
+        extras = _extra_providers()
+    except LLMNotConfigured:
+        extras = {}
+    return any(_id_has_kimi(name) for name in extras)
+
+
+def _pin_catalog_info(
+    selected: List[Dict[str, Any]],
+    info: Dict[str, Any],
+    *,
+    limit: int,
+    protected: Tuple[str, ...],
+) -> List[Dict[str, Any]]:
+    """Append ``info``, replacing the lowest unprotected row when at cap."""
+    if any(row["id"] == info["id"] for row in selected):
+        return selected[:limit]
+    if len(selected) < limit:
+        return [*selected, info][:limit]
+    for index in range(len(selected) - 1, -1, -1):
+        needle = selected[index]["id"].lower()
+        if any(token in needle for token in protected):
+            continue
+        return [*selected[:index], *selected[index + 1 :], info][:limit]
+    return [*selected[: limit - 1], info]
+
+
+def _ensure_openpaths_auto(
+    selected: List[Dict[str, Any]],
+    catalog: Dict[str, Dict[str, Any]],
+    *,
+    limit: int,
+) -> List[Dict[str, Any]]:
+    """Keep the OpenPaths auto router in the picker when the catalog has it."""
+    if any(row["id"].lower().startswith("openpaths/auto") for row in selected):
+        return selected[:limit]
+    entry = catalog.get("openpaths/auto")
+    if not isinstance(entry, dict) or not _is_chat_model(entry):
+        return selected[:limit]
+    return _pin_catalog_info(
+        selected,
+        _catalog_entry_to_info(entry),
+        limit=limit,
+        protected=("kimi", "openpaths/auto"),
+    )
+
+
 def _ensure_kimi(
     selected: List[Dict[str, Any]],
     catalog: Dict[str, Dict[str, Any]],
     *,
     limit: int,
 ) -> List[Dict[str, Any]]:
-    """Guarantee a Kimi option when the catalog has one."""
-    if any("kimi" in row["id"].lower() for row in selected):
+    """Guarantee a catalog Kimi option unless extras already provide one."""
+    if any(_id_has_kimi(row["id"]) for row in selected):
+        return selected[:limit]
+    if _extras_include_kimi():
         return selected[:limit]
     kimi_hits = [
         entry
         for entry in catalog.values()
-        if _is_chat_model(entry) and "kimi" in str(entry.get("id") or "").lower()
+        if _is_chat_model(entry)
+        and _id_has_kimi(str(entry.get("id") or ""))
+        and str(entry.get("owned_by") or "").lower() not in {"together"}
+        and not _MIRROR_PREFIX.match(str(entry.get("id") or ""))
     ]
     if not kimi_hits:
         return selected[:limit]
     kimi_hits.sort(key=_score_model, reverse=True)
-    info = _catalog_entry_to_info(kimi_hits[0])
-    if len(selected) >= limit:
-        selected = [*selected[: limit - 1], info]
-    else:
-        selected = [*selected, info]
-    return selected[:limit]
+    return _pin_catalog_info(
+        selected,
+        _catalog_entry_to_info(kimi_hits[0]),
+        limit=limit,
+        protected=("kimi", "openpaths/auto"),
+    )
 
 
 def _select_top_models(
     catalog: Dict[str, Dict[str, Any]], *, limit: int = DROPDOWN_LIMIT
 ) -> List[Dict[str, Any]]:
-    """Pick up to ``limit`` chat models suited to AI fix work; always keep Kimi."""
+    """Pick up to ``limit`` chat models suited to AI fix work; keep auto + Kimi."""
     candidates = [entry for entry in catalog.values() if _is_chat_model(entry)]
     candidates.sort(key=_score_model, reverse=True)
 
@@ -382,6 +458,7 @@ def _select_top_models(
         if len(selected) >= limit:
             break
 
+    selected = _ensure_openpaths_auto(selected, catalog, limit=limit)
     return _ensure_kimi(selected, catalog, limit=limit)
 
 
@@ -473,7 +550,9 @@ async def list_model_infos() -> List[Dict[str, Any]]:
         entry = _find_catalog_entry(catalog, name)
         if entry is not None:
             append(_catalog_entry_to_info(entry))
-        else:
+        elif not catalog:
+            # Env-only / empty-catalog mode: keep the allow-list ids as stubs.
+            # A loaded catalog means unknown ids would 404, so skip them.
             append(_stub_info(name))
 
     if catalog:
@@ -481,6 +560,7 @@ async def list_model_infos() -> List[Dict[str, Any]]:
             if len(infos) >= DROPDOWN_LIMIT:
                 break
             append(info)
+        infos[:] = _ensure_openpaths_auto(infos, catalog, limit=DROPDOWN_LIMIT)
         infos[:] = _ensure_kimi(infos, catalog, limit=DROPDOWN_LIMIT)
         seen.clear()
         seen.update(row["id"] for row in infos)
@@ -622,6 +702,37 @@ def model_supports_vision(model: str | None) -> bool:
     return True
 
 
+def _message_text(content: Any) -> str:
+    """Flatten chat-completions ``message.content`` (string or list of parts)."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: List[str] = []
+        for item in content:
+            if isinstance(item, str):
+                if item:
+                    parts.append(item)
+                continue
+            if not isinstance(item, dict):
+                continue
+            text = item.get("text")
+            if text is None:
+                text = item.get("content")
+            if isinstance(text, str) and text:
+                parts.append(text)
+        return "".join(parts)
+    return ""
+
+
+def _http_error_detail(status_code: int, body: str) -> str:
+    """Short gateway error; HTML 502 pages are not useful to reviewers."""
+    text = body or ""
+    stripped = text.lstrip()
+    if stripped.lower().startswith("<!doctype") or stripped.lower().startswith("<html"):
+        return f"gateway returned HTTP {status_code} (non-JSON error page)"
+    return f"gateway returned HTTP {status_code}: {text[:500]}"
+
+
 def request_spec(
     model: str | None,
 ) -> Tuple[str, str, Dict[str, Any]]:
@@ -662,7 +773,10 @@ async def chat(
 ) -> str:
     """Send a chat-completions request and return the assistant message text."""
     url, api_key, payload = request_spec(model)
-    payload.update(messages=messages, temperature=temperature)
+    payload.update(messages=messages)
+    # Some GPT-5 / o-series routes reject temperature=0; omit the default.
+    if temperature != 0.0:
+        payload["temperature"] = temperature
 
     try:
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
@@ -676,8 +790,7 @@ async def chat(
         raise LLMError(f"gateway request failed: {type(error).__name__}: {error}")
 
     if response.status_code != 200:
-        body = response.text[:500]
-        raise LLMError(f"gateway returned HTTP {response.status_code}: {body}")
+        raise LLMError(_http_error_detail(response.status_code, response.text))
 
     try:
         data = response.json()
@@ -687,6 +800,7 @@ async def chat(
             "gateway response was not chat-completions shaped: "
             + json.dumps(response.text[:300])
         )
-    if not isinstance(content, str) or not content.strip():
+    text = _message_text(content)
+    if not text.strip():
         raise LLMError("gateway returned an empty completion")
-    return content
+    return text
