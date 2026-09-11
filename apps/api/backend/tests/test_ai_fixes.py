@@ -1038,8 +1038,9 @@ def test_is_chat_model_skips_deprecated_and_experimental():
     )
     assert not llm_client._is_chat_model(
         {
-            "id": "deepseek-v4-flash-vision-exp",
-            "pricing": {"input_per_1m_tokens": 0.15, "output_per_1m_tokens": 0.6},
+            "id": "qwen3.8-2.4t-a95b",
+            "owned_by": "together",
+            "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 6.25},
             "capabilities": {"vision": True},
         }
     )

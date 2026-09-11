@@ -59,7 +59,7 @@ _EXCLUDE_ID = re.compile(
 _MIRROR_PREFIX = re.compile(r"^(or|fireworks|together|nvidia|cursor|alibaba|zai)/")
 # Within a family, skip the cheap/small SKU so the dropdown shows the flagship.
 _TIER_PENALTY = re.compile(
-    r"(?:^|[-/.])(nano|mini|lite|flash-lite|haiku)(?:$|[-/.])",
+    r"(?:^|[-/.])(nano|mini|lite|flash-lite|haiku|small)(?:$|[-/.])",
     re.IGNORECASE,
 )
 # Preview / dated-latest aliases are less stable than a versioned SKU.
@@ -285,6 +285,9 @@ def _is_chat_model(entry: Dict[str, Any]) -> bool:
     if entry.get("deprecated"):
         return False
     if _EXPERIMENTAL_ID.search(model_id):
+        return False
+    # Together chat routes currently 502 / "no healthy provider" (kimi-k2.5, qwen3.8).
+    if str(entry.get("owned_by") or "").lower() == "together":
         return False
     pricing = _pricing_dict(entry)
     inp, out = _token_prices(entry)
