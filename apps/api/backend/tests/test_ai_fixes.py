@@ -949,6 +949,36 @@ def test_select_top_models_always_keeps_kimi():
     assert "kimi-k2.5" in ids
 
 
+def test_select_top_models_skips_together_hosted_kimi():
+    catalog = {
+        mid: {
+            "id": mid,
+            "pricing": {"input_per_1m_tokens": 3, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        }
+        for mid in (
+            "claude-sonnet-4-5",
+            "claude-opus-4",
+            "gpt-5.4",
+            "gpt-4o",
+            "gemini-2.5-pro",
+            "grok-4",
+            "glm-4.6v",
+            "o3",
+            "mistral-large",
+            "qwen3",
+        )
+    }
+    catalog["kimi-k2.5"] = {
+        "id": "kimi-k2.5",
+        "owned_by": "together",
+        "pricing": {"input_per_1m_tokens": 0.95, "output_per_1m_tokens": 4},
+        "capabilities": {"vision": False},
+    }
+    ids = [row["id"] for row in llm_client._select_top_models(catalog, limit=10)]
+    assert "kimi-k2.5" not in ids
+
+
 def test_select_top_models_prefers_gpt_flagship_over_nano():
     catalog = {
         "gpt-5.4-nano": {
@@ -965,6 +995,245 @@ def test_select_top_models_prefers_gpt_flagship_over_nano():
     ids = [row["id"] for row in llm_client._select_top_models(catalog, limit=10)]
     assert "gpt-5.4" in ids
     assert "gpt-5.4-nano" not in ids
+
+
+def test_select_top_models_prefers_versioned_gpt_over_chat_latest():
+    catalog = {
+        "gpt-5-chat-latest": {
+            "id": "gpt-5-chat-latest",
+            "pricing": {"input_per_1m_tokens": 1.25, "output_per_1m_tokens": 10},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "gpt-5.4": {
+            "id": "gpt-5.4",
+            "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "claude-sonnet-latest": {
+            "id": "claude-sonnet-latest",
+            "pricing": {"input_per_1m_tokens": 2, "output_per_1m_tokens": 10},
+            "capabilities": {"vision": True, "tools": True},
+        },
+        "claude-sonnet-4-6": {
+            "id": "claude-sonnet-4-6",
+            "pricing": {"input_per_1m_tokens": 3, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        },
+    }
+    ids = [row["id"] for row in llm_client._select_top_models(catalog, limit=10)]
+    assert "gpt-5.4" in ids
+    assert "gpt-5-chat-latest" not in ids
+    assert "claude-sonnet-4-6" in ids
+    assert "claude-sonnet-latest" not in ids
+
+
+def test_is_chat_model_skips_deprecated_and_experimental():
+    assert not llm_client._is_chat_model(
+        {
+            "id": "gpt-5.4",
+            "deprecated": True,
+            "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True},
+        }
+    )
+    assert not llm_client._is_chat_model(
+        {
+            "id": "deepseek-v4-flash-vision-exp",
+            "pricing": {"input_per_1m_tokens": 0.15, "output_per_1m_tokens": 0.6},
+            "capabilities": {"vision": True},
+        }
+    )
+
+
+def test_select_top_models_pins_openpaths_auto():
+    catalog = {
+        mid: {
+            "id": mid,
+            "pricing": {"input_per_1m_tokens": 3, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        }
+        for mid in (
+            "claude-sonnet-4-6",
+            "claude-opus-4",
+            "gpt-5.4",
+            "gpt-4o",
+            "gemini-2.5-pro",
+            "grok-4",
+            "glm-4.6v",
+            "o3",
+            "mistral-large",
+            "qwen3",
+        )
+    }
+    catalog["openpaths/auto"] = {
+        "id": "openpaths/auto",
+        "pricing": {"input_per_1m_tokens": 0.75, "output_per_1m_tokens": 3.75},
+        "capabilities": {"vision": True, "tools": True},
+    }
+    ids = [row["id"] for row in llm_client._select_top_models(catalog, limit=10)]
+    assert "openpaths/auto" in ids
+    assert len(ids) == 10
+
+
+async def test_models_route_skips_unknown_env_stubs_when_catalog_loaded(
+    runtime_sandbox, monkeypatch
+):
+    from backend.routes.ai_fixes import list_models
+
+    monkeypatch.setenv("OPENPATHS_API_KEY", "op-test")
+    monkeypatch.setenv("OPENPATHS_BASE_URL", "https://gateway.test/v1")
+    monkeypatch.setenv("OPENPATHS_MODELS", "kimi, missing-from-catalog")
+    monkeypatch.delenv("OPENPATHS_MODEL", raising=False)
+    monkeypatch.delenv("LLM_EXTRA_PROVIDERS", raising=False)
+    llm_client.clear_catalog_cache()
+
+    catalog = {
+        "kimi-k2.5": {
+            "id": "kimi-k2.5",
+            "aliases": ["kimi"],
+            "pricing": {"input_per_1m_tokens": 0.95, "output_per_1m_tokens": 4},
+            "capabilities": {"vision": False, "tools": True},
+        },
+        "gpt-5.4": {
+            "id": "gpt-5.4",
+            "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        },
+    }
+
+    async def fake_catalog(*, force=False):
+        return catalog
+
+    monkeypatch.setattr(llm_client, "fetch_openpaths_catalog", fake_catalog)
+
+    response = await list_models()
+    ids = [row.id for row in response.models]
+    assert ids[0] == "kimi-k2.5"
+    assert "missing-from-catalog" not in ids
+    assert "gpt-5.4" in ids
+
+
+async def test_models_route_skips_catalog_kimi_when_extras_already_provide_it(
+    runtime_sandbox, monkeypatch
+):
+    from backend.routes.ai_fixes import list_models
+
+    monkeypatch.setenv("OPENPATHS_API_KEY", "op-test")
+    monkeypatch.setenv("OPENPATHS_BASE_URL", "https://gateway.test/v1")
+    monkeypatch.delenv("OPENPATHS_MODELS", raising=False)
+    monkeypatch.delenv("OPENPATHS_MODEL", raising=False)
+    monkeypatch.setenv(
+        "LLM_EXTRA_PROVIDERS",
+        json.dumps(
+            {
+                "kimi": {
+                    "base_url": "https://inference.test.modal.direct/v1",
+                    "model": "user--ep-kimi-k3-server.modal.direct",
+                    "env_key": "wk-test-key",
+                }
+            }
+        ),
+    )
+    llm_client.clear_catalog_cache()
+
+    catalog = {
+        mid: {
+            "id": mid,
+            "pricing": {"input_per_1m_tokens": 3, "output_per_1m_tokens": 15},
+            "capabilities": {"vision": True, "tools": True},
+        }
+        for mid in (
+            "claude-sonnet-4-6",
+            "claude-opus-4",
+            "gpt-5.4",
+            "gpt-4o",
+            "gemini-2.5-pro",
+            "grok-4",
+            "glm-4.6v",
+            "o3",
+            "mistral-large",
+            "qwen3",
+        )
+    }
+    catalog["kimi-k2.5"] = {
+        "id": "kimi-k2.5",
+        "pricing": {"input_per_1m_tokens": 0.95, "output_per_1m_tokens": 4},
+        "capabilities": {"vision": False},
+    }
+
+    async def fake_catalog(*, force=False):
+        return catalog
+
+    monkeypatch.setattr(llm_client, "fetch_openpaths_catalog", fake_catalog)
+
+    response = await list_models()
+    ids = [row.id for row in response.models]
+    assert "kimi-k2.5" not in ids
+    assert ids[-1] == "kimi"
+
+
+def test_message_text_flattens_list_parts():
+    assert llm_client._message_text("ping") == "ping"
+    assert (
+        llm_client._message_text(
+            [{"type": "text", "text": "hel"}, {"type": "text", "text": "lo"}]
+        )
+        == "hello"
+    )
+    assert llm_client._message_text([{"type": "image_url", "image_url": {}}]) == ""
+
+
+def test_http_error_detail_hides_html_error_pages():
+    detail = llm_client._http_error_detail(
+        502, "<!DOCTYPE html><html><title>Bad gateway</title></html>"
+    )
+    assert "502" in detail
+    assert "<!DOCTYPE" not in detail
+    assert "boom" in llm_client._http_error_detail(404, '{"error":"boom"}')
+
+
+async def test_chat_reads_list_shaped_content(monkeypatch):
+    monkeypatch.setenv("OPENPATHS_API_KEY", "op-test")
+    monkeypatch.setenv("OPENPATHS_BASE_URL", "https://gateway.test/v1")
+    monkeypatch.setenv("OPENPATHS_MODELS", "test-model")
+    monkeypatch.delenv("LLM_EXTRA_PROVIDERS", raising=False)
+    llm_client.clear_catalog_cache()
+
+    captured = {}
+
+    class FakeResponse:
+        status_code = 200
+        text = "{}"
+
+        def json(self):
+            return {
+                "choices": [
+                    {"message": {"content": [{"type": "text", "text": "fixed leaf"}]}}
+                ]
+            }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, json=None, headers=None):
+            captured["url"] = url
+            captured["json"] = json
+            captured["headers"] = headers
+            return FakeResponse()
+
+    monkeypatch.setattr(llm_client.httpx, "AsyncClient", FakeClient)
+    text = await llm_client.chat(
+        [{"role": "user", "content": "fix"}], model="test-model"
+    )
+    assert text == "fixed leaf"
+    assert "temperature" not in captured["json"]
 
 
 def test_is_chat_model_allows_omitted_token_price_keys():
