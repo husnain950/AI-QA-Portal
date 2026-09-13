@@ -3,7 +3,7 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **11**, regenerated in PR #89 and **verified against a live
+**State:** the register is **8**, and **the ordinance lane is closed**, regenerated in PR #89 and **verified against a live
 three-lane run** on a corpus converted at one revision — acts 6, rules 2, ordinance 5, delta
 zero, no lane skipped. Reasoning for every row is in [`plan.md`](plan.md); state is in
 [`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
@@ -80,7 +80,7 @@ board.** Rounds 21-28 closed four of its rows, and the register they close again
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
 | 1 | **letter-suffixed citation markers** | 0 ¹ | **nothing.** 22 marker-size words carrying an UPPERCASE suffix (`59&59A`, `66A`, `27/27A`, `2/2A`, `18/18A`) render as literal body text and build no footnote record, because `grammar.MARKER` (`:132`) allows `[a-z]` only. One cause, 9 sections, 6 chapters | *(new — see the row below)* |
-| 2 | **the ordinance three** | 3 | **was 5, and it was TWO causes, not one.** s.214E ×2 CLOSED 2026-09-14 — the body prints `4[“214E.`, quote glued into the bracket token. What is left is ss.233AA and 122C ×2, which are **omitted sections with no printed body** — an exemption row, not a parser round | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
+| ~~2~~ | ~~**the ordinance five**~~ | **0** | **CLOSED 2026-09-14. The lane is at zero.** It was TWO causes: s.214E ×2 was a live parser bug (`4[“214E.`, quote glued into the bracket token), and ss.233AA + 122C ×2 are omitted sections with no printed body, exempted with evidence. The parser fix had to land FIRST — an exemption silences a whole invariant for a document, and the 30.06.2019 edition carried both | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
 | 3 | **the single-document remainder** | 4 | nothing shared — PSW ministry list (ss.27/28), PFMA s.26, Sales Tax 2014 s.10 `R(cid:2)fund`. Three unrelated traces | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | 4 | **Customs 2008 ss.181 / 189** | 2 | **newly visible, and nobody has read those pages.** Two heading-only leaves in one edition — the only shared-cause candidate left in acts | *(none yet)* |
 | 5 | **the two rules hits** | 2 | Sales Tax Rules 30-06-2025 rule 150 is the `150ZQ*` family again; 01-01-2025 rule 13 carries the start of 44A under `no_foreign_section_start_in_body`, which the round-19 exemption does **not** cover — that entry names `section_carries_its_body` | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
