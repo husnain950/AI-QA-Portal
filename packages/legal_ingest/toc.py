@@ -460,8 +460,13 @@ _TRAILING_PAGE_RE = re.compile(rf"\s{PAGE_TOC}$")
 #: split code suffix takes: "79 A O mitted".
 _LONE_CAPITAL_HEAD_RE = re.compile(r"^([A-Z])\s+(?=\S)")
 
+#: The same split one family along: a MULTI-letter suffix that kept its dot,
+#: "150 ZQR.  Application."  The dot is what makes this safe to read where a
+#: bare capital run would not be -- see ``_rejoin_split_suffix``.
+_SUFFIX_RUN_HEAD_RE = re.compile(r"^([A-Z]{1,4})\.\s+(?=\S)")
 
-def _rejoin_split_suffix(code: str, heading: str, last_section):
+
+def _rejoin_split_suffix(code: str, heading: str, last_section, last_any=None):
     r"""Put a code's letter suffix back when the text layer split it off.
 
     ``CODE_TOC`` already tolerates a glyph-split space between DIGITS
@@ -487,13 +492,58 @@ def _rejoin_split_suffix(code: str, heading: str, last_section):
     immediately above it, whose title then opens with a lone capital, is that
     code's suffixed sibling and nothing else.  Nothing legitimate prints the
     same code twice in a row.
+
+    TWO SHAPES.  The duplicate signal reads ``79`` ``A``, where the suffix lost
+    its dot along with the space.  It cannot read Sales Tax Rules 2006
+    (30-06-2025) page xii, which prints ``150 ZQR.  Application.`` -- a
+    MULTI-letter suffix that KEPT its dot, and whose neighbour above is
+    ``150ZQP``, not a second bare ``150``.  That row is handled by the second
+    branch below on a different pair of signals, and the dot is the one doing
+    the work.
     """
-    if last_section is None or last_section.code != code:
-        return code, heading
-    m = _LONE_CAPITAL_HEAD_RE.match(heading or "")
-    if not m:
-        return code, heading
-    return code + m.group(1), heading[m.end():].strip()
+    if last_section is not None and last_section.code == code:
+        m = _LONE_CAPITAL_HEAD_RE.match(heading or "")
+        if not m:
+            return code, heading
+        return code + m.group(1), heading[m.end():].strip()
+    # The multi-letter case.  Sales Tax Rules 2006 (30-06-2025) page xii prints
+    #
+    #     150 ZQR.           Application. ..........................  110
+    #     [150ZQS.           Definitions. ..........................  110
+    #
+    # and only that one row of the 150Z* family carries the space, so the
+    # DUPLICATE signal above cannot see it: the row before is 150ZQP/150ZQQ,
+    # not a second bare 150.  Read as code 150, the title runs on and swallows
+    # the rest of the contents page ("ZQR. Application [150ZQS. Definitions 110
+    # [150ZQT Goods to b...").
+    #
+    # Two conditions, and the pair is what keeps this narrow:
+    #
+    #   * the title opens with a run of capitals ENDING IN A DOT.  The docstring
+    #     above records why a bare spaced ``[A-Z]{1,4}`` is wrong -- it eats the
+    #     first word of any title opening with a capital -- and the dot is what
+    #     that form lacked.  A real title almost never opens with an all-caps
+    #     word terminated by a period.
+    #   * the PREVIOUS section row is a suffixed sibling of this very numeral
+    #     (``150ZQP``.startswith(``150``)), i.e. we are already inside that
+    #     numeral's family.  A genuine bare ``150.`` cannot appear here: it
+    #     would sort before ``150ZA``, not after ``150ZQP``.
+    #
+    # That second test reads ``last_any``, NOT ``last_section``.  ``last_section``
+    # is reset to None at every container open (chapter, part, division), and
+    # this row is the first one after a ``SUB-CHAPTER 1`` caption -- so it is
+    # None exactly where the signal is needed, and the first attempt at this fix
+    # silently did nothing for that reason.  ``last_any`` is the last section
+    # code seen anywhere on the contents page, container boundaries included.
+    #
+    # Measured over every acts and rules document: this fires on exactly ONE
+    # row in the whole corpus, the one above.
+    prev = last_any if last_any is not None else getattr(last_section, "code", None)
+    if prev and prev.startswith(code) and prev != code:
+        m = _SUFFIX_RUN_HEAD_RE.match(heading or "")
+        if m:
+            return code + m.group(1), heading[m.end():].strip()
+    return code, heading
 
 
 def parse_toc(lines: list[str], profile: Profile = ACTS):
@@ -511,6 +561,13 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
     furniture = _page_furniture(lines)
     pending_heading_for: Optional[Node] = None
     last_section: Optional[SectionEntry] = None
+    #: The last section CODE seen anywhere on the contents, container
+    #: boundaries included.  ``last_section`` above is reset at every chapter,
+    #: part and division open; this one is not, because a split code suffix can
+    #: land on the first row after a container caption (Sales Tax Rules 2006
+    #: 30-06-2025, ``SUB-CHAPTER 1`` then ``150 ZQR.``).  Read only by
+    #: ``_rejoin_split_suffix``.
+    last_section_any: Optional[str] = None
     pending_page: Optional[SectionEntry] = None
 
     def _open_caption_chapter(caption: str) -> None:
@@ -680,12 +737,14 @@ def parse_toc(lines: list[str], profile: Profile = ACTS):
         if m and not in_schedules:
             code = norm_code(m.group("code"))
             heading = _clean_heading(m.group("heading"))
-            code, heading = _rejoin_split_suffix(code, heading, last_section)
+            code, heading = _rejoin_split_suffix(code, heading, last_section,
+                                                 last_section_any)
             page = page_num(m.group("page"))
             entry = SectionEntry(code=code, heading=heading,
                                  printed_page=page, parent=container_for_section())
             ordered_sections.append(entry)
             last_section = entry
+            last_section_any = entry.code
             pending_heading_for = None
             continue
 
