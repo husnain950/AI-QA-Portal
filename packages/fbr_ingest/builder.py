@@ -1128,8 +1128,16 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
 # and optional "[".  Parenthesised codes are only accepted *inside* a bracket,
 # so ordinary subsection markers like "(2)" are never mistaken for a heading.
 _HEAD = r"^\s*(?:[\d*]{1,3}\s+)?"           # optional leading superscript marker
-_DOTFORM_RE = re.compile(_HEAD + r"\[?\s*(\d{1,3}[A-Z]{0,3})\s*\.")
-_BRACKETPAREN_RE = re.compile(_HEAD + r"\[\s*\(?(\d{1,3}[A-Z]{0,3})\)")
+#: An amendment bracket may be followed by the OPENING QUOTE of the substituted
+#: text, glued to it in the text layer.  The 11.03.2019 and 30.06.2019 editions
+#: print s.214E as ``4 [“214E. Closure of audit.─``, where ``[“`` arrives as a
+#: single token (0x5b 0x201c) -- the FBR typesetter opened the substitution quote
+#: and the 30.06.2020 reprint dropped it again.  Without this class ``\s*``
+#: cannot cross the quote, the code group never starts, and the whole of 214E's
+#: body is swallowed by the preceding section.
+_OPEN_QUOTE = r"[“”\"']?\s*"
+_DOTFORM_RE = re.compile(_HEAD + r"\[?\s*" + _OPEN_QUOTE + r"(\d{1,3}[A-Z]{0,3})\s*\.")
+_BRACKETPAREN_RE = re.compile(_HEAD + r"\[\s*" + _OPEN_QUOTE + r"\(?(\d{1,3}[A-Z]{0,3})\)")
 
 
 def _candidate_code(line) -> str | None:
