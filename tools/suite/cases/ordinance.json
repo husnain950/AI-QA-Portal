@@ -5184,6 +5184,32 @@
       "arg": "<li><sup class=\"cite\"[^>]*>[\\d.]+</sup>\\[<sup class=\"cite\"[^>]*>[\\d.]+</sup>\\[\\(13AB\\)\\] “consumer goods”",
       "status": "active",
       "severity": "warning"
+    },
+    {
+      "id": "sec214E_quoted_bracket_opens_its_own_section",
+      "source": "fbr-quote-prefixed-section-start",
+      "description": "Sec 214E: the body line opens `4[“214E. Closure of audit.─`, with the opening quote GLUED into the bracket token (0x5b 0x201c).  builder._DOTFORM_RE stepped over `[` with \\s*, which cannot cross a quote, so no section break was cut and the whole of 214E's body was swallowed by 214C.  This pins the operative text as 214E's own.",
+      "target": {
+        "kind": "section",
+        "code": "214E"
+      },
+      "check": "plain_contains",
+      "arg": "Notwithstanding the omission of section 214D",
+      "status": "active",
+      "applies_to": "30th June, 2019"
+    },
+    {
+      "id": "sec214C_does_not_swallow_214E",
+      "source": "fbr-quote-prefixed-section-start",
+      "description": "Sec 214C: the companion half.  Before the quote fix 214C ran to 2,547 characters and ended inside 214E's text; it now ends at its own (‘...audit under section 177.]’) at 1,195.  A fix that opened 214E without releasing 214C would leave the text in two places at once, which no leaf count can see.",
+      "target": {
+        "kind": "section",
+        "code": "214C"
+      },
+      "check": "plain_not_contains",
+      "arg": "Closure of audit",
+      "status": "active",
+      "applies_to": "30th June, 2019"
     }
   ]
 }

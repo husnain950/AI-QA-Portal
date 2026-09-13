@@ -62,7 +62,13 @@ The largest class, and no longer a single defect:
   carries a genuinely different rule `150ZQZL`**, so the two cannot be folded. Entered with
   **no expiry**: this document is never OCR'd, so the earlier "OCR-class, may expire on the
   OCR decision" note was wrong on both counts.
-- **The ordinance five (5)** — ITO 2001 editions, ss.233AA, 214E ×2, 122C ×2, all in the
+- **The ordinance three (3)** — **was five, and it was TWO causes.** ~~s.214E ×2~~ **CLOSED
+  2026-09-14**: the 11.03.2019 and 30.06.2019 editions print `4[“214E.` with the opening quote
+  glued into the bracket token (`0x5b 0x201c`), which `_DOTFORM_RE`'s `\s*` cannot cross, so the
+  whole body sat in 214C. **The U+2500 dash this folder blamed was not the cause** — the working
+  30.06.2020 control prints the identical `audit.─`. What is left is ss.233AA and 122C ×2, which
+  are omitted sections whose body is an empty `7[ ]` placeholder and whose text survives only in
+  an 8.04pt footnote quote: an exemption row, not a parser round. ITO 2001 editions, in the
   `fbr_ingest` fork. **No longer blocked on a decision**: round 20 decided routing and ITO
   stays on `fbr_ingest`. This is now a parser round in the fork, and it is the largest single
   block left.
