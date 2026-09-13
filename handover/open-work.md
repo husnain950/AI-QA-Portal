@@ -66,13 +66,29 @@ The largest class, and no longer a single defect:
   `fbr_ingest` fork. **No longer blocked on a decision**: round 20 decided routing and ITO
   stays on `fbr_ingest`. This is now a parser round in the fork, and it is the largest single
   block left.
-- **Customs 1969 (30.06.2008) ss.181 and 189 (2)** — two heading-only leaves in one edition,
-  newly the only shared-cause candidate in the acts lane. Nobody has read those pages.
+- ~~**Customs 1969 (30.06.2008) ss.181 and 189 (2)**~~ — **CLOSED 2026-09-14 by exemption with
+  evidence.** The pages were read. The source misprints the code in the body: page 185 prints
+  `35.` where `181.` belongs and page 191 prints `37.` where `189.` belongs, both at 12.00pt at
+  the ordinary left margin, against contents rows that read correctly. Not a shared cause — and
+  **the same misprint hits s.185D as `36.`, which no invariant reports**, so the register saw
+  two thirds of it.
 - **Sales Tax Rules 2006 (30-06-2025) rule 150 (1)** — the `150ZQ*` family again, a different
   edition from the one round 19 exempted.
 
-The remainder are single documents: the Pakistan Single Window Act's ministry list read as
-sections 27/28, PFMA 2019 s.26, and Sales Tax 2014 s.10 (`R(cid:2)fund`).
+The remainder was three single documents; **two closed 2026-09-14 by exemption** and one is
+still open:
+
+- ~~**The Pakistan Single Window Act, ss.27/28**~~ — **not sections at all.** They are rows of
+  the Act's `[SCHEDULE]`, an `S. No. | Organization` table whose serial column is read as
+  section codes. The parse emits one chapter whose codes run 3..23 then jump to 27, 28, 29,
+  and **zero schedules**. OCR-class (`scanned-ocr`, `pipeline_revision: null`), one of the 14
+  documents round 27 skipped, and the serial column OCRs as `I.`, `I D.`, `1I.`, `1$.`, `23,`.
+  Expiry: the OCR decision.
+- ~~**PFMA 2019 s.26**~~ — OCR-class and unmeasurable. The text layer emits `system.—The` as one
+  9.00pt token, so the heading swallowed the body. **`builder.DASHES` already covers U+2014**,
+  so this may be nothing but stale-revision drift — which cannot be tested without re-running
+  OCR. Expiry: the OCR decision.
+- **Sales Tax 2014 s.10 (`R(cid:2)fund`)** — still open, a live parser defect.
 
 **One hit is not in this class at all**: Sales Tax Rules 2006 (01-01-2025) rule 13 carries
 the start of 44A under `no_foreign_section_start_in_body`. Round 19's exemption for that

@@ -2,11 +2,12 @@
 
 Written **2026-09-04**, on `main` after PR #83 (round 17); updated after PR #84
 (round 18), PR #85 (round 19), round 20 (PR #86), and **2026-09-10 after PR #89
-(rounds 21-28)**. `register.json` reads **13**, regenerated in PR #89 from a
+(rounds 21-28)**, and **2026-09-14 after the acts-lane exemptions**.
+`register.json` reads **8**, regenerated in that PR from a
 corpus converted at one revision.
 
-**One-line state:** the anomaly register is **13**, down from 210. It is committed, gated
-on CI, and **matches a live three-lane run on this machine** — acts 6, rules 2, ordinance 5,
+**One-line state:** the anomaly register is **8**, down from 210. It is committed, gated
+on CI, and **matches a live three-lane run on this machine** — acts 1, rules 2, ordinance 5,
 delta zero, no lane skipped. Rounds 21-28 closed the Customs Act QA pass and took the acts
 lane **15 → 6**, closing three invariant classes outright. What remains of Phase 3 is
 thirteen hits across ten documents plus OCR, which is still **deliberately** out of scope
@@ -69,13 +70,15 @@ against a live three-lane run at this commit.
 
 | invariant | acts | rules | ordinance | total |
 |---|---|---|---|---|
-| `section_carries_its_body` | 6 | 1 | 5 | **12** |
+| `section_carries_its_body` | 1 | 1 | 5 | **7** |
 | `no_foreign_section_start_in_body` | — | 1 | — | **1** |
-| **per lane** | **6** | **2** | **5** | **13** |
+| **per lane** | **1** | **2** | **5** | **8** |
 
-Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22 → 13`.
+Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22 → 13 → 8`.
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
+
+**2026-09-14 — five acts hits closed by exemption with evidence.** `tools/suite/exemptions/acts.json` was created (it had never existed) with three entries: Customs 1969 30.06.2008 ss.181/189, where the source misprints the body code (`35.` for `181.`, `37.` for `189.`, both at body size) and **the same misprint hits s.185D as `36.` where no invariant sees it**; and PFMA 2019 s.26 plus PSW 2021 ss.27/28, both `scanned-ocr` with `pipeline_revision: null` — two of the 14 documents round 27 skipped, so neither can be re-measured without making `data/ocr_cache` non-zero. Both carry the OCR decision as their expiry. PSW's two are not sections at all: they are rows of the Act's `[SCHEDULE]`, whose `S. No.` column reads as section codes. Artifact: [`wip/phase3-acts-exemptions.md`](../wip/phase3-acts-exemptions.md).
 
 **Nine invariant classes are closed:** `body_chapters_in_tree`, `no_footnote_text_in_body`,
 `structure_counts`, `no_code_fragment_in_section_heading` (round 12, was 31),
@@ -112,7 +115,7 @@ There is no third state.** "Tracked and deferred" without an exemption entry is 
 
 | lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 6 | 4 | **80** | 93 |
+| acts | 1 | 1 | **80** | 93 |
 | rules | 2 | 2 | **11** | **48** |
 | ordinance | 5 | 4 | 12 | 46 |
 
@@ -177,7 +180,7 @@ is the cross-check that the scope was right.
 ## 4. Verification
 
 ```sh
-.venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 6 / 2 / 5
+.venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 1 / 2 / 5
 .venv/bin/python -m pytest tools/tests -q       # 231 passed, 1 skipped
 .venv/bin/python tools/run_tests_smoke.py       # package self-checks + lane suites
 .venv/bin/python tools/discover_corpus.py --check

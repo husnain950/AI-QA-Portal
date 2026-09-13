@@ -1,0 +1,38 @@
+{
+  "_comment": [
+    "Per-document invariant exemptions for the ACTS lane.  Same contract as",
+    "rules.json: an invariant listed here still RUNS, and its failures are still",
+    "counted and printed -- they just do not fail the build for the one document",
+    "named in `applies_to`.  Everything else on the lane still gates.",
+    "",
+    "`applies_to` is a substring of metadata.filename, the same scoping rule cases",
+    "use.  `invariant` must name an entry in the lane's ALL_INVARIANTS.",
+    "",
+    "Every entry below was traced to its source PDF before being written.  The bar",
+    "for adding one is that the invariant is RIGHT and the document is genuinely",
+    "outside what the pipeline can read today -- never that a check is",
+    "inconvenient.  If an exemption's invariant starts passing, the suite says so",
+    "and the entry is deleted.",
+    "",
+    "This file did not exist until 2026-09-14.  Round 15 predicted it would be",
+    "needed for section_codes_ordered and it was not -- that class was closed by a",
+    "parser fix instead.  These three entries are the first acts-lane exemptions."
+  ],
+  "exemptions": [
+    {
+      "applies_to": "Customs Act ,1969 (Amended upto 30th June 2008)",
+      "invariant": "section_carries_its_body",
+      "reason": "Two heading-only leaves, ss.181 and 189, each traced to the SOURCE MISPRINTING THE SECTION CODE IN THE BODY. The invariant is right: the body text really is in the preceding leaf. (1) Section 181, PDF page 185, prints its body heading as '35.' -- '35. Option to pay fine in lieu of confiscated goods.- Whenever an order for the confiscation of goods is passed under this Act' -- at 12.00pt, x0 93.6, the same size and left margin every other section heading uses. Its contents row on page 3 of the PDF reads '181. Option to pay fine in lieu of confiscated goods. 161'. (2) Section 189, PDF page 191, prints '37. Notice of conviction to be displayed.- (1) Upon the conviction of any person', also 12.00pt at x0 93.6, against a contents row reading '189. Notice of conviction to be displayed. 167'. The neighbours are unaffected: s.180 prints '180.', s.182 prints '182.', s.188 prints '188.' and s.190 prints '190.', so this is not a systematic offset that could be corrected arithmetically -- it is three isolated wrong numbers. THE DEFECT IS THREE SECTIONS WIDE, NOT TWO: s.185D prints '36. In respect of a case transferred to a Special Judge under sub-section(1)' on page 189, and NO INVARIANT CURRENTLY REPORTS IT, because that leaf did pick up a body. A future reader should not conclude from this entry's two hits that the misprint is limited to them. Neither can be read without making the parser wrong about correct documents: the body offers a plausible, well-formed section code that is simply a different number, so the only route is to adopt the contents-page code whenever a body code breaks monotonic order and the heading text matches -- which is exactly the shape rounds 23 and 25 shipped and had to be guarded in round 27, after one of them collapsed 860 of 1,102 rules to stubs in another lane. NO EXPIRY. metadata.source_kind is 'native-digital', so this is not an OCR artifact and nothing about the OCR decision can clear it."
+    },
+    {
+      "applies_to": "Public Finance Management Act, 2019",
+      "invariant": "section_carries_its_body",
+      "reason": "One heading-only leaf, s.26, on an OCR-CLASS DOCUMENT THAT CANNOT BE RE-MEASURED. metadata.source_kind is 'scanned-ocr' and metadata.pipeline_revision is null: this is one of the 14 documents the round-27 re-conversion deliberately skipped, so its output was written by an older parser than the one in the tree. The OCR'd text layer emits the heading terminator GLUED INTO A SINGLE TOKEN -- PDF page 12 prints 'system.—The' as one 9.00pt word, codepoints 0x73 0x79 0x73 0x74 0x65 0x6d 0x2e 0x2014 0x54 0x68 0x65 -- so the heading swallowed the whole body: '26. Commitment control system.—The Finance Division in consultation with the Auditor General shall approve and issue guidelines related to annual and multi-annual commitment control systems.' BE CLEAR ABOUT WHAT THIS ENTRY DOES AND DOES NOT CLAIM: builder.DASHES already contains U+2014, so the CURRENT parser may well read this line correctly and this hit may be nothing more than stale-revision drift. That cannot be tested, because re-converting this document re-runs OCR and data/ocr_cache must stay at 0 B under the decision of record (2026-09-04). This entry exists because 'tracked and deferred' is not a state this suite allows, not because the parser is known to be wrong. EXPIRY: the OCR decision. The day OCR is taken in scope, re-convert this document FIRST and delete this entry if the hit clears."
+    },
+    {
+      "applies_to": "The Pakistan Single Window Act, 2021",
+      "invariant": "section_carries_its_body",
+      "reason": "Two heading-only leaves, ss.27 and 28, which are NOT SECTIONS OF THE ACT AT ALL -- they are rows of its Schedule, on an OCR-class document that cannot be re-measured. metadata.source_kind is 'scanned-ocr' and metadata.pipeline_revision is null, so this is one of the 14 documents round 27 skipped. The Act's Schedule is a two-column table, 'S. No. | Organization / Department / Ministry', introduced on the PDF page carrying '[SCHEDULE]' and '(see sections 2 (n) and 19}'. Its serial-number column is read as section codes, so the output carries 'section 27: Ministry of Defence' and 'section 28: Ministry of Defence Production', each a single line and therefore heading-only, while 'section 29' swallows the remainder of the list ('29. - Ministry of Foreign Affairs\\n30. Ministry of Interior\\n31. Ministry of National Health Services...'). The parse's own shape is the proof: it emits ONE chapter, 'PART I', whose section codes run 3..23 and then jump straight to 27, 28, 29 -- ss.24, 25 and 26 are absent -- and it emits ZERO schedules. The OCR text layer of that table is visibly degraded and gives the reader nothing to discriminate on: the same serial column prints 'I.' for 1, 'I D.' for 10, '1I.' for 11, '1$.' for 18 and '23,' for 23, alongside 'Ministry of Foreign AffairS', \"Terminal'Operators\" and a running head reading 'PART q'. A serial column that cannot be told from a section code is not a parser problem that a pattern can fix on this text layer. EXPIRY: the OCR decision. If OCR is ever taken in scope, this document needs re-conversion and a schedule-detection trace before this entry is deleted -- and the right fix then is almost certainly to recover the Schedule as a schedule, not to patch the two leaves this entry names."
+    }
+  ]
+}
