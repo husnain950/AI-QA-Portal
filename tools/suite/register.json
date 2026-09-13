@@ -13,17 +13,14 @@
     "That is the point: the number then moves deliberately, in the same PR that moved",
     "it, which is the discipline wip/tasks.md asks for in prose today."
   ],
-  "total": 8,
+  "total": 4,
   "lanes": {
     "ordinance": {
-      "section_carries_its_body": 5
+      "section_carries_its_body": 3
     },
-    "acts": {
-      "section_carries_its_body": 1
-    },
+    "acts": {},
     "rules": {
-      "no_foreign_section_start_in_body": 1,
-      "section_carries_its_body": 1
+      "no_foreign_section_start_in_body": 1
     }
   }
 }
