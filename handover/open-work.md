@@ -283,7 +283,7 @@ There is no next PR in sequence. Three boxes remain unticked, none blocking:
 | pick up | the single blocker |
 |---|---|
 | delete `_legacy_section_key` + the `source_key` bridge | blocked on the 14 stale acts documents only — 6 documents / 89 leaves still rely on it. Confirm with a query, not a guess. |
-| reconcile `ReviewToolbar`'s approval gate | **a product decision, then one line.** It gates on *any* quality flag while claiming to mirror the narrower `CRITICAL_FLAGS`. Cheapest row on the board once someone decides. |
+| ~~reconcile `ReviewToolbar`'s approval gate~~ | **CLOSED 2026-09-14.** Gates on `hasCriticalQualityFlags` now, mirroring the backend's `CRITICAL_FLAGS`. One line, one test inverted, one test added. |
 | delete the Zustand mirror in `documentStore` | means rewriting five pages onto React Query hooks. The bug it caused is already fixed and tested, so this is architecture, not a defect. |
 
 Two more from that track's ranked list are worth knowing because they are **not** integration

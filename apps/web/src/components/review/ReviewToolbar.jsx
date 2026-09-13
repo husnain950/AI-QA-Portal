@@ -4,7 +4,7 @@ import { Check, AlertTriangle, ArrowLeft, ArrowRight, Loader2, Clock, Sparkles }
 import { useDocumentStore } from '../../stores/documentStore';
 import {
     formatQualityFlagList,
-    hasAnyQualityFlags,
+    hasCriticalQualityFlags,
 } from '../../utils/qualityFlags';
 import { useUiStore } from '../../stores/uiStore';
 import { useAiFixStore } from '../../stores/aiFixStore';
@@ -43,8 +43,11 @@ const ReviewToolbar = ({ section: sectionProp = null } = {}) => {
     const hasPrev = currentIndex > 0;
     const hasNext = currentIndex >= 0 && currentIndex < sections.length - 1;
     const qualityFlagsValue = targetSection?.quality_flags;
-    // Approve gate: any flag (incl. page_range_out_of_bounds) needs confirm.
-    const needsQualityOverride = targetSection ? hasAnyQualityFlags(targetSection.quality_flags) : false;
+    // Approve gate: CRITICAL flags only. Mirrors backend parse_quality.CRITICAL_FLAGS,
+    // the set that elevates a section pending -> has_issues, so the reviewer is only
+    // asked to override what the backend itself calls an issue. Informational flags
+    // (page_range_out_of_bounds, toc_tail_in_leaf) still show in the banner, no confirm.
+    const needsQualityOverride = targetSection ? hasCriticalQualityFlags(targetSection.quality_flags) : false;
     const status = targetSection?.review_status;
 
     const navigateToSection = useCallback((index) => {
