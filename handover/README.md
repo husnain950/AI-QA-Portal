@@ -5,8 +5,8 @@ Written **2026-09-04**, on `main` after PR #83 (round 17); updated after PR #84
 (rounds 21-28)**. `register.json` reads **13**, regenerated in PR #89 from a
 corpus converted at one revision.
 
-**One-line state:** the anomaly register is **13**, down from 210. It is committed, gated
-on CI, and **matches a live three-lane run on this machine** — acts 6, rules 2, ordinance 5,
+**One-line state:** the anomaly register is **12**, down from 210. It is committed, gated
+on CI, and **matches a live three-lane run on this machine** — acts 6, rules 1, ordinance 5,
 delta zero, no lane skipped. Rounds 21-28 closed the Customs Act QA pass and took the acts
 lane **15 → 6**, closing three invariant classes outright. What remains of Phase 3 is
 thirteen hits across ten documents plus OCR, which is still **deliberately** out of scope
@@ -70,12 +70,13 @@ against a live three-lane run at this commit.
 | invariant | acts | rules | ordinance | total |
 |---|---|---|---|---|
 | `section_carries_its_body` | 6 | 1 | 5 | **12** |
-| `no_foreign_section_start_in_body` | — | 1 | — | **1** |
-| **per lane** | **6** | **2** | **5** | **13** |
+| **per lane** | **6** | **1** | **5** | **12** |
 
-Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22 → 13`.
+Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22 → 13 → 12`.
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
+
+**2026-09-14 — `no_foreign_section_start_in_body` is CLOSED (was 1), and it was an INVARIANT bug.** `_table_cell_lines` collected per-`<td>` text, but the renderer flattens a short table row into ONE `plain_text` line joined by spaces, which equals no cell. Sales Tax Rules 2006 (01-01-2025) rule 13's Schedule row `44A | Steel ingots / bala | M. Tons` was read as the start of rule 44A. No parser change, no re-conversion. **Ten classes are now closed.** Artifact: [`wip/phase3-table-row-join.md`](../wip/phase3-table-row-join.md).
 
 **Nine invariant classes are closed:** `body_chapters_in_tree`, `no_footnote_text_in_body`,
 `structure_counts`, `no_code_fragment_in_section_heading` (round 12, was 31),

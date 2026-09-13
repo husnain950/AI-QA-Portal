@@ -75,7 +75,12 @@ The remainder are single documents: the Pakistan Single Window Act's ministry li
 sections 27/28, PFMA 2019 s.26, and Sales Tax 2014 s.10 (`R(cid:2)fund`).
 
 **One hit is not in this class at all**: Sales Tax Rules 2006 (01-01-2025) rule 13 carries
-the start of 44A under `no_foreign_section_start_in_body`. Round 19's exemption for that
+the start of 44A under `no_foreign_section_start_in_body`. **CLOSED 2026-09-14** — and it was
+an *invariant* bug, not a parser defect. `_table_cell_lines` collected per-`<td>` text while the
+renderer flattens a short row into one space-joined `plain_text` line, so the Schedule row
+`44A | Steel ingots / bala | M. Tons` was never excluded. The hit was convincing because every
+other guard agreed — including the victim test, since rule 44A really is starved by the printing
+error round 19 exempted. Round 19's exemption for that
 document names `section_carries_its_body`, so it does **not** cover this one — the entry is
 scoped to three enumerated hits on purpose.
 
