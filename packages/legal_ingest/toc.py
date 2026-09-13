@@ -1235,6 +1235,36 @@ def _demo() -> None:
         "Provision of accommodation at customs ports, etc",
         "PROHIBITION AND RESTRICTION OF IMPORTATION AND EXPORTATION")
 
+    # --- split code suffixes, both shapes -----------------------------------
+    # Round 24's shape: the suffix lost its dot along with the space, and the
+    # DUPLICATE code on the row above is the signal.  Customs 2025, page 9.
+    _e79 = SectionEntry(code="79", heading="", printed_page=76, parent=None)
+    assert _rejoin_split_suffix("79", "A O mitted", _e79) == ("79A", "O mitted")
+    # ...and it must not fire without that duplicate.
+    _e78 = SectionEntry(code="78", heading="", printed_page=76, parent=None)
+    assert _rejoin_split_suffix("79", "A O mitted", _e78) == ("79", "A O mitted")
+
+    # The multi-letter shape: the suffix KEPT its dot, and the row above is a
+    # suffixed sibling rather than a duplicate.  Sales Tax Rules 2006
+    # 30-06-2025, page xii: "150 ZQR.   Application. ...  110".
+    #
+    # `last_section` is None here on purpose -- the row follows a SUB-CHAPTER
+    # caption, which resets it.  Passing the sibling only as `last_any` is
+    # exactly the case the first version of this fix got wrong: it read
+    # `last_section`, found None, and silently did nothing.
+    assert _rejoin_split_suffix(
+        "150", "ZQR. Application", None, "150ZQP") == ("150ZQR", "Application")
+    # A title that merely opens with a capitalised word is NOT a split suffix:
+    # the dot after the capital run is what makes this readable at all.
+    assert _rejoin_split_suffix(
+        "150", "Application of the rules", None, "150ZQP") == (
+            "150", "Application of the rules")
+    # ...and neither is an all-caps abbreviation where the previous row is not
+    # a suffixed sibling of this numeral.
+    assert _rejoin_split_suffix(
+        "12", "NO. of items supplied", None, "11") == (
+            "12", "NO. of items supplied")
+
     print("toc self-check passed")
 
 
