@@ -66,7 +66,6 @@ lane per invariant, no document attribution.
 | invariant | acts | rules | ordinance | total | implementation |
 |---|---|---|---|---|---|
 | `section_carries_its_body` | 6 | 1 | 5 | **12** | `tools/suite/invariants/_common.py:1267` |
-| `no_foreign_section_start_in_body` | — | 1 | — | **1** | `_common.py:1371` |
 | **per lane** | **6** | **2** | **5** | **13** | |
 
 Both are shared in `_common.py`, bound by name via `all_invariants`
@@ -126,7 +125,7 @@ the causes can be worked separately:
 | **a.** Omission spellings the invariant cannot read | ~~2~~ **0** | acts | **CLOSED, rounds 21-28** (PR #89) |
 | **b.** The STSP 58U/58V pair | ~~4~~ **0** | rules | **CLOSED, round 16** (PR #82) |
 | **c.** The round-10 residue — printed defects | ~~3~~ **0** | rules | **EXEMPTED, round 19** (PR #85) |
-| **d.** The ordinance five | 5 | ordinance | open — routing decided, now a `fbr_ingest` parser round |
+| **d.** The ordinance five | **0** | ordinance | **CLOSED 2026-09-14.** TWO causes: s.214E ×2 fixed (quote glued into the amendment bracket, `4[“214E.`); ss.233AA + 122C ×2 exempted — omitted sections whose only printed text is an 8.04pt footnote quote |
 | **e.** Single-document remainder | 4 | acts/rules | open |
 | **f.** Customs 2008 ss.181 / 189 | 0 | acts | **CLOSED 2026-09-14, exemption** — pages read; source prints `35.`/`37.` for `181.`/`189.` |
 | **g.** Sales Tax Rules 30-06-2025 rule 150 | 1 | rules | open — the `150ZQ*` family again |
