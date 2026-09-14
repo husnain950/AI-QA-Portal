@@ -81,7 +81,12 @@ The remainder are single documents: the Pakistan Single Window Act's ministry li
 sections 27/28, PFMA 2019 s.26, and Sales Tax 2014 s.10 (`R(cid:2)fund`).
 
 **One hit is not in this class at all**: Sales Tax Rules 2006 (01-01-2025) rule 13 carries
-the start of 44A under `no_foreign_section_start_in_body`. Round 19's exemption for that
+the start of 44A under `no_foreign_section_start_in_body`. **CLOSED 2026-09-14** — and it was
+an *invariant* bug, not a parser defect. `_table_cell_lines` collected per-`<td>` text while the
+renderer flattens a short row into one space-joined `plain_text` line, so the Schedule row
+`44A | Steel ingots / bala | M. Tons` was never excluded. The hit was convincing because every
+other guard agreed — including the victim test, since rule 44A really is starved by the printing
+error round 19 exempted. Round 19's exemption for that
 document names `section_carries_its_body`, so it does **not** cover this one — the entry is
 scoped to three enumerated hits on purpose.
 
@@ -289,7 +294,7 @@ There is no next PR in sequence. Three boxes remain unticked, none blocking:
 | pick up | the single blocker |
 |---|---|
 | delete `_legacy_section_key` + the `source_key` bridge | blocked on the 14 stale acts documents only — 6 documents / 89 leaves still rely on it. Confirm with a query, not a guess. |
-| reconcile `ReviewToolbar`'s approval gate | **a product decision, then one line.** It gates on *any* quality flag while claiming to mirror the narrower `CRITICAL_FLAGS`. Cheapest row on the board once someone decides. |
+| ~~reconcile `ReviewToolbar`'s approval gate~~ | **CLOSED 2026-09-14.** Gates on `hasCriticalQualityFlags` now, mirroring the backend's `CRITICAL_FLAGS`. One line, one test inverted, one test added. |
 | delete the Zustand mirror in `documentStore` | means rewriting five pages onto React Query hooks. The bug it caused is already fixed and tested, so this is architecture, not a defect. |
 
 Two more from that track's ranked list are worth knowing because they are **not** integration
