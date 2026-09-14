@@ -132,19 +132,24 @@ converts **11 of 48** — the other 36 are scans and one is Urdu, and every scan
 was skipped by instruction. Acts has the same shape smaller: 25 editions carrying 2,065
 image-backed pages.
 
-**All three lanes are now at ONE revision, as far as the OCR decision allows.** Re-measured
-2026-09-14 after re-converting every staged document under the merged tree — 86 of 103, 26
-minutes, **zero failures**:
+**All three lanes are at ONE revision, as far as the OCR decision allows.** Re-measured
+2026-09-14 after round 35, converting every staged document from a **clean** tree:
 
 | documents | `pipeline_revision` |
 |---|---|
-| **86** (66 acts + 11 rules + 9 ordinance) | **`dbcab2f79b78` — the tree with PRs #93-#99 in** |
+| **77** (66 acts + 11 rules) | **`5c862537452f`** — `main` with round 35's marker fix |
+| **9** (ordinance) | `dbcab2f79b78` — PRs #93-#99. The marker fix is `legal_ingest`; the ordinance lane runs `fbr_ingest` and does not import `MARKER`, so it is current |
 | 14 | *(none recorded)* — the image-backed acts documents, see below |
 | 3 | `4827840…` (round 12) — the image-backed ITO editions (20.02.2026, 30.06.2024, 31.07.2025) |
 
-**The ordinance lane moved twenty-two rounds in one step.** It sat at round 12 while acts and
-rules were re-converted at round 27; nine of its twelve documents are now current. The other
-three are image-backed and cannot follow.
+**The ordinance lane moved twenty-two rounds in one step**, from round 12, and nine of its
+twelve documents are now current. The other three are image-backed and cannot follow.
+
+**Convert from a clean tree.** `pipeline_revision` appends `-dirty` and records the tree's
+HEAD, not the change being tested. Round 35 converted all 77 from a worktree with its edits
+uncommitted and stamped them `8032b142c72f-dirty` — the commit *before* the fix, marked
+unanswerable — which cost a second 16-minute run to correct. The rule is in
+[`working-rules.md`](working-rules.md).
 
 **Re-convert the staged set, never the lane.** `convert_all.py <lane>` targets every PDF in
 the lane — 46 + 93 + 48 = **187** against 103 staged outputs — so a bare run adds 84
