@@ -51,8 +51,13 @@ the staged set, reusing `convert_all`'s own discovery and its exact `scan_page_c
 upto 30.06.2024.json` is what is on disk; `out_path` would now write `Income Tax Ordinance,
 2001 Amended upto 30.06.2024.json`. Converting them under the new name would have left the
 old file in place and the ordinance lane would hold **15** documents, three of them
-duplicates of the other three. They were re-converted with `-o` onto the name already there.
-The same trap sits under any future full re-convert of that lane.
+duplicates of the other three. They were mapped with `-o` onto the name already there.
+
+That mapping turned out to be moot for *this* run, and for a reason worth its own line: those
+same three editions (20.02.2026, 30.06.2024, 31.07.2025) are the ordinance lane's only
+image-backed documents, so the census skipped them anyway. **The trap is still live** — it
+fires the moment anyone re-converts that lane with OCR in scope, or with `convert_all`
+directly, and nothing in the repo names it but this file.
 
 ## The 14 stale acts documents are all image-backed — not 8 of them
 
@@ -110,3 +115,47 @@ appearing on an exempted document would be silent.
   replaced with the pins that exist.
 - The marker row's blocker in `open-work.md` ("the definitions are on other pages: find them
   first") is **spent**: the notes print `66A.` uppercase at 9pt, so no case-fold is needed.
+
+## The measurement: the re-convert moved the register by zero
+
+Every staged document re-converted under the merged tree, then one live three-lane run.
+
+| | |
+|---|---|
+| re-converted | **86 of 103**, 26 minutes, **0 failures** |
+| skipped as image-backed | 17 (14 acts, 3 ordinance) |
+| `pipeline_revision` after | 86 at `dbcab2f79b78`, 14 none, 3 at `4827840…` (round 12) |
+| register before the re-convert | **0** (measured by the seven PRs, on the old corpus) |
+| register after | **0** — `ordinance {}`, `acts {}`, `rules {}` |
+| `test_register_snapshot.py --write` | **no diff.** The committed file already matched |
+
+**That the number did not move is the result, not the absence of one.** The 13 → 0 the seven
+PRs claimed was measured against a corpus that predated two of them; the ordinance lane in
+particular was still at round 12, twenty-two rounds behind. Re-converting it under today's
+parser could have surfaced anything. It surfaced nothing, and nine ordinance documents are
+now current, so the claim now rests on a corpus the tree actually produced.
+
+```
+test_register_snapshot.py   4 passed          (live run, corpus staged, no SKIP)
+run_tests_smoke.py          ordinance 12 / acts 80 / rules 11 editions pass
+pytest tools/tests          234 passed, 1 skipped   (was 231 — the PRs added three)
+npm --prefix apps/web test  17 failed, 215 passed   (the standing baseline on this machine)
+data/ocr_cache              0 B
+```
+
+### One pre-existing failure, and it is not ours
+
+`run_tests_smoke.py` reports `FAIL tools/discover_corpus.py --check` —
+`signatures.json is stale`. It is **not** caused by this work, and the proof is two-sided:
+`tools/discovery/signatures.json` was last written at **round 6** (PR #51), and none of PRs
+#93-#99 touches anything in that tool's import chain (`legal_ingest/signature.py`,
+`families.py`, `stage_corpus.py`, `corpus_paths.py`, `tools/discovery/`) — `git diff
+--name-only 9fe4314..HEAD` over those paths is empty. The drift list also names Income Tax
+Rules 2002 editions, which are **not staged** and were never converted by anything here.
+
+Every entry is `CHANGED`; there is no `NEW`, `GONE` or `MOVED`, so family assignment still
+holds and only the per-document counts have drifted across rounds 7-34. Regenerating it means
+reviewing ~100 documents' signature diffs, which is its own round. Recorded, not fixed.
+
+**CI never gated this**, and could not: the corpus is gitignored, so the lane suites and this
+check both no-op there. Green CI on all seven PRs said nothing about any of it.

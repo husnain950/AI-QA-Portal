@@ -17,6 +17,18 @@ anyone converts a subset. Do not read the all-clear as permanent.
 
 ## Conversion
 
+- **Re-convert the STAGED SET, never the lane.** `convert_all.py <lane>` discovers every PDF
+  under the lane — 46 ordinance + 93 acts + 48 rules = **187**, against **103** staged
+  outputs. A bare run adds 84 documents to the corpus, and the register then measures a
+  different document set: a before/after comparison stops meaning anything. Filter
+  `discover()` to paths whose `out_path()` already exists. Measured 2026-09-14.
+- **Three ordinance outputs carry a legacy filename.** `Income Tax Ordinance 2001 - amended
+  upto 30.06.2024.json` is on disk; `out_path` now writes `Income Tax Ordinance, 2001 Amended
+  upto 30.06.2024.json`. Converting them under `out_path` leaves the old file in place and the
+  lane holds **15** documents, three of them duplicates. Pass `-o` with the name already
+  there. (They are image-backed, so a no-OCR run skips them and never trips this — it fires
+  the moment OCR comes into scope.)
+
 **Never edit `packages/` while a conversion runs.** `convert_all.py` spawns a fresh child
 per document, so each imports the parser *when it starts*; an edit mid-run gives early
 documents the old code and later ones the new. **A mixed-revision corpus looks completely

@@ -3,9 +3,12 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **0** — **all three lanes are closed**, regenerated in PR #89 and **verified against a live
-three-lane run** on a corpus converted at one revision — acts 0, rules 0, ordinance 0, delta
-zero, no lane skipped. Reasoning for every row is in [`plan.md`](plan.md); state is in
+**State:** the register is **0** — **all three lanes are closed**, verified 2026-09-14 against
+a live three-lane run on a corpus re-converted under this tree (86 of 103 documents at
+`dbcab2f79b78`; the other 17 are image-backed and cannot follow while OCR is out of scope).
+acts 0, rules 0, ordinance 0, delta zero, no lane skipped. **Nine of the thirteen hits were
+closed by exemption and four by code** — see the closed-rows table below before treating a
+zero as a clean corpus. Reasoning for every row is in [`plan.md`](plan.md); state is in
 [`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
 
 Written 2026-09-04 on `main` after PR #83 (round 17); updated after PR #84 (round 18),
