@@ -17,6 +17,13 @@ anyone converts a subset. Do not read the all-clear as permanent.
 
 ## Conversion
 
+- **Convert from a CLEAN tree, or the provenance stamp is worthless.**
+  `legal_contract.pipeline_revision` appends `-dirty` when the tree has uncommitted changes,
+  and it records the tree's HEAD, not the change you are testing. Converting 77 documents from
+  a worktree with the round's edits still uncommitted stamped them
+  `8032b142c72f-dirty` — the commit *before* the fix, marked unanswerable. Commit first, then
+  convert, then measure. Done once on 2026-09-14 and it cost a second 16-minute run.
+
 - **Re-convert the STAGED SET, never the lane.** `convert_all.py <lane>` discovers every PDF
   under the lane — 46 ordinance + 93 acts + 48 rules = **187**, against **103** staged
   outputs. A bare run adds 84 documents to the corpus, and the register then measures a
