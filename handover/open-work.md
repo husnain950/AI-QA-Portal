@@ -62,7 +62,7 @@ The largest class, and no longer a single defect:
   carries a genuinely different rule `150ZQZL`**, so the two cannot be folded. Entered with
   **no expiry**: this document is never OCR'd, so the earlier "OCR-class, may expire on the
   OCR decision" note was wrong on both counts.
-- **The ordinance three (3)** — **was five, and it was TWO causes.** ~~s.214E ×2~~ **CLOSED
+- ~~**The ordinance five**~~ — **CLOSED 2026-09-14; the lane is at ZERO.** It was TWO causes. ~~s.214E ×2~~ **CLOSED
   2026-09-14**: the 11.03.2019 and 30.06.2019 editions print `4[“214E.` with the opening quote
   glued into the bracket token (`0x5b 0x201c`), which `_DOTFORM_RE`'s `\s*` cannot cross, so the
   whole body sat in 214C. **The U+2500 dash this folder blamed was not the cause** — the working

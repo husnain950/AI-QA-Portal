@@ -1,0 +1,39 @@
+{
+  "_comment": [
+    "Per-document invariant exemptions for the ORDINANCE lane.  Same contract as",
+    "acts.json and rules.json: an invariant listed here still RUNS, and its",
+    "failures are still counted and printed -- they just do not fail the build",
+    "for the one document named in `applies_to`.  Everything else still gates.",
+    "",
+    "`applies_to` is a substring of metadata.filename.  `invariant` must name an",
+    "entry in the lane's ALL_INVARIANTS.",
+    "",
+    "NOTE THE GRANULARITY, because it decided the order this work shipped in: an",
+    "entry silences the named invariant for the WHOLE document, every hit of it.",
+    "The 30th June 2019 edition carried s.122C (an omitted-section stub, below)",
+    "AND s.214E (a live parser bug, the quote-prefixed section start).  Exempting",
+    "it first would have masked the defect.  The parser fix landed first, and",
+    "only then was this written.  Check what else a document is failing before",
+    "adding an entry for it.",
+    "",
+    "Every entry below was traced to its source PDF before being written.  If an",
+    "exemption's invariant starts passing, the suite says so and the entry goes."
+  ],
+  "exemptions": [
+    {
+      "applies_to": "amended up to 30th June 2022",
+      "invariant": "section_carries_its_body",
+      "reason": "One heading-only leaf, s.233AA, which is an OMITTED SECTION WITH NO PRINTED BODY. Omitted by the Finance Act, 2021. The live text on PDF page 452 carries only empty amendment placeholders; the section's words survive solely inside an 8.04pt FOOTNOTE quote on that page -- 'Section 233AA omitted by the Finance Act, 2021. The omitted section read as follows:' followed by '“233AA. Collection of tax by NCCPL.—NCCPL shall collect advance tax from the members of...' -- which the body reader correctly excludes at footnote size against a 9.96pt body. Pages 513 and 735 carry cross-references only ('The rate of deduction under section 233AA shall be 10%...', '(h) tax deducted under section 233AA;'). The leaf exists ONLY because the arrangement of sections on PDF page 17 still lists the section under its pre-omission title, '233AA. Collection of tax by NCCPL 424', and the TOC fallback in builder._build_one emits a stub from it. THE INVARIANT'S PRINTED DIAGNOSIS IS WRONG FOR THIS LEAF: it says 'its text is probably inside the preceding section', and the text is nowhere -- the section no longer exists. `_is_omission` (_common.py:1283) is the mechanism that should have covered this and cannot: it reads the leaf's heading and plain_text, and this heading is the real pre-omission title with no 'omitted' word in it. The sibling s.233A on the SAME PAGE of the same document IS exempt, for no better reason than that the FBR updated its TOC row to read 'omitted by the Finance Act, 2021'. The discriminator is the source's TOC hygiene, not anything about the sections. NO EXPIRY: a correct parse of this edition cannot produce a body for a section the edition does not print."
+    },
+    {
+      "applies_to": "amended upto 30th June, 2019",
+      "invariant": "section_carries_its_body",
+      "reason": "One heading-only leaf, s.122C, an OMITTED SECTION WITH NO PRINTED BODY. Omitted by the Finance Act 2017. The live text carries only an empty amendment placeholder, and the section's words survive only inside 8.04pt FOOTNOTE quotes, twice: PDF page 229 ('...remained effective till 05.06.2010. The substituted section “122C” read as follows:' then '“122C. Provisional assessment. — (1) Where in response to a notice under sub-section (3)...') and PDF page 230 ('Section 122C omitted by Finance Act 2017,the omitted section 122C is read as under:' then '“122C. Provisional assessment.— (1) ...'). Everything else in the document is a cross-reference (pages 216, 225, 234, 251, 327). The leaf exists only because the arrangement of sections on PDF page 10 still lists '122C. Provisional assessment 205'. As with s.233AA above, the invariant's printed diagnosis -- 'its text is probably inside the preceding section' -- is WRONG here: the text is nowhere. `_is_omission` cannot cover it because the TOC heading is the real pre-omission title; the sibling s.214D in this same document IS exempt only because its TOC row reads 'Omitted by the Finance Act, 2018'. THIS ENTRY COVERS ONE HIT AND IS SCOPED ON PURPOSE. This document also carried s.214E until 2026-09-14, which was NOT this cause but a live parser bug (the body prints '4[“214E.', the opening quote glued into the amendment bracket, which fbr_ingest._DOTFORM_RE could not cross). That was fixed first, deliberately, so that this entry could not mask it. A SECOND hit on this document would be a new defect this entry does not describe -- re-read this reason rather than assuming it covers one. NO EXPIRY."
+    },
+    {
+      "applies_to": "amended upto 31st December, 2019",
+      "invariant": "section_carries_its_body",
+      "reason": "One heading-only leaf, s.122C, identical in cause and in word geometry to the 30th June 2019 edition above, with the pages shifted by one: the arrangement of sections lists '122C. Provisional assessment 205' on PDF page 9, and the two 8.04pt footnote quotes carrying the omitted section's words are on pages 230 ('The substituted section “122C” read as follows:') and 231 ('Section 122C omitted by Finance Act 2017,the omitted section 122C is read as under:'). Omitted by the Finance Act 2017; the live text prints only an empty amendment placeholder. Unlike the 30th June 2019 edition, this one never carried the s.214E parser bug. NO EXPIRY, for the same reason: no correct parse can produce a body for a section the source does not print."
+    }
+  ]
+}

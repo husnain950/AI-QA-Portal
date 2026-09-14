@@ -5,8 +5,8 @@ Written **2026-09-04**, on `main` after PR #83 (round 17); updated after PR #84
 (rounds 21-28)**. `register.json` reads **13**, regenerated in PR #89 from a
 corpus converted at one revision.
 
-**One-line state:** the anomaly register is **10**, down from 210. It is committed, gated
-on CI, and **matches a live three-lane run on this machine** — acts 6, rules 1, ordinance 3,
+**One-line state:** the anomaly register is **6**, down from 210. **The ordinance and rules lanes are both at zero.** It is committed, gated
+on CI, and **matches a live three-lane run on this machine** — acts 6, rules 0, ordinance 0,
 delta zero, no lane skipped. Rounds 21-28 closed the Customs Act QA pass and took the acts
 lane **15 → 6**, closing three invariant classes outright. What remains of Phase 3 is
 thirteen hits across ten documents plus OCR, which is still **deliberately** out of scope
@@ -69,10 +69,10 @@ against a live three-lane run at this commit.
 
 | invariant | acts | rules | ordinance | total |
 |---|---|---|---|---|
-| `section_carries_its_body` | 6 | 1 | 3 | **10** |
-| **per lane** | **6** | **1** | **3** | **10** |
+| `section_carries_its_body` | 6 | — | — | **6** |
+| **per lane** | **6** | **0** | **0** | **6** |
 
-Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22 → 13 → 12 → 10`.
+Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22 → 13 → 12 → 10 → 9 → 6`.
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
 
