@@ -83,10 +83,19 @@ in the ranking — a struck row in the ranking is a row that gets re-picked.
 
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
-| 1 | **note heads printed with a DOUBLE dot** | 0 | **nothing — traced and measured 2026-09-14, not taken because it is a different cause from the round that found it.** Customs 1969 (30.06.2025) prints nine note heads with two dots where 732 print one: `2005..` ×2, `130..`, `40..`, `59A..`, `5..`, `230..`, `1b..`, `26..`. Two are years and `is_year_like` refuses them correctly; **the other seven are real notes that bind to nothing**, and only one is uppercase — so this has been costing the lowercase population too and nobody has looked. `MARKER_NOTE_RE` is `^(MARKER)\.?$`, which reads one dot. `\.{0,2}` is the obvious candidate but it widens note-head detection corpus-wide and needs its own measurement of what it mints. It blocks 8 of the 22 markers the uppercase round closed | [the round that found it](../wip/phase3-uppercase-marker-suffix.md) |
 | 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — and **permanently**, not pending a census: all 14 stale acts documents are image-backed (measured 2026-09-14, exact per-page), so none of them can ever be re-converted while that decision stands. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it will confirm the block, not lift it. It has **two** call sites, not one: `document_store.py:224` builds the index for every row on every sync, `:257` is the lookup | [Deferred](#deferred-with-reasons) |
 | 8 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect | [Deferred](#deferred-with-reasons) |
 | 12 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
+
+### Closed by round 36 — the last register-bearing row
+
+Closed by **code**, and the register moved by **zero** — as it must: no invariant here can
+see a marker-grammar change in either direction. The evidence is the output diff and the
+control document, not the register.
+
+| # | pick this up | result | what it was | artifact |
+|---|---|---|---|---|
+| ~~1~~ (r36) | ~~**note heads printed with a DOUBLE dot**~~ | **0 -> 254 citations bound** | **CLOSED 2026-09-14 (round 36).** `MARKER_NOTE_RE` read one trailing dot; the Customs source prints six note heads with two, so `parse_footnotes` opened no note and `footnotes.py:1242` folded each line into the PREVIOUS note's body -- the real note had no record, its neighbour carried prose that was never its own. Widened to `\.{0,2}`, and the uppercase branch to `\.{1,2}` with its dot still MANDATORY. **The board's own numbers here were wrong**: it said nine heads of which seven were real; the page says **six, all six real**. `130..`, `230..` and `2005..` x2 are mid-line `page NNN..` / `Act, 2005..` sentence-enders and can never reach a path that reads `words[0]` only, and **`39..` on p275 was missed entirely**. Mint measured over all 91 staged text-layer sources: 119 double-dot first words, 20 documents, all Customs, **0 false positives** | [artifact](../wip/phase3-round36-double-dot-note-head.md) |
 
 ### Closed by rounds 29-34 (PRs #93-#99) — kept so they are not re-picked
 
@@ -410,7 +419,7 @@ here* table as rows close. Current mapping:
 
 | Start here row | section below |
 |---|---|
-| 1 letter-suffixed citation markers | *none yet* — traced 2026-09-10; the trace is in the Start here table above |
+| 1 letter-suffixed citation markers | *none yet* — closed by round 35; the double-dot row beneath it by **round 36** |
 | 2 the ordinance five | [11](#11-decide-the-fbr_ingest-fork--unblocks-5-hits-and-9-documents) |
 | 3 the single-document remainder | [9](#9-the-single-document-remainder--7-hits) |
 | 4 Customs 2008 ss.181 / 189 | **CLOSED 2026-09-14** — see the acts-exemptions Result below |
