@@ -565,6 +565,38 @@ def _is_header_start(line) -> bool:
     return bool(re.match(r"^S(r)?\.?\s*No\.?\b", t, re.IGNORECASE))
 
 
+#: Leading amendment decoration on a structural caption: a marker, or a RUN of
+#: markers joined the way the source prints them ("2&30"), and the bracket that
+#: opens the amended text.  ``builder._STRUCT_DECOR_RE`` spells the single-marker
+#: form; the run form is what page 102 of Customs Rules 2001 prints.
+_CAPTION_DECOR_RE = re.compile(r"^(?:[\d*]{1,4}(?:\s*[,&/]\s*[\d*]{1,4})*\s*|\[+\s*)+")
+#: A CHAPTER / PART / Division caption, alone on its line.  Anchored at both ends
+#: so a DATA ROW -- which carries its other columns on the same line -- can never
+#: match it, whatever a cell happens to say.
+_CAPTION_RE = re.compile(
+    r"^(?:SUB[\s\-]*)?(?:CHAPTER|PART|Division)[\s\-–]+[IVXLC0-9]+"
+    r"(?:-?[A-Z]{1,3})?\s*\]?$", re.IGNORECASE)
+
+
+def _is_caption_line(line) -> bool:
+    """A structural caption that a table span must stop at rather than absorb.
+
+    ``pagemodel`` already guards the GRID path against this ("never swallow a
+    structural heading into a table just because it grazes the bbox"); the
+    gridless fallback here had no equivalent, and a CENTRED caption sits well to
+    the right of the table's first column, so neither margin test below sees it.
+    Page 102 of Customs Rules 2001 ends rule 325's repeal table with
+    ``2&30 [CHAPTER XIV`` / ``TRANSSHIPMENT``, and both lines were folded into the
+    last data row: ``| S.R.O. 1319(I)/1996 2&30 | 24.11.1996 [CHAPTER XIV
+    TRANSSHIPMENT |``.  The caption's own citation markers then rendered as
+    literal cell text while still being counted as citations, so the notes they
+    anchor were attached to a leaf whose html showed no ``<sup>`` --
+    ``footnote_on_citing_leaf``, once the notes existed to attach.
+    """
+    text = _CAPTION_DECOR_RE.sub("", (line.text() or "").strip(), count=1)
+    return bool(_CAPTION_RE.match(text))
+
+
 # ---------------------------------------------------------------------------
 # span detection
 # ---------------------------------------------------------------------------
@@ -620,6 +652,11 @@ def find_table_spans(refs) -> list[tuple[int, int]]:
                 break  # a line to the left of the table -> table ended
             # a "(N)" subsection resuming (not the numbering row) ends the table
             if _NUM_TOKEN.match(w[0].text.strip()) and not _is_numbering_row(w):
+                break
+            # a CHAPTER/PART/Division caption is a structural boundary, and a
+            # centred one sits to the RIGHT of the table's first column, so the
+            # margin test above never sees it -- see _is_caption_line
+            if _is_caption_line(refs[k].line):
                 break
             seen_data = True
             k += 1

@@ -3,10 +3,13 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **0** — **all three lanes are closed**, verified 2026-09-14 against
-a live three-lane run on a corpus re-converted under this tree (86 of 103 documents at
-`dbcab2f79b78`; the other 17 are image-backed and cannot follow while OCR is out of scope).
-acts 0, rules 0, ordinance 0, delta zero, no lane skipped. **Nine of the thirteen hits were
+**State:** the register is **0** — **all three lanes are closed**, verified 2026-09-14 after
+**round 37** against a live three-lane run on a corpus re-converted under this tree (77 of
+103 at `0139b858daac`, 9 ordinance at `dbcab2f79b78`; the other 17 are image-backed and
+cannot follow while OCR is out of scope). acts 0, rules 0, ordinance 0, delta zero, no lane
+skipped. **The board has carried no register-bearing row since round 36** — work now comes
+off the unresolved-marker census, **3,265 across 81 documents**, and rows 13 and 14 below
+are the measured next two. **Nine of the thirteen hits were
 closed by exemption and four by code** — see the closed-rows table below before treating a
 zero as a clean corpus. Reasoning for every row is in [`plan.md`](plan.md); state is in
 [`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
@@ -81,11 +84,29 @@ board.** Rounds 21-28 closed four of its rows; rounds 29-34 (PRs #93-#99) closed
 and took the register to **0**. Those five are in their own table below the open rows, not
 in the ranking — a struck row in the ranking is a row that gets re-picked.
 
+**Since round 36 the board has carried no register-bearing row, so rows 13 and 14 come off
+the UNMEASURED surface** — the unresolved-marker census, which no invariant watches. It is
+**3,265 across 81 documents** after round 37 (acts 1,900 / rules 934 / ordinance 431). Both
+rows below were traced to their source pages during round 37 and neither is a hypothesis.
+
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
+| 13 | **Sales Tax Rules 2006 (01-01-2025): 869 unresolved markers, 0 notes** | **869** — 27% of the whole unmeasured population, the largest single block left | **The document DOES print per-page footnotes, and the board's old guess that it has "no footnote zone" is about calibration, not about the source.** PDF page 60 sets body **12.0pt**, note prose **9.0pt**, note heads **6.0pt at x0 36.0**, inline markers 8.04pt — a textbook zone, six notes (164-169) with edit verbs. Calibration records `body_size 12.0, footnote_size 11.0, footnote_text_max 0.0, footnote_marker_max_size 0.0, zone_mode "none"`: **11.04pt is the page FOLIO**, not footnote prose. The cause is that the document has **TWO size regimes** — the rules body at 12.0/9.0 and the annexed STR forms at 9.96/8.04 (pp.237, 240, where the notes read `393 Form STR-28 … added by Notification No. S.R.O. 918(I)/2019`) — so a 36-page sample mixes them and the pair the fit returns is not a body/footnote pair. Fix the **sampling**, not the thresholds. ⚠ **READ THIS BEFORE TOUCHING ITS CALIBRATION:** round 35's `Word.upper_ok` gate (`pagemodel.py:113`) reads `footnote_marker_max > 0.0` as *"this document has no footnote zone, so every uppercase token in it is a section code"*, and **this is the document that condition was built against**. Give it a zone and the gate opens: the 56 section cross-references round 35 measured being lifted into `<sup>` (`72A` ×30) come back. Re-measure this document's html against `main` **in the same round**, or do not touch it | *(none yet)* |
+| 14 | **Customs Rules 2001: three CHAPTER captions missing from the tree** | — (register-invisible; 41 chapters where the source prints 44) | **Two of the three are traced to the page, and they are two different decorations.** (1) **CHAPTER XIV** — p102 prints `2&30 [CHAPTER XIV`, a marker **RUN** glued to the bracket. `builder._STRUCT_DECOR_RE` (`:2331`) is `^(?:[\d*]{1,3}\s*\|\[+\s*)+`, which reads ONE marker and stops at the `&`, so the line is never a boundary and rules 326-340 are parented under CHAPTER XIII. (2) **CHAPTER XX** — p163 prints `“Chapter XX` with a LEFT DOUBLE QUOTATION MARK and in mixed case; the `34[CHAPTER XXI` on the same page IS recognised, which is the control. Same shape as the ordinance `4[“214E.` defect closed by PR #96, on a different code path. (3) **CHAPTER VIII** — not traced; no caption is printed between CHAPTER VII (p21) and CHAPTER IX (p34) and rules 127-132 are absent from the body, so it may be an omission in the source. **This is a boundary widening**: it re-parents sections, and rounds 13, 18 and 27 are all on record about what that costs when it is batched into another round. Measure it as gained/lost over all 187 sources first | *(none yet)* |
 | 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — and **permanently**, not pending a census: all 14 stale acts documents are image-backed (measured 2026-09-14, exact per-page), so none of them can ever be re-converted while that decision stands. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it will confirm the block, not lift it. It has **two** call sites, not one: `document_store.py:224` builds the index for every row on every sync, `:257` is the lookup | [Deferred](#deferred-with-reasons) |
 | 8 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect | [Deferred](#deferred-with-reasons) |
 | 12 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
+
+### Closed by round 37 — the first row off the UNMEASURED surface
+
+Not a board row: the board had none left. Round 37 came off the unresolved-marker census,
+and it is the **first round in four where an invariant had something to say** — because a
+document with zero footnote records passes every footnote invariant in the suite.
+
+| # | pick this up | result | what it was | artifact |
+|---|---|---|---|---|
+| ~~u1~~ (r37) | ~~**Customs Rules 2001 — 665 unresolved markers, 0 notes**~~ | **665 → 0; 672 citations bound, 421 records** | **CLOSED 2026-09-14 (round 37).** The document prints **no per-page footnotes at all**. Its apparatus is printed ONCE at the end — `As Amended:-` on p561 and **158 numbered S.R.O. entries** to p563 — at **body size**. Three gates in `footnotes.py` each refuse a body-sized apparatus (`_size_zone_top` separates by size; `_is_marker_word` caps the marker at `footnote_marker_max_size` 9.0; `_is_amendment_note` wants an edit verb, and `S.R.O.247(I)/2002, - dated 08.05.2002.` has none), so the whole block read as body and rule **1122 (*Audit*)** swallowed 157 notification lines. Read as its own shape rather than by loosening three measured gates. **All 107 distinct cited markers are plain numbers inside 1..157 — nothing on this document was unresolvable.** The caption alone is not the gate: "as amended:-" is ordinary prose, so the cut also requires that ~every line below it is a numbered S.R.O. entry. **1 of 77 re-converted documents changed; the other 76 are byte-identical** | [artifact](../wip/phase3-round37-terminal-amendment-list.md) |
+| ~~u1b~~ (r37) | ~~`footnote_on_citing_leaf` **0 → 1**, revealed by the above~~ | **back to 0, by code** | **The hit was real and it was NOT caused by the reader — it was revealed by it.** `tables.find_table_spans` extends a gridless table span on a **margin** test, and a *centred* CHAPTER caption sits to the RIGHT of the table's first column, so the test never fires. p102 folded `2&30 [CHAPTER XIV` and `TRANSSHIPMENT` into rule 325's last repeal row (`<td>S.R.O. 1319(I)/1996 2&30</td><td>24.11.1996 [CHAPTER XIV TRANSSHIPMENT</td>`); the caption's markers were registered as citations of leaf 325 while rendering as literal cell text, so the notes were attached to a leaf whose html shows no `<sup>`. `pagemodel` already guards the GRID path against exactly this; the gridless fallback now does too. **NOT fixed by it: `2&30 [CHAPTER XIV` is still not a structural boundary** — that is [row 14](#start-here--pick-one) | same artifact |
 
 ### Closed by round 36 — the last register-bearing row
 
@@ -171,6 +192,24 @@ from row 1, and this file forbids batching unrelated causes into one round:
 - **s.29's mid-title bracket** — `Restriction on amendment of [goods declaration`. Round 21's
   strip (`builder.py:3114`) is anchored `^[\s\[(]+`, so a mid-string bracket never reaches
   its count test. Cosmetic.
+
+Added 2026-09-14 while tracing round 37. Both were read on the page; neither is batched into
+that round, and the first is big enough to have its own row (14) on the board:
+
+- **`builder._STRUCT_DECOR_RE` reads ONE marker, not a run.** `^(?:[\d*]{1,3}\s*|\[+\s*)+`
+  (`builder.py:2331`) stops at the `&` in `2&30 [CHAPTER XIV` (Customs Rules 2001 p102), so
+  that caption is not a structural boundary anywhere in the parser and CHAPTER XIV is absent
+  from the tree. **Round 37 did NOT fix this** — it only stopped the caption being eaten by
+  the repeal table above it. Widening the decor class is a **boundary** change across all 187
+  sources; it is row 14, not a one-line patch.
+- **A quoted, mixed-case chapter caption.** The same document prints `“Chapter XX` on p163 —
+  left double quotation mark, and `Chapter` rather than `CHAPTER`. `34[CHAPTER XXI`, four
+  lines below it, IS recognised, which is the control. Same shape as the ordinance
+  `4[“214E.` defect PR #96 closed, on a different code path. Part of row 14.
+- **`footnote_on_citing_leaf` cannot see a note attached to a leaf that displays no
+  citation** *until* the document has notes at all. Not a defect in the invariant — it is the
+  reason round 37's hit had been invisible since the corpus was staged. See
+  [`working-rules.md`](working-rules.md#measuring).
 
 **Before touching any of them, read [Rules of engagement](#rules-of-engagement).** Every
 rule there was paid for, and three of them have drawn blood twice.
