@@ -497,7 +497,7 @@ _QUOTE_CUE = re.compile(
 
 
 def _table_cell_lines(html: str) -> set:
-    """Every physical line of text that sits inside a table CELL.
+    """Every line of ``plain_text`` that is really table content.
 
     ``plain_text`` is flat, so a narrow cell's wrapped content becomes ordinary
     lines and a cross-reference can land on a line of its own.  The Sales Tax
@@ -505,6 +505,38 @@ def _table_cell_lines(html: str) -> set:
     2520.1010, ...)" in a ~12-character column, so "chapter 25" -- a CUSTOMS
     TARIFF chapter, not a structural boundary -- wraps onto its own line.  The
     html still knows it is cell content, which is the only reliable signal.
+
+    TWO SHAPES, because the renderer flattens a table two ways.  A cell whose
+    content wraps contributes its own physical lines -- that is the case above.
+    But a SHORT row is emitted as one line with its cells joined by a single
+    space, and that joined line matches no individual cell, so collecting cells
+    alone left it uncovered.  Sales Tax Rules 2006 (01-01-2025) rule 13 carries
+    the Schedule row ``<tr><td>44A</td><td>Steel ingots / bala</td><td>M.
+    Tons</td></tr>``, which flattens to ``44A Steel ingots / bala M. Tons`` --
+    and ``no_foreign_section_start_in_body`` read that serial cell as the start
+    of rule 44A.  It reported a real leaf, too: rule 44A IS heading-only, for a
+    printing error already exempted (rules.json, PDF p.66), so the victim test
+    passed and the hit looked genuine.
+
+    Measured over all 103 staged documents: of 49,739 ``<tr>`` row-joins,
+    20,671 appear verbatim as a ``plain_text`` line.  The rest are rows whose
+    cells wrap, already covered by the per-cell shape.  Whitespace is collapsed
+    because the html carries the renderer's indentation and ``plain_text`` does
+    not.
+
+    The widened set excludes 46,228 more lines than the per-cell shape alone,
+    but exactly ONE reported hit changes across the corpus -- the rest were
+    already refused by the callers' other guards (the code must resolve to a
+    real leaf, it must sort after this one, the victim must be starved).  Both
+    numbers are recorded on purpose: the reach is large and the effect is one
+    hit, and a future reader should not discover the first and assume the fix
+    was reckless.
+
+    Stripping tags from cell text before joining was measured and REJECTED: it
+    moves neither number (20,671 either way).  A row carrying a ``<sup>``
+    citation does not match its ``plain_text`` line with the tags stripped
+    either, because the renderer flattens the marker to a bare digit -- so the
+    strip is code that changes nothing.
     """
     import html as _h
     out = set()
@@ -512,6 +544,11 @@ def _table_cell_lines(html: str) -> set:
         for ln in _h.unescape(cell).split("\n"):
             if ln.strip():
                 out.add(ln.strip())
+    for row in _ROW_TEXT.findall(html or ""):
+        cells = [" ".join(_h.unescape(c).split()) for c in _CELL_TEXT.findall(row)]
+        joined = " ".join(c for c in cells if c)
+        if joined:
+            out.add(joined)
     return out
 
 
@@ -955,6 +992,9 @@ _TR_BLOCK = re.compile(r"<tr>(.*?)</tr>", re.S)
 
 
 _CELL_TEXT = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.S)
+#: One table ROW, so its cells can be re-joined the way the renderer
+#: flattens a short row into a single ``plain_text`` line.
+_ROW_TEXT = re.compile(r"<tr[^>]*>(.*?)</tr>", re.S)
 
 
 _NUM_ONLY = re.compile(r"^\(\d+\)$")

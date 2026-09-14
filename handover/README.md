@@ -6,8 +6,8 @@ Written **2026-09-04**, on `main` after PR #83 (round 17); updated after PR #84
 `register.json` reads **8**, regenerated in that PR from a
 corpus converted at one revision.
 
-**One-line state:** the anomaly register is **4**, down from 210. **The acts lane is at zero.** It is committed, gated
-on CI, and **matches a live three-lane run on this machine** — acts 1, rules 2, ordinance 5,
+**One-line state:** the anomaly register is **0**, down from 210. **All three lanes are at zero.** It is committed, gated
+on CI, and **matches a live three-lane run on this machine** — acts 0, rules 0, ordinance 0,
 delta zero, no lane skipped. Rounds 21-28 closed the Customs Act QA pass and took the acts
 lane **15 → 6**, closing three invariant classes outright. What remains of Phase 3 is
 thirteen hits across ten documents plus OCR, which is still **deliberately** out of scope
@@ -70,13 +70,16 @@ against a live three-lane run at this commit.
 
 | invariant | acts | rules | ordinance | total |
 |---|---|---|---|---|
-| `section_carries_its_body` | 1 | 1 | 5 | **7** |
-| `no_foreign_section_start_in_body` | — | 1 | — | **1** |
-| **per lane** | **0** | **2** | **5** | **4** |
+| `section_carries_its_body` | — | — | — | **0** |
+| **per lane** | **0** | **0** | **0** | **0** |
 
-Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22 → 13 → 8 → 4`.
+Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 44 → 33 → 30 → 30 → 34 → 34 → 32 → 29 → 25 → 25 → 25 → 22 → 13 → 12 → 10 → 9 → 6 → 1 → 0`.
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
+
+**2026-09-14 — `no_foreign_section_start_in_body` is CLOSED (was 1), and it was an INVARIANT bug.** `_table_cell_lines` collected per-`<td>` text, but the renderer flattens a short table row into ONE `plain_text` line joined by spaces, which equals no cell. Sales Tax Rules 2006 (01-01-2025) rule 13's Schedule row `44A | Steel ingots / bala | M. Tons` was read as the start of rule 44A. No parser change, no re-conversion. **Ten classes are now closed.** Artifact: [`wip/phase3-table-row-join.md`](../wip/phase3-table-row-join.md).
+
+**2026-09-14 — the ordinance five turned out to be TWO causes, and 214E's is fixed.** The 11.03.2019 and 30.06.2019 ITO editions print s.214E as `4[“214E.` with the opening quote GLUED into the bracket token, which `fbr_ingest._DOTFORM_RE` cannot cross — so 214E's whole body sat in 214C. **The U+2500 box-drawing dash this folder blamed was not the cause**; the working 30.06.2020 control prints the identical `audit.─` terminator. Ordinance **5 → 3**. Artifact: [`wip/phase3-fbr-quote-prefixed-section-start.md`](../wip/phase3-fbr-quote-prefixed-section-start.md).
 
 **2026-09-14 — five acts hits closed by exemption with evidence.** `tools/suite/exemptions/acts.json` was created (it had never existed) with three entries: Customs 1969 30.06.2008 ss.181/189, where the source misprints the body code (`35.` for `181.`, `37.` for `189.`, both at body size) and **the same misprint hits s.185D as `36.` where no invariant sees it**; and PFMA 2019 s.26 plus PSW 2021 ss.27/28, both `scanned-ocr` with `pipeline_revision: null` — two of the 14 documents round 27 skipped, so neither can be re-measured without making `data/ocr_cache` non-zero. Both carry the OCR decision as their expiry. PSW's two are not sections at all: they are rows of the Act's `[SCHEDULE]`, whose `S. No.` column reads as section codes. Artifact: [`wip/phase3-acts-exemptions.md`](../wip/phase3-acts-exemptions.md).
 

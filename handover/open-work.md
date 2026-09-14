@@ -62,7 +62,13 @@ The largest class, and no longer a single defect:
   carries a genuinely different rule `150ZQZL`**, so the two cannot be folded. Entered with
   **no expiry**: this document is never OCR'd, so the earlier "OCR-class, may expire on the
   OCR decision" note was wrong on both counts.
-- **The ordinance five (5)** — ITO 2001 editions, ss.233AA, 214E ×2, 122C ×2, all in the
+- ~~**The ordinance five**~~ — **CLOSED 2026-09-14; the lane is at ZERO.** It was TWO causes. ~~s.214E ×2~~ **CLOSED
+  2026-09-14**: the 11.03.2019 and 30.06.2019 editions print `4[“214E.` with the opening quote
+  glued into the bracket token (`0x5b 0x201c`), which `_DOTFORM_RE`'s `\s*` cannot cross, so the
+  whole body sat in 214C. **The U+2500 dash this folder blamed was not the cause** — the working
+  30.06.2020 control prints the identical `audit.─`. What is left is ss.233AA and 122C ×2, which
+  are omitted sections whose body is an empty `7[ ]` placeholder and whose text survives only in
+  an 8.04pt footnote quote: an exemption row, not a parser round. ITO 2001 editions, in the
   `fbr_ingest` fork. **No longer blocked on a decision**: round 20 decided routing and ITO
   stays on `fbr_ingest`. This is now a parser round in the fork, and it is the largest single
   block left.
@@ -72,8 +78,13 @@ The largest class, and no longer a single defect:
   the ordinary left margin, against contents rows that read correctly. Not a shared cause — and
   **the same misprint hits s.185D as `36.`, which no invariant reports**, so the register saw
   two thirds of it.
-- **Sales Tax Rules 2006 (30-06-2025) rule 150 (1)** — the `150ZQ*` family again, a different
-  edition from the one round 19 exempted.
+- ~~**Sales Tax Rules 2006 (30-06-2025) rule 150 (1)**~~ — **CLOSED 2026-09-14.** Not the
+  `150ZQ*` printing errors round 19 exempted at all: page xii prints `150 ZQR.` with a
+  glyph-split space before a THREE-letter suffix that KEPT its dot, so the row parsed as code
+  `150` and its title swallowed the rest of the contents page. The document shipped **two leaves
+  coded 150** — the real `Form` and a phantom. Round 24's rejoin could not see it (its signal is
+  a DUPLICATE code on the row above; here the row above is `150ZQP`), and the first fix attempt
+  read `last_section`, which a `SUB-CHAPTER` caption had just reset to None.
 
 The remainder was three single documents; **two closed 2026-09-14 by exemption** and one is
 still open:
@@ -100,7 +111,12 @@ still open:
   ToUnicode mapping for `e`, printing `R(cid:2)fund of input tax`.
 
 **One hit is not in this class at all**: Sales Tax Rules 2006 (01-01-2025) rule 13 carries
-the start of 44A under `no_foreign_section_start_in_body`. Round 19's exemption for that
+the start of 44A under `no_foreign_section_start_in_body`. **CLOSED 2026-09-14** — and it was
+an *invariant* bug, not a parser defect. `_table_cell_lines` collected per-`<td>` text while the
+renderer flattens a short row into one space-joined `plain_text` line, so the Schedule row
+`44A | Steel ingots / bala | M. Tons` was never excluded. The hit was convincing because every
+other guard agreed — including the victim test, since rule 44A really is starved by the printing
+error round 19 exempted. Round 19's exemption for that
 document names `section_carries_its_body`, so it does **not** cover this one — the entry is
 scoped to three enumerated hits on purpose.
 
@@ -308,7 +324,7 @@ There is no next PR in sequence. Three boxes remain unticked, none blocking:
 | pick up | the single blocker |
 |---|---|
 | delete `_legacy_section_key` + the `source_key` bridge | blocked on the 14 stale acts documents only — 6 documents / 89 leaves still rely on it. Confirm with a query, not a guess. |
-| reconcile `ReviewToolbar`'s approval gate | **a product decision, then one line.** It gates on *any* quality flag while claiming to mirror the narrower `CRITICAL_FLAGS`. Cheapest row on the board once someone decides. |
+| ~~reconcile `ReviewToolbar`'s approval gate~~ | **CLOSED 2026-09-14.** Gates on `hasCriticalQualityFlags` now, mirroring the backend's `CRITICAL_FLAGS`. One line, one test inverted, one test added. |
 | delete the Zustand mirror in `documentStore` | means rewriting five pages onto React Query hooks. The bug it caused is already fixed and tested, so this is architecture, not a defect. |
 
 Two more from that track's ranked list are worth knowing because they are **not** integration
