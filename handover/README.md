@@ -136,9 +136,14 @@ biggest change to how much any measurement here can be trusted. Recounted at thi
 | 14 | *(none recorded)* — the acts documents rounds 21-28 deliberately skipped |
 | 12 | `4827840…` (round 12) — the whole ordinance lane, which runs `fbr_ingest` |
 
-The 14 skipped are 8 OCR-backed (out of scope; `data/ocr_cache` must stay at 0 B) and 6 with
-no `source_kind` recorded (five Finance Acts, Benami, Income Tax Third Amendment). They stay
-at their old revision, and the corpus stays mixed to exactly that extent.
+**All 14 are image-backed — corrected 2026-09-14.** This block used to split them into 8
+OCR-backed (out of scope; `data/ocr_cache` must stay at 0 B) and 6 with no `source_kind`
+recorded, which reads as six documents that are merely unlabelled. `convert_all.scan_page_count`
+is an exact per-page census, not a sample, and it reports image-backed pages on every one of
+the 14. A file with even one such page cannot convert without the OCR extras, so under the
+standing no-OCR decision **all 14 stay at their old revision permanently**, and the corpus
+stays mixed to exactly that extent. Board row 6 is blocked for as long as that decision
+stands — not pending a census.
 
 **The consequence: the standing "mixed-revision drift" warning is spent for acts and rules.**
 It used to be that `test_register_snapshot.py` failed on this machine *before* you changed

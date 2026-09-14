@@ -250,10 +250,18 @@ parser's marker grammar, so `inv_leading_marker_cited`, `inv_citation_refs_resol
 same shape item 5 had before round 18 closed it. **Expect the register to rise when the
 invariant is widened and fall when the parser is**, and measure the two halves separately.
 
-**The blocker is a source question, not a code one.** p62 prints `55&55a` and p64 prints
-`66A`. If the *note* for `66A` is printed `66a.`, the fix is a case-fold on the citation
-join and a wider class would mint a marker resolving to no note. The affected body pages
-carry no footnote block of their own, so the definitions are on other pages: find them first.
+**~~The blocker is a source question, not a code one.~~ RESOLVED 2026-09-14 — the blocker is
+spent.** The question was whether the *note* for `66A` is printed `66a.`, in which case the
+fix is a case-fold on the citation join and a wider class would mint a marker resolving to no
+note. The definition pages were found and read: the notes print **`66A.` uppercase at 9pt**.
+The marker and its note agree on case, so the class widens and **no case-fold is needed**.
+
+**The size gate is what makes that safe, and it was verified before the class was touched.**
+`pagemodel.Word.marker_run` refuses anything above `cal.marker_max_size` **before** the token
+grammar sees it (`pagemodel.py:140`; 9.4 for this lane), and the footnote side gates on
+`footnote_marker_max_size` = 9.0 (`pagemodel.py:276`, `footnotes.py:125`). A marker at 8.04pt
+and a note at 9pt both pass; `79A` at 12.0pt body size cannot. The regex is not the
+discriminator — the size is.
 
 **Do not widen `MARKER` globally.** `79A` is a real section code in this document — round 24
 shipped a repair to rejoin its split `79` `A` — and `155A`…`155R`, `32A`, `26B`, `129A` all

@@ -177,9 +177,11 @@ fails the next time the renderer improves.
 - **`detect_toc_pages`'s `rows >= 3` floor.** Its own comment records a lower one swallowing
   the Income Tax Rules' body title page.
 - **`clause_codes_plausible`.** Do not weaken it to clear its one hit.
-- **`test_the_letter_suffixed_chapter_gap_is_still_open`** asserts the current *wrong*
-  answer on purpose. Its failure is the signal that the CHAPTER-suffix widening landed — not
-  a test to repair.
+- **A pin that asserts the current *wrong* answer is a signal, not a test to repair.** Its
+  failure is the signal the widening landed. The pin this rule named,
+  `test_the_letter_suffixed_chapter_gap_is_still_open`, was spent by round 18 and **no longer
+  exists**; `tools/tests/test_structural_boundary_agrees_with_grammar.py` and
+  `test_suffixed_chapter_cuts_the_section.py` carry the shape today.
 - **`data/ocr_cache` stays 0 B** until OCR is deliberately taken in scope. Taking it in scope
   wakes the fidelity-floor invariants and routes sub-floor scans to `_provisional/`, which
   removes them from the portal.
