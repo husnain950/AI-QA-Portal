@@ -83,7 +83,7 @@ in the ranking — a struck row in the ranking is a row that gets re-picked.
 
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
-| 1 | **letter-suffixed citation markers** | 0 ¹ | **nothing — and `open-work.md`'s source blocker is spent as of 2026-09-14.** The notes print `66A.` uppercase at 9pt, so the class widens and no case-fold is needed; the size gate (`pagemodel.py:140`, `marker_max_size` 9.4) is what keeps `79A` at body size out, not the regex. 22 marker-size words carrying an UPPERCASE suffix (`59&59A`, `66A`, `27/27A`, `2/2A`, `18/18A`) render as literal body text and build no footnote record, because `grammar.MARKER` (`:132`) allows `[a-z]` only. **Two classes, not one:** `_MARKER_PARTS_RE` (`:139`) carries the same lowercase-only class and feeds `marker_sort_key` (`:268`), so widening `:132` alone leaves sorting blind. One cause, 9 sections, 6 chapters | [item 11](open-work.md#11-letter-suffixed-citation-markers--22-sites-1-document--new-2026-09-10) |
+| 1 | **note heads printed with a DOUBLE dot** | 0 | **nothing — traced and measured 2026-09-14, not taken because it is a different cause from the round that found it.** Customs 1969 (30.06.2025) prints nine note heads with two dots where 732 print one: `2005..` ×2, `130..`, `40..`, `59A..`, `5..`, `230..`, `1b..`, `26..`. Two are years and `is_year_like` refuses them correctly; **the other seven are real notes that bind to nothing**, and only one is uppercase — so this has been costing the lowercase population too and nobody has looked. `MARKER_NOTE_RE` is `^(MARKER)\.?$`, which reads one dot. `\.{0,2}` is the obvious candidate but it widens note-head detection corpus-wide and needs its own measurement of what it mints. It blocks 8 of the 22 markers the uppercase round closed | [the round that found it](../wip/phase3-uppercase-marker-suffix.md) |
 | 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — and **permanently**, not pending a census: all 14 stale acts documents are image-backed (measured 2026-09-14, exact per-page), so none of them can ever be re-converted while that decision stands. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it will confirm the block, not lift it. It has **two** call sites, not one: `document_store.py:224` builds the index for every row on every sync, `:257` is the lookup | [Deferred](#deferred-with-reasons) |
 | 8 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect | [Deferred](#deferred-with-reasons) |
 | 12 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
@@ -105,19 +105,23 @@ means nothing un-excused is failing. It does not mean the corpus is clean.**
 
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
+| ~~1~~ | ~~**letter-suffixed citation markers**~~ | **0 → 22 seen, 13 bound** | **CLOSED 2026-09-14 (round 35).** `grammar.MARKER` allowed `[a-z]` only, so 22 markers printed with an UPPERCASE suffix at 8.04pt rendered as literal body text and built no footnote record. Widened to `[A-Za-z]` on both sides of the join — the notes print `66A.` uppercase at 9pt, so no case-fold was needed. **Two classes:** `_MARKER_PARTS_RE` (`:139`) carried the same narrow class and feeds `marker_sort_key`, so widening `:132` alone would have left every uppercase note sorting to the end of the document. All 22 are now markers and 13 resolve; the 9 that do not are blocked by two source defects (the double-dot note head, row 1 above, and `36A`, which the source cites and never defines) | [artifact](../wip/phase3-uppercase-marker-suffix.md) |
 | ~~2~~ | ~~**the ordinance five**~~ | **0** | **CLOSED 2026-09-14. The lane is at zero.** It was TWO causes: s.214E ×2 was a live parser bug (`4[“214E.`, quote glued into the bracket token), and ss.233AA + 122C ×2 are omitted sections with no printed body, exempted with evidence. The parser fix had to land FIRST — an exemption silences a whole invariant for a document, and the 30.06.2019 edition carried both | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
 | ~~3~~ | ~~**Sales Tax 2014 s.10**~~ | **0** | **CLOSED 2026-09-14 by exemption. The acts lane is at zero.** It was NOT simply a live parser defect: the body prints `1[(10)`, a bare parenthesised code in an amendment bracket, and `_BRACKETPAREN_RE` refuses those for a **measured** reason (bare `CODE` once blocked THIRTY sections into stubs). A dash-gated widening was measured and would mint **83 phantom sections** inside s.2's definition clauses. The contents page cannot break the tie either — it has no ToUnicode mapping for `e` | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | ~~4~~ | ~~**Customs 2008 ss.181 / 189**~~ | 0 | **CLOSED 2026-09-14 by exemption.** The pages were read: the source misprints the code, `35.` for `181.` and `37.` for `189.`, at body size. **The same misprint hits s.185D as `36.` and no invariant sees it** | *(none yet)* |
 | ~~5~~ | ~~the two rules hits~~ | **0** | **CLOSED 2026-09-14, and they were two different kinds of defect.** 30-06-2025 rule 150 was a *parser* defect — page xii prints `150 ZQR.`, a three-letter suffix that kept its dot, so the document shipped two leaves coded 150. 01-01-2025 rule 13 was an *invariant* bug — `_table_cell_lines` could not see a flattened table ROW, so a Schedule serial cell read as a section start. The rules lane is at zero | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | ~~7~~ | ~~the `ReviewToolbar` approval gate~~ | — | **CLOSED 2026-09-14.** Gate switched to `hasCriticalQualityFlags`, mirroring the backend's `CRITICAL_FLAGS`. One line plus two tests — see [the Result below](#the-reviewtoolbar-approval-gate--closed-2026-09-14) | [Deferred](#deferred-with-reasons) |
 
-¹ **Zero in the register, and that is the point.** The invariants share the parser's marker
-grammar, so `inv_leading_marker_cited`, `inv_citation_refs_resolve` and
-`inv_footnote_on_citing_leaf` are all as blind to an uppercase suffix as the builder is.
-This is the exact shape row 5 of the old board had before round 18 closed it: **expect the
-register to rise when the invariant is widened and fall when the parser is.** Measure the
-two halves separately. `inv_footnotes_in_numeric_order` sees ordering only, so a *missing*
-note is invisible to it in any case.
+¹ **The rise-then-fall prediction this footnote used to make was WRONG, and round 35
+measured it.** It said: the invariants share the parser's marker grammar, so expect the
+register to rise when the invariant is widened and fall when the parser is. Widening
+`_LEADING_AMEND_MARKER` to either case against the un-re-converted corpus moved the register
+by **zero** — `inv_leading_marker_cited` fires only on a leaf that *opens* with an amendment
+marker and renders no `<sup>` at all, and all 22 were inline, in leaves that already carried
+citations. Round 21's 0 → 61 came from the **run form**, which does appear leading. The shape
+is a property of that class, not of every marker-grammar class. Widen the instrument anyway —
+one narrower than the defect cannot measure a future regression in it — but do not predict the
+number from a different round's.
 
 ### Closed by rounds 21-28 (PR #89) — kept so they are not re-picked
 
