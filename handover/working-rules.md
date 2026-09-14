@@ -93,6 +93,23 @@ measured zero, and the ledger carried the four rows as open for a full round. **
 is shipped and a fix that is measured are two different states** — say which one a round
 reached, and never write a Result that implies the second when only the first happened.
 
+**Snapshot `output/_pre_<round>/` BEFORE the first conversion of the round, and never copy
+into it again.** Round 37 snapshotted one document, converted it, then later ran
+`cp output/*.json output/_pre_37/` to cover the rest of the lane — which overwrote that
+document's baseline with the *post-change* output, and the first corpus diff reported the
+round as a 2-citation change. The recovery is the right move if it happens: add a worktree at
+the pre-round commit, symlink the corpora in, and run **the worktree's** `tools/convert.py`
+with **the main tree's** interpreter (`$MAIN/.venv/bin/python $WT/tools/convert.py …`) —
+`__file__` then resolves imports to the worktree's `packages/` and the corpus to the symlinks.
+That regenerates a true baseline in one conversion, and it is better evidence than a stored
+output anyway: it is the same document through `main`'s parser today.
+
+**`data/corpora/_reconvert/run.py` spends ~7 minutes doing nothing visible before the acts
+lane starts.** `convert_all.scan_page_count` is an exact per-page census and it opens all 93
+acts PDFs — including the 14 image-backed ones, 2,065 pages — before the first child process
+spawns. A run sitting at "11 rows" in the ledger for seven minutes is **normal**, not hung.
+Whole run: 77 documents, 4 workers, **953s**.
+
 **Clear `__pycache__` after any mutate-and-restore verification.** Patching a module,
 re-importing and restoring leaves stale bytecode: the source is right while the module in
 memory is the version you rejected. This was caught by pytest only *after* a re-conversion
