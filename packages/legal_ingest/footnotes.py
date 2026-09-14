@@ -130,7 +130,10 @@ def _is_marker_word(w, n_words_on_line: int = 99, max_size: float = 7.8) -> bool
     word on its line is also accepted (this recovers footnotes like the 89.3
     rate table, whose "3" marker is size 8).
     """
-    if not is_marker_text(w.text):
+    # upper=True: a note head is a bare token at the block's left margin, so an
+    # uppercase suffix cannot be a section code quoted in prose.  Customs 1969
+    # (30.06.2025) p77 prints ``66A.``, ``66B.``, ``59B.`` exactly so.
+    if not is_marker_text(w.text, upper=True):
         return False
     return w.size <= max_size or n_words_on_line == 1
 
@@ -1223,7 +1226,12 @@ def parse_footnotes(footnote_lines, grid_boxes=(), cal=None) -> list[Footnote]:
         # marker ("25.", "27a.") so the marker recorded here is the same token
         # the body cites inline ("27a[").  Without this the citation and the
         # note carry different keys and every footnote is orphaned.
-        tok = marker_token(first.text) or first.text.strip()
+        # upper=True for the same reason as ``_is_marker_word`` above, and it must
+        # match it: the candidate test and the token extraction read the SAME
+        # word, so a note head admitted by one and refused by the other records
+        # the raw text as its key and the inline citation never finds it.  That
+        # mismatch is why 22 markers were seen and none bound.
+        tok = marker_token(first.text, upper=True) or first.text.strip()
         if is_cand and _accept_marker(tok, words[1:], accepted, bool(lead)):
             rest = words[1:]
             current = {"marker": tok, "lines": []}

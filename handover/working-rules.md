@@ -93,6 +93,19 @@ had already run against it.
 
 ## Measuring
 
+- **A marker-grammar change is invisible to the register, to CI and to the lane suites.**
+  Round 35 widened `grammar.MARKER` and lifted **56 section cross-references into `<sup>`** in
+  a document the round was not about (`72A` ×30, out of "by virtue of section 72A of the Sales
+  Tax Act, 1990"). The register read **0 before and 0 after** — the invariants share the
+  parser's marker grammar, so they are blind to exactly the population a marker change moves.
+  **Read the rendered `html` of a document the round is NOT about**, and diff it against the
+  same document on `main`. That is the only thing that caught it.
+- **`marker_max_size` is `body_size - 1.5`, which is not a marker band.** It is 10.5 where
+  body is 12.0, so it admits footnote prose whole. If a rule needs "this word is a raised
+  marker", test against `footnote_size` and check `footnote_marker_max_size > 0` first — a
+  document with no footnote zone calibrates `footnote_size` to nonsense (11.0 for Sales Tax
+  Rules 01-01-2025, whose real footnote prose is 9.0 and which has 0 footnote records).
+
 **Measure the invariant fix and the parser fix separately**, on identical JSON for the
 first. Nearly every class is part wrong-invariant and part real defect, and a single total
 hides both. `no_footnote_text_in_body` was 45 hits that were *all* a `title=` attribute —

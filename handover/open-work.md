@@ -234,21 +234,29 @@ page model emits `P ART -I` (glyph-split keyword). `_PART_RE` now uses
 FA2019 `PART I`–`VII`. Arabic `Part-1`/`Part-11` accepted; `l`→`I` still refused.
 Public FA2025 has no PART headings; public FA2014 has no text layer.
 
-### 11. Letter-suffixed citation markers — 22 sites, 1 document — **new, 2026-09-10**
+### 11. Letter-suffixed citation markers — 22 sites, 1 document — **CLOSED, round 35**
 
 `grammar.MARKER` (`:132`) is `(?:\d{1,4}[a-z]?|\*)` — a **lowercase-only** suffix. Customs
 1969 (30.06.2025) prints 22 citation markers with an **uppercase** suffix at marker size
 (8.04pt against a 12.0pt dominant): `59&59A`, `59/59A`, `66A`, `66B`, `30A`, `36/36A`,
 `27/27A` ×3, `2/2A` ×3, `2A` ×2, `14/14A`, `18/18A`, across 9 sections in 6 chapters. Every
 one renders as literal body text and builds no footnote record. The same document prints
-**90** lowercase-suffixed markers that parse correctly, so this is a case inconsistency in
+**86** lowercase-suffixed markers in the same band that parse correctly (the ledger said 90;
+re-measured 2026-09-14), so this is a case inconsistency in
 the source's own marker printing, not a size or layout problem.
 
 **Not in the register, and that is the shape to recognise.** The invariants share the
 parser's marker grammar, so `inv_leading_marker_cited`, `inv_citation_refs_resolve` and
-`inv_footnote_on_citing_leaf` are as blind to an uppercase suffix as the builder is — the
-same shape item 5 had before round 18 closed it. **Expect the register to rise when the
-invariant is widened and fall when the parser is**, and measure the two halves separately.
+`inv_footnote_on_citing_leaf` are as blind to an uppercase suffix as the builder is.
+
+**~~Expect the register to rise when the invariant is widened and fall when the parser is.~~
+MEASURED AND WRONG, round 35.** Widening `_LEADING_AMEND_MARKER` to either case against the
+un-re-converted corpus moved the register by **zero**. That invariant fires only on a leaf
+that *opens* with an amendment marker and renders no `<sup>` at all, and all 22 of these are
+inline, in leaves that already carry citations. Round 21's 0 → 61 came from the **run form**
+(`7,45[`, `5&7[`), which does appear leading. The prediction was inherited from a different
+class and cost a measurement to disprove — widen the instrument regardless, but do not
+forecast the number from another round's.
 
 **~~The blocker is a source question, not a code one.~~ RESOLVED 2026-09-14 — the blocker is
 spent.** The question was whether the *note* for `66A` is printed `66a.`, in which case the
@@ -265,7 +273,20 @@ discriminator — the size is.
 
 **Do not widen `MARKER` globally.** `79A` is a real section code in this document — round 24
 shipped a repair to rejoin its split `79` `A` — and `155A`…`155R`, `32A`, `26B`, `129A` all
-print at body size as codes.
+print at body size as codes. **What made the widening safe was not restraint in the pattern
+but the SIZE GATE in front of it**: `pagemodel.Word.marker_run` refuses anything above
+`cal.marker_max_size` before the token grammar is consulted (`pagemodel.py:140`), and the
+footnote side gates on `cal.footnote_marker_max_size` (`pagemodel.py:276`). 8.04pt markers and
+9.0pt notes pass; a 12.0pt code cannot. Verify that gate before widening this class further.
+
+**CLOSED 2026-09-14 (round 35).** `MARKER` and `_MARKER_PARTS_RE` widened to `[A-Za-z]`,
+`marker_sort_key` case-folded, `_LEADING_AMEND_MARKER` widened to match. All 22 are now
+markers and **13 resolve to their note**; `<sup>` 920 → 959, footnote records 801 → 818 in
+that document. The 9 that do not resolve are blocked by two SOURCE defects, both measured:
+`59A` ×8 because the note head is printed `59A..` with two dots (now board row 1, a different
+cause), and `36A` ×1 because the source cites a note it never defines anywhere — for which
+`<sup class="marker">` is the designed rendering, not a bug.
+Artifact: [`wip/phase3-uppercase-marker-suffix.md`](../wip/phase3-uppercase-marker-suffix.md).
 
 ### Also open in Phase 3, off the ranked list
 

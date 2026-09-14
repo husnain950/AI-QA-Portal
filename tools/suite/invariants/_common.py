@@ -291,7 +291,11 @@ def inv_no_split_ordinals(doc, *, split_ordinal=_SPLIT_ORDINAL):
 # parser untouched, raised this class from 0 to 61 across the acts lane -- measured
 # on the corpus as it stood, by running the three lane suites with and without
 # this line and nothing else changed.
-_LEADING_AMEND_MARKER = re.compile(r"^\d{1,3}[a-z]?(?:[,&/]\d{1,3}[a-z]?)*\[")
+# The suffix class is EITHER CASE for the same reason ``grammar.MARKER`` is, and
+# widening the parser without widening this line would have left the instrument
+# narrower than the defect a second time: Customs 1969 (30.06.2025) prints 22
+# uppercase-suffixed markers at 8.04pt, and this pattern could see none of them.
+_LEADING_AMEND_MARKER = re.compile(r"^\d{1,3}[A-Za-z]?(?:[,&/]\d{1,3}[A-Za-z]?)*\[")
 
 
 def inv_leading_marker_cited(doc):

@@ -127,16 +127,61 @@ def code_sort_key(code: str) -> tuple:
 # ---------------------------------------------------------------------------
 # footnote markers
 
-#: A footnote marker: digits with an optional lowercase letter suffix, or a
+#: A footnote marker: digits with an optional LOWERCASE letter suffix, or a
 #: bare asterisk.  ``5``, ``27a``, ``263``, ``*``.
+#:
+#: **The lowercase restriction is load-bearing, and it is not about markers --
+#: it is about SECTION CODES.** A code is uppercase (``72A``, ``79A``, ``150S``,
+#: ``39O``), and codes are quoted constantly in prose: "by virtue of section 72A
+#: of the Sales Tax Act, 1990".  Inside a FOOTNOTE that prose is set at the
+#: document's footnote size, which is below ``cal.marker_max_size``
+#: (``body_size - 1.5``), so the size gate cannot separate the two: widening this
+#: class globally lifted 56 section cross-references in Sales Tax Rules 2006
+#: (01-01-2025) alone into ``<sup>``, ``72A`` x30 among them.  Measured
+#: 2026-09-14, and it is why ``open-work.md`` said "do not widen MARKER globally".
 MARKER = r"(?:\d{1,4}[a-z]?|\*)"
 MARKER_RE = re.compile(rf"^{MARKER}$")
 
-#: A marker as printed at the head of a footnote NOTE, where it usually carries
-#: a trailing dot: ``25.``, ``27a.``, ``36b.``
-MARKER_NOTE_RE = re.compile(rf"^({MARKER})\.?$")
+#: The same class with an UPPERCASE suffix admitted, for the two positions where
+#: a section code cannot be confused with a marker.  Never the default.
+#:
+#: Customs 1969 (30.06.2025) prints 22 markers with an uppercase suffix --
+#: ``59&59A`` x6, ``27/27A`` x3, ``2/2A`` x3, ``59/59A`` x2, ``2A`` x2, and
+#: ``66A``, ``66B``, ``30A``, ``36/36A``, ``14/14A``, ``18/18A`` once each -- at
+#: **8.04pt** where that document's footnote prose is 9.0pt and its body is 12.0.
+#: Their notes print to match (``66A.``, ``66B.``, ``59B.`` at 9.0pt on p77), so
+#: the join needs no case-fold.  The two safe positions are:
+#:
+#:   * INLINE, only when the word is strictly SMALLER than the document's
+#:     footnote prose size -- i.e. genuinely raised, not merely small.  That is
+#:     the test ``pagemodel.Word.marker_run`` applies, and it is what 9.0pt
+#:     footnote prose in the rules lane fails.
+#:   * At the head of a footnote NOTE, where the token stands alone at the
+#:     block's left margin followed by the note text.  There is no prose there to
+#:     confuse it with, so case carries no risk.
+_MARKER_UPPER = r"(?:\d{1,4}[A-Za-z]?|\*)"
+_MARKER_RE_UPPER = re.compile(rf"^{_MARKER_UPPER}$")
 
-_MARKER_PARTS_RE = re.compile(r"^(\d{1,4})([a-z]?)$")
+#: A marker as printed at the head of a footnote NOTE, where it usually carries
+#: a trailing dot: ``25.``, ``27a.``, ``36b.``, ``66A.``
+MARKER_NOTE_RE = re.compile(rf"^({MARKER})\.?$")
+#: An uppercase note head must CARRY ITS DOT.  ``marker_token`` treats the dot as
+#: optional because a lowercase marker is unambiguous without it, but a bare
+#: ``72A`` at the head of a footnote line is far more likely to be a section code
+#: opening the note's prose -- admitting it read 56 of them as note heads in Sales
+#: Tax Rules 2006 (01-01-2025) and destroyed that document's footnote blocks
+#: outright: 0 records where there had been hundreds.  Real note heads print the
+#: dot (p77: ``66A.``, ``66B.``, ``59B.``).
+_MARKER_NOTE_RE_UPPER = re.compile(rf"^(?:({MARKER})\.?|({_MARKER_UPPER})\.)$")
+
+#: Splits a marker into its number and suffix for sorting.  Carries the WIDER
+#: case class on purpose: it only ever sees a marker something already accepted,
+#: and if it refused ``66A`` then ``marker_sort_key`` would fall to its
+#: ``(10**6, t)`` catch-all and every uppercase-suffixed note would sort to the
+#: end of the document instead of beside its numeric sibling -- a silent ordering
+#: bug behind a fixed rendering one, and invisible to
+#: ``inv_footnotes_in_numeric_order``, which sees order and not the key.
+_MARKER_PARTS_RE = re.compile(r"^(\d{1,4})([A-Za-z]?)$")
 
 #: The run of superscript markers that can precede a section heading.
 #:
@@ -193,10 +238,17 @@ MARKER_PREFIX = (r"(?:[\d*]{1,4}[a-z]?(?:\s+[\d*]{1,4}[a-z]?)+\s*"
                  r"(?:\s*[,&])?(?:\s+|(?=\[)))?")
 
 
-def marker_token(text: str) -> str | None:
-    """The bare marker in ``text`` (dot stripped), or None if it is not one."""
-    m = MARKER_NOTE_RE.match((text or "").strip())
-    return m.group(1) if m else None
+def marker_token(text: str, upper: bool = False) -> str | None:
+    """The bare marker in ``text`` (dot stripped), or None if it is not one.
+
+    ``upper`` admits an uppercase suffix.  Pass it only from a position where a
+    section code cannot appear -- see ``_MARKER_UPPER``.
+    """
+    rx = _MARKER_NOTE_RE_UPPER if upper else MARKER_NOTE_RE
+    m = rx.match((text or "").strip())
+    if not m:
+        return None
+    return next((g for g in m.groups() if g), None)
 
 
 #: The separators that fuse several markers into ONE extracted word.  Kept in
@@ -204,7 +256,7 @@ def marker_token(text: str) -> str | None:
 _MARKER_RUN_SEP_RE = re.compile(r"\s*[,&/]\s*")
 
 
-def marker_run(text: str) -> list[str]:
+def marker_run(text: str, upper: bool = False) -> list[str]:
     """Every marker carried by one inline citation token, in printed order.
 
     ``MARKER_NOTE_RE`` anchors the WHOLE token, so a marker that the text layer
@@ -254,19 +306,23 @@ def marker_run(text: str) -> list[str]:
     if not t or t.endswith("."):
         return []
     parts = _MARKER_RUN_SEP_RE.split(t)
-    if not all(MARKER_RE.match(p) for p in parts):
+    rx = _MARKER_RE_UPPER if upper else MARKER_RE
+    if not all(rx.match(p) for p in parts):
         return []
     if any(is_year_like(p) for p in parts):
         return []
     return parts
 
 
-def is_marker_text(text: str) -> bool:
-    return marker_token(text) is not None
+def is_marker_text(text: str, upper: bool = False) -> bool:
+    return marker_token(text, upper) is not None
 
 
 def marker_sort_key(marker: str) -> tuple:
     """Sort markers numerically then by suffix: ``36 < 36a < 36b < 37``.
+
+    The suffix is compared case-insensitively, so ``66A`` sorts where ``66a``
+    would rather than ahead of every lowercase suffix in the document.
 
     Never lexically -- that orders ``10`` before ``9`` and ``36b`` before
     ``36a`` is fine but ``100`` before ``36`` is not, and Sales Tax reaches the
@@ -280,7 +336,10 @@ def marker_sort_key(marker: str) -> tuple:
     m = _MARKER_PARTS_RE.match(t)
     if not m:
         return (10 ** 6, t)
-    return (int(m.group(1)), m.group(2))
+    # Case-folded: ``59A`` and ``59a`` are the same position, not two.  Raw, the
+    # suffix sorts by ASCII and every uppercase suffix lands before every
+    # lowercase one, so a document printing both would interleave its notes.
+    return (int(m.group(1)), m.group(2).lower())
 
 
 def is_year_like(marker: str) -> bool:
@@ -707,6 +766,47 @@ def _demo() -> None:
     assert norm_code("25 AA") == "25AA" and norm_code("18.A") == "18A"
     # ...and never merges two genuinely different sections
     assert norm_code("221") == "221" != norm_code("221-A")
+
+    # --- marker suffix case, and the gate that makes it safe ---------------
+    # DEFAULT IS LOWERCASE-ONLY, because a section code is uppercase and gets
+    # quoted in footnote prose at exactly footnote size.
+    for _t in ("66A", "72A", "150S", "39O"):
+        assert marker_run(_t) == [], _t
+        assert marker_token(_t) is None, _t
+    # ...admitted only where a section code cannot appear.  The 22 from Customs
+    # 1969 (30.06.2025), every literal copied from the page.
+    for _t in ("66A", "66B", "30A", "2A", "59A", "14A", "18A", "27A"):
+        assert marker_run(_t, upper=True) == [_t], _t
+    for _run, _want in (("59&59A", ["59", "59A"]), ("59/59A", ["59", "59A"]),
+                        ("27/27A", ["27", "27A"]), ("2/2A", ["2", "2A"]),
+                        ("36/36A", ["36", "36A"]), ("14/14A", ["14", "14A"]),
+                        ("18/18A", ["18", "18A"])):
+        assert marker_run(_run, upper=True) == _want, (_run, marker_run(_run, True))
+    # The note heads they bind to, p77's consolidated block.  Uppercase there
+    # too, which is why the join needs no case-fold.
+    for _t, _want in (("66A.", "66A"), ("66B.", "66B"), ("59B.", "59B"),
+                      ("55A.", "55A")):
+        assert marker_token(_t, upper=True) == _want, _t
+    # ...but a BARE uppercase token is not a note head.  Without the dot this
+    # read 56 section codes as note heads in one rules document and collapsed its
+    # footnote blocks to nothing.
+    for _t in ("72A", "150S", "39O", "164A"):
+        assert marker_token(_t, upper=True) is None, _t
+    # The lowercase side keeps its optional dot, both ways.
+    assert marker_token("27a", upper=True) == "27a"
+    assert marker_token("25", upper=True) == "25"
+    # The lowercase side must not have moved, with or without the flag.
+    for _u in (False, True):
+        assert marker_run("1a,25[", upper=_u) == ["1a", "25"], _u
+        assert marker_token("27a.", upper=_u) == "27a", _u
+        assert marker_run("2018", upper=_u) == [], _u
+    # Sorting: an uppercase suffix sorts where its lowercase twin would, not
+    # ahead of every lowercase suffix, and not at the 10**6 catch-all a narrower
+    # _MARKER_PARTS_RE would have sent it to.
+    assert marker_sort_key("66A") == (66, "a")
+    assert sorted(["66B", "66", "67", "66A", "*"], key=marker_sort_key) == \
+        ["*", "66", "66A", "66B", "67"]
+    assert not is_year_like("66A")
 
     print("grammar self-check passed")
 

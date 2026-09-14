@@ -103,6 +103,39 @@ class Word:
     # no calibration in scope.  A field keeps it exact without global state,
     # which would leak between documents when several are converted in one run.
     marker_max: float = MARKER_MAX_SIZE
+    #: The document's FOOTNOTE PROSE size, and the footnote ZONE cutoff, carried
+    #: for the same reason as ``marker_max`` above.  Together they gate the
+    #: uppercase marker suffix -- see ``upper_ok``.
+    footnote_size: float = 9.0
+    footnote_marker_max: float = 9.0
+
+    @property
+    def upper_ok(self) -> bool:
+        """Whether an UPPERCASE marker suffix may be read from this word.
+
+        A section code is uppercase (``72A``, ``150S``, ``39O``) and is quoted
+        constantly in prose, so the case class is the only thing separating the
+        two populations for most of this corpus.  Two conditions, and BOTH were
+        measured against the document that breaks each of them:
+
+          * **The document must have a footnote zone at all.**  ``calibrate``
+            reports ``footnote_marker_max_size = 0.0`` when it finds none, and
+            Sales Tax Rules 2006 (01-01-2025) is such a document -- it has **0
+            footnote records on main**, so every uppercase token in it is a
+            section code by construction.  Admitting them lifted 56 into
+            ``<sup>``, ``72A`` x30 out of "by virtue of section 72A of the Sales
+            Tax Act, 1990".
+          * **The word must be strictly SMALLER than footnote prose** -- raised,
+            not merely small.  ``marker_max`` is ``body_size - 1.5`` (10.5 here),
+            far too loose: Customs 1969 sets its markers at 8.04pt against 9.0pt
+            footnote prose, and that 1pt is the whole signal.
+
+        The first condition is not redundant.  That rules document calibrates
+        ``footnote_size`` to **11.0**, not 9.0, so the size test alone admits its
+        9.0pt codes -- which is exactly how the first two attempts at this fix
+        passed their unit checks and still corrupted the document.
+        """
+        return self.footnote_marker_max > 0.0 and self.size < self.footnote_size
 
     @property
     def is_marker(self) -> bool:
@@ -151,7 +184,12 @@ class Word:
         # (``8.14.``, ``12.23.``, ``14.27.``), each pointing at no footnote.
         if t.endswith("."):
             return []
-        run = marker_run(t)
+        # An uppercase suffix only if this word is genuinely RAISED -- strictly
+        # smaller than footnote prose.  At footnote prose size the token is just
+        # as likely to be a section code quoted in a note, and 56 of them in one
+        # rules document were lifted into <sup> when this was gated on size
+        # alone.  See ``grammar._MARKER_UPPER``.
+        run = marker_run(t, upper=self.upper_ok)
         if run:
             return run
         # a digit-and-asterisk marker ("12*") is not part of a run
@@ -275,7 +313,9 @@ def _is_footnote_marker_line(ln, cal) -> bool:
     return (first.x0 <= cal.footnote_marker_x_max
             and first.size <= cal.footnote_marker_max_size
             and _line_max_size(ln) <= cal.footnote_text_max
-            and is_marker_text(first.text))
+            # A note HEAD stands alone at the block's left margin with the note
+            # text after it, so an uppercase suffix carries no ambiguity here.
+            and is_marker_text(first.text, upper=True))
 
 
 def _is_amendment_note(text: str) -> bool:
@@ -1110,6 +1150,8 @@ def build_page_model(page, index: int, cal, pdf_path: str | None = None,
             fontname=w.get("fontname", ""),
             space_before=bool(w.get("_space_before")),
             marker_max=cal.marker_max_size,
+            footnote_size=cal.footnote_size,
+            footnote_marker_max=cal.footnote_marker_max_size,
             needs_review=bool(w.get("needs_review")),
             conf=w.get("conf"),
             alt=_rejected_reading(w),
@@ -1830,6 +1872,18 @@ def _demo() -> None:
     zt = _size_zone_top(sandwich, cal)
     if zt is not None:
         assert sandwich[3].top < zt, (zt, sandwich[3].top)
+
+    # --- upper_ok: the gate on the uppercase marker suffix ------------------
+    # Customs 1969 (30.06.2025): a real footnote zone, markers raised above it.
+    _c = dict(text="66A", x0=0.0, x1=1.0, top=0.0, fontname="")
+    assert Word(size=8.0, footnote_size=9.0, footnote_marker_max=10.5, **_c).upper_ok
+    # ...and its own footnote PROSE is not raised, so a code quoted there is safe.
+    assert not Word(size=9.0, footnote_size=9.0, footnote_marker_max=10.5, **_c).upper_ok
+    # Sales Tax Rules 2006 (01-01-2025): calibrate finds NO footnote zone
+    # (footnote_marker_max_size 0.0) and puts footnote_size at 11.0, so the size
+    # test alone would admit its 9.0pt section codes.  The zone test is what
+    # refuses them -- 56 of them, 72A x30.
+    assert not Word(size=9.0, footnote_size=11.0, footnote_marker_max=0.0, **_c).upper_ok
 
     print("pagemodel self-check passed")
 
