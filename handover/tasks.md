@@ -3,7 +3,7 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **13**, regenerated in PR #89 and **verified against a live
+**State:** the register is **12**, regenerated in PR #89 and **verified against a live
 three-lane run** on a corpus converted at one revision — acts 6, rules 2, ordinance 5, delta
 zero, no lane skipped. Reasoning for every row is in [`plan.md`](plan.md); state is in
 [`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
@@ -83,7 +83,7 @@ board.** Rounds 21-28 closed four of its rows, and the register they close again
 | 2 | **the ordinance five** | 5 | all in `fbr_ingest` on ITO editions (233AA, 214E ×2, 122C ×2). **No longer blocked on a decision** — round 20 decided routing, and ITO stays on `fbr_ingest`. It is a parser round in the fork | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
 | 3 | **the single-document remainder** | 4 | nothing shared — PSW ministry list (ss.27/28), PFMA s.26, Sales Tax 2014 s.10 `R(cid:2)fund`. Three unrelated traces | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | 4 | **Customs 2008 ss.181 / 189** | 2 | **newly visible, and nobody has read those pages.** Two heading-only leaves in one edition — the only shared-cause candidate left in acts | *(none yet)* |
-| 5 | **the two rules hits** | 2 | Sales Tax Rules 30-06-2025 rule 150 is the `150ZQ*` family again; 01-01-2025 rule 13 carries the start of 44A under `no_foreign_section_start_in_body`, which the round-19 exemption does **not** cover — that entry names `section_carries_its_body` | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| 5 | **one rules hit** | 1 | **was 2.** 01-01-2025 rule 13 CLOSED 2026-09-14 — it was an *invariant* bug, not a parser defect: `_table_cell_lines` could not see a flattened table ROW, so a Schedule serial cell read as a section start. What is left is Sales Tax Rules 30-06-2025 rule 150, the `150ZQ*` family again | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — so the 14 stale acts documents stay stale. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it is step 1 | [Deferred](#deferred-with-reasons) |
 | ~~7~~ | ~~the `ReviewToolbar` approval gate~~ | — | **CLOSED 2026-09-14.** Gate switched to `hasCriticalQualityFlags`, mirroring the backend's `CRITICAL_FLAGS`. One line plus two tests — see [the Result below](#the-reviewtoolbar-approval-gate--closed-2026-09-14) | [Deferred](#deferred-with-reasons) |
 | 8 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect | [Deferred](#deferred-with-reasons) |
