@@ -10,6 +10,12 @@ corpus converted at one revision.
 zero**, measured on a corpus re-converted under this tree — acts 0, rules 0, ordinance 0,
 delta zero, no lane skipped. Rounds 29-34 (PRs #93-#99) took it **13 → 0**.
 
+**The board has had no register-bearing work since round 36.** Work is picked from the
+**unmeasured surface** instead — the unresolved `<sup class="marker">` census, which no
+invariant watches. It stands at **3,265 across 81 documents** after round 37 (acts 1,900 /
+rules 934 / ordinance 431), down from 3,930/82. The ranked table in
+[`tasks.md`](tasks.md#start-here--pick-one) carries the next two rows, both measured.
+
 **Read that number with its qualifier.** **Nine of those thirteen were closed by exemption
 with evidence, four by code.** An exemption silences a whole invariant for a whole document,
 and the runner still prints those hits under its `EXEMPT INVARIANTS` banner — so "register 0"
@@ -82,6 +88,22 @@ Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 4
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
 
+**2026-09-14 — round 37 is the first round taken off the UNMEASURED surface, and it is the
+first in four rounds where an invariant had something to say.** The board had no
+register-bearing work left, so the round came off the unresolved-marker census instead.
+Customs Rules 2001 (30.06.2023) carried **665** unresolved `<sup class="marker">` and **zero**
+footnote records — and the source turned out to print its whole apparatus, once, at the end:
+`As Amended:-` on p561 and **158 numbered S.R.O. entries** to p563, at BODY size. Three gates
+in `footnotes.py` each refuse a body-sized apparatus, so the lot read as body and rule **1122
+(*Audit*)** swallowed 157 notification lines. Read as its own shape: **665 unresolved → 0, 672
+citations bound, 421 footnote records on 229 leaves, 0 leaves gained or lost**, one leaf's text
+changed (1122, −796 words). **Then the register moved 0 → 1** and that hit was real: a
+document with no footnote records passes every footnote invariant, so
+`footnote_on_citing_leaf` had never had anything to look at. It was a gridless table span
+swallowing the CHAPTER XIV caption on p102; fixed in the same PR. Corpus-wide the unresolved
+population goes **3,930 → 3,265**. **76 of the 77 re-converted documents are byte-identical.**
+Artifact: [`wip/phase3-round37-terminal-amendment-list.md`](../wip/phase3-round37-terminal-amendment-list.md).
+
 **2026-09-14 — board row 1 is CLOSED, and the register moved by zero on purpose.** `MARKER_NOTE_RE` read one trailing dot where the Customs source prints six note heads with two, so each opened no note and its line was folded into the previous note's body. Widened to `\.{0,2}` (uppercase branch `\.{1,2}`, its dot still mandatory). Across 20 Customs editions: **+120 footnote records, +254 citations bound, −254 unresolved markers, 0 notes lost**, leaf counts and body words unchanged, footnote zone unmoved, and the rules control byte-identical in its body. **The register is 0 before and 0 after** — no invariant here can see a marker-grammar change in either direction, which is why the proof is the output diff. The board's nine-heads/seven-real count was wrong: it is **six and six**. Artifact: [`wip/phase3-round36-double-dot-note-head.md`](../wip/phase3-round36-double-dot-note-head.md).
 
 **2026-09-14 — `no_foreign_section_start_in_body` is CLOSED (was 1), and it was an INVARIANT bug.** `_table_cell_lines` collected per-`<td>` text, but the renderer flattens a short table row into ONE `plain_text` line joined by spaces, which equals no cell. Sales Tax Rules 2006 (01-01-2025) rule 13's Schedule row `44A | Steel ingots / bala | M. Tons` was read as the start of rule 44A. No parser change, no re-conversion. **Ten classes are now closed.** Artifact: [`wip/phase3-table-row-join.md`](../wip/phase3-table-row-join.md).
@@ -135,13 +157,13 @@ was skipped by instruction. Acts has the same shape smaller: 25 editions carryin
 image-backed pages.
 
 **All three lanes are at ONE revision, as far as the OCR decision allows.** Re-measured
-2026-09-14 after round 35, converting every staged document from a **clean** tree:
+2026-09-14 after **round 37**, converting every staged document from a **clean** tree — 77 of
+77, 0 failures, 953s. The 21/56 split rounds 35-36 left in acts and rules is **gone**:
 
 | documents | `pipeline_revision` |
 |---|---|
-| **21** (20 Customs acts + 1 rules control) | **`70d10d53cd75`** — round 36's double-dot note head |
-| **56** (46 acts + 10 rules) | `5c862537452f` — `main` with round 35's marker fix |
-| **9** (ordinance) | `dbcab2f79b78` — PRs #93-#99. The marker fix is `legal_ingest`; the ordinance lane runs `fbr_ingest` and does not import `MARKER`, so it is current |
+| **77** (66 acts + 11 rules) | **`0139b858daac`** — round 37. Every text-layer document in both lanes |
+| **9** (ordinance) | `dbcab2f79b78` — PRs #93-#99. Rounds 35-37 are all `legal_ingest`; the ordinance lane runs `fbr_ingest` and does not import it, so it is current |
 | 14 | *(none recorded)* — the image-backed acts documents, see below |
 | 3 | `4827840…` (round 12) — the image-backed ITO editions (20.02.2026, 30.06.2024, 31.07.2025) |
 
@@ -216,7 +238,7 @@ is the cross-check that the scope was right.
 
 ```sh
 .venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 1 / 2 / 5
-.venv/bin/python -m pytest tools/tests -q       # 231 passed, 1 skipped
+.venv/bin/python -m pytest tools/tests -q       # 245 passed, 1 skipped
 .venv/bin/python tools/run_tests_smoke.py       # package self-checks + lane suites
 .venv/bin/python tools/discover_corpus.py --check
 .venv/bin/ruff check                            # BARE -- matches ci.yml
@@ -275,7 +297,7 @@ factual below it has moved.
 | Phase 5's gate is "the deletion of the **two** Round 3 exemptions" | **4 entries**, across 2 documents. (`wip/tasks.md` says *five*; that is also wrong — verified by grep at this commit) |
 | "4c — transport and deploy … Docker is down on this host" | done, as the `wip/integration/` track, #59–#76 |
 | an exported transcript "is **not gitignored**" | resolved — `.gitignore:80` |
-| `pytest tools/tests` → 56 passed | **231 passed, 1 skipped** |
+| `pytest tools/tests` → 56 passed | **245 passed, 1 skipped** |
 
 One more, not in HANDOVER: every file under `wip/integration/` still states the register as
 **34**. Round 14 took it to 32, round 15 to 29, round 16 to 25, where rounds 17 and 18 left it,

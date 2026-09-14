@@ -107,6 +107,17 @@ had already run against it.
   parser's marker grammar, so they are blind to exactly the population a marker change moves.
   **Read the rendered `html` of a document the round is NOT about**, and diff it against the
   same document on `main`. That is the only thing that caught it.
+- **An invariant with nothing to measure is not passing — it is unmeasured.** Customs Rules
+  2001 carried **zero** footnote records, so all nine footnote invariants were green on it for
+  the life of the corpus: there was nothing for them to look at. Round 37 gave it its first
+  421 records and `footnote_on_citing_leaf` reported a defect **on the same run** — a gridless
+  table span that had been swallowing a CHAPTER caption the whole time. Budget for this: a
+  round that gives a document its first record of some class should expect the suite to have
+  something to say about that document, and the hit is usually older than the round.
+- **A document that records zero of something is a lead, not a clean bill.** The census that
+  found round 37 was *markers with no notes*; the two documents at the top of it had 665 and
+  869 markers and **0** notes each, and one turned out to print its apparatus in a place no
+  gate looked. Zero is the strongest signal in this corpus.
 - **`marker_max_size` is `body_size - 1.5`, which is not a marker band.** It is 10.5 where
   body is 12.0, so it admits footnote prose whole. If a rule needs "this word is a raised
   marker", test against `footnote_size` and check `footnote_marker_max_size > 0` first — a
