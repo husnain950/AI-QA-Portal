@@ -1330,3 +1330,72 @@ def _continuation_target(last_fns):
 
 def _join(words) -> str:
     return " ".join(w.text for w in words).strip()
+
+
+#: The TERMINAL amendment-source apparatus.  Customs Rules 2001 (30.06.2023)
+#: prints its notes ONCE at the end of the document -- a caption ``As Amended:-``
+#: on p561 followed by 158 numbered S.R.O. entries running to p563 -- instead of
+#: as per-page footnotes.  Every gate in this module is calibrated for the
+#: footnote-sized apparatus: the zone split separates body from notes BY SIZE and
+#: this list is set at body size (10.0pt), ``_is_marker_word`` caps the marker at
+#: ``footnote_marker_max_size`` (9.0), and ``_is_amendment_note`` wants an edit
+#: verb, which "S.R.O.247(I)/2002, - dated 08.05.2002." does not carry.  So the
+#: whole apparatus read as BODY: 157 notification lines became the text of rule
+#: 1122 ("Audit"), and all 665 inline markers cited notes that had no record.
+#: Read as its own shape instead of by loosening three measured gates.
+_AMEND_LIST_CAPTION_RE = re.compile(r"^\s*as\s+amended\s*:?\s*[-–—]?\s*$", re.I)
+#: ``1. S.R.O.247(I)/2002 ...`` -- and ``53 S.R.O.510(I)/2010``, ``148 S.R.O...``,
+#: whose dot the source drops.  The S.R.O. is what makes this an amendment-source
+#: entry rather than a numbered clause, so it is required, not optional.
+_AMEND_LIST_ENTRY_RE = re.compile(
+    r"^\s*(?P<marker>\d{1,3}[A-Z]?)\s*[.)]?\s+(?=S\.?\s*R\.?\s*O)", re.I)
+
+
+def amendment_list_start(texts, min_entries: int = 5,
+                         min_share: float = 0.8) -> int | None:
+    """Index in ``texts`` (document order) where a terminal amendment list opens.
+
+    The caption alone is not the gate -- "as amended:-" is an ordinary phrase in
+    statutory prose, and cutting the body at one would silently delete the rest
+    of the document.  What identifies the apparatus is that essentially
+    EVERYTHING after the caption is a numbered notification entry, so require
+    both a floor on the count and a share of the non-empty lines below.
+    """
+    for i, t in enumerate(texts):
+        if not _AMEND_LIST_CAPTION_RE.match(t or ""):
+            continue
+        rest = [x for x in texts[i + 1:] if (x or "").strip()]
+        hits = [x for x in rest if _AMEND_LIST_ENTRY_RE.match(x)]
+        if len(hits) >= min_entries and len(hits) >= min_share * len(rest):
+            return i
+    return None
+
+
+def parse_amendment_list(refs) -> list[Footnote]:
+    """One :class:`Footnote` per numbered entry of a terminal amendment list.
+
+    ``refs`` are the body ``LineRef``s from :func:`amendment_list_start` to the
+    end of the document, caption included -- it is the apparatus's own caption
+    and is dropped, exactly as ``LEGAL REFERENCE`` is.  Each note is pinned to
+    the page that PRINTS it, which is what every ref and the orphan net read.
+    """
+    notes: list[Footnote] = []
+    for ref in refs:
+        line = ref.line
+        text = (line.text() or "").strip()
+        if not text:
+            continue
+        match = _AMEND_LIST_ENTRY_RE.match(text)
+        if match:
+            notes.append(Footnote(marker=match.group("marker"), text="",
+                                  html="", records=[],
+                                  pdf_page=ref.page, end_pdf_page=ref.page))
+        elif notes:                    # a wrapped entry, not a new one
+            notes[-1].end_pdf_page = ref.page
+        else:
+            continue                   # the caption, above the first entry
+        notes[-1].records.append((text, _sorted_words(line), None))
+    for note in notes:
+        note.text = "\n".join(t for (t, *_) in note.records).strip()
+        note.html = _build_html(note.records)
+    return notes

@@ -847,6 +847,25 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
             "before section binding"
         )
 
+    # A TERMINAL amendment apparatus is printed once at the end of the document
+    # at BODY size, so the per-page zone split cannot see it and every line of it
+    # arrives here as body.  Cut it out of the body and record it as footnotes --
+    # see ``footnotes.amendment_list_start`` for why the caption alone is not the
+    # gate.  Each marker in such a list is unique document-wide, so
+    # ``_citation_scope``'s unique-marker path binds it from anywhere in the body.
+    from .footnotes import amendment_list_start, parse_amendment_list
+    amend_at = amendment_list_start([r.line.text() for r in body_refs])
+    if amend_at is not None:
+        body_refs, amend_refs = body_refs[:amend_at], body_refs[amend_at:]
+        amend_notes = parse_amendment_list(amend_refs)
+        for fn in amend_notes:
+            page_footnotes.setdefault(fn.pdf_page, []).append(fn)
+            has_notes[fn.pdf_page] = True
+        for pg in {r.page for r in amend_refs}:
+            has_body[pg] = any(r.page == pg for r in body_refs)
+        progress(f"terminal amendment list: {len(amend_notes)} note(s) from "
+                 f"{len(amend_refs)} body line(s)")
+
     # splice footnotes that continue across a page break before assembling,
     # then rebuild the citation-title map so titles carry the full text
     from .footnotes import merge_footnote_continuations
