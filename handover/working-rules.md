@@ -17,6 +17,18 @@ anyone converts a subset. Do not read the all-clear as permanent.
 
 ## Conversion
 
+- **Re-convert the STAGED SET, never the lane.** `convert_all.py <lane>` discovers every PDF
+  under the lane — 46 ordinance + 93 acts + 48 rules = **187**, against **103** staged
+  outputs. A bare run adds 84 documents to the corpus, and the register then measures a
+  different document set: a before/after comparison stops meaning anything. Filter
+  `discover()` to paths whose `out_path()` already exists. Measured 2026-09-14.
+- **Three ordinance outputs carry a legacy filename.** `Income Tax Ordinance 2001 - amended
+  upto 30.06.2024.json` is on disk; `out_path` now writes `Income Tax Ordinance, 2001 Amended
+  upto 30.06.2024.json`. Converting them under `out_path` leaves the old file in place and the
+  lane holds **15** documents, three of them duplicates. Pass `-o` with the name already
+  there. (They are image-backed, so a no-OCR run skips them and never trips this — it fires
+  the moment OCR comes into scope.)
+
 **Never edit `packages/` while a conversion runs.** `convert_all.py` spawns a fresh child
 per document, so each imports the parser *when it starts*; an edit mid-run gives early
 documents the old code and later ones the new. **A mixed-revision corpus looks completely
@@ -177,9 +189,11 @@ fails the next time the renderer improves.
 - **`detect_toc_pages`'s `rows >= 3` floor.** Its own comment records a lower one swallowing
   the Income Tax Rules' body title page.
 - **`clause_codes_plausible`.** Do not weaken it to clear its one hit.
-- **`test_the_letter_suffixed_chapter_gap_is_still_open`** asserts the current *wrong*
-  answer on purpose. Its failure is the signal that the CHAPTER-suffix widening landed — not
-  a test to repair.
+- **A pin that asserts the current *wrong* answer is a signal, not a test to repair.** Its
+  failure is the signal the widening landed. The pin this rule named,
+  `test_the_letter_suffixed_chapter_gap_is_still_open`, was spent by round 18 and **no longer
+  exists**; `tools/tests/test_structural_boundary_agrees_with_grammar.py` and
+  `test_suffixed_chapter_cuts_the_section.py` carry the shape today.
 - **`data/ocr_cache` stays 0 B** until OCR is deliberately taken in scope. Taking it in scope
   wakes the fidelity-floor invariants and routes sub-floor scans to `_provisional/`, which
   removes them from the portal.

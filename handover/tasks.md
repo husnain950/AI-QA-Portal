@@ -3,9 +3,12 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **0** — **all three lanes are closed**, regenerated in PR #89 and **verified against a live
-three-lane run** on a corpus converted at one revision — acts 0, rules 0, ordinance 0, delta
-zero, no lane skipped. Reasoning for every row is in [`plan.md`](plan.md); state is in
+**State:** the register is **0** — **all three lanes are closed**, verified 2026-09-14 against
+a live three-lane run on a corpus re-converted under this tree (86 of 103 documents at
+`dbcab2f79b78`; the other 17 are image-backed and cannot follow while OCR is out of scope).
+acts 0, rules 0, ordinance 0, delta zero, no lane skipped. **Nine of the thirteen hits were
+closed by exemption and four by code** — see the closed-rows table below before treating a
+zero as a clean corpus. Reasoning for every row is in [`plan.md`](plan.md); state is in
 [`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
 
 Written 2026-09-04 on `main` after PR #83 (round 17); updated after PR #84 (round 18),
@@ -74,20 +77,39 @@ Ranked by value against cost, each with the ONE thing that actually blocks it. A
 with no other context can take a row and start.
 
 **This board was rebuilt on 2026-09-10 from a live three-lane run, not from the previous
-board.** Rounds 21-28 closed four of its rows, and the register they close against is
-**13**, not 22. Every hit count below is the live one.
+board.** Rounds 21-28 closed four of its rows; rounds 29-34 (PRs #93-#99) closed five more
+and took the register to **0**. Those five are in their own table below the open rows, not
+in the ranking — a struck row in the ranking is a row that gets re-picked.
 
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
-| 1 | **letter-suffixed citation markers** | 0 ¹ | **nothing.** 22 marker-size words carrying an UPPERCASE suffix (`59&59A`, `66A`, `27/27A`, `2/2A`, `18/18A`) render as literal body text and build no footnote record, because `grammar.MARKER` (`:132`) allows `[a-z]` only. One cause, 9 sections, 6 chapters | *(new — see the row below)* |
+| 1 | **letter-suffixed citation markers** | 0 ¹ | **nothing — and `open-work.md`'s source blocker is spent as of 2026-09-14.** The notes print `66A.` uppercase at 9pt, so the class widens and no case-fold is needed; the size gate (`pagemodel.py:140`, `marker_max_size` 9.4) is what keeps `79A` at body size out, not the regex. 22 marker-size words carrying an UPPERCASE suffix (`59&59A`, `66A`, `27/27A`, `2/2A`, `18/18A`) render as literal body text and build no footnote record, because `grammar.MARKER` (`:132`) allows `[a-z]` only. **Two classes, not one:** `_MARKER_PARTS_RE` (`:139`) carries the same lowercase-only class and feeds `marker_sort_key` (`:268`), so widening `:132` alone leaves sorting blind. One cause, 9 sections, 6 chapters | [item 11](open-work.md#11-letter-suffixed-citation-markers--22-sites-1-document--new-2026-09-10) |
+| 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — and **permanently**, not pending a census: all 14 stale acts documents are image-backed (measured 2026-09-14, exact per-page), so none of them can ever be re-converted while that decision stands. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it will confirm the block, not lift it. It has **two** call sites, not one: `document_store.py:224` builds the index for every row on every sync, `:257` is the lookup | [Deferred](#deferred-with-reasons) |
+| 8 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect | [Deferred](#deferred-with-reasons) |
+| 12 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
+
+### Closed by rounds 29-34 (PRs #93-#99) — kept so they are not re-picked
+
+Five rows in one sitting, and **the register reached 0**. Read the middle column before
+re-opening any of them, because the two halves are not the same claim:
+
+| closed by | hits | where |
+|---|---|---|
+| **exemption with evidence** | **9** | ordinance stubs 3 (#97), acts 5 (#94), Sales Tax 2014 s.10 1 (#99) |
+| **code** | **4** | ITO s.214E ×2 (#96, parser), rules 150 (#98, parser), rules 13 (#95, invariant) |
+
+Nine of the thirteen are still *printed* — the runner reports them under its
+`EXEMPT INVARIANTS` banner, and an exemption silences a whole invariant for a whole
+document, so a fourth hit appearing on an exempted document is silent too. **"Register 0"
+means nothing un-excused is failing. It does not mean the corpus is clean.**
+
+| # | pick this up | hits | the single blocker | plan.md |
+|---|---|---|---|---|
 | ~~2~~ | ~~**the ordinance five**~~ | **0** | **CLOSED 2026-09-14. The lane is at zero.** It was TWO causes: s.214E ×2 was a live parser bug (`4[“214E.`, quote glued into the bracket token), and ss.233AA + 122C ×2 are omitted sections with no printed body, exempted with evidence. The parser fix had to land FIRST — an exemption silences a whole invariant for a document, and the 30.06.2019 edition carried both | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
 | ~~3~~ | ~~**Sales Tax 2014 s.10**~~ | **0** | **CLOSED 2026-09-14 by exemption. The acts lane is at zero.** It was NOT simply a live parser defect: the body prints `1[(10)`, a bare parenthesised code in an amendment bracket, and `_BRACKETPAREN_RE` refuses those for a **measured** reason (bare `CODE` once blocked THIRTY sections into stubs). A dash-gated widening was measured and would mint **83 phantom sections** inside s.2's definition clauses. The contents page cannot break the tie either — it has no ToUnicode mapping for `e` | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | ~~4~~ | ~~**Customs 2008 ss.181 / 189**~~ | 0 | **CLOSED 2026-09-14 by exemption.** The pages were read: the source misprints the code, `35.` for `181.` and `37.` for `189.`, at body size. **The same misprint hits s.185D as `36.` and no invariant sees it** | *(none yet)* |
 | ~~5~~ | ~~the two rules hits~~ | **0** | **CLOSED 2026-09-14, and they were two different kinds of defect.** 30-06-2025 rule 150 was a *parser* defect — page xii prints `150 ZQR.`, a three-letter suffix that kept its dot, so the document shipped two leaves coded 150. 01-01-2025 rule 13 was an *invariant* bug — `_table_cell_lines` could not see a flattened table ROW, so a Schedule serial cell read as a section start. The rules lane is at zero | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — so the 14 stale acts documents stay stale. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it is step 1 | [Deferred](#deferred-with-reasons) |
 | ~~7~~ | ~~the `ReviewToolbar` approval gate~~ | — | **CLOSED 2026-09-14.** Gate switched to `hasCriticalQualityFlags`, mirroring the backend's `CRITICAL_FLAGS`. One line plus two tests — see [the Result below](#the-reviewtoolbar-approval-gate--closed-2026-09-14) | [Deferred](#deferred-with-reasons) |
-| 8 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect | [Deferred](#deferred-with-reasons) |
-| 12 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
 
 ¹ **Zero in the register, and that is the point.** The invariants share the parser's marker
 grammar, so `inv_leading_marker_cited`, `inv_citation_refs_resolve` and
@@ -197,8 +219,13 @@ The full set, because this is the file an agent actually opens. Long-form reason
 - **Never lower `detect_toc_pages`'s `rows >= 3` floor** — its own comment
   (`calibrate.py:288-297`) records a lower one swallowing the Income Tax Rules' body title
   page.
-- **Never "repair" `test_the_letter_suffixed_chapter_gap_is_still_open`.** It asserts the
-  current *wrong* answer on purpose; its failure is the signal the widening landed.
+- **`test_the_letter_suffixed_chapter_gap_is_still_open` does not exist.** Round 18 spent it.
+  The rule it carried — *a pin that asserts the current wrong answer is a signal, not a test
+  to repair* — still holds, and the pins that carry it today are
+  `tools/tests/test_structural_boundary_agrees_with_grammar.py` (`BOUNDARIES:36`,
+  `NOT_BOUNDARIES:67`) and `tools/tests/test_suffixed_chapter_cuts_the_section.py`.
+  `KNOWN_GAP_SUFFIXED_CHAPTERS` is gone too. Verified 2026-09-14: `grep` over `tools/` and
+  `packages/` finds neither name.
 - **Never let `data/ocr_cache` grow** until OCR is deliberately taken in scope.
 - **Never edit `wip/`.** It is the historical record, and shipping code cites it —
   `tools/convert.py:88`, `tools/discover_corpus.py:423`,

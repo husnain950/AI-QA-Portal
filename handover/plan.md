@@ -437,8 +437,10 @@ P3-1d (ordinance 5) ──── blocked on ── P4-2  (fbr_ingest routing)
 P4-1 (--profile auto) ── blocked on ── Phase 3 at zero-or-exempted
 P5-1 completion ──────── DEFINED BY ── deleting exemptions/rules.json:47-66
 P3-4 (container guard) ─ CLOSED r17 ── the PART separator widening shipped with it
-P3-5 (CHAPTER suffix) ── CLOSED round 18; its pin is spent, replaced by the
-                          en-dash pin (test_the_en_dash_chapter_gap_is_still_open)
+P3-5 (CHAPTER suffix) ── CLOSED round 18; its pin is spent.  The replacement named
+                          here (test_the_en_dash_chapter_gap_is_still_open) was never
+                          written -- what exists is
+                          test_structural_boundary_agrees_with_grammar.py
 delete _legacy_section_key ─ blocked on ─ 14 stale acts docs ─ blocked on ─ OCR decision
 ```
 

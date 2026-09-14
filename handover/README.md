@@ -6,14 +6,19 @@ Written **2026-09-04**, on `main` after PR #83 (round 17); updated after PR #84
 `register.json` reads **8**, regenerated in that PR from a
 corpus converted at one revision.
 
-**One-line state:** the anomaly register is **0**, down from 210. **All three lanes are at zero.** It is committed, gated
-on CI, and **matches a live three-lane run on this machine** — acts 0, rules 0, ordinance 0,
-delta zero, no lane skipped. Rounds 21-28 closed the Customs Act QA pass and took the acts
-lane **15 → 6**, closing three invariant classes outright. What remains of Phase 3 is
-thirteen hits across ten documents plus OCR, which is still **deliberately** out of scope
-(decided 2026-09-04; the decision and its consequences are in
-[`tasks.md`](tasks.md#decisions-on-record-2026-09-04)). Artifact:
-[`wip/phase3-round21-28-customs-qa.md`](../wip/phase3-round21-28-customs-qa.md).
+**One-line state:** the anomaly register is **0**, down from 210. **All three lanes are at
+zero**, measured on a corpus re-converted under this tree — acts 0, rules 0, ordinance 0,
+delta zero, no lane skipped. Rounds 29-34 (PRs #93-#99) took it **13 → 0**.
+
+**Read that number with its qualifier.** **Nine of those thirteen were closed by exemption
+with evidence, four by code.** An exemption silences a whole invariant for a whole document,
+and the runner still prints those hits under its `EXEMPT INVARIANTS` banner — so "register 0"
+means *nothing un-excused is failing*, not that the corpus is clean. The split is in
+[`tasks.md`](tasks.md#closed-by-rounds-29-34-prs-93-99--kept-so-they-are-not-re-picked) and
+the round is in
+[`wip/phase3-rounds-29-34-merge.md`](../wip/phase3-rounds-29-34-merge.md). OCR is still
+**deliberately** out of scope (decided 2026-09-04; consequences in
+[`tasks.md`](tasks.md#decisions-on-record-2026-09-04)).
 
 **Rounds 21-28 were measured on one document and then corrected by the lane suites.**
 Eight rounds against `Customs Act, 1969 … 30th June, 2025`, closing 21 reviewer-logged
@@ -118,27 +123,46 @@ There is no third state.** "Tracked and deferred" without an exemption entry is 
 
 | lane | hits | editions affected | converted | of source files |
 |---|---|---|---|---|
-| acts | 1 | 1 | **80** | 93 |
-| rules | 2 | 2 | **11** | **48** |
-| ordinance | 5 | 4 | 12 | 46 |
+| acts | 0 | 0 | **80** | 93 |
+| rules | 0 | 0 | **11** | **48** |
+| ordinance | 0 | 0 | 12 | 46 |
 
 103 documents converted, against the source-file counts in the last column. The rules lane
 converts **11 of 48** — the other 36 are scans and one is Urdu, and every scan in the corpus
 was skipped by instruction. Acts has the same shape smaller: 25 editions carrying 2,065
 image-backed pages.
 
-**The acts and rules lanes are now at ONE revision.** This is new, and it is the single
-biggest change to how much any measurement here can be trusted. Recounted at this commit:
+**All three lanes are now at ONE revision, as far as the OCR decision allows.** Re-measured
+2026-09-14 after re-converting every staged document under the merged tree — 86 of 103, 26
+minutes, **zero failures**:
 
 | documents | `pipeline_revision` |
 |---|---|
-| **77** (66 acts + 11 rules) | **`f3a37e0…` (round 27)** |
-| 14 | *(none recorded)* — the acts documents rounds 21-28 deliberately skipped |
-| 12 | `4827840…` (round 12) — the whole ordinance lane, which runs `fbr_ingest` |
+| **86** (66 acts + 11 rules + 9 ordinance) | **`dbcab2f79b78` — the tree with PRs #93-#99 in** |
+| 14 | *(none recorded)* — the image-backed acts documents, see below |
+| 3 | `4827840…` (round 12) — the image-backed ITO editions (20.02.2026, 30.06.2024, 31.07.2025) |
 
-The 14 skipped are 8 OCR-backed (out of scope; `data/ocr_cache` must stay at 0 B) and 6 with
-no `source_kind` recorded (five Finance Acts, Benami, Income Tax Third Amendment). They stay
-at their old revision, and the corpus stays mixed to exactly that extent.
+**The ordinance lane moved twenty-two rounds in one step.** It sat at round 12 while acts and
+rules were re-converted at round 27; nine of its twelve documents are now current. The other
+three are image-backed and cannot follow.
+
+**Re-convert the staged set, never the lane.** `convert_all.py <lane>` targets every PDF in
+the lane — 46 + 93 + 48 = **187** against 103 staged outputs — so a bare run adds 84
+documents and the register stops measuring the same document set. Three ordinance outputs
+also carry a legacy filename (`Income Tax Ordinance 2001 - amended upto 30.06.2024.json`
+against today's `Income Tax Ordinance, 2001 Amended upto 30.06.2024.json`), so converting
+them under `out_path` leaves the old file beside the new one and the lane holds 15 documents,
+three of them duplicates. Both traps are live for the next re-convert:
+[`wip/phase3-rounds-29-34-merge.md`](../wip/phase3-rounds-29-34-merge.md).
+
+**All 14 are image-backed — corrected 2026-09-14.** This block used to split them into 8
+OCR-backed (out of scope; `data/ocr_cache` must stay at 0 B) and 6 with no `source_kind`
+recorded, which reads as six documents that are merely unlabelled. `convert_all.scan_page_count`
+is an exact per-page census, not a sample, and it reports image-backed pages on every one of
+the 14. A file with even one such page cannot convert without the OCR extras, so under the
+standing no-OCR decision **all 14 stay at their old revision permanently**, and the corpus
+stays mixed to exactly that extent. Board row 6 is blocked for as long as that decision
+stands — not pending a census.
 
 **The consequence: the standing "mixed-revision drift" warning is spent for acts and rules.**
 It used to be that `test_register_snapshot.py` failed on this machine *before* you changed
