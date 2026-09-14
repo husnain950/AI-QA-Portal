@@ -164,7 +164,7 @@ _MARKER_RE_UPPER = re.compile(rf"^{_MARKER_UPPER}$")
 
 #: A marker as printed at the head of a footnote NOTE, where it usually carries
 #: a trailing dot: ``25.``, ``27a.``, ``36b.``, ``66A.``
-MARKER_NOTE_RE = re.compile(rf"^({MARKER})\.?$")
+MARKER_NOTE_RE = re.compile(rf"^({MARKER})\.{{0,2}}$")
 #: An uppercase note head must CARRY ITS DOT.  ``marker_token`` treats the dot as
 #: optional because a lowercase marker is unambiguous without it, but a bare
 #: ``72A`` at the head of a footnote line is far more likely to be a section code
@@ -172,7 +172,7 @@ MARKER_NOTE_RE = re.compile(rf"^({MARKER})\.?$")
 #: Tax Rules 2006 (01-01-2025) and destroyed that document's footnote blocks
 #: outright: 0 records where there had been hundreds.  Real note heads print the
 #: dot (p77: ``66A.``, ``66B.``, ``59B.``).
-_MARKER_NOTE_RE_UPPER = re.compile(rf"^(?:({MARKER})\.?|({_MARKER_UPPER})\.)$")
+_MARKER_NOTE_RE_UPPER = re.compile(rf"^(?:({MARKER})\.{{0,2}}|({_MARKER_UPPER})\.{{1,2}})$")
 
 #: Splits a marker into its number and suffix for sorting.  Carries the WIDER
 #: case class on purpose: it only ever sees a marker something already accepted,
@@ -807,6 +807,52 @@ def _demo() -> None:
     assert sorted(["66B", "66", "67", "66A", "*"], key=marker_sort_key) == \
         ["*", "66", "66A", "66B", "67"]
     assert not is_year_like("66A")
+
+    # --- note heads printed with a DOUBLE dot -----------------------------
+    # The Customs Act source prints a few of its note heads with two dots where
+    # 732 print one.  Every literal below is copied from the 30.06.2025 edition,
+    # found by scanning the FIRST WORD of every line of all 279 pages:
+    #
+    #     p75  40..   Amended by the Finance Act, 2006.
+    #     p77  59A..  Omitted the words "bill of entry or" by the Finance Act, 2006.
+    #     p127 5..    By the Finance Act, 2006, the words "bill of export or" ...
+    #     p245 1b..   Substituted for the words "Central Government" ...
+    #     p274 26..   Inserted section 211A by the Finance Act, 2006.
+    #     p275 39..   Added by the Finance Act, 1975 (L of 1975), S.7(7), page 10.
+    #
+    # Read with one dot each of these opened no note, and ``parse_footnotes``
+    # folded its line into the PREVIOUS note's body (footnotes.py:1242) -- so the
+    # real note had no record and its neighbour carried text that was never its
+    # own.  ``59A`` alone left 8 citations rendering <sup class="marker">.
+    #
+    # BOTH classes widen together, the round-35 lesson: ``59A..`` is on the
+    # uppercase branch and ``40..`` on the lowercase one, and ``_is_marker_word``
+    # and the note-head key read the SAME word (footnotes.py:1229-1233).
+    for _t, _want in (("40..", "40"), ("5..", "5"), ("26..", "26"),
+                      ("39..", "39"), ("1b..", "1b")):
+        assert marker_token(_t) == _want, _t
+        # the note-head path always passes upper=True, so the wider branch has
+        # to admit everything the narrow one does or the key and the candidate
+        # test disagree and the citation never finds the note
+        assert marker_token(_t, upper=True) == _want, _t
+        assert is_marker_text(_t, upper=True), _t
+    assert marker_token("59A..", upper=True) == "59A"
+    # ...and the uppercase branch keeps its MANDATORY dot.  ``\.{1,2}``, never
+    # ``\.{0,2}``: a bare 72A read as a note head collapsed one rules document's
+    # footnote blocks from hundreds to zero.
+    assert marker_token("59A..") is None
+    for _t in ("72A", "150S", "39O", "164A"):
+        assert marker_token(_t, upper=True) is None, _t
+    # Exactly two.  Three dots is not a note head in this corpus and nothing asks
+    # for it, so the bound stays where the evidence is.
+    for _t in ("40...", "59A...", "..", "."):
+        assert marker_token(_t) is None, _t
+        assert marker_token(_t, upper=True) is None, _t
+    # The INLINE side is untouched, and structurally so: ``Word.marker_run``
+    # refuses any trailing dot before this grammar is consulted
+    # (pagemodel.py:185).  A wider note-head dot class cannot lift body text.
+    for _t in ("40..", "59A..", "5.."):
+        assert marker_run(_t) == [] and marker_run(_t, upper=True) == [], _t
 
     print("grammar self-check passed")
 
