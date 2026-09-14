@@ -74,8 +74,13 @@ The largest class, and no longer a single defect:
   block left.
 - **Customs 1969 (30.06.2008) ss.181 and 189 (2)** — two heading-only leaves in one edition,
   newly the only shared-cause candidate in the acts lane. Nobody has read those pages.
-- **Sales Tax Rules 2006 (30-06-2025) rule 150 (1)** — the `150ZQ*` family again, a different
-  edition from the one round 19 exempted.
+- ~~**Sales Tax Rules 2006 (30-06-2025) rule 150 (1)**~~ — **CLOSED 2026-09-14.** Not the
+  `150ZQ*` printing errors round 19 exempted at all: page xii prints `150 ZQR.` with a
+  glyph-split space before a THREE-letter suffix that KEPT its dot, so the row parsed as code
+  `150` and its title swallowed the rest of the contents page. The document shipped **two leaves
+  coded 150** — the real `Form` and a phantom. Round 24's rejoin could not see it (its signal is
+  a DUPLICATE code on the row above; here the row above is `150ZQP`), and the first fix attempt
+  read `last_section`, which a `SUB-CHAPTER` caption had just reset to None.
 
 The remainder are single documents: the Pakistan Single Window Act's ministry list read as
 sections 27/28, PFMA 2019 s.26, and Sales Tax 2014 s.10 (`R(cid:2)fund`).

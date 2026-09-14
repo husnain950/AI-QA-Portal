@@ -3,8 +3,8 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **10**, regenerated in PR #89 and **verified against a live
-three-lane run** on a corpus converted at one revision — acts 6, rules 1, ordinance 3, delta
+**State:** the register is **9**, regenerated in PR #89 and **verified against a live
+three-lane run** on a corpus converted at one revision — acts 6, rules 0, ordinance 3, delta
 zero, no lane skipped. Reasoning for every row is in [`plan.md`](plan.md); state is in
 [`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
 
@@ -83,7 +83,7 @@ board.** Rounds 21-28 closed four of its rows, and the register they close again
 | 2 | **the ordinance three** | 3 | **was 5, and it was TWO causes, not one.** s.214E ×2 CLOSED 2026-09-14 — the body prints `4[“214E.`, quote glued into the bracket token. What is left is ss.233AA and 122C ×2, which are **omitted sections with no printed body** — an exemption row, not a parser round | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
 | 3 | **the single-document remainder** | 4 | nothing shared — PSW ministry list (ss.27/28), PFMA s.26, Sales Tax 2014 s.10 `R(cid:2)fund`. Three unrelated traces | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | 4 | **Customs 2008 ss.181 / 189** | 2 | **newly visible, and nobody has read those pages.** Two heading-only leaves in one edition — the only shared-cause candidate left in acts | *(none yet)* |
-| 5 | **one rules hit** | 1 | **was 2.** 01-01-2025 rule 13 CLOSED 2026-09-14 — it was an *invariant* bug, not a parser defect: `_table_cell_lines` could not see a flattened table ROW, so a Schedule serial cell read as a section start. What is left is Sales Tax Rules 30-06-2025 rule 150, the `150ZQ*` family again | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| ~~5~~ | ~~the two rules hits~~ | **0** | **CLOSED 2026-09-14, and they were two different kinds of defect.** 30-06-2025 rule 150 was a *parser* defect — page xii prints `150 ZQR.`, a three-letter suffix that kept its dot, so the document shipped two leaves coded 150. 01-01-2025 rule 13 was an *invariant* bug — `_table_cell_lines` could not see a flattened table ROW, so a Schedule serial cell read as a section start. The rules lane is at zero | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — so the 14 stale acts documents stay stale. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it is step 1 | [Deferred](#deferred-with-reasons) |
 | ~~7~~ | ~~the `ReviewToolbar` approval gate~~ | — | **CLOSED 2026-09-14.** Gate switched to `hasCriticalQualityFlags`, mirroring the backend's `CRITICAL_FLAGS`. One line plus two tests — see [the Result below](#the-reviewtoolbar-approval-gate--closed-2026-09-14) | [Deferred](#deferred-with-reasons) |
 | 8 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect | [Deferred](#deferred-with-reasons) |
