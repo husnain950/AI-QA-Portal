@@ -127,7 +127,7 @@ the causes can be worked separately:
 | **c.** The round-10 residue — printed defects | ~~3~~ **0** | rules | **EXEMPTED, round 19** (PR #85) |
 | **d.** The ordinance five | **0** | ordinance | **CLOSED 2026-09-14.** TWO causes: s.214E ×2 fixed (quote glued into the amendment bracket, `4[“214E.`); ss.233AA + 122C ×2 exempted — omitted sections whose only printed text is an 8.04pt footnote quote |
 | **e.** Single-document remainder | 4 | acts/rules | open |
-| **f.** Customs 2008 ss.181 / 189 | 2 | acts | open — newly visible, pages unread |
+| **f.** Customs 2008 ss.181 / 189 | 0 | acts | **CLOSED 2026-09-14, exemption** — pages read; source prints `35.`/`37.` for `181.`/`189.` |
 | **g.** Sales Tax Rules 30-06-2025 rule 150 | 1 | rules | open — the `150ZQ*` family again |
 
 **b** is closed. Both editions print `111[58U]. Application:--`: S.R.O. 188(I)/2015
@@ -154,8 +154,12 @@ a left double quote, 150ZQZI is printed `150ZQZl` (lowercase L for capital i), a
 code appears only in a footnote. These are candidates for **exemption with evidence**, not
 for parser work — the source is wrong, not the parser.
 
-**e.** The Pakistan Single Window Act's ministry list read as sections 27/28, PFMA 2019
-s.26, and Sales Tax 2014 s.10 (`R(cid:2)fund` — a font-encoding artifact).
+**e.** ~~The Pakistan Single Window Act's ministry list read as sections 27/28~~ and
+~~PFMA 2019 s.26~~ — **both CLOSED 2026-09-14 by exemption**; both are `scanned-ocr` with
+`pipeline_revision: null`, i.e. two of the 14 documents round 27 skipped, so neither can be
+re-measured without making `data/ocr_cache` non-zero. PSW's "ministry list" is the Act's
+`[SCHEDULE]`, an `S. No. | Organization` table whose serial column reads as section codes.
+Still open: **Sales Tax 2014 s.10** (`R(cid:2)fund` — a font-encoding artifact).
 
 #### P3-2 — the heading-terminator scan that walks through a boundary (3, acts)
 

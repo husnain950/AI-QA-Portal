@@ -3,8 +3,8 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **6**, and **the ordinance and rules lanes are both closed**, regenerated in PR #89 and **verified against a live
-three-lane run** on a corpus converted at one revision — acts 6, rules 0, ordinance 0, delta
+**State:** the register is **1**, and **the ordinance and rules lanes are both closed**, regenerated in PR #89 and **verified against a live
+three-lane run** on a corpus converted at one revision — acts 1, rules 0, ordinance 0, delta
 zero, no lane skipped. Reasoning for every row is in [`plan.md`](plan.md); state is in
 [`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
 
@@ -81,8 +81,8 @@ board.** Rounds 21-28 closed four of its rows, and the register they close again
 |---|---|---|---|---|
 | 1 | **letter-suffixed citation markers** | 0 ¹ | **nothing.** 22 marker-size words carrying an UPPERCASE suffix (`59&59A`, `66A`, `27/27A`, `2/2A`, `18/18A`) render as literal body text and build no footnote record, because `grammar.MARKER` (`:132`) allows `[a-z]` only. One cause, 9 sections, 6 chapters | *(new — see the row below)* |
 | ~~2~~ | ~~**the ordinance five**~~ | **0** | **CLOSED 2026-09-14. The lane is at zero.** It was TWO causes: s.214E ×2 was a live parser bug (`4[“214E.`, quote glued into the bracket token), and ss.233AA + 122C ×2 are omitted sections with no printed body, exempted with evidence. The parser fix had to land FIRST — an exemption silences a whole invariant for a document, and the 30.06.2019 edition carried both | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
-| 3 | **the single-document remainder** | 4 | nothing shared — PSW ministry list (ss.27/28), PFMA s.26, Sales Tax 2014 s.10 `R(cid:2)fund`. Three unrelated traces | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
-| 4 | **Customs 2008 ss.181 / 189** | 2 | **newly visible, and nobody has read those pages.** Two heading-only leaves in one edition — the only shared-cause candidate left in acts | *(none yet)* |
+| 3 | **Sales Tax 2014 s.10** | 1 | **was 4; three of them closed 2026-09-14 by exemption.** PSW ss.27/28 and PFMA s.26 are OCR-class and cannot be re-measured — see [the acts-exemptions Result](#the-acts-lane-exemptions--closed-2026-09-14). What is left is s.10 alone, a live parser defect | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| ~~4~~ | ~~**Customs 2008 ss.181 / 189**~~ | 0 | **CLOSED 2026-09-14 by exemption.** The pages were read: the source misprints the code, `35.` for `181.` and `37.` for `189.`, at body size. **The same misprint hits s.185D as `36.` and no invariant sees it** | *(none yet)* |
 | ~~5~~ | ~~the two rules hits~~ | **0** | **CLOSED 2026-09-14, and they were two different kinds of defect.** 30-06-2025 rule 150 was a *parser* defect — page xii prints `150 ZQR.`, a three-letter suffix that kept its dot, so the document shipped two leaves coded 150. 01-01-2025 rule 13 was an *invariant* bug — `_table_cell_lines` could not see a flattened table ROW, so a Schedule serial cell read as a section start. The rules lane is at zero | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — so the 14 stale acts documents stay stale. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it is step 1 | [Deferred](#deferred-with-reasons) |
 | ~~7~~ | ~~the `ReviewToolbar` approval gate~~ | — | **CLOSED 2026-09-14.** Gate switched to `hasCriticalQualityFlags`, mirroring the backend's `CRITICAL_FLAGS`. One line plus two tests — see [the Result below](#the-reviewtoolbar-approval-gate--closed-2026-09-14) | [Deferred](#deferred-with-reasons) |
@@ -329,7 +329,7 @@ cd .worktrees/r18
 # 2. Baseline, before touching anything. The corpus lives in the MAIN tree
 #    (data/corpora is gitignored, so a worktree has no copy) -- run suites from there.
 cd /Users/muhammad.husnain/Downloads/code/crx
-for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L > /tmp/pre-$L.txt; done   # 6 / 2 / 5 today
+for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L > /tmp/pre-$L.txt; done   # 1 / 2 / 5 today
 
 # 3. Snapshot the outputs you are about to overwrite.
 mkdir -p data/corpora/acts/output/_pre_18 \
@@ -345,7 +345,7 @@ make convert-acts PYTHON=/Users/muhammad.husnain/Downloads/code/crx/.venv/bin/py
 #    Do not edit packages/ while this runs. Mind the 19 files with no .pdf extension.
 
 # 6. Re-measure ALL THREE lanes -- a fix in one lane can move another.
-for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L; done   # 6 / 2 / 5
+for L in acts rules ordinance; do .venv/bin/python tools/run_suite.py $L; done   # 1 / 2 / 5
 
 # 7. Regenerate the register IN THIS PR. No Make target, no pytest flag.
 .venv/bin/python tools/tests/test_register_snapshot.py --write
@@ -382,7 +382,7 @@ here* table as rows close. Current mapping:
 | 1 letter-suffixed citation markers | *none yet* — traced 2026-09-10; the trace is in the Start here table above |
 | 2 the ordinance five | [11](#11-decide-the-fbr_ingest-fork--unblocks-5-hits-and-9-documents) |
 | 3 the single-document remainder | [9](#9-the-single-document-remainder--7-hits) |
-| 4 Customs 2008 ss.181 / 189 | *none yet* — newly visible on the live run |
+| 4 Customs 2008 ss.181 / 189 | **CLOSED 2026-09-14** — see the acts-exemptions Result below |
 | 5 the two rules hits | *none yet* |
 | 12 the OCR decision | [15](#15-the-ocr-decision--blocked-needs-a-human) |
 
@@ -933,6 +933,56 @@ than deleted in a behaviour PR; deleting it is a separate, trivial cleanup.
 **Verified:** whole web suite **17 failed / 215 passed**, the standing baseline failure set
 (`libraryFavorites`, `libraryPage` — Node 26 wants `--localstorage-file`, CI pins 22),
 unchanged by name. `npm run lint` (oxlint `--deny-warnings`) clean.
+
+### The acts-lane exemptions — CLOSED 2026-09-14
+
+**Closed by the `fix/phase3-acts-exemptions` PR.** Artifact:
+[`wip/phase3-acts-exemptions.md`](../wip/phase3-acts-exemptions.md).
+
+**Result** — register **13 → 8**; `run_suite.py acts` **6 → 1**. rules and ordinance moved
+by **zero**, which is correct and worth stating: no parser code was touched and no PDF was
+converted, so no other lane *could* move.
+
+`tools/suite/exemptions/acts.json` **had never existed.** Round 15 predicted it would be
+needed for `section_codes_ordered`, and it was not — that class was closed by a parser fix
+instead. These are the first acts-lane exemptions.
+
+**Two of the three rows were ranked as ordinary traces and were not.** Rows 3 and 4 of the
+Start-here board treated PFMA s.26 and PSW ss.27/28 as pages someone simply had not read.
+Both documents are **`source_kind: scanned-ocr` with `pipeline_revision: null`** — two of
+the 14 documents the round-27 re-conversion deliberately skipped. **Three of the six acts
+hits were OCR-blocked and the board did not say so.** Check `source_kind` before ranking a
+row as a trace.
+
+| document | hits | what the page says |
+|---|---|---|
+| Customs 1969 30.06.2008 | ss.181, 189 | the source misprints the body code: p185 prints `35.` where `181.` belongs, p191 prints `37.` where `189.` belongs, both 12.00pt at x0 93.6, against contents rows that read correctly. Neighbours 180/182/188/190 all print their own codes, so it is not an offset |
+| PFMA 2019 | s.26 | p12 emits `system.—The` as ONE 9.00pt token, so the heading swallowed the body |
+| PSW 2021 | ss.27, 28 | not sections — rows of the Act's `[SCHEDULE]`, an `S. No. \| Organization` table whose serial column reads as section codes |
+
+**Three things worth carrying forward:**
+
+- **The Customs misprint is three sections wide, not two.** s.185D prints `36.` on p189.
+  **No invariant reports it**, because that leaf did pick up a body — so the register only
+  ever saw two thirds of this defect. Do not infer the extent of a defect from its hit count.
+- **PFMA's entry does not claim the parser is broken.** `builder.DASHES` already contains
+  U+2014, so the hit may be nothing but stale-revision drift. It cannot be tested without
+  re-running OCR. The entry says exactly that. It exists because "tracked and deferred" is
+  not a state this suite allows.
+- **PSW's parse shape is the evidence, not the two leaves.** It emits one chapter whose
+  codes run `3..23` then jump to `27, 28, 29` — ss.24-26 absent — and **zero schedules**.
+  Its serial column OCRs as `I.`, `I D.`, `1I.`, `1$.`, `23,`. If OCR is ever taken in
+  scope, the fix is to recover the Schedule *as a schedule*, not to patch two leaves.
+
+**What was rejected:** adopting the contents-page code whenever a body code breaks monotonic
+order and the heading matches. That would read the Customs pair and s.185D — and it is
+exactly the shape rounds 23 and 25 shipped and round 27 had to guard, after one of them
+collapsed 860 of 1,102 rules to stubs in another lane. Two hits in one edition do not buy it.
+
+**No new test was added, deliberately.** `tools/tests/test_suite_exemptions.py` is already
+lane-generic: it loops all three lanes, skips a missing file, and asserts each entry names a
+real invariant, carries a non-empty reason, and that `applies_to` matches **exactly one**
+staged corpus document. Creating the file brought all three assertions to bear.
 
 ### 15. The OCR decision — BLOCKED, needs a human
 
