@@ -3,8 +3,8 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **1**, and **the ordinance and rules lanes are both closed**, regenerated in PR #89 and **verified against a live
-three-lane run** on a corpus converted at one revision — acts 1, rules 0, ordinance 0, delta
+**State:** the register is **0** — **all three lanes are closed**, regenerated in PR #89 and **verified against a live
+three-lane run** on a corpus converted at one revision — acts 0, rules 0, ordinance 0, delta
 zero, no lane skipped. Reasoning for every row is in [`plan.md`](plan.md); state is in
 [`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
 
@@ -81,7 +81,7 @@ board.** Rounds 21-28 closed four of its rows, and the register they close again
 |---|---|---|---|---|
 | 1 | **letter-suffixed citation markers** | 0 ¹ | **nothing.** 22 marker-size words carrying an UPPERCASE suffix (`59&59A`, `66A`, `27/27A`, `2/2A`, `18/18A`) render as literal body text and build no footnote record, because `grammar.MARKER` (`:132`) allows `[a-z]` only. One cause, 9 sections, 6 chapters | *(new — see the row below)* |
 | ~~2~~ | ~~**the ordinance five**~~ | **0** | **CLOSED 2026-09-14. The lane is at zero.** It was TWO causes: s.214E ×2 was a live parser bug (`4[“214E.`, quote glued into the bracket token), and ss.233AA + 122C ×2 are omitted sections with no printed body, exempted with evidence. The parser fix had to land FIRST — an exemption silences a whole invariant for a document, and the 30.06.2019 edition carried both | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
-| 3 | **Sales Tax 2014 s.10** | 1 | **was 4; three of them closed 2026-09-14 by exemption.** PSW ss.27/28 and PFMA s.26 are OCR-class and cannot be re-measured — see [the acts-exemptions Result](#the-acts-lane-exemptions--closed-2026-09-14). What is left is s.10 alone, a live parser defect | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| ~~3~~ | ~~**Sales Tax 2014 s.10**~~ | **0** | **CLOSED 2026-09-14 by exemption. The acts lane is at zero.** It was NOT simply a live parser defect: the body prints `1[(10)`, a bare parenthesised code in an amendment bracket, and `_BRACKETPAREN_RE` refuses those for a **measured** reason (bare `CODE` once blocked THIRTY sections into stubs). A dash-gated widening was measured and would mint **83 phantom sections** inside s.2's definition clauses. The contents page cannot break the tie either — it has no ToUnicode mapping for `e` | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | ~~4~~ | ~~**Customs 2008 ss.181 / 189**~~ | 0 | **CLOSED 2026-09-14 by exemption.** The pages were read: the source misprints the code, `35.` for `181.` and `37.` for `189.`, at body size. **The same misprint hits s.185D as `36.` and no invariant sees it** | *(none yet)* |
 | ~~5~~ | ~~the two rules hits~~ | **0** | **CLOSED 2026-09-14, and they were two different kinds of defect.** 30-06-2025 rule 150 was a *parser* defect — page xii prints `150 ZQR.`, a three-letter suffix that kept its dot, so the document shipped two leaves coded 150. 01-01-2025 rule 13 was an *invariant* bug — `_table_cell_lines` could not see a flattened table ROW, so a Schedule serial cell read as a section start. The rules lane is at zero | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — so the 14 stale acts documents stay stale. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it is step 1 | [Deferred](#deferred-with-reasons) |

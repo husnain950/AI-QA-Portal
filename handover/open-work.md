@@ -99,7 +99,16 @@ still open:
   9.00pt token, so the heading swallowed the body. **`builder.DASHES` already covers U+2014**,
   so this may be nothing but stale-revision drift — which cannot be tested without re-running
   OCR. Expiry: the OCR decision.
-- **Sales Tax 2014 s.10 (`R(cid:2)fund`)** — still open, a live parser defect.
+- ~~**Sales Tax 2014 s.10 (`R(cid:2)fund`)**~~ — **CLOSED 2026-09-14 by exemption.** Not simply
+  a live parser defect: **two independent defects in the same edition close every route.** The
+  body prints `1[(10) Refund of input tax. – –`, a bare parenthesised code inside an amendment
+  bracket, and `_BRACKETPAREN_RE` refuses those for a measured reason — bare `CODE` once read
+  `2 [ (5) The Federal Government may…` as section 5 and blocked **thirty** later sections into
+  stubs. A dash-gated widening was measured over all acts and rules documents: of 2,505 `[(NN)`
+  lines, **83 carry a heading dash and every one is an s.2 definition clause**
+  (`3[(3) “associates (associated persons)” means, –`), so it would mint 83 phantom sections to
+  recover one. The contents row that would break the tie is unusable: PDF page 3 has no
+  ToUnicode mapping for `e`, printing `R(cid:2)fund of input tax`.
 
 **One hit is not in this class at all**: Sales Tax Rules 2006 (01-01-2025) rule 13 carries
 the start of 44A under `no_foreign_section_start_in_body`. **CLOSED 2026-09-14** — and it was

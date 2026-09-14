@@ -159,7 +159,10 @@ for parser work — the source is wrong, not the parser.
 `pipeline_revision: null`, i.e. two of the 14 documents round 27 skipped, so neither can be
 re-measured without making `data/ocr_cache` non-zero. PSW's "ministry list" is the Act's
 `[SCHEDULE]`, an `S. No. | Organization` table whose serial column reads as section codes.
-Still open: **Sales Tax 2014 s.10** (`R(cid:2)fund` — a font-encoding artifact).
+~~Still open: **Sales Tax 2014 s.10**~~ — **CLOSED 2026-09-14 by exemption**, and the
+`R(cid:2)fund` font-encoding artifact is only half of it: the body's `1[(10)` is a bare
+parenthesised code that `_BRACKETPAREN_RE` refuses on measured grounds, and the contents row
+that would settle it carries the cid. **The acts lane is now at zero.**
 
 #### P3-2 — the heading-terminator scan that walks through a boundary (3, acts)
 
