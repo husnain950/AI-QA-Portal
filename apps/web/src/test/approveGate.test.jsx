@@ -126,9 +126,9 @@ describe('approve gate + quality banner', () => {
         expect(confirmDialog).not.toHaveBeenCalled();
     });
 
-    it('still confirms for non-critical flags like page_range_out_of_bounds', async () => {
+    it('approves silently when the only flags are non-critical (page_range_out_of_bounds)', async () => {
         const updateSectionStatus = vi.fn().mockResolvedValue(undefined);
-        const confirmDialog = vi.fn().mockResolvedValue(false);
+        const confirmDialog = vi.fn().mockResolvedValue(true);
         useDocumentStore.setState({
             updateSectionStatus,
             activeSection: {
@@ -146,6 +146,34 @@ describe('approve gate + quality banner', () => {
         );
 
         fireEvent.click(screen.getByRole('button', { name: /Approve/i }));
+
+        await waitFor(() =>
+            expect(updateSectionStatus).toHaveBeenCalledWith('doc-1', 'sec-1', 'approved'),
+        );
+        expect(confirmDialog).not.toHaveBeenCalled();
+    });
+
+    it('still confirms when a critical flag rides along with a non-critical one', async () => {
+        const updateSectionStatus = vi.fn().mockResolvedValue(undefined);
+        const confirmDialog = vi.fn().mockResolvedValue(false);
+        useDocumentStore.setState({
+            updateSectionStatus,
+            activeSection: {
+                id: 'sec-1',
+                review_status: 'pending',
+                quality_flags: ['page_range_out_of_bounds', 'missing_table'],
+            },
+        });
+        useUiStore.setState({ confirmDialog, pushToast: vi.fn() });
+
+        render(
+            <MemoryRouter>
+                <ReviewToolbar />
+            </MemoryRouter>,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /Approve/i }));
+
         await waitFor(() => expect(confirmDialog).toHaveBeenCalledOnce());
         expect(updateSectionStatus).not.toHaveBeenCalled();
     });

@@ -66,7 +66,6 @@ lane per invariant, no document attribution.
 | invariant | acts | rules | ordinance | total | implementation |
 |---|---|---|---|---|---|
 | `section_carries_its_body` | 6 | 1 | 5 | **12** | `tools/suite/invariants/_common.py:1267` |
-| `no_foreign_section_start_in_body` | — | 1 | — | **1** | `_common.py:1371` |
 | **per lane** | **6** | **2** | **5** | **13** | |
 
 Both are shared in `_common.py`, bound by name via `all_invariants`
