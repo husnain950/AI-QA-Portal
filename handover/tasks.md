@@ -3,8 +3,8 @@
 **This file is updated as work happens, never after.** If a box is ticked, the thing is
 merged on `main`.
 
-**State:** the register is **13**, regenerated in PR #89 and **verified against a live
-three-lane run** on a corpus converted at one revision — acts 6, rules 2, ordinance 5, delta
+**State:** the register is **9**, regenerated in PR #89 and **verified against a live
+three-lane run** on a corpus converted at one revision — acts 6, rules 0, ordinance 3, delta
 zero, no lane skipped. Reasoning for every row is in [`plan.md`](plan.md); state is in
 [`README.md`](README.md); the traps are in [`working-rules.md`](working-rules.md).
 
@@ -80,12 +80,12 @@ board.** Rounds 21-28 closed four of its rows, and the register they close again
 | # | pick this up | hits | the single blocker | plan.md |
 |---|---|---|---|---|
 | 1 | **letter-suffixed citation markers** | 0 ¹ | **nothing.** 22 marker-size words carrying an UPPERCASE suffix (`59&59A`, `66A`, `27/27A`, `2/2A`, `18/18A`) render as literal body text and build no footnote record, because `grammar.MARKER` (`:132`) allows `[a-z]` only. One cause, 9 sections, 6 chapters | *(new — see the row below)* |
-| 2 | **the ordinance five** | 5 | all in `fbr_ingest` on ITO editions (233AA, 214E ×2, 122C ×2). **No longer blocked on a decision** — round 20 decided routing, and ITO stays on `fbr_ingest`. It is a parser round in the fork | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
+| 2 | **the ordinance three** | 3 | **was 5, and it was TWO causes, not one.** s.214E ×2 CLOSED 2026-09-14 — the body prints `4[“214E.`, quote glued into the bracket token. What is left is ss.233AA and 122C ×2, which are **omitted sections with no printed body** — an exemption row, not a parser round | [P4-2](plan.md#p4-2--decide-the-fbr_ingest-fork--a-routing-problem) |
 | 3 | **the single-document remainder** | 4 | nothing shared — PSW ministry list (ss.27/28), PFMA s.26, Sales Tax 2014 s.10 `R(cid:2)fund`. Three unrelated traces | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | 4 | **Customs 2008 ss.181 / 189** | 2 | **newly visible, and nobody has read those pages.** Two heading-only leaves in one edition — the only shared-cause candidate left in acts | *(none yet)* |
-| 5 | **one rules hit** | 1 | **was 2.** 30-06-2025 rule 150 CLOSED 2026-09-14 — page xii prints `150 ZQR.`, a THREE-letter suffix that kept its dot, so the document shipped two leaves coded 150 (the real `Form` and a phantom holding the glued contents run). What is left is 01-01-2025 rule 13 under `no_foreign_section_start_in_body` | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
+| ~~5~~ | ~~the two rules hits~~ | **0** | **CLOSED 2026-09-14, and they were two different kinds of defect.** 30-06-2025 rule 150 was a *parser* defect — page xii prints `150 ZQR.`, a three-letter suffix that kept its dot, so the document shipped two leaves coded 150. 01-01-2025 rule 13 was an *invariant* bug — `_table_cell_lines` could not see a flattened table ROW, so a Schedule serial cell read as a section start. The rules lane is at zero | [P3-1e](plan.md#p3-1--section_carries_its_body-17--four-unrelated-causes-one-of-them-closed) |
 | 6 | delete `_legacy_section_key` | — | **BLOCKED on row 12**, decided as *no OCR* — so the 14 stale acts documents stay stale. The query that would confirm the 6 documents / 89 leaves **does not exist yet**; writing it is step 1 | [Deferred](#deferred-with-reasons) |
-| 7 | the `ReviewToolbar` approval gate | — | **DECIDED 2026-09-04: gate on CRITICAL flags only.** Switch to `hasCriticalQualityFlags`, already tested and unused. One line plus the test. Cheapest row on the board | [Deferred](#deferred-with-reasons) |
+| ~~7~~ | ~~the `ReviewToolbar` approval gate~~ | — | **CLOSED 2026-09-14.** Gate switched to `hasCriticalQualityFlags`, mirroring the backend's `CRITICAL_FLAGS`. One line plus two tests — see [the Result below](#the-reviewtoolbar-approval-gate--closed-2026-09-14) | [Deferred](#deferred-with-reasons) |
 | 8 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect | [Deferred](#deferred-with-reasons) |
 | 12 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
 
@@ -899,6 +899,41 @@ lane and the 14 skipped acts documents are converted at the same revision as the
 
 ---
 
+### The `ReviewToolbar` approval gate — CLOSED 2026-09-14
+
+**Closed by the `fix/review-toolbar-critical-gate` PR.** The decision on record (2026-09-04)
+was "gate on CRITICAL flags only"; this is that decision shipped.
+
+**Result** — `apps/web/src/components/review/ReviewToolbar.jsx:47` now calls
+`hasCriticalQualityFlags` (`utils/qualityFlags.js:86-88`) instead of `hasAnyQualityFlags`.
+The approve confirm now fires only for the four codes the backend itself treats as issues
+(`parse_quality.py:14-21`: `missing_table`, `footnote_glue`, `wall_of_text`,
+`heading_body_bleed`) — the same set that elevates a section `pending -> has_issues` on
+ingest. Informational flags still render in the banner; they no longer block an approve.
+
+**The row said "one line plus the test". It was one line plus TWO tests**, and the second
+one is the one that matters:
+
+- `test/approveGate.test.jsx`'s `'still confirms for non-critical flags like
+  page_range_out_of_bounds'` asserted the OLD contract and had to invert. It is now
+  `'approves silently when the only flags are non-critical (page_range_out_of_bounds)'`.
+  Confirmed red against the new code before it was rewritten.
+- A new case, `'still confirms when a critical flag rides along with a non-critical one'`
+  (`['page_range_out_of_bounds', 'missing_table']`), pins the half the first test cannot
+  see. Without it, a gate that had been weakened to *never* fire would still pass.
+
+**No backend change.** `review_state.py:21`, `document_store.py:297` and
+`json_parser.py:9,254` already route through `has_critical_flags`; the frontend was the
+only side disagreeing.
+
+**One thing this leaves behind:** `hasAnyQualityFlags` (`utils/qualityFlags.js:82`) now has
+**no caller in app code** — only its own unit test. It is left in place deliberately rather
+than deleted in a behaviour PR; deleting it is a separate, trivial cleanup.
+
+**Verified:** whole web suite **17 failed / 215 passed**, the standing baseline failure set
+(`libraryFavorites`, `libraryPage` — Node 26 wants `--localstorage-file`, CI pins 22),
+unchanged by name. `npm run lint` (oxlint `--deny-warnings`) clean.
+
 ### 15. The OCR decision — BLOCKED, needs a human
 
 **Not work. A decision.** `data/ocr_cache` is 0 B and stays 0 B until someone decides
@@ -920,7 +955,7 @@ it isn't.
 | row | why it is not open |
 |---|---|
 | **delete `_legacy_section_key` + the `source_key` bridge** | Blocked on the 14 stale acts documents (→ the OCR decision): 6 documents / 89 leaves still rely on it. Definition at `apps/api/backend/services/document_store.py:61`, the only call site `:257`, reached only after `by_node_key` **and** `by_source_key` both miss (the 3-tier ladder is `:245-258`). **The ledger says "confirm with a query, not a guess" in five places and that query does not exist** — `wip/integration/measure/census.py` counts the JSON corpus, not the database; the only `node_key IS NULL` in the repo is a partial index (`alembic/versions/0004_section_node_key.py:43`). **Writing the query is step 1.** |
-| **the `ReviewToolbar` approval gate** | **A product decision, then one line.** `apps/web/src/components/review/ReviewToolbar.jsx:46-47` calls `hasAnyQualityFlags` (`utils/qualityFlags.js:82`) while `qualityFlags.js:17` claims to mirror the *narrower* backend `CRITICAL_FLAGS` (`apps/api/backend/services/parse_quality.py:14-21`: `missing_table`, `footnote_glue`, `wall_of_text`, `heading_body_bleed`). `hasCriticalQualityFlags` (`qualityFlags.js:87-88`) exists and is **tested** (`test/qualityFlags.test.js:40`) but unused by the toolbar — so the helper is verified and the gate is not. Cheapest row on the board once someone decides which behaviour is wanted. |
+| **the `ReviewToolbar` approval gate** | **CLOSED 2026-09-14.** `ReviewToolbar.jsx:47` now calls `hasCriticalQualityFlags`; the approve confirm fires only for the backend's `CRITICAL_FLAGS` set. See the Result section below. |
 | **delete the Zustand mirror in `documentStore`** | Architecture, not a defect — the bug it caused is fixed and tested. **Bigger than the record says:** `open-work.md:183` calls it "five pages"; it is **8 consumer modules** — `ReviewPage.jsx:20,62`, `DashboardPage.jsx:15,71`, `Sidebar.jsx:5,44`, `ReviewToolbar.jsx:4,31`, `PdfPanel.jsx:6,107`, `AiFixPanel.jsx:14,227`, `CommandPalette.jsx:9,32-33`, and `stores/reviewStore.js:3,57,109,124-128,150`. **And there is no data-hooks layer to move onto:** `apps/web/src/hooks/` holds only `useKeyboardNav`/`usePdfRenderer`/`useTextSelection`, and app code contains **zero** `useQuery`/`useMutation` calls — everything routes through `documentStore`'s `fetchQuery` wrapper (`documentStore.js:8-12`). It must be written first. |
 | **an explicit `order` field** | Needs the **source pages**: tree-walk and page-sort order disagree on **21 of 103** documents and the JSON cannot settle which is right. P5's reading-order limb — measured and deferred, not open. |
 | **delete `normalize_heading`** | A **parser** task hiding in the integration ledger. A parser round must first stop emitting a leading `]` and the truncated `[...`. Then it is one deletion. Note it lives API-side: `apps/api/backend/services/json_parser.py:82`. |
