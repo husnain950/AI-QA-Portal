@@ -82,6 +82,8 @@ Trajectory: `210 → 193 → 148 → 92 → 78 → 75 → 70 → 64 → 50 → 4
 The rise to 34 is not a regression — round 12 added `preamble_carries_no_toc_tail`, a new
 instrument that made four existing defects visible for the first time.
 
+**2026-09-14 — board row 1 is CLOSED, and the register moved by zero on purpose.** `MARKER_NOTE_RE` read one trailing dot where the Customs source prints six note heads with two, so each opened no note and its line was folded into the previous note's body. Widened to `\.{0,2}` (uppercase branch `\.{1,2}`, its dot still mandatory). Across 20 Customs editions: **+120 footnote records, +254 citations bound, −254 unresolved markers, 0 notes lost**, leaf counts and body words unchanged, footnote zone unmoved, and the rules control byte-identical in its body. **The register is 0 before and 0 after** — no invariant here can see a marker-grammar change in either direction, which is why the proof is the output diff. The board's nine-heads/seven-real count was wrong: it is **six and six**. Artifact: [`wip/phase3-round36-double-dot-note-head.md`](../wip/phase3-round36-double-dot-note-head.md).
+
 **2026-09-14 — `no_foreign_section_start_in_body` is CLOSED (was 1), and it was an INVARIANT bug.** `_table_cell_lines` collected per-`<td>` text, but the renderer flattens a short table row into ONE `plain_text` line joined by spaces, which equals no cell. Sales Tax Rules 2006 (01-01-2025) rule 13's Schedule row `44A | Steel ingots / bala | M. Tons` was read as the start of rule 44A. No parser change, no re-conversion. **Ten classes are now closed.** Artifact: [`wip/phase3-table-row-join.md`](../wip/phase3-table-row-join.md).
 
 **2026-09-14 — the ordinance five turned out to be TWO causes, and 214E's is fixed.** The 11.03.2019 and 30.06.2019 ITO editions print s.214E as `4[“214E.` with the opening quote GLUED into the bracket token, which `fbr_ingest._DOTFORM_RE` cannot cross — so 214E's whole body sat in 214C. **The U+2500 box-drawing dash this folder blamed was not the cause**; the working 30.06.2020 control prints the identical `audit.─` terminator. Ordinance **5 → 3**. Artifact: [`wip/phase3-fbr-quote-prefixed-section-start.md`](../wip/phase3-fbr-quote-prefixed-section-start.md).
@@ -137,7 +139,8 @@ image-backed pages.
 
 | documents | `pipeline_revision` |
 |---|---|
-| **77** (66 acts + 11 rules) | **`5c862537452f`** — `main` with round 35's marker fix |
+| **21** (20 Customs acts + 1 rules control) | **`70d10d53cd75`** — round 36's double-dot note head |
+| **56** (46 acts + 10 rules) | `5c862537452f` — `main` with round 35's marker fix |
 | **9** (ordinance) | `dbcab2f79b78` — PRs #93-#99. The marker fix is `legal_ingest`; the ordinance lane runs `fbr_ingest` and does not import `MARKER`, so it is current |
 | 14 | *(none recorded)* — the image-backed acts documents, see below |
 | 3 | `4827840…` (round 12) — the image-backed ITO editions (20.02.2026, 30.06.2024, 31.07.2025) |
