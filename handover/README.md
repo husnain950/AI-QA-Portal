@@ -10,6 +10,20 @@ corpus converted at one revision.
 zero**, measured on a corpus re-converted under this tree — acts 0, rules 0, ordinance 0,
 delta zero, no lane skipped. Rounds 29-34 (PRs #93-#99) took it **13 → 0**.
 
+**Round 38 (2026-09-17) came from an external QA cycle, not the board.** 19 rows against
+`Federal Excise Act, 2005 as amended upto 30-06-2025`: **18 real, 1 not**, collapsing to
+9 root causes. Sixteen closed by seven fixes, one closed as not-a-defect with a pin, two
+tariff-table rows held for a second PR. Each cause fired far beyond the one document —
+the orphaned heading terminator was **412 leaves across 30 documents**, the missing
+schedule title **237 across 34**. Corpus after: unresolved markers **2,813 → 2,427**,
+bare-`[See …]` leaves **201 → 7**, orphaned dashes **412 → 2**, leaves **+2** (two
+omitted s.31 recovered). Register still **0**. See
+[`tasks.md`](tasks.md#closed-by-round-38--a-qa-cycle-not-a-board-row).
+
+**One gate is red and it is not round 38's.** `tools/discover_corpus.py --check` reports
+`signatures.json` stale over 27 documents; `main` gives exit 1 and a byte-identical list.
+It needs its own round.
+
 **The board has had no register-bearing work since round 36.** Work is picked from the
 **unmeasured surface** instead — the unresolved `<sup class="marker">` census, which no
 invariant watches. It stands at **3,265 across 81 documents** after round 37 (acts 1,900 /
