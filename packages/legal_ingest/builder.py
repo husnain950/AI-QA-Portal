@@ -23,7 +23,8 @@ from statistics import median as _median
 
 from legal_contract import iter_document_roots
 
-from .footnotes import BRACKETS_ONLY_RE, all_markers_anonymous, ref_sort_key
+from .footnotes import (BRACKETS_ONLY_RE, all_markers_anonymous,
+                        ref_sort_key, words_are_glued)
 from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX, is_code_like, norm_code
 
 # em dash / en dash that separates a heading from its text
@@ -35,7 +36,17 @@ DASHES = "—–-"
 HEAD_SPLIT_RE = re.compile(r"[.,]\s*[" + DASHES + r"]")
 
 SUBSEC_RE = re.compile(r"^\((\d+[A-Z]{0,3})\)")          # (1) (1A) (12) (1AAA)
-CLAUSE_RE = re.compile(r"^\(([a-z]{1,3})\)")             # (a) (aa) (bb)
+CLAUSE_RE = re.compile(r"^\(([a-z]{1,3})\)")
+#: A marker kerned onto the list marker that follows it, no space and no
+#: bracket -- "4(1AB)", "2(d)".  The lookahead is the whole guard: it must be
+#: a "(" with nothing between, or an ordinary "233 (2A)" would be stripped too.
+_KERNED_MARKER_RE = re.compile(r"^[\d*]+(?=\()")
+#: "2[9] The audit ..." -- a subsection re-numbered by an amendment, its new
+#: number printed inside the bracket.  Space + capital required.
+_RENUMBERED_SUBSEC_RE = re.compile(r"^[\d*]*\[(\d+[A-Z]{0,3})\]\s+[A-Z]")
+#: "3[***]" -- an omitted subsection.  Asterisks only; digits would make it an
+#: omitted SECTION, which claim_placeholder_lines owns.
+_OMITTED_SUBSEC_RE = re.compile(r"^[\d*]*\[\s*\*+\s*\]$")             # (a) (aa) (bb)
 # Roman-numeral sub-clause markers 1-99.  Romans in this range use only i/v/x/l,
 # so lettered clauses (c)/(d)/(m) never collide; the one genuine ambiguity is a
 # BARE "(l)" (roman 50 vs the 12th lettered clause), excluded by the lookahead so
@@ -231,8 +242,7 @@ def _render_words(words, page: int, footnote_map: dict,
     for w in words:
         # glue only fragments with NO real space character between them --
         # fully-justified lines compress genuine word gaps below 2pt
-        glue = (prev_x1 is not None and (w.x0 - prev_x1) < 2.0
-                and not getattr(w, "space_before", False))
+        glue = words_are_glued(prev_x1, w)
         # RC-7 (stray-space hyphen): a compound wrapped mid-word is extracted as
         # two tokens ("sub-" + "section") separated by a justification gap.  Re-
         # join them with NO space so both html and plain read "sub-section", never
@@ -351,13 +361,34 @@ def _classify(line_plain: str) -> str:
     # bare marker (the 2nd note has no bracket of its own).  A "[" is still
     # required, so a line opening on a bare number ("233 (2A) ...") is untouched.
     s3 = re.sub(r"^(?:[\d*]+\s*\[+\s*)+(?:[\d*]+\s*)?", "", s).lstrip()
-    for probe in (s, s2, s3):
+    # The marker can also be kerned STRAIGHT onto the list marker with no
+    # bracket at all -- Federal Excise 30-06-2025 prints "4(1AB) The
+    # Commissioners..." (p.44) and "2(d) sent electronically..." (p.66), the
+    # digit an 8.0pt superscript against a 12.0pt body.  Strip it only when the
+    # "(" follows with NO space, which is what separates it from the body line
+    # "233 (2A) ..." that s3's comment above protects.
+    s4 = _KERNED_MARKER_RE.sub("", s)
+    for probe in (s, s2, s3, s4):
         if SUBSEC_RE.match(probe):
             return "subsec"
         if ROMAN_RE.match(probe.split()[0] if probe.split() else ""):
             return "roman"
         if CLAUSE_RE.match(probe):
             return "clause"
+    # A RE-NUMBERED subsection prints its number in the amendment bracket, not
+    # in parentheses: "2[9] The audit of the registered person..." (p.65),
+    # whose note reads "Sub-section (5) re-numbered as sub-section (9)".  The
+    # trailing space and capital keep a bracketed table serial ("2[21].Where
+    # any person repeats an") out -- that one is pinned by
+    # test_bracketed_code_dot.py.
+    if _RENUMBERED_SUBSEC_RE.match(s):
+        return "subsec"
+    # An OMITTED subsection is a bracket holding nothing but asterisks:
+    # "3[***]" (p.65, x0 162.0 -- the subsection indent).  Digits inside the
+    # bracket mean an omitted SECTION ("2[ 31***]"), which belongs to
+    # pipeline.claim_placeholder_lines and must stay body text here.
+    if _OMITTED_SUBSEC_RE.match(s):
+        return "subsec"
     if _RULE_RE.match(s):
         return "rule"        # numbered rule/paragraph -> starts its own <p>
     if _is_allcaps(s):
