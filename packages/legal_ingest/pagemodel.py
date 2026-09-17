@@ -504,6 +504,55 @@ def _narrow_separator_top(page, cal):
     return min(cands) if cands else None
 
 
+def _tighten_markers_on_small_lines(body_lines, cal) -> None:
+    """Make the marker size gate local to the line, on small-set lines only.
+
+    ``Word.marker_max`` is ``body_size - 1.5``, derived from the DOCUMENT's
+    modal size.  That is right for the main body -- 12.0pt text with 8.0pt
+    markers -- and wrong for a schedule, where the tariff tables are set at
+    9.0-10.0pt and every ordinary numeral clears the cutoff.  Federal Excise
+    30-06-2025 read "TABLE 1" as a citation on the table's own title, the "9"
+    of "against S. No. 9" as citation 73.9, the serial numbers inside
+    "[14, 15 and 16***]" as citations, and the "1" of "IATA Traffic
+    Conference Area 1" as citation 84.1 -- deleting the numeral from the text.
+
+    Three conditions, each one measured rather than assumed:
+
+    * **>= 2 words on the line.**  With one word the modal size IS the
+      candidate, so the test means nothing -- and p.82's marker 1 sits alone
+      on its own line group, its superscript baseline 3.5pt clear of the text
+      it annotates while ``LINE_TOL`` is 3.0.
+    * **modal below ``body_size``.**  Every main-body line has
+      ``modal == body_size``, so this leaves the body completely untouched.
+      That is what makes the change measurable.
+    * **not bracket-adjacent.**  In this corpus an amendment marker is kerned
+      onto the bracket it opens.  Without this condition the rule lost 22 real
+      markers whose own size is the line's modal because the whole line is set
+      small: "5[3A***]", "2[***]", "13[57.", "1[Annex-A".
+
+    Measured on the reviewer's document: 411 body markers kept, 10 dropped,
+    nine of them the four QA rows above.  Across nine further staged
+    documents: 2,911 kept, 80 dropped, every one of the 80 a false citation.
+    """
+    ceiling = cal.body_size - 0.5
+    for line in body_lines:
+        words = sorted(getattr(line, "words", []), key=lambda w: w.x0)
+        if len(words) < 2:
+            continue
+        sizes = [w.size for w in words]
+        modal = max(set(sizes), key=sizes.count)
+        if modal >= ceiling:
+            continue
+        local = min(cal.marker_max_size, modal - 0.8)
+        for i, w in enumerate(words):
+            if "[" in w.text:
+                continue
+            nxt = words[i + 1].text.lstrip() if i + 1 < len(words) else ""
+            if nxt.startswith("["):
+                continue
+            w.marker_max = min(w.marker_max, local)
+
+
 def _footnote_zone_top(page, lines, cal):
     """The y at which the footnote zone begins, or None (whole page is body).
 
@@ -1305,6 +1354,11 @@ def build_page_model(page, index: int, cal, pdf_path: str | None = None,
     # Customs edition.  Absent from both sides, the audit stays at 100%.
     body_lines = _drop_apparatus_captions(body_lines)
     footnote_lines = _drop_apparatus_captions(footnote_lines)
+
+    # 3b) the marker size gate is per-document; make it per-LINE wherever a
+    #     line is set below the body size (a schedule/tariff table).  Must run
+    #     before _extract_body_tables, which reads is_marker off these words.
+    _tighten_markers_on_small_lines(body_lines, cal)
 
     # 4) extract BODY tables from real gridlines.  Footnote-zone tables are
     #    not rendered here, but their bboxes are kept so footnotes.py can
