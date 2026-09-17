@@ -115,6 +115,38 @@ re-importing and restoring leaves stale bytecode: the source is right while the 
 memory is the version you rejected. This was caught by pytest only *after* a re-conversion
 had already run against it.
 
+## Gates
+
+**`applies_to` must name the EDITION, not a date.** Round 38 scoped 17 acts cases to
+`"30-06-2025"` — which also matches `Sales Tax Act 1990 amended upto 30-06-2025`, so
+three of them ran against the wrong document and the lane went red on a document the
+round never touched. Two acts editions share that date and more share others. Use the
+filename as far as it is distinctive: `"Federal Excise Act, 2005 as amended upto
+30-06-2025"`.
+
+**Run every new gate against the PRE-ROUND output before believing it.** Three of round
+38's seventeen cases passed on the broken document, i.e. they were no-ops, and each
+failed for a different reason worth knowing:
+
+- **`.` does not cross a newline.** A pattern spanning from one clause to the next
+  (`\(c\)(?:(?!</li>).)*\(d\)`) never matches, because the clauses are on separate
+  lines — and a `*_not_matches` check then *passes* on exactly the markup it was
+  written to forbid. Use `[\s\S]`, or pass `re.DOTALL`.
+- **`plain_text` keeps the raw marker digit**, so `against S. No. 9` reads identically
+  whether or not the 9 became a citation. A citation is only visible in the html.
+- **A lookahead ends a match before the thing you wanted to read.**
+  `</p>(.*?)(?=<p|<ol)` captures the whitespace *between* two blocks, not the next
+  block's text, so an invariant written that way can never fire.
+
+The cheapest check is `run_suite.py <lane> <path-to-_pre_N/<doc>.json>`: a case that
+passes there is not a gate. Round 38's four invariants and fourteen of its cases fail
+there and pass after; the one case that passes both ways is a deliberate pin.
+
+**A re-conversion with 4 workers can be OOM-killed on this machine.** Round 38's second
+pass died mid-flight; `data/corpora/_reconvert/run.py` is resumable from its ledger, so
+the restart only redid what was in flight — but drop `max_workers` to 2 and expect the
+acts `scan_page_count` phase to take 10-13 minutes before the first child spawns.
+
 ## Measuring
 
 - **A marker-grammar change is invisible to the register, to CI and to the lane suites.**

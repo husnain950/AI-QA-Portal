@@ -23,7 +23,12 @@ from statistics import median as _median
 
 from legal_contract import iter_document_roots
 
-from .footnotes import BRACKETS_ONLY_RE, all_markers_anonymous, ref_sort_key
+from .footnotes import (
+    BRACKETS_ONLY_RE,
+    all_markers_anonymous,
+    ref_sort_key,
+    words_are_glued,
+)
 from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX, is_code_like, norm_code
 
 # em dash / en dash that separates a heading from its text
@@ -36,6 +41,16 @@ HEAD_SPLIT_RE = re.compile(r"[.,]\s*[" + DASHES + r"]")
 
 SUBSEC_RE = re.compile(r"^\((\d+[A-Z]{0,3})\)")          # (1) (1A) (12) (1AAA)
 CLAUSE_RE = re.compile(r"^\(([a-z]{1,3})\)")             # (a) (aa) (bb)
+#: A marker kerned onto the list marker that follows it, no space and no
+#: bracket -- "4(1AB)", "2(d)".  The lookahead is the whole guard: it must be
+#: a "(" with nothing between, or an ordinary "233 (2A)" would be stripped too.
+_KERNED_MARKER_RE = re.compile(r"^[\d*]+(?=\()")
+#: "2[9] The audit ..." -- a subsection re-numbered by an amendment, its new
+#: number printed inside the bracket.  Space + capital required.
+_RENUMBERED_SUBSEC_RE = re.compile(r"^[\d*]*\[(\d+[A-Z]{0,3})\]\s+[A-Z]")
+#: "3[***]" -- an omitted subsection.  Asterisks only; digits would make it an
+#: omitted SECTION, which claim_placeholder_lines owns.
+_OMITTED_SUBSEC_RE = re.compile(r"^[\d*]*\[\s*\*+\s*\]$")
 # Roman-numeral sub-clause markers 1-99.  Romans in this range use only i/v/x/l,
 # so lettered clauses (c)/(d)/(m) never collide; the one genuine ambiguity is a
 # BARE "(l)" (roman 50 vs the 12th lettered clause), excluded by the lookahead so
@@ -231,8 +246,7 @@ def _render_words(words, page: int, footnote_map: dict,
     for w in words:
         # glue only fragments with NO real space character between them --
         # fully-justified lines compress genuine word gaps below 2pt
-        glue = (prev_x1 is not None and (w.x0 - prev_x1) < 2.0
-                and not getattr(w, "space_before", False))
+        glue = words_are_glued(prev_x1, w)
         # RC-7 (stray-space hyphen): a compound wrapped mid-word is extracted as
         # two tokens ("sub-" + "section") separated by a justification gap.  Re-
         # join them with NO space so both html and plain read "sub-section", never
@@ -351,13 +365,34 @@ def _classify(line_plain: str) -> str:
     # bare marker (the 2nd note has no bracket of its own).  A "[" is still
     # required, so a line opening on a bare number ("233 (2A) ...") is untouched.
     s3 = re.sub(r"^(?:[\d*]+\s*\[+\s*)+(?:[\d*]+\s*)?", "", s).lstrip()
-    for probe in (s, s2, s3):
+    # The marker can also be kerned STRAIGHT onto the list marker with no
+    # bracket at all -- Federal Excise 30-06-2025 prints "4(1AB) The
+    # Commissioners..." (p.44) and "2(d) sent electronically..." (p.66), the
+    # digit an 8.0pt superscript against a 12.0pt body.  Strip it only when the
+    # "(" follows with NO space, which is what separates it from the body line
+    # "233 (2A) ..." that s3's comment above protects.
+    s4 = _KERNED_MARKER_RE.sub("", s)
+    for probe in (s, s2, s3, s4):
         if SUBSEC_RE.match(probe):
             return "subsec"
         if ROMAN_RE.match(probe.split()[0] if probe.split() else ""):
             return "roman"
         if CLAUSE_RE.match(probe):
             return "clause"
+    # A RE-NUMBERED subsection prints its number in the amendment bracket, not
+    # in parentheses: "2[9] The audit of the registered person..." (p.65),
+    # whose note reads "Sub-section (5) re-numbered as sub-section (9)".  The
+    # trailing space and capital keep a bracketed table serial ("2[21].Where
+    # any person repeats an") out -- that one is pinned by
+    # test_bracketed_code_dot.py.
+    if _RENUMBERED_SUBSEC_RE.match(s):
+        return "subsec"
+    # An OMITTED subsection is a bracket holding nothing but asterisks:
+    # "3[***]" (p.65, x0 162.0 -- the subsection indent).  Digits inside the
+    # bracket mean an omitted SECTION ("2[ 31***]"), which belongs to
+    # pipeline.claim_placeholder_lines and must stay body text here.
+    if _OMITTED_SUBSEC_RE.match(s):
+        return "subsec"
     if _RULE_RE.match(s):
         return "rule"        # numbered rule/paragraph -> starts its own <p>
     if _is_allcaps(s):
@@ -396,6 +431,12 @@ def _is_subheading(line, plain: str) -> bool:
     return cap / len(ws) >= 0.6                        # title-cased sub-heading
 
 
+#: How far left of a list's own items a "text" row must start before it counts
+#: as the parent level resuming rather than a wrapped continuation.  Clause
+#: items sit 36pt right of the body margin in this corpus, so 6pt is well
+#: inside the gap while absorbing ordinary jitter in the extracted x0.
+_LIST_PARENT_GAP = 6.0
+
 OL_STYLE = {
     "subsec": ('<ol class="subsection" style="list-style-type: none; '
                'padding-left: 0; margin-left: 1.5em;">'),
@@ -427,14 +468,43 @@ GAZETTE_KINDS = (
 )
 
 
-def _gazette_block_class(plain: str) -> str | None:
-    """CSS class for a gazette title / recital / enacting line, else None."""
+def _gazette_block_class(plain: str, prev_kind: str | None = None,
+                         next_plain: str | None = None) -> str | None:
+    """CSS class for a gazette title / recital / enacting line, else None.
+
+    ``prev_kind`` and ``next_plain`` are the neighbouring rows, and a caller
+    that has them gets two extra refusals.  Both patterns below match ordinary
+    body prose, and neither can be tightened on its own text:
+
+      * "An" matches ``_GAZETTE_TITLE_RE`` under ``re.I``, but 11 uppercase
+        AN/ACT blocks sit inside numbered sections legitimately (a Finance Act
+        host clause reprinting a whole Act), and ``_GAZETTE_TABLE_CAPTION_RE``
+        returns "act-title" for 109 legitimate in-section TABLE captions -- so
+        neither dropping ``re.I`` nor gating on the preamble is available.
+      * "to provide real-time access ..." matches ``_GAZETTE_LONG_TITLE_RE``
+        but is the second half of Federal Excise s.47AB(1).
+
+    What separates them is that a false positive CONTINUES a sentence: a short
+    title whose next line opens lower case, a long title whose previous block
+    is body text.  Callers with no neighbours to offer (the preamble builder)
+    pass nothing and keep the old behaviour.
+    """
     s = (plain or "").strip()
     if not s:
         return None
     if _GAZETTE_TITLE_RE.match(s) or _GAZETTE_TABLE_CAPTION_RE.match(s):
+        # A caption keeps its centring unconditionally -- it is a label, not a
+        # title, so the sentence it sits above says nothing about it.
+        if _GAZETTE_TABLE_CAPTION_RE.match(s):
+            return "act-title"
+        nxt = (next_plain or "").strip()
+        if nxt and nxt[:1].islower() and _gazette_block_class(nxt) is None:
+            return None     # the sentence runs on -- this is body text
         return "act-title"
     if _GAZETTE_LONG_TITLE_RE.match(s):
+        if prev_kind is not None and prev_kind != "" \
+                and prev_kind not in GAZETTE_KINDS:
+            return None     # a body row precedes it -- this is a wrapped line
         return "act-long-title"
     if _GAZETTE_RECITAL_RE.match(s):
         return "recital"
@@ -493,9 +563,11 @@ def _build_html(heading_html: str, content: list[tuple[str, str, str]]) -> str:
             if para.strip():
                 out.append(f"<p>{para}</p>")
             continue
-        if kind in ("text", "rule", "htext"):
-            # a paragraph.  'rule' / 'htext' start fresh; following plain 'text'
-            # lines merge in; consecutive 'htext' title lines merge together.
+        if kind in ("text", "rule", "htext", "ptext"):
+            # a paragraph.  'rule' / 'htext' / 'ptext' start fresh; following
+            # plain 'text' lines merge in; consecutive 'htext' title lines merge
+            # together.  'ptext' is a text row that returned to the body margin
+            # and so closed an open clause list -- see _render_line_run.
             buf = [htm]
             mergeable = ("text", "htext") if kind == "htext" else ("text",)
             i += 1
@@ -1305,6 +1377,11 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
     i = 0
     n = len(line_refs)
     prev_plain = ""
+    prev_kind = ""      # "" = nothing rendered yet, never a body row
+    # the clause/roman list currently open, and the leftmost indent of ITS OWN
+    # items -- a "text" row further left than that is the parent level resuming
+    list_kind = None
+    list_x0 = None
     while i < n:
         if i in span_start:
             end = span_start[i]
@@ -1322,6 +1399,8 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
                 rows.append(("table", plain, html))
                 geoms.append((None, region[0].page))
                 prev_plain = plain
+                prev_kind = "table"
+                list_kind = list_x0 = None
                 i = end
                 continue
         r = line_refs[i]
@@ -1339,12 +1418,44 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
             # becomes its own block instead of merging into a neighbour
             if subheads and kind in ("text", "htext") and _is_subheading(r.line, plain):
                 kind = "subhead"
-            gcls = _gazette_block_class(plain)
+            # the neighbours decide whether a gazette-shaped line is really a
+            # title or just the middle of a sentence -- see
+            # _gazette_block_class.  The NEXT line's raw text is enough (only
+            # its first character is read), so nothing is rendered twice.
+            nxt_plain = (line_refs[i + 1].line.text() if i + 1 < n else "")
+            gcls = _gazette_block_class(plain, prev_kind=prev_kind,
+                                        next_plain=nxt_plain)
             if gcls and kind in ("text", "htext", "subhead"):
                 kind = gcls
+            # A clause list is closed by text that returns to the PARENT's
+            # margin.  Federal Excise 30-06-2025 s.38 sets clauses (a)-(c) at
+            # x0 162 and their wrapped lines at 180/186, then resumes the
+            # subsection stem -- "may apply, except where criminal proceedings
+            # have been initiated..." -- at 126.  Without this the stem, both
+            # provisos and the Explanation all rendered inside clause (c),
+            # making generally applicable text read as if it bound one clause.
+            #
+            # Only clause/roman lists close this way.  A subsec list must not:
+            # its items sit at 152-162 while its own continuations legitimately
+            # run at 126, so the same test would break every subsection
+            # paragraph in the corpus.
+            x0 = min((w.x0 for w in r.line.words), default=None)
+            if kind in ("clause", "roman"):
+                if kind != list_kind or list_x0 is None:
+                    list_kind, list_x0 = kind, x0
+                elif x0 is not None:
+                    list_x0 = min(list_x0, x0)
+            elif kind == "text":
+                if (list_x0 is not None and x0 is not None
+                        and x0 < list_x0 - _LIST_PARENT_GAP):
+                    kind = "ptext"
+                    list_kind = list_x0 = None
+            else:
+                list_kind = list_x0 = None
             rows.append((kind, plain, html))
             geoms.append((r.line, r.page))
             prev_plain = plain
+            prev_kind = kind
         i += 1
     return _layout_blocks(rows, geoms)
 
@@ -2375,6 +2486,8 @@ def is_structural_boundary(text: str, container_codes=None) -> bool:
 
 #: an em/en dash sitting BETWEEN two word characters ("customs–ports") -- a
 #: compound separator, not a heading terminator (see _words_after_heading_dash)
+#: Every dash glyph that can terminate a heading in this corpus.
+_DASH_CHARS = "\u2014\u2013\u2015\u2500-"
 _INTERIOR_DASH_RE = re.compile(r"[A-Za-z0-9][—–―─][A-Za-z0-9]")
 #: A run of 1-3 ASCII hyphens, and the same run closing a title ("period. --").
 #: The heading terminator is not always a single hyphen: Federal Excise Rules
@@ -2472,9 +2585,32 @@ def _words_after_heading_dash(words, allow_first=False):
                 # discarded and the section falls back to its TOC title.
                 if run_len:
                     head_suffix, oper_suffix = t[:run_len], t[run_len:]
+            # A terminator printed TWICE belongs entirely to the heading.  The
+            # pattern list above is scanned by rfind and returns on the first
+            # hit, so "documents.––" (Federal Excise 30-06-2025 p.66, s.47)
+            # split as "documents.–" + "–" and left the second dash at the head
+            # of the body -- which also stopped _classify seeing the "(1)" that
+            # followed, so the subsection rendered as a bare <p>.  Only a
+            # remainder that is NOTHING but dashes moves; operative text fused
+            # to the dash ("—The Federal Government") still goes to the body.
+            if oper_suffix and all(c in _DASH_CHARS for c in oper_suffix):
+                head_suffix += oper_suffix
+                oper_suffix = ""
             before = list(words[:i])
             if head_suffix:
                 before.append(replace(w, text=head_suffix))
+            # ...and the doubled terminator may be a SEPARATE TOKEN rather than
+            # fused: Sales Tax 1990 (01-07-2014) p.14 prints "4[2." /
+            # "Definitions." + U+2015 / U+2015, three tokens, and the lone dash
+            # was left to open the body on 50 leaves of that document alone.
+            # Same rule as the fused case above -- a dash-only token after the
+            # terminator belongs to the heading.
+            j = i + 1
+            while j < len(words) and words[j].text.strip() \
+                    and all(c in _DASH_CHARS for c in words[j].text.strip()):
+                before.append(words[j])
+                j += 1
+            i = j - 1
             # EVERY word after the heading dash on this line is operative body
             # text and must shed the heading's bold, not just a token fused to
             # the dash.  The Customs Act sets the whole heading line bold and
@@ -3260,8 +3396,13 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
         else:
             rp, rh = _render_words(after_words, seg[d].page, footnote_map, page_offset)
             if rp.strip():
+                # s.43A breaks "...documents.– An / officer of federal excise"
+                # across pages 60/61, so this remainder row IS the stray "An".
+                # prev_kind "" -- nothing precedes it but the heading itself.
+                nxt_rp = (seg[d + 1].line.text() if d + 1 < len(seg) else "")
                 remainder_rows.append((
-                    _gazette_block_class(rp) or _classify(rp), rp, rh))
+                    _gazette_block_class(rp, prev_kind="", next_plain=nxt_rp)
+                    or _classify(rp), rp, rh))
 
             # Render the <h4> from the real PDF body heading: the full head lines
             # 0..d-1 plus the pre-dash words on line d.  This surfaces

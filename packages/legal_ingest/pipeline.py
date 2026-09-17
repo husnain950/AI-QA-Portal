@@ -260,7 +260,8 @@ def footnote_runs(pages, has_body, has_notes) -> list[tuple[list[int], list[int]
     return runs
 
 
-def _citation_scope(page_footnotes, pages, has_body, has_notes):
+def _citation_scope(page_footnotes, pages, has_body, has_notes,
+                    body_markers=None):
     """``(footnote_map, cited_footnotes)`` keyed by the page that CITES a note.
 
     Keying the citation view by citing page -- rather than by the page the note
@@ -304,9 +305,46 @@ def _citation_scope(page_footnotes, pages, has_body, has_notes):
                 merged[marker] = (fn.text, fn.pdf_page)
                 allf.append(fn)
         for bp in bodies:
-            fmap[bp] = merged
-            cited[bp] = allf
+            extra, extra_fns = _next_page_notes(bp, merged, page_footnotes,
+                                                body_markers)
+            fmap[bp] = {**merged, **extra} if extra else merged
+            cited[bp] = allf + extra_fns if extra_fns else allf
     return fmap, cited
+
+
+def _next_page_notes(bp, merged, page_footnotes, body_markers):
+    """Notes printed on ``bp + 1`` that page ``bp`` may resolve against.
+
+    ``footnote_runs`` ends a run at any page carrying both body and notes, so
+    in a bottom-of-page layout every page is its own run and a marker whose
+    note is printed overleaf can never bind.  Federal Excise 30-06-2025 p.79
+    prints body markers 1, 4, 6, 7, 8 and 2 but only notes 1 and 2; notes 4,
+    6, 7 and 8 are on p.80, and the four citations shipped unresolved.
+
+    Two conditions keep this from stealing:
+
+    * the citing page must have NO note of its own for that marker, and
+    * the next page's own BODY must not cite it either.
+
+    Where numbering genuinely restarts per page, the next page claims its own
+    markers and this returns nothing.  Without a body census -- any caller
+    that cannot supply one -- it also returns nothing, so the behaviour is
+    unchanged for them.
+    """
+    from .footnotes import CONT_MARKER
+
+    if body_markers is None:
+        return {}, []
+    nxt = bp + 1
+    taken = body_markers.get(nxt) or ()
+    extra: dict = {}
+    fns: list = []
+    for fn in page_footnotes.get(nxt, []):
+        if fn.marker == CONT_MARKER or fn.marker in merged or fn.marker in taken:
+            continue
+        extra[fn.marker] = (fn.text, fn.pdf_page or nxt)
+        fns.append(fn)
+    return extra, fns
 
 
 
@@ -876,8 +914,16 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
     # run.  ``page_footnotes`` itself stays keyed by the printing page, because
     # the orphan-adoption net and every ref depend on that.
     scan_pages = list(range(first_body_page, scan_end + 1))
+    # which markers each page's BODY actually cites -- the guard that stops a
+    # page borrowing a note the next page needs for itself (_next_page_notes)
+    body_markers: dict[int, set] = {}
+    for r in body_refs:
+        for w in getattr(r.line, "words", []):
+            for m in (getattr(w, "marker_run", None) or ()):
+                body_markers.setdefault(r.page, set()).add(m)
     footnote_map, cited_footnotes = _citation_scope(
-        page_footnotes, scan_pages, has_body, has_notes)
+        page_footnotes, scan_pages, has_body, has_notes,
+        body_markers=body_markers)
     # inverse view: which body pages a note page annotates, for the orphan net
     note_body_pages = {np: bodies
                        for bodies, notes in footnote_runs(scan_pages, has_body,

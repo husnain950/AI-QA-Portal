@@ -47,9 +47,13 @@ def ref_sort_key(ref: str):
 
 
 # -- amendment-note classification -------------------------------------------
-# a bracket-only body line ("1[  ]", "4[ 5[ ] ]") -- an amendment bracket
-# whose content was removed
-BRACKETS_ONLY_RE = re.compile(r"^[\d\s\[\]]+$")
+# a bracket-only body line ("1[  ]", "4[ 5[ ] ]", "2[ 31***]") -- an amendment
+# bracket whose content was removed.  The asterisks are the OMISSION SPELLING
+# and carry no more meaning than the empty bracket beside them: Federal Excise
+# 30-06-2025 p.49 prints omitted section 31 as "2[ 31***]" on its own line, and
+# without the "*" here that line was never claimed by its placeholder leaf --
+# it stayed inside section 30(2) and section 31 shipped empty.
+BRACKETS_ONLY_RE = re.compile(r"^[\d\s\[\]*]+$")
 
 # an anonymous amendment-history note ("Inserted by the Finance Act, 2016.")
 # names no target element; a note that names ANY structural element
@@ -1328,8 +1332,39 @@ def _continuation_target(last_fns):
     return last_fns[-1]
 
 
+#: Two extracted tokens closer than this, with no real space glyph between
+#: them, are one word split by the text layer.  Fully-justified lines compress
+#: genuine word gaps below 2pt, which is why the space glyph -- not the gap
+#: alone -- carries the decision.
+GLUE_MAX_GAP = 2.0
+
+
+def words_are_glued(prev_x1, w) -> bool:
+    """True when ``w`` continues the previous token with no space between.
+
+    Shared with ``builder._render_words`` so footnote prose and body prose
+    resolve a split word the same way.  Federal Excise 30-06-2025 p.45 sets
+    the "F" of a note's first word at 9.96pt and its "or" at 8.04pt, 0.02pt
+    apart -- too far apart in SIZE for ``pagemodel._merge_split_words`` and
+    too short a run for ``builder._deglyph``, so this is the only stage that
+    can rejoin them.
+    """
+    x0 = getattr(w, "x0", None)
+    if prev_x1 is None or x0 is None:
+        return False
+    return (x0 - prev_x1) < GLUE_MAX_GAP and not getattr(w, "space_before", False)
+
+
 def _join(words) -> str:
-    return " ".join(w.text for w in words).strip()
+    out: list[str] = []
+    prev_x1 = None
+    for w in words:
+        if out and words_are_glued(prev_x1, w):
+            out[-1] += w.text
+        else:
+            out.append(w.text)
+        prev_x1 = getattr(w, "x1", None)
+    return " ".join(out).strip()
 
 
 #: The TERMINAL amendment-source apparatus.  Customs Rules 2001 (30.06.2023)

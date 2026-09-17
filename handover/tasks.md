@@ -97,6 +97,21 @@ rows below were traced to their source pages during round 37 and neither is a hy
 | 8 | delete the Zustand mirror | — | 8 consumer modules, and **no data-hooks layer exists to move onto** — it must be written. Architecture, not a defect | [Deferred](#deferred-with-reasons) |
 | 12 | the OCR decision | — | **DECIDED 2026-09-04: out of scope, deliberately.** `data/ocr_cache` stays 0 B. Not work — the decision is the deliverable, and it is recorded | [Phase 2](plan.md#phase-2--the-ocr-half-a-decision-not-work) |
 
+### Closed by round 38 — a QA cycle, not a board row
+
+Not a board row and not off the census: an external QA cycle logged **19 rows** against
+the review portal's rendering of `Federal Excise Act, 2005 as amended upto 30-06-2025`.
+Every row was re-checked against the source PDF's glyph geometry before any code moved.
+**18 real, 1 not** — and they collapse to **9 root causes**, each firing far beyond the
+one document the reviewer opened.
+
+| # | pick this up | result | what it was | artifact |
+|---|---|---|---|---|
+| ~~q1~~ (r38) | ~~**QA Cycle 1 — 19 rows, Federal Excise 30-06-2025**~~ | **16 closed by code, 1 closed as not-a-defect, 2 held for PR 2** | **CLOSED 2026-09-17 (round 38).** Seven fixes. The reviewer found **one instance each of corpus-wide classes**: the orphaned heading terminator was **412 leaves / 30 documents** (and prints in TWO spellings — fused `documents.--`, and as a separate token in Sales Tax 1990, which alone held 50); the missing schedule title **237 leaves / 34 documents**, where `_finish_leaf` promoted a `[See …]` line into the `<h4>` slot and shipped leaves with no heading element at all; the per-document marker size gate turned ordinary numerals into citations wherever a schedule is set below body size (**515 → 412 markers on the reviewer's document, 103 lost and 0 gained, every one false**). Corpus: leaves **13,103 → 13,105** (+2, both s.31 *Omitted* recovered — the CH5-03 class in two older Excise editions), unresolved markers **2,813 → 2,427**, bare-`[See …]` leaves **201 → 7**, orphaned dashes **412 → 2**, gazette-title-mid-sentence **15 → 0**. All residue is in five image-backed documents that cannot be re-converted under the OCR decision — five exemptions, each saying so. | [artifact](../wip/phase3-round38-qa-cycle1-excise.md) |
+| ~~q1b~~ (r38) | ~~CH4-01 — s.27's marker resolving to s.26's note~~ | **not a defect; pinned** | PDF p.41 prints a real superscript `1` at x0 197.6, 8.04pt, before `[or beverages]`, and page 41's footnote 1 **is** that note. Footnote numbering in these compilations restarts **per page, not per section**. Doing what the row asked would unresolve every legitimately reused marker in the corpus (`43.2` twice in s.29, `83.2` twice in Table-II). Pinned by `tools/tests/test_page_scoped_footnote_reuse_is_faithful.py` so a later round does not "fix" it | same artifact |
+| q2 | **FIRST/THIRD SCHEDULE tariff tables render as prose** | open — **PR 2** | FS-02 and FS-07. `tables.find_table_spans` needs a `(1) (2) (3)` numbering row within 8 lines of the header; the source prints `Col.(1) Col.(2) Col.(3) Col.(4)`, so no span is detected and 11 pages of four-column tariff data fall through to `<p>`/`<li>`. Widening `_NUM_TOKEN` is one line; whether `render_table` then produces usable output across repeated page headers, six-line wrapped cells, cite markers inside cells and Table-II's nested 3(a)/(b)/(i) is the open question | — |
+| q3 | `tools/discover_corpus.py --check` is stale — 27 documents | open, **not round 38** | The pipeline gate's only failure. `main` gives **exit 1 and a byte-identical list of 27**, so the drift predates this branch. Refreshing `signatures.json` inside an unrelated PR would destroy the evidence of when it appeared. Needs its own round: rerun `--write`, review the diff, attribute it | — |
+
 ### Closed by round 37 — the first row off the UNMEASURED surface
 
 Not a board row: the board had none left. Round 37 came off the unresolved-marker census,

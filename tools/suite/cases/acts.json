@@ -405,6 +405,228 @@
       "arg": "Extension of time limit",
       "status": "active",
       "applies_to": "Customs Act ,1969 (As amended up to 30th June, 2014)"
+    },
+    {
+      "id": "qa1_ch5_01_subsection_1ab_is_its_own_item",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_matches",
+      "target": {
+        "kind": "section",
+        "code": "29"
+      },
+      "arg": "\\[\\(1AA\\) The Chief(?:(?!</li>)[\\s\\S])*\\(1AB\\) The Commissioners",
+      "description": "CH5-01: subsection (1AB) is its own item, not inside (1AA)."
+    },
+    {
+      "id": "qa1_ch5_02_footnote_45_8_reads_for",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "footnote_html_contains",
+      "target": {
+        "kind": "section",
+        "code": "29"
+      },
+      "arg": "For the full stop, a colon and the word",
+      "description": "CH5-02: note 45.8 reads 'For', not 'F or' -- the source splits the capital across two font sizes.",
+      "ref": "45.8"
+    },
+    {
+      "id": "qa1_ch5_03_omitted_31_leaves_section_30",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_contains",
+      "target": {
+        "kind": "section",
+        "code": "30"
+      },
+      "arg": "31***",
+      "description": "CH5-03: omitted section 31 is claimed by its own leaf, not left inside s.30(2)."
+    },
+    {
+      "id": "qa1_ch5_04_no_orphan_dash_in_s34_body",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_matches",
+      "target": {
+        "kind": "section",
+        "code": "34"
+      },
+      "arg": "</h4>\\s*<(?:p|ol[^>]*)>(?:<li>)?\\s*[—–―─-]\\s",
+      "description": "CH5-04: the doubled heading terminator stays in the <h4>; the body opens on '(1)'."
+    },
+    {
+      "id": "qa1_ch5_05_clause_c_holds_only_its_own_text",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_matches",
+      "target": {
+        "kind": "section",
+        "code": "38"
+      },
+      "arg": "\\(c\\) any other specific relief(?:(?!</li>)[\\s\\S])*may apply",
+      "description": "CH5-05: the subsection (1) stem, both provisos and the Explanation sit outside clause (c)."
+    },
+    {
+      "id": "qa1_ch6_01_s43a_an_is_body_text",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_contains",
+      "target": {
+        "kind": "section",
+        "code": "43A"
+      },
+      "arg": "<p class=\"act-title\">An</p>",
+      "description": "CH6-01: the page-break word 'An' is body prose, not a centred gazette title."
+    },
+    {
+      "id": "qa1_ch6_02_subsection_9_is_its_own_item",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_matches",
+      "target": {
+        "kind": "section",
+        "code": "46"
+      },
+      "arg": "\\(8\\) Every member(?:(?!</li>).)*\\[9\\]",
+      "description": "CH6-02: re-numbered subsection [9] is its own item, not inside (8)."
+    },
+    {
+      "id": "qa1_ch6_03_no_orphan_dash_in_s47_body",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_matches",
+      "target": {
+        "kind": "section",
+        "code": "47"
+      },
+      "arg": "</h4>\\s*<(?:p|ol[^>]*)>(?:<li>)?\\s*[—–―─-]\\s",
+      "description": "CH6-03: s.47's doubled terminator stays in the <h4>."
+    },
+    {
+      "id": "qa1_ch6_04_clause_d_is_its_own_item",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_matches",
+      "target": {
+        "kind": "section",
+        "code": "47"
+      },
+      "arg": "\\(c\\) served on the individual(?:(?!</li>)[\\s\\S])*\\(d\\) sent electronically",
+      "description": "CH6-04: clause (d) is a sibling of clause (c), not nested in it."
+    },
+    {
+      "id": "qa1_ch6_05_s47ab_continuation_is_body",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_contains",
+      "target": {
+        "kind": "section",
+        "code": "47AB"
+      },
+      "arg": "class=\"act-long-title\"",
+      "description": "CH6-05: the wrapped second half of subsection (1) is body prose, not a centred italic title."
+    },
+    {
+      "id": "qa1_fs_01_first_schedule_renders_its_title",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "any_schedule_leaf_html_contains",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST SCHEDULE"
+      },
+      "arg": "<h4 class=\"section-heading\">FIRST SCHEDULE</h4>",
+      "description": "FS-01: the schedule's own title is the leaf heading; the [See Section 3] line stays in the body."
+    },
+    {
+      "id": "qa1_fs_03_no_citation_on_the_table_1_caption",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_matches",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "FIRST SCHEDULE"
+      },
+      "arg": "<sup class=\"(?:cite|marker)\"[^>]*>[^<]*</sup>\\s*TABLE 1",
+      "description": "FS-03: 'TABLE 1' carries no citation -- the numeral is the table's own code."
+    },
+    {
+      "id": "qa1_fs_04_serial_cross_reference_is_body_text",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_matches",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "FIRST SCHEDULE"
+      },
+      "arg": "S\\. No\\.\\s*<sup",
+      "description": "FS-04: the cross-reference 'against S. No. 9' keeps its numeral as body text -- no citation opens straight after 'S. No.'."
+    },
+    {
+      "id": "qa1_fs_05_omitted_serial_ranges_are_body_text",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_matches",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "FIRST SCHEDULE"
+      },
+      "arg": "14,\\s*(?:</strong>\\s*)?<sup",
+      "description": "FS-05: the serial numbers inside an omitted range are text -- no citation opens immediately after '14,'."
+    },
+    {
+      "id": "qa1_fs_06_page_79_markers_resolve",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_not_matches",
+      "target": {
+        "kind": "schedule_leaf",
+        "code": "FIRST SCHEDULE"
+      },
+      "arg": "<sup class=\"marker\"[^>]*data-ref=\"79\\.[4678]\"",
+      "description": "FS-06: markers printed on p.79 resolve to their notes on p.80."
+    },
+    {
+      "id": "qa1_fs_08_iata_area_numbers_are_body_text",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "any_schedule_leaf_html_contains",
+      "target": {
+        "kind": "schedule",
+        "code": "FIRST SCHEDULE"
+      },
+      "arg": "Area 1 (North",
+      "description": "FS-08: the IATA Traffic Conference Area numbers are part of the area name."
+    },
+    {
+      "id": "qa1_ch4_01_page_scoped_marker_reuse_is_kept",
+      "source": "QA Cycle 1 (Excise & Taxation)",
+      "status": "active",
+      "applies_to": "Federal Excise Act, 2005 as amended upto 30-06-2025",
+      "check": "html_contains",
+      "target": {
+        "kind": "section",
+        "code": "27"
+      },
+      "arg": ">41.1</sup>",
+      "description": "CH4-01 pin (NOT a defect): page 41 prints superscript 1 twice and its footnote 1 is that note. Page-scoped reuse is faithful to the source; do not 'fix' this."
     }
   ]
 }
