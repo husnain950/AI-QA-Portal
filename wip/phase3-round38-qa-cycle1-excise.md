@@ -126,3 +126,80 @@ citations (`1 Short title, extent and commencement. 5` yielded markers `1` and
 `5`); `toc.py` never consults `is_marker`, so those were inert. The other nine
 are the four QA rows.
 
+### The corpus, before → after
+
+91 staged documents re-converted from a clean tree (77 converted, 14 image-backed
+acts skipped under the no-OCR decision of 2026-09-04, 0 failures). Ordinance was not
+re-converted and did not need to be: it runs on `fbr_ingest`, and every change here is
+in `legal_ingest`.
+
+| metric | before | after | delta |
+|---|---|---|---|
+| leaves | 13,103 | 13,105 | **+2** |
+| rendered characters | 21,916,752 | 21,921,527 | +4,775 |
+| resolved citations | 36,638 | 36,612 | −26 |
+| unresolved `<sup class="marker">` | 2,813 | **2,427** | **−386** |
+| attached footnotes | 37,155 | 37,140 | −15 |
+| leaves opening on a bare `[See …]` | 201 | **7** | −194 |
+| bodies opening on an orphaned dash | 412 | **2** | −410 |
+| citation on a table caption | 20 | 3 | −17 |
+| gazette title mid-sentence | 15 | **0** | −15 |
+
+**The +2 leaves are a gain, and were checked.** Both are section 31, *"Omitted by
+Finance Act, 2010"*, in `The Federal Excise Act 2005 (amended up to 1st July 2016)`
+and `(amended up to 30th June 2015)` — the CH5-03 class in two older editions, where
+the omitted section had been swallowed by s.30 and now exists as its own leaf. No
+leaf was lost anywhere.
+
+**The residue is accounted for, not ignored.**
+
+- `see` 7 and `dash` 2 are all in **five image-backed documents whose output predates
+  provenance stamping** (`pipeline_revision` and `converted_at` both null): Finance Act
+  2025 / 2022 / 2014 / 2023 and Pakistan Single Window 2021. Every re-conversion since
+  round 27 skips them because re-converting runs OCR and `data/ocr_cache` must stay at
+  0 B. Five exemptions were added to `tools/suite/exemptions/acts.json`, each saying
+  plainly that the hit is almost certainly stale-revision drift and that this cannot be
+  demonstrated because the demonstration is the forbidden re-conversion.
+- `cite_on_table` 3 are **correct and now allowed**. A table inserted by an amendment
+  does carry a marker on its caption: Sales Tax 1990 prints `144.1 TABLE-2` and
+  `84.1 TABLE 2`, and p.148 of the 2014 edition shows no marker on the caption itself.
+  The invariant was narrowed to the real defect — the caption's *own* numeral read as
+  the marker — and to the `<h4>`, because "Table" also opens footnote prose.
+
+### Gates
+
+| gate | result |
+|---|---|
+| `pytest tools/tests` | **303 passed, 1 skipped** (baseline 245) |
+| `run_suite.py acts` | 80/80 documents, invariants 65/65 |
+| `run_suite.py rules` | 11/11 documents, invariants 65/65 |
+| `run_suite.py ordinance` | 12/12 documents, invariants 47/47 |
+| `tools/suite/register.json` | **still 0** — `test_register_snapshot.py` passes |
+| `ruff check` (bare) | clean |
+| 14 package self-checks | pass |
+| `run_tests_smoke.py` | **one failure, pre-existing** — see below |
+
+**`tools/discover_corpus.py --check` fails, and it is not this round.** It reports
+`signatures.json is stale` over 27 documents. Running the same command from `main`
+gives **exit 1 and a byte-identical list of 27**, so the drift predates this branch.
+It is left alone deliberately: refreshing `signatures.json` here would fold an
+unrelated drift into this PR and destroy the evidence of when it appeared. It wants
+its own round.
+
+### What actually stops this repeating
+
+Worth being precise, because the two halves have different reach:
+
+- **11 unit-test files in `tools/tests/` gate every PR.** CI runs
+  `pytest apps/api/backend/tests tools/tests`, so the parser-level protection travels.
+- **17 suite cases and 4 invariants gate only on a staged machine.**
+  `data/corpora/*/output/` is gitignored, so CI SKIPs all three lane suites. Green CI
+  is not evidence about ingest — that is what `test_register_snapshot.py` is for, and
+  it too only runs where the corpus is staged.
+
+Every gate was verified by running it against the pre-round output of the same
+document: 1 of 17 cases passes there (the CH4-01 pin, which must pass both ways), and
+all four invariants fail there. Three gates were no-ops when first written — two
+regexes using `.` where the clauses sit on separate lines, and one asserting on
+`plain_text`, which keeps the raw marker digit and so reads identically either way.
+They are real only because that check was run.
