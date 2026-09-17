@@ -458,14 +458,43 @@ GAZETTE_KINDS = (
 )
 
 
-def _gazette_block_class(plain: str) -> str | None:
-    """CSS class for a gazette title / recital / enacting line, else None."""
+def _gazette_block_class(plain: str, prev_kind: str | None = None,
+                         next_plain: str | None = None) -> str | None:
+    """CSS class for a gazette title / recital / enacting line, else None.
+
+    ``prev_kind`` and ``next_plain`` are the neighbouring rows, and a caller
+    that has them gets two extra refusals.  Both patterns below match ordinary
+    body prose, and neither can be tightened on its own text:
+
+      * "An" matches ``_GAZETTE_TITLE_RE`` under ``re.I``, but 11 uppercase
+        AN/ACT blocks sit inside numbered sections legitimately (a Finance Act
+        host clause reprinting a whole Act), and ``_GAZETTE_TABLE_CAPTION_RE``
+        returns "act-title" for 109 legitimate in-section TABLE captions -- so
+        neither dropping ``re.I`` nor gating on the preamble is available.
+      * "to provide real-time access ..." matches ``_GAZETTE_LONG_TITLE_RE``
+        but is the second half of Federal Excise s.47AB(1).
+
+    What separates them is that a false positive CONTINUES a sentence: a short
+    title whose next line opens lower case, a long title whose previous block
+    is body text.  Callers with no neighbours to offer (the preamble builder)
+    pass nothing and keep the old behaviour.
+    """
     s = (plain or "").strip()
     if not s:
         return None
     if _GAZETTE_TITLE_RE.match(s) or _GAZETTE_TABLE_CAPTION_RE.match(s):
+        # A caption keeps its centring unconditionally -- it is a label, not a
+        # title, so the sentence it sits above says nothing about it.
+        if _GAZETTE_TABLE_CAPTION_RE.match(s):
+            return "act-title"
+        nxt = (next_plain or "").strip()
+        if nxt and nxt[:1].islower() and _gazette_block_class(nxt) is None:
+            return None     # the sentence runs on -- this is body text
         return "act-title"
     if _GAZETTE_LONG_TITLE_RE.match(s):
+        if prev_kind is not None and prev_kind != "" \
+                and prev_kind not in GAZETTE_KINDS:
+            return None     # a body row precedes it -- this is a wrapped line
         return "act-long-title"
     if _GAZETTE_RECITAL_RE.match(s):
         return "recital"
@@ -1336,6 +1365,7 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
     i = 0
     n = len(line_refs)
     prev_plain = ""
+    prev_kind = ""      # "" = nothing rendered yet, never a body row
     while i < n:
         if i in span_start:
             end = span_start[i]
@@ -1353,6 +1383,7 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
                 rows.append(("table", plain, html))
                 geoms.append((None, region[0].page))
                 prev_plain = plain
+                prev_kind = "table"
                 i = end
                 continue
         r = line_refs[i]
@@ -1370,12 +1401,19 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
             # becomes its own block instead of merging into a neighbour
             if subheads and kind in ("text", "htext") and _is_subheading(r.line, plain):
                 kind = "subhead"
-            gcls = _gazette_block_class(plain)
+            # the neighbours decide whether a gazette-shaped line is really a
+            # title or just the middle of a sentence -- see
+            # _gazette_block_class.  The NEXT line's raw text is enough (only
+            # its first character is read), so nothing is rendered twice.
+            nxt_plain = (line_refs[i + 1].line.text() if i + 1 < n else "")
+            gcls = _gazette_block_class(plain, prev_kind=prev_kind,
+                                        next_plain=nxt_plain)
             if gcls and kind in ("text", "htext", "subhead"):
                 kind = gcls
             rows.append((kind, plain, html))
             geoms.append((r.line, r.page))
             prev_plain = plain
+            prev_kind = kind
         i += 1
     return _layout_blocks(rows, geoms)
 
@@ -2406,6 +2444,8 @@ def is_structural_boundary(text: str, container_codes=None) -> bool:
 
 #: an em/en dash sitting BETWEEN two word characters ("customs–ports") -- a
 #: compound separator, not a heading terminator (see _words_after_heading_dash)
+#: Every dash glyph that can terminate a heading in this corpus.
+_DASH_CHARS = "\u2014\u2013\u2015\u2500-"
 _INTERIOR_DASH_RE = re.compile(r"[A-Za-z0-9][—–―─][A-Za-z0-9]")
 #: A run of 1-3 ASCII hyphens, and the same run closing a title ("period. --").
 #: The heading terminator is not always a single hyphen: Federal Excise Rules
@@ -2503,6 +2543,17 @@ def _words_after_heading_dash(words, allow_first=False):
                 # discarded and the section falls back to its TOC title.
                 if run_len:
                     head_suffix, oper_suffix = t[:run_len], t[run_len:]
+            # A terminator printed TWICE belongs entirely to the heading.  The
+            # pattern list above is scanned by rfind and returns on the first
+            # hit, so "documents.––" (Federal Excise 30-06-2025 p.66, s.47)
+            # split as "documents.–" + "–" and left the second dash at the head
+            # of the body -- which also stopped _classify seeing the "(1)" that
+            # followed, so the subsection rendered as a bare <p>.  Only a
+            # remainder that is NOTHING but dashes moves; operative text fused
+            # to the dash ("—The Federal Government") still goes to the body.
+            if oper_suffix and all(c in _DASH_CHARS for c in oper_suffix):
+                head_suffix += oper_suffix
+                oper_suffix = ""
             before = list(words[:i])
             if head_suffix:
                 before.append(replace(w, text=head_suffix))
@@ -3291,8 +3342,13 @@ def _build_one(entry, seg: list[LineRef], footnote_map, page_footnotes,
         else:
             rp, rh = _render_words(after_words, seg[d].page, footnote_map, page_offset)
             if rp.strip():
+                # s.43A breaks "...documents.– An / officer of federal excise"
+                # across pages 60/61, so this remainder row IS the stray "An".
+                # prev_kind "" -- nothing precedes it but the heading itself.
+                nxt_rp = (seg[d + 1].line.text() if d + 1 < len(seg) else "")
                 remainder_rows.append((
-                    _gazette_block_class(rp) or _classify(rp), rp, rh))
+                    _gazette_block_class(rp, prev_kind="", next_plain=nxt_rp)
+                    or _classify(rp), rp, rh))
 
             # Render the <h4> from the real PDF body heading: the full head lines
             # 0..d-1 plus the pre-dash words on line d.  This surfaces
