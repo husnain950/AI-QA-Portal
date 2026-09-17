@@ -33,7 +33,6 @@ for _p in (str(_ROOT), str(_ROOT / "packages")):
 
 from legal_ingest.builder import _classify  # noqa: E402
 
-
 #: The lines the 30-06-2025 edition actually prints, verbatim, as they reach
 #: ``_classify`` (the marker is a bare digit in the rendered plain text).
 MERGED = [

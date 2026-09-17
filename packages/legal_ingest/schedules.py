@@ -23,7 +23,6 @@ import re
 from .builder import (
     LineRef,
     _build_html,
-    _render_line,
     content_rows_with_tables,
 )
 from .footnotes import ref_sort_key
@@ -740,29 +739,24 @@ def _finish_leaf(node, seg, page_footnotes, footnote_map, printed_by_page):
     content_refs = refs[body_start:]
     cited: list[tuple[int, str]] = []
 
-    # a leading "[See ...]" reference line becomes the leaf's <h4> -- but ONLY
-    # when no title heading was peeled above it.  A leaf laid out as
-    # "RECOGNIZED PROVIDENT FUNDS / [See sections 2(48) ...]" keeps the title as
-    # its <h4> and renders the "[See ...]" line in the body; promoting the See
-    # ref would hide the title and drop the See text.
-    h4 = None
-    if not heading and content_refs \
-            and _SEE_RE.match(content_refs[0].line.text().strip()):
-        _, h4 = _render_line(content_refs[0].line, content_refs[0].page,
-                             footnote_map,
-                             _off(content_refs[0].page, printed_by_page), cited)
-        content_refs = content_refs[1:]
-
+    # A leading "[See ...]" reference line stays in the BODY.  It used to be
+    # promoted into the leaf's <h4> slot whenever no title had been peeled
+    # above it -- but a schedule's title is never among ``seg["lines"]`` in the
+    # first place (build_schedules keeps it in ``seg["head"]``), so "no title
+    # peeled" is the normal case for a schedule, not the exceptional one.  And
+    # because ``_render_line`` returns a bare fragment, the promotion shipped a
+    # leaf with no heading element at all: 237 leaves across 34 documents whose
+    # entire html was "[See Section 3]".  Falling through to the node's own
+    # code, which is already correct, is what the removed branch's comment said
+    # should happen -- keep the title, render the See line in the body.
     off_fn = lambda p: _off(p, printed_by_page)  # noqa: E731
     rows = content_rows_with_tables(content_refs, footnote_map, off_fn, cited,
                                     subheads=True)
 
     import html as _h
-    # h4 preference: a "[See ...]" reference line, else the descriptive heading
-    # (e.g. "Rate of Tax on Shipping ..."), else the structural code.
-    if h4 is not None:
-        head_html = h4
-    elif heading:
+    # h4 preference: the descriptive heading peeled above (e.g. "Rate of Tax
+    # on Shipping ..."), else the structural code.
+    if heading:
         head_html = f'<h4 class="section-heading">{_h.escape(heading)}</h4>'
     else:
         head_html = f'<h4 class="section-heading">{_h.escape(node["code"])}</h4>'

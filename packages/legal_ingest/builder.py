@@ -23,8 +23,12 @@ from statistics import median as _median
 
 from legal_contract import iter_document_roots
 
-from .footnotes import (BRACKETS_ONLY_RE, all_markers_anonymous,
-                        ref_sort_key, words_are_glued)
+from .footnotes import (
+    BRACKETS_ONLY_RE,
+    all_markers_anonymous,
+    ref_sort_key,
+    words_are_glued,
+)
 from .grammar import CODE, CODE_SUFFIXED, MARKER_PREFIX, is_code_like, norm_code
 
 # em dash / en dash that separates a heading from its text
