@@ -431,6 +431,12 @@ def _is_subheading(line, plain: str) -> bool:
     return cap / len(ws) >= 0.6                        # title-cased sub-heading
 
 
+#: How far left of a list's own items a "text" row must start before it counts
+#: as the parent level resuming rather than a wrapped continuation.  Clause
+#: items sit 36pt right of the body margin in this corpus, so 6pt is well
+#: inside the gap while absorbing ordinary jitter in the extracted x0.
+_LIST_PARENT_GAP = 6.0
+
 OL_STYLE = {
     "subsec": ('<ol class="subsection" style="list-style-type: none; '
                'padding-left: 0; margin-left: 1.5em;">'),
@@ -557,9 +563,11 @@ def _build_html(heading_html: str, content: list[tuple[str, str, str]]) -> str:
             if para.strip():
                 out.append(f"<p>{para}</p>")
             continue
-        if kind in ("text", "rule", "htext"):
-            # a paragraph.  'rule' / 'htext' start fresh; following plain 'text'
-            # lines merge in; consecutive 'htext' title lines merge together.
+        if kind in ("text", "rule", "htext", "ptext"):
+            # a paragraph.  'rule' / 'htext' / 'ptext' start fresh; following
+            # plain 'text' lines merge in; consecutive 'htext' title lines merge
+            # together.  'ptext' is a text row that returned to the body margin
+            # and so closed an open clause list -- see _render_line_run.
             buf = [htm]
             mergeable = ("text", "htext") if kind == "htext" else ("text",)
             i += 1
@@ -1370,6 +1378,10 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
     n = len(line_refs)
     prev_plain = ""
     prev_kind = ""      # "" = nothing rendered yet, never a body row
+    # the clause/roman list currently open, and the leftmost indent of ITS OWN
+    # items -- a "text" row further left than that is the parent level resuming
+    list_kind = None
+    list_x0 = None
     while i < n:
         if i in span_start:
             end = span_start[i]
@@ -1388,6 +1400,7 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
                 geoms.append((None, region[0].page))
                 prev_plain = plain
                 prev_kind = "table"
+                list_kind = list_x0 = None
                 i = end
                 continue
         r = line_refs[i]
@@ -1414,6 +1427,31 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
                                         next_plain=nxt_plain)
             if gcls and kind in ("text", "htext", "subhead"):
                 kind = gcls
+            # A clause list is closed by text that returns to the PARENT's
+            # margin.  Federal Excise 30-06-2025 s.38 sets clauses (a)-(c) at
+            # x0 162 and their wrapped lines at 180/186, then resumes the
+            # subsection stem -- "may apply, except where criminal proceedings
+            # have been initiated..." -- at 126.  Without this the stem, both
+            # provisos and the Explanation all rendered inside clause (c),
+            # making generally applicable text read as if it bound one clause.
+            #
+            # Only clause/roman lists close this way.  A subsec list must not:
+            # its items sit at 152-162 while its own continuations legitimately
+            # run at 126, so the same test would break every subsection
+            # paragraph in the corpus.
+            x0 = min((w.x0 for w in r.line.words), default=None)
+            if kind in ("clause", "roman"):
+                if kind != list_kind or list_x0 is None:
+                    list_kind, list_x0 = kind, x0
+                elif x0 is not None:
+                    list_x0 = min(list_x0, x0)
+            elif kind == "text":
+                if (list_x0 is not None and x0 is not None
+                        and x0 < list_x0 - _LIST_PARENT_GAP):
+                    kind = "ptext"
+                    list_kind = list_x0 = None
+            else:
+                list_kind = list_x0 = None
             rows.append((kind, plain, html))
             geoms.append((r.line, r.page))
             prev_plain = plain
