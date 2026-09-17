@@ -516,7 +516,10 @@ def render_grid(cells, rows=None) -> str:
     """
     return render_structure(_normalise_grid(cells, rows))
 
-_NUM_TOKEN = re.compile(r"^\(\d+\)$")
+#: A column-numbering token.  The bare ``(3)`` is the common spelling; the
+#: Federal Excise First/Third Schedule tariff tables label the same row
+#: ``Col.(1) Col.(2) ...``, which is one word per column, not two.
+_NUM_TOKEN = re.compile(r"^(?:Col\.?\s*)?\(\d+\)$")
 _BARE_NUM_TOKEN = re.compile(r"^\d{1,2}$")
 _ROWNUM = re.compile(r"^\d{1,3}\.$")
 
@@ -712,6 +715,62 @@ def _white_gap_between(region_refs, lo, hi):
     return best[1] if best and best[0] >= 4.0 else None
 
 
+def _valley_gap_between(region_refs, lo, hi):
+    """Midpoint of the widest LOW-occupancy valley strictly between ``lo`` and
+    ``hi``, or None -- the multi-page fallback for :func:`_white_gap_between`.
+
+    A table that runs over several printed pages never has a perfectly white
+    gutter.  Across the 221 data rows of the Federal Excise First Schedule
+    Table-I about 2% of rows put a word in each gutter (a wide serial bracket,
+    a long heading code), so the all-or-nothing white test finds nothing and
+    ``_boundaries`` falls back to the numbering labels' centre-midpoints.  Those
+    are only right when each label is centred over its own column, and this
+    source labels a narrow serial column ``Col.(1)`` -- a label wider than the
+    column it names, whose centre sits ~30pt right of the true boundary, so the
+    description column's left words are stolen into the serial column and every
+    wrapped row is shredded.
+
+    Tolerating a thin bridge instead of demanding none recovers the real gutter.
+    This runs ONLY where the white test already gave up, so a table that renders
+    correctly today keeps the boundary it has.
+    """
+    if region_refs is None:
+        return None
+    rows = [r for r in region_refs
+            if not _is_rule_line(r.line) and _words(r.line)]
+    if not rows:
+        return None
+    occ = {}
+    for ref in rows:
+        for w in _words(ref.line):
+            if w.x1 <= lo or w.x0 >= hi:
+                continue
+            for x in range(int(max(w.x0, lo)), int(min(w.x1, hi)) + 1):
+                occ[x] = occ.get(x, 0) + 1
+    # A gutter may be bridged by a few rows out of many, never by many rows out
+    # of a few, so the tolerance is a SHARE of the rows: under 20 rows it is 0
+    # and this degrades to the exact-white test.
+    # ponytail: flat 5% share, measured on this corpus; if a very tall table with
+    # one sparse column ever mis-splits, weight the valley by depth as well.
+    tol = len(rows) // 20
+    best = None                      # (width, midpoint)
+    run = None
+    for x in range(int(lo), int(hi) + 1):
+        if occ.get(x, 0) <= tol:
+            if run is None:
+                run = x
+        else:
+            if run is not None and x - run >= 4:
+                if best is None or x - run > best[0]:
+                    best = (x - run, (run + x) / 2)
+            run = None
+    if run is not None and int(hi) + 1 - run >= 4:
+        w = int(hi) + 1 - run
+        if best is None or w > best[0]:
+            best = (w, (run + int(hi) + 1) / 2)
+    return best[1] if best else None
+
+
 def _boundaries(num_words, region_refs=None):
     """Column boundaries between the ``(1) (2) ...`` / ``1 2 3`` token centres.
 
@@ -727,6 +786,8 @@ def _boundaries(num_words, region_refs=None):
     for i in range(len(centers) - 1):
         mid = (centers[i] + centers[i + 1]) / 2
         gap = _white_gap_between(region_refs, centers[i], centers[i + 1])
+        if gap is None:
+            gap = _valley_gap_between(region_refs, centers[i], centers[i + 1])
         bounds.append(gap if gap is not None else mid)
     bounds.append(float("inf"))
     return bounds
@@ -760,9 +821,33 @@ def _group_logical_rows(region_refs, bounds):
                     for x in _words(ref.line))
     dominant = sizes.most_common(1)[0][0] if sizes else 10.0
     rows = []
+    # A table that runs over several printed pages reprints its header block on
+    # every page.  Only the first is the thead; the rest are not data and must
+    # not become rows -- the Federal Excise Table-I reprints "S.No. ... / Col.(1)
+    # ..." nine times, and each copy rendered as a <tr> in the tbody, one of them
+    # with the previous row's wrapped tail glued into its Col.(2) cell.  Drop
+    # each repeat whole, from its header line through its numbering row, so the
+    # wrapped tail below it continues the row it belongs to.
+    seen_num = False
+    skip_left = 0            # lines still to drop in the repeat being skipped
     for ref in region_refs:
         if _is_rule_line(ref.line):
             continue  # dash/underscore separator -> not a row
+        if seen_num:
+            if skip_left:
+                skip_left -= 1
+                if _is_numbering_row(_words(ref.line)):
+                    skip_left = 0
+                continue
+            if _is_numbering_row(_words(ref.line)):
+                continue
+            if _is_header_start(ref.line):
+                # bounded so a lone "S. No." in a cell cannot eat the table; 8
+                # is the same window find_table_spans allows header -> numbering
+                skip_left = 8
+                continue
+        elif _is_numbering_row(_words(ref.line)):
+            seen_num = True
         # a superscript citation marker inside the table is wrapped in a
         # sentinel (on a COPY -- the Line's words stay pristine for plain_text)
         # so builder._expand_table_cites can render it as <sup class="cite">
@@ -781,9 +866,13 @@ def _assign(words, bounds):
     cols = [[] for _ in range(len(bounds) - 1)]
     for w in words:
         cols[_col_of(w, bounds)].append(w)
-    # read top-to-bottom, then left-to-right within each column
-    return [" ".join(x.text for x in sorted(c, key=lambda w: (round(w.top), w.x0))).strip()
-            for c in cols]
+    # Read top-to-bottom, then left-to-right within each column -- which is the
+    # order _group_logical_rows already appended the words in, one line at a
+    # time, each line sorted by x0.  Do NOT re-sort on ``top``: a row that runs
+    # across a page break carries words from two pages, and top restarts at the
+    # head of each one, so sorting put the continuation BEFORE the text it
+    # continues (Federal Excise Table-I serial 6).
+    return [" ".join(x.text for x in c).strip() for c in cols]
 
 
 def render_table(region_refs) -> str:
