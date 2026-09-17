@@ -45,7 +45,10 @@ for _p in (str(_ROOT), str(_ROOT / "packages")):
 from legal_ingest.builder import LineRef  # noqa: E402
 from legal_ingest.pagemodel import Line, Word  # noqa: E402
 from legal_ingest.tables import (  # noqa: E402
-    _boundaries, find_table_spans, render_table)  # noqa: E402
+    _boundaries,
+    find_table_spans,
+    render_table,
+)
 
 #: measured left edge of each column on page 73
 COL = (139.0, 174.1, 319.0, 406.0)
@@ -227,8 +230,10 @@ def test_the_cell_join_does_not_fuse_a_wrapped_line_onto_the_one_above():
     Here "ten" ends at 410.0 and "per" starts at 411.0 -- a 1.0pt gap, inside
     ``GLUE_MAX_GAP`` -- so without ``_SAME_LINE_DTOP`` the cell reads "tenper".
     """
-    W = lambda t, x0, x1, top: Word(text=t, x0=x0, x1=x1, top=top, size=10.0,
-                                    fontname="TimesNewRomanPSMT")
+    def W(t, x0, x1, top):
+        return Word(text=t, x0=x0, x1=x1, top=top, size=10.0,
+                    fontname="TimesNewRomanPSMT")
+
     lines = _header() + _data(20)
     refs = _refs(lines)
     refs += [
