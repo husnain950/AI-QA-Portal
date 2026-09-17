@@ -139,6 +139,83 @@ spelling. Defects 2–4 are general and the port is logged as its own row.
 
 ---
 
+## The measurement
+
+Every staged source converted twice -- once by a worktree pinned at the merge
+commit `7777d25`, once by this branch -- and the two outputs diffed leaf by leaf.
+**168 sources, 119 convertible** (the other 49 are refused as `no_text_layer` or
+`arabic_script`; one of them, `Finance Act, 2020.pdf`, spends half an hour in OCR
+on BOTH trees before being refused under the fidelity floor).
+
+| | |
+|---|---|
+| documents compared | **119** |
+| documents changed | **17** — every one a Federal Excise edition |
+| documents byte-identical | **102** |
+| `<table>` | **+51** (each edition +3) |
+| `<tr>` | **+1,933** |
+| `<p>` | **−607** |
+| leaves | **+0** |
+| footnote records | **+0** |
+| bound citations | **−36** |
+| unresolved markers | **−181** |
+
+The changed set is exactly the census population, which is the check that the
+fix reaches its class and nothing else.
+
+**The two negative numbers are both improvements, and both were checked rather
+than assumed.**
+
+- **Citations −36.** Nine editions lose exactly 4 each. They are the *reprinted*
+  header's marker on the Table-II continuation pages: page 84's header carries
+  `1[Services]`, and so do pages 85, 86 and 87. Measured per document, **no
+  DISTINCT cite id disappeared or appeared anywhere in the corpus** — each
+  marker is still rendered once, in the thead. Only the duplicate reprints are
+  gone, which is what dropping a reprinted header block means.
+- **Unresolved markers −181.** These were *false* markers: ordinary serial
+  numerals inside a tariff cell read as citations — the same FS-03/04/05/08
+  class round 38 fixed. `[19 & 20]` on page 76 rendered `19` and `20` as
+  `<sup class="marker">`; they are now plain cell text with the row's real
+  citation `76.4` still in place.
+
+**`plain_text` moved on 9 of the 17, and on all 9 it is identical once
+whitespace is removed** — no word gained, lost or reordered. The remaining 8 are
+byte-identical in text.
+
+**Invariants: the register does not move.** The acts lane runs 68 documents;
+**67 clean on both trees**, and the one failure — `clause_codes_plausible` on
+*The Pakistan Single Window Act, 2021* — is **byte-identical on the pre-round
+tree** and is not in the changed set. On the reviewer's own edition the suite is
+**65/65 invariants, 17/17 regression cases, 0 exemptions**. The rules and
+ordinance lanes are unchanged by construction: every one of their outputs is
+byte-identical.
+
+---
+
+## The regression this round found in itself
+
+With the tariff tables rendering, `no_split_ordinals` went **65/65 → 64/65**:
+`or before the 30 th June, 2020`. The hit was real, and it was **not caused by
+the change but revealed by it** — the table path has always built its text with
+`" ".join`, and only now does that region take the table path.
+
+There were **two** joins:
+
+- `builder._render_line_run` took the region's `plain_text` from `Line.text()`,
+  which spaces every word. It now reuses `_render_line`, so text reads the same
+  inside a table as outside it.
+- `tables._assign` had the same `" ".join` for the **cell**, so the rendered html
+  still showed `30 th June` after `plain_text` was already right. `_join_cell`
+  now applies `footnotes.words_are_glued` — the rule body prose has always used
+  for this shape.
+
+That second fix also corrects tables that already rendered: `2 [Omitted.]`
+becomes `2[Omitted.]`, which is how a citation marker kerned onto its bracket
+renders everywhere else in the corpus. Checked against the source before it was
+accepted: page 89 prints `1(1)` as a **single glyph run**, x0 143 to x1 161.
+
+---
+
 ## What this round does NOT close
 
 **THIRD SCHEDULE Table-I is still prose**, and it is a different defect. Its
@@ -156,3 +233,29 @@ bundled into this one.
 
 So of the two held rows: **FS-02 closed**, **FS-07 half closed** (Third Schedule
 Table-II renders; Table-I does not).
+
+
+---
+
+## The gates, and which of them were nearly worthless
+
+Seven tests. Six fail on a worktree pinned at `7777d25`; the seventh is a guard
+on a rule this round introduces, so it was checked by **deleting the guard**
+instead.
+
+**Three of the seven were no-ops when first written**, and each is recorded here
+because the failure mode is the same every time — a test that passes for a
+reason other than the one it names:
+
+1. The boundary test asserted on the rendered cells, so it failed on the
+   pre-round tree only because no span existed at all. Rewritten to assert on
+   `_boundaries` directly, with the bare `(1)` spelling, so the defect it names
+   is the defect it measures.
+2. The wrapped-cell test pinned behaviour that already worked, because a short
+   fixture has a clean white gutter. It now carries the multi-page condition —
+   40 rows, two bridging — so it depends on the valley boundary.
+3. The `_SAME_LINE_DTOP` guard test passed with the guard deleted: in a
+   LEFT-aligned column the cross-line gap is negative and the `0 <=` bound
+   already refuses to glue. Only a **centred** column reaches the guard, so the
+   fixture now wraps the Rate column, where a line ends 1.0pt to the left of
+   where the next one starts.
