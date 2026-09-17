@@ -2498,6 +2498,117 @@ def _demo_code_fragment_in_heading() -> None:
 
 #: Invariant *order* for the Acts and the Rules lanes, whose ALL_INVARIANTS lists were
 #: byte-identical. The Ordinance lane runs a different set and passes its own order.
+
+# --- QA Cycle 1: four classes a reviewer found one instance of each ----------
+#
+# Each of these was measured across the staged corpus before it was written, so
+# each can be verified to fail by reverting its fix.  The counts in the
+# docstrings are the pre-fix baselines.
+
+_MARKER_SUP = re.compile(r'<sup class="marker"[^>]*>')
+#: a leaf's html opening on a "[See ...]" reference instead of its own heading
+_OPENS_ON_SEE = re.compile(r'^\s*(?:<[^>]+>\s*)*[\[(]?\s*See\b', re.IGNORECASE)
+#: a body block opening on a bare dash, straight after the heading
+_ORPHAN_DASH = re.compile(
+    r'</h4>\s*<(?:p|ol[^>]*)>(?:<li>)?\s*[\u2014\u2013\u2015\u2500-](?:\s|&)')
+#: a citation immediately before a TABLE caption
+_CITE_ON_TABLE = re.compile(
+    r'<sup class="(?:cite|marker)"[^>]*>[^<]*</sup>\s*(?:<strong>\s*)?TABLES?\b',
+    re.IGNORECASE)
+#: a centred gazette title block, and the block that follows it
+#: a gazette title block, and the opening of whatever block follows it.  The
+#: next block's OWN text is what matters, so the pattern steps over the
+#: whitespace and the opening tag -- stopping at the lookahead instead (as a
+#: first attempt did) captured only the newline between them and the invariant
+#: could never fire.
+_GAZETTE_P = re.compile(
+    r'<p class="act-(title|long-title)">(.*?)</p>\s*'
+    r'(?:<(?:p|ol|h4)[^>]*>)?([\s\S]{0,90})')
+_TAGS = re.compile(r'<[^>]+>')
+
+
+def inv_leaf_html_opens_with_its_heading(doc):
+    """A leaf must render its own heading, not a bare "[See ...]" reference.
+
+    ``schedules._finish_leaf`` used to promote a leading "[See section N]" line
+    into the <h4> slot whenever no title had been peeled above it -- which is
+    the NORMAL case for a schedule, because build_schedules keeps the title out
+    of band in ``seg["head"]``.  Since ``_render_line`` returns a bare
+    fragment, those leaves shipped with no heading element at all.
+
+    Baseline before the fix: 237 leaves across 34 documents, among them FIRST
+    SCHEDULE x17, SIXTH SCHEDULE x17, EIGHTH SCHEDULE x17, THE THIRD SCHEDULE
+    x20 and PART II / PART III x12 each.
+    """
+    bad = []
+    for leaf in iter_all_leaves(doc):
+        html = (leaf.get("html") or "").strip()
+        if html and not html.startswith("<h4") and _OPENS_ON_SEE.match(html):
+            bad.append(f"{leaf.get('code')}: leaf html opens on a See reference, "
+                       f"no heading: {_TAGS.sub('', html)[:60]!r}")
+    return bad
+
+
+def inv_no_orphaned_heading_terminator(doc):
+    """A heading's terminator belongs to the heading, not to the body line.
+
+    ``_words_after_heading_dash`` returned on the first dash it matched, so a
+    doubled terminator ("documents.--", Federal Excise 30-06-2025 p.66) left
+    its second dash at the head of the body -- which also hid the "(1)" behind
+    it from ``_classify``.
+
+    Baseline before the fix: 412 leaves across 30 documents.
+    """
+    bad = []
+    for leaf in iter_all_leaves(doc):
+        if _ORPHAN_DASH.search(leaf.get("html") or ""):
+            bad.append(f"{leaf.get('code')}: body opens on an orphaned heading dash")
+    return bad
+
+
+def inv_no_cite_on_a_table_caption(doc):
+    """A TABLE caption carries no citation of its own.
+
+    ``Word.marker_max`` was derived from the DOCUMENT's modal body size, so in
+    a schedule set below that size the caption's own numeral ("TABLE 1") read
+    as a superscript and the table title acquired a footnote.
+
+    Baseline before the fix: 20 across 11 documents (TABLE 1 x17).
+    """
+    bad = []
+    for leaf in iter_all_leaves(doc):
+        for m in _CITE_ON_TABLE.finditer(leaf.get("html") or ""):
+            bad.append(f"{leaf.get('code')}: citation on a TABLE caption: "
+                       f"{_TAGS.sub('', m.group(0))[:40]!r}")
+    return bad
+
+
+def inv_gazette_title_is_not_a_continuation(doc):
+    """A centred gazette title is never the middle of a sentence.
+
+    ``_GAZETTE_TITLE_RE`` is compiled re.I, so the word "An" ending a page
+    matched the gazette title "AN"; ``_GAZETTE_LONG_TITLE_RE`` matched any
+    wrapped line opening "to provide|amend|levy|...".  Both rendered as centred
+    title blocks in the middle of a subsection.
+
+    A legitimate gazette title is followed by another gazette line or by a
+    capitalised one; the 109 in-section ``TABLE`` captions are labels, not
+    titles, and are not checked.
+    """
+    bad = []
+    for leaf in iter_all_leaves(doc):
+        for m in _GAZETTE_P.finditer(leaf.get("html") or ""):
+            kind, inner, after = m.group(1), m.group(2), m.group(3)
+            title = _TAGS.sub("", inner).strip()
+            if kind == "title" and re.fullmatch(r"TABLES?", title, re.IGNORECASE):
+                continue
+            nxt = _TAGS.sub("", after).strip()
+            if nxt[:1].islower():
+                bad.append(f"{leaf.get('code')}: act-{kind} {title[:24]!r} is "
+                           f"continued by {nxt[:34]!r}")
+    return bad
+
+
 _ORDER = [
     "no_glued_marker_digit",
     "no_bare_footnote_marker_line",
@@ -2560,6 +2671,11 @@ _ORDER = [
     "document_carries_its_text",
     "clause_codes_plausible",
     "contract_complete",
+    # QA Cycle 1
+    "leaf_html_opens_with_its_heading",
+    "no_orphaned_heading_terminator",
+    "no_cite_on_a_table_caption",
+    "gazette_title_is_not_a_continuation",
 ]
 
 

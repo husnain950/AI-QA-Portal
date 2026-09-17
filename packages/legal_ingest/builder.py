@@ -40,7 +40,7 @@ DASHES = "—–-"
 HEAD_SPLIT_RE = re.compile(r"[.,]\s*[" + DASHES + r"]")
 
 SUBSEC_RE = re.compile(r"^\((\d+[A-Z]{0,3})\)")          # (1) (1A) (12) (1AAA)
-CLAUSE_RE = re.compile(r"^\(([a-z]{1,3})\)")
+CLAUSE_RE = re.compile(r"^\(([a-z]{1,3})\)")             # (a) (aa) (bb)
 #: A marker kerned onto the list marker that follows it, no space and no
 #: bracket -- "4(1AB)", "2(d)".  The lookahead is the whole guard: it must be
 #: a "(" with nothing between, or an ordinary "233 (2A)" would be stripped too.
@@ -50,7 +50,7 @@ _KERNED_MARKER_RE = re.compile(r"^[\d*]+(?=\()")
 _RENUMBERED_SUBSEC_RE = re.compile(r"^[\d*]*\[(\d+[A-Z]{0,3})\]\s+[A-Z]")
 #: "3[***]" -- an omitted subsection.  Asterisks only; digits would make it an
 #: omitted SECTION, which claim_placeholder_lines owns.
-_OMITTED_SUBSEC_RE = re.compile(r"^[\d*]*\[\s*\*+\s*\]$")             # (a) (aa) (bb)
+_OMITTED_SUBSEC_RE = re.compile(r"^[\d*]*\[\s*\*+\s*\]$")
 # Roman-numeral sub-clause markers 1-99.  Romans in this range use only i/v/x/l,
 # so lettered clauses (c)/(d)/(m) never collide; the one genuine ambiguity is a
 # BARE "(l)" (roman 50 vs the 12th lettered clause), excluded by the lookahead so
