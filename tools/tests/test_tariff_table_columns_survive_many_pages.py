@@ -189,3 +189,56 @@ def test_a_row_that_crosses_a_page_break_keeps_its_reading_order():
     html = render_table(refs)
     row = [r for r in _cells(html) if r and r[0].strip() == "9"][0]
     assert row[1] == "first half of the description and its continuation", row
+
+
+def test_a_cell_joins_its_words_the_way_prose_does():
+    """A raised ordinal must not be split by the cell join.
+
+    ``_assign`` joined a column's words with a plain space, which splits what
+    the source prints as ONE token.  Page 82 sets the "th" of "30th June, 2020"
+    3pt above its number, so the cell read "the 30 th June, 2020" and the leaf's
+    plain_text with it -- a ``no_split_ordinals`` hit, raised the moment this
+    region became a table.  Body prose has always glued these
+    (``footnotes.words_are_glued``); a cell now uses the same rule.
+    """
+    num = Word(text="30", x0=174.1, x1=185.5, top=260.0, size=10.0,
+               fontname="TimesNewRomanPSMT")
+    suffix = Word(text="th", x0=185.5, x1=192.0, top=257.0, size=7.0,
+                  fontname="TimesNewRomanPSMT")   # raised 3pt, no space glyph
+    tail = [Word(text=t, x0=x, x1=x + 5.7 * len(t), top=260.0, size=10.0,
+                 fontname="TimesNewRomanPSMT")
+            for t, x in (("June,", 196.0), ("2020", 228.0))]
+    serial = Word(text="77", x0=COL[0], x1=COL[0] + 11.4, top=260.0, size=10.0,
+                  fontname="TimesNewRomanPSMT")
+    refs = _refs(_header() + _data(20)) + [
+        LineRef(page=73, line=Line(top=260.0, words=[serial, num, suffix] + tail))]
+    row = [r for r in _cells(render_table(refs)) if r and r[0].strip() == "77"]
+    assert row and row[0][1] == "30th June, 2020", row
+
+
+def test_the_cell_join_does_not_fuse_a_wrapped_line_onto_the_one_above():
+    """The guard on the rule above, not a pre-round defect.
+
+    A cell's words come from several printed lines.  In a LEFT-aligned column
+    the next line restarts left of where the last one ended, so the gap is
+    negative and the x-test alone already refuses to glue.  A centred or
+    right-aligned column is the case that bites: the Rate column wraps, and a
+    line can end within glue distance to the LEFT of where the next one starts.
+    Here "ten" ends at 410.0 and "per" starts at 411.0 -- a 1.0pt gap, inside
+    ``GLUE_MAX_GAP`` -- so without ``_SAME_LINE_DTOP`` the cell reads "tenper".
+    """
+    W = lambda t, x0, x1, top: Word(text=t, x0=x0, x1=x1, top=top, size=10.0,
+                                    fontname="TimesNewRomanPSMT")
+    lines = _header() + _data(20)
+    refs = _refs(lines)
+    refs += [
+        LineRef(page=73, line=Line(top=700.0, words=[
+            W("88", COL[0], COL[0] + 11.4, 700.0),
+            W("alpha", COL[1], COL[1] + 28.5, 700.0),
+            W("ten", 396.0, 410.0, 700.0)])),
+        # the wrapped tail of the centred Rate cell, one printed line below
+        LineRef(page=73, line=Line(top=713.0, words=[W("per", 411.0, 428.0, 713.0)])),
+    ]
+    row = [r for r in _cells(render_table(refs)) if r and r[0].strip() == "88"]
+    assert row, "serial 88 row not found"
+    assert row[0][3] == "ten per", row[0]

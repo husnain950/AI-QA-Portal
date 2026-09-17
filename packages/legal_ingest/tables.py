@@ -872,7 +872,41 @@ def _assign(words, bounds):
     # across a page break carries words from two pages, and top restarts at the
     # head of each one, so sorting put the continuation BEFORE the text it
     # continues (Federal Excise Table-I serial 6).
-    return [" ".join(x.text for x in c).strip() for c in cols]
+    return [_join_cell(c) for c in cols]
+
+
+#: A cell's words may come from several printed lines, and the next line
+#: restarts at the column's left edge -- so ``x0 - prev_x1`` is NEGATIVE across a
+#: line break and the x-only glue test would fuse a wrapped line onto the one
+#: above.  A raised ordinal sits ~3pt above its number while the line pitch on
+#: these pages is ~13pt, so this separates the two cleanly.
+#: ponytail: fixed 6pt, measured on this corpus; if an edition ever sets a
+#: tighter pitch, take the line identity from _group_logical_rows instead.
+_SAME_LINE_DTOP = 6.0
+
+
+def _join_cell(words) -> str:
+    """Join a cell's words the way body prose is joined.
+
+    A plain ``" ".join`` splits what the source prints as ONE token: a raised
+    ordinal ("30" + "th", read as "30 th June, 2020" -- a ``no_split_ordinals``
+    hit the moment a region becomes a table) and a citation marker kerned onto
+    its bracket ("2" + "[Omitted.]").  ``footnotes.words_are_glued`` is the rule
+    the prose renderer already uses for exactly this; it compares x alone, so
+    the vertical guard above is added for the multi-line case.
+    """
+    from .footnotes import GLUE_MAX_GAP
+    out, prev = [], None
+    for w in words:
+        if (out and prev is not None
+                and abs(w.top - prev.top) <= _SAME_LINE_DTOP
+                and 0 <= w.x0 - prev.x1 < GLUE_MAX_GAP
+                and not getattr(w, "space_before", False)):
+            out[-1] += w.text
+        else:
+            out.append(w.text)
+        prev = w
+    return " ".join(out).strip()
 
 
 def render_table(region_refs) -> str:
