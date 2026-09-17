@@ -87,6 +87,22 @@ def test_the_heading_still_ends_in_a_dash():
         assert head[-1] in DASHES, head
 
 
+def test_a_terminator_doubled_as_a_separate_token_also_stays():
+    # Sales Tax 1990 (01-07-2014) p.14 prints three tokens -- "4[2." /
+    # "Definitions." + U+2015 / U+2015 -- so the second dash is a WORD of its
+    # own, not fused.  50 leaves of that document opened on it.
+    head, body = split("2. Definitions.\u2015 \u2015 In this Act, unless there is anything")
+    assert head == "2. Definitions.\u2015 \u2015"
+    assert body.startswith("In this Act,")
+
+
+def test_only_dash_tokens_are_absorbed():
+    # a word after the terminator is body text, however short
+    head, body = split("5. Change in the rate of tax. \u2013 If there is a change")
+    assert head.rstrip().endswith("\u2013")
+    assert body.startswith("If there is a change")
+
+
 def test_operative_text_fused_to_the_dash_is_still_body():
     # the oper_suffix path must survive: only a DASH-ONLY remainder moves
     head, body = split("20. Delegation.—The Federal Government may")

@@ -2511,10 +2511,17 @@ _OPENS_ON_SEE = re.compile(r'^\s*(?:<[^>]+>\s*)*[\[(]?\s*See\b', re.IGNORECASE)
 #: a body block opening on a bare dash, straight after the heading
 _ORPHAN_DASH = re.compile(
     r'</h4>\s*<(?:p|ol[^>]*)>(?:<li>)?\s*[\u2014\u2013\u2015\u2500-](?:\s|&)')
-#: a citation immediately before a TABLE caption
+#: a citation in a heading, immediately before a TABLE caption that carries a
+#: number.  Restricted to the <h4> because "Table" also opens footnote prose
+#: ("368 Table substituted by Notification ..."), and the marker's own value is
+#: compared with the caption's, because a table INSERTED by an amendment does
+#: legitimately carry a marker -- Sales Tax 1990 prints "144.1 TABLE-2" and
+#: "84.1 TABLE 2" and page 148 shows no marker on the caption itself.  What is
+#: never right is the caption's OWN numeral read as the marker.
 _CITE_ON_TABLE = re.compile(
-    r'<sup class="(?:cite|marker)"[^>]*>[^<]*</sup>\s*(?:<strong>\s*)?TABLES?\b',
-    re.IGNORECASE)
+    r'<h4[^>]*>(?:(?!</h4>).)*?<sup class="(?:cite|marker)"[^>]*>'
+    r'[^<]*?\.(\d+)</sup>\s*(?:<strong>\s*)?TABLES?\s*[-\u2013\u2014]?\s*(\d+)',
+    re.IGNORECASE | re.DOTALL)
 #: a centred gazette title block, and the block that follows it
 #: a gazette title block, and the opening of whatever block follows it.  The
 #: next block's OWN text is what matters, so the pattern steps over the
@@ -2578,8 +2585,10 @@ def inv_no_cite_on_a_table_caption(doc):
     bad = []
     for leaf in iter_all_leaves(doc):
         for m in _CITE_ON_TABLE.finditer(leaf.get("html") or ""):
-            bad.append(f"{leaf.get('code')}: citation on a TABLE caption: "
-                       f"{_TAGS.sub('', m.group(0))[:40]!r}")
+            if m.group(1) != m.group(2):
+                continue        # a real marker on a table an amendment added
+            bad.append(f"{leaf.get('code')}: the caption's own numeral is a "
+                       f"citation: {_TAGS.sub('', m.group(0))[-40:]!r}")
     return bad
 
 

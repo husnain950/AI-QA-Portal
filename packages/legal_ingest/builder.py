@@ -2599,6 +2599,18 @@ def _words_after_heading_dash(words, allow_first=False):
             before = list(words[:i])
             if head_suffix:
                 before.append(replace(w, text=head_suffix))
+            # ...and the doubled terminator may be a SEPARATE TOKEN rather than
+            # fused: Sales Tax 1990 (01-07-2014) p.14 prints "4[2." /
+            # "Definitions." + U+2015 / U+2015, three tokens, and the lone dash
+            # was left to open the body on 50 leaves of that document alone.
+            # Same rule as the fused case above -- a dash-only token after the
+            # terminator belongs to the heading.
+            j = i + 1
+            while j < len(words) and words[j].text.strip() \
+                    and all(c in _DASH_CHARS for c in words[j].text.strip()):
+                before.append(words[j])
+                j += 1
+            i = j - 1
             # EVERY word after the heading dash on this line is operative body
             # text and must shed the heading's bold, not just a token fused to
             # the dash.  The Customs Act sets the whole heading line bold and
