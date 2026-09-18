@@ -184,6 +184,33 @@ zone made of SCHEDULE TARIFF ROWS -- 10 false records reading `S. No. Taxable In
 Tax`. Finance Act 2019 already ships 95 of those. **Before believing a new footnote zone,
 check WHERE the candidate's words sit on the page**, not just how many there are.
 
+**A promotion guard is not a demotion rule.** Round 41 earned the test "at least half of
+this size's words sit in the bottom 40% of the page" and used it to decide whether a
+CANDIDATE footnote size may be promoted. Round 44 measured turning the same test around --
+does this document deserve the zone it has? -- and it demotes **38 documents, 26 of them
+staged, including every Customs Act edition at 31-44%**, because Customs prints its notes on
+whole COLLECTOR PAGES after each body run, where there is no body text for them to sit below.
+A per-page variant ("the footnote text starts below where the body text ends") is no better:
+it demotes 9 staged documents whose records are 92-100% real notes, because a dense apparatus
+continues from the previous page and therefore starts at the top. **A test that is sound in
+one direction can be destructive in the other; measure the reversal before reusing it.**
+
+**A clean size split can still be wrong about what it separates.** Finance Act 2019 sets its
+schedule tariff tables at 8.0pt against an 11.0pt body, so `calibrate` finds a textbook
+body/footnote pair and everything under the cut is TABLE: 95 footnote records, 5 bound, none
+reading like a note. **Ask the zone what it holds**, with
+`pagemodel._is_amendment_note` -- whose own docstring already carried the measurement
+("97.7% of real footnotes match; a body rate/penalty TABLE cell never does"). And put a
+SAMPLE FLOOR on the question: Customs Rules 2001's size zone holds 24 lines and no notes
+because its apparatus is printed once at the end at body size, and it carries 419 real
+records. A thin zone is not evidence of absence.
+
+**A duplicate record moves no words.** Round 44's 95 false records each carried a `text` and
+an `html` copy of text that ALSO remained in the body, so removing them dropped 2,122 words
+from the file and changed the body by nothing -- `Cocoa powder` went 9 occurrences to 2, and 2
+is the floor (the leaf's `plain_text` plus its `html`). Count a probe's occurrences, not the
+total: the total falls in exactly the way a real loss would.
+
 **Measure the invariant fix and the parser fix separately**, on identical JSON for the
 first. Nearly every class is part wrong-invariant and part real defect, and a single total
 hides both. `no_footnote_text_in_body` was 45 hits that were *all* a `title=` attribute —

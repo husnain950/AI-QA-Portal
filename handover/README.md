@@ -54,6 +54,16 @@ footnote zone actually sit at the foot of the page. **Exactly one document in th
 changes.** The row's rider did **not** fire. Artifact:
 [`wip/phase3-round41-second-body-calibration.md`](../wip/phase3-round41-second-body-calibration.md).
 
+**Round 44 closed a defect no invariant could see.** Finance Act 2019 shipped **95 footnote
+records, 5 bound, none reading like a note** — its schedule tariff tables are set at 8.0pt
+against an 11.0pt body, so the size split was textbook and everything under it was table. It
+now ships 0 and **no body text moves**: every record was a duplicate copy of text that never
+left the body. The rule asks whether the zone actually holds notes, with a sample floor that
+protects Customs Rules 2001 (24 zone lines, 419 real records from its terminal body-size
+apparatus). **Round 41's position test was measured in reverse first and is destructive that
+way** — it demotes every Customs Act edition. Artifact:
+[`wip/phase3-round44-zone-must-hold-notes.md`](../wip/phase3-round44-zone-must-hold-notes.md).
+
 **Round 42 closed row 14, the last ranked row.** Customs Rules 2001 goes from **41 chapters
 to 43**, with rule **89** recovered. `builder._STRUCT_DECOR_RE` knew only whitespace between
 stacked amendment markers, so `41&46 [CHAPTER VIII` and `2&30 [CHAPTER XIV` were never
