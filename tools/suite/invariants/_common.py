@@ -481,7 +481,14 @@ _STRUCT_LINE = re.compile(
     r"DIVISION\s+[IVXLC0-9]+[A-Z]{0,2})$", re.IGNORECASE)
 
 
-_STRUCT_DECOR = re.compile(r"^(?:[\d*]{1,3}\s*|\[+\s*)+")
+# Kept in step with ``builder._STRUCT_DECOR_RE`` -- an INDEPENDENT reader, but
+# not one that may disagree (``test_structural_boundary_agrees_with_grammar``).
+# A marker RUN may be separated by ``,``/``&``/``/``, which is the set
+# ``grammar._MARKER_RUN_SEP_RE`` lists: Customs Rules 2001 prints
+# ``2&30 [CHAPTER XIV``.  An opening quote is NOT decoration -- see the parser's
+# comment, and ``_QUOTE_CUE`` below, which is this file's own refusal of it.
+_STRUCT_DECOR = re.compile(
+    r"^(?:[\d*]{1,3}(?:\s*[,&/]\s*[\d*]{1,3})*\s*|\[+\s*)+")
 
 
 # A repealed Part/Division heading QUOTED below an amendment note is legitimate

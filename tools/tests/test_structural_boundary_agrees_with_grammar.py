@@ -44,6 +44,13 @@ BOUNDARIES = [
     # The gap located in round 18 is now a passing boundary case: twenty Customs
     # editions print the first two, and Sales Tax Rules prints the latter two.
     "CHAPTER – VI", "CHAPTER – VII", "CHAPTER – V", "CHAPTER – VIAB",
+    # round 42: a marker RUN closed by a separator the decoration strip did not
+    # know.  ``grammar.MARKER_PREFIX`` has admitted ``,`` and ``&`` since the
+    # round that measured them; this was the second, narrower implementation.
+    # Customs Rules 2001 prints both of these, and CHAPTER VIII and CHAPTER XIV
+    # were absent from its tree because of them.
+    "2&30 [CHAPTER XIV", "41&46 [CHAPTER VIII",
+    "6,71,76,81[CHAPTER XI", "1/2 [PART III",
 ]
 
 #: Lines that are NOT -- read with no ``container_codes``, which is what every
@@ -68,6 +75,16 @@ NOT_BOUNDARIES = [
     "Chapter-V of this Act;", "Chapter VII of", "Chapter X or", "Part V of",
     "Division III of", "chapter 87 35", "Chapter XII]",
     "PART-II", "PART-2", "34[PART-3", "PART-I",
+    # round 42: an opening QUOTE is not decoration, and this is why.  Customs
+    # Act 1969 p219 prints this line under "At the time of omission section
+    # 196-K to 196-U were as under:" -- it opens QUOTED REPEALED TEXT.  The live
+    # CHAPTER XIX-A is already cut from "1 [ CHAPTER XIX-A" sixteen lines above,
+    # so accepting this would mint a duplicate chapter and re-parent eleven
+    # repealed sections as law, in at least twenty Customs editions.  Customs
+    # Rules 2001's "Chapter XX IS a substituted caption and stays unrecovered:
+    # telling the two apart needs quote-territory tracking.
+    "\u201cChapter XIX-A", "\u201cChapter XX",
+    "\u201cChapter VIII of Customs Rules,2001;",
 ]
 
 
