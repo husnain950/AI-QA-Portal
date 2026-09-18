@@ -454,3 +454,158 @@ def test_the_live_push_reaches_the_refresh_it_planned(tmp_path, monkeypatch, cap
     assert if_match == "v7", "replace-json is precondition-gated on the active version"
     assert b'name="corpus_lane"' in body and b"customs" in body
     assert b'name="source_key"' in body and b'name="corpus_origin"' in body
+
+
+def _fake_response():
+    class FakeResponse:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b"null"
+    return FakeResponse()
+
+
+def test_a_write_that_landed_is_not_replayed(tmp_path, monkeypatch, capsys):
+    """The retry used to replay a write that had already committed.
+
+    `send` rebuilt nothing between attempts: the same body, the same `If-Match`.  A
+    refresh that failed at the edge but committed server-side therefore came back as
+    `409 stale_version` on attempt 2 -- and one that was still inside its `FOR UPDATE`
+    came back as a `500`, attempt 2 having aborted on the 3s request lock timeout.
+    Round 47 reported four such failures on four documents that were already correct,
+    and only a second full run revealed it.  Re-reading the one document says which
+    happened, so a landed write is counted as sent and never sent twice.
+    """
+    import io
+    import urllib.error
+
+    body_file = tmp_path / "a.json"
+    body_file.write_text('{"ok": 1}', encoding="utf-8")
+    local = push_corpus.LocalDoc(10, "Drifted Act", "a.pdf", str(body_file), "customs",
+                                 "Drifted Act", "acts", None)
+    landed_name = "json/" + blob_store.sha256_file(str(body_file)) + ".json"
+
+    posts = []
+
+    def edge_failure(request, timeout=0):
+        posts.append((request.full_url, request.get_header("If-match")))
+        raise urllib.error.HTTPError(
+            request.full_url, 502, "Bad Gateway", {}, io.BytesIO(b"upstream gone")
+        )
+
+    monkeypatch.setattr(push_corpus, "build_opener", lambda: object())
+    monkeypatch.setattr(push_corpus, "login", lambda *a, **k: {"email": "a@b.c", "role": "admin"})
+    monkeypatch.setattr(push_corpus, "local_documents", lambda: [local])
+    monkeypatch.setattr(push_corpus.time, "sleep", lambda s: None)
+    # The write lands server-side despite the edge error, so the remote shows the
+    # local bytes from the moment the first POST has been attempted.
+    monkeypatch.setattr(push_corpus, "existing_docs", lambda: {
+        "key:Drifted Act": {
+            "id": "id-1",
+            "version": "v8" if posts else "v7",
+            "json_filename": landed_name if posts else "json/" + "0" * 64 + ".json",
+        }
+    })
+    monkeypatch.setattr(push_corpus, "open_url", edge_failure)
+
+    assert push_corpus.main([
+        "--base-url", "https://portal.example",
+        "--email", "a@b.c", "--password", "x" * 12,
+    ]) == 0, "a document the deployment already holds is not a failed push"
+    assert len(posts) == 1, "a write that landed must not be replayed"
+    captured = capsys.readouterr()
+    assert "0 failed" in captured.out
+    # The evidence the round lost: attempt 1's error was discarded entirely, and the
+    # run reported attempt 2's 409/500 -- a consequence of attempt 1, never its cause.
+    assert "attempt 1" in captured.err and "502" in captured.err
+
+
+def test_a_retry_names_the_version_the_server_has_now(tmp_path, monkeypatch, capsys):
+    """A genuine retry must carry the version the deployment holds, not the plan's.
+
+    `existing_docs` is read once, before any write.  Replaying that snapshot after the
+    active version has moved is a guaranteed `409 stale_version`, which is how a push
+    manufactures its own failure.
+    """
+    import io
+    import urllib.error
+
+    body_file = tmp_path / "a.json"
+    body_file.write_text('{"ok": 1}', encoding="utf-8")
+    local = push_corpus.LocalDoc(10, "Drifted Act", "a.pdf", str(body_file), "customs",
+                                 "Drifted Act", "acts", None)
+
+    posts = []
+
+    def fails_once(request, timeout=0):
+        posts.append((request.full_url, request.get_header("If-match")))
+        if len(posts) == 1:
+            raise urllib.error.HTTPError(
+                request.full_url, 502, "Bad Gateway", {}, io.BytesIO(b"upstream gone")
+            )
+        return _fake_response()
+
+    monkeypatch.setattr(push_corpus, "build_opener", lambda: object())
+    monkeypatch.setattr(push_corpus, "login", lambda *a, **k: {"email": "a@b.c", "role": "admin"})
+    monkeypatch.setattr(push_corpus, "local_documents", lambda: [local])
+    monkeypatch.setattr(push_corpus.time, "sleep", lambda s: None)
+    # Still drifted -- the write did NOT land -- but the active version has moved on.
+    monkeypatch.setattr(push_corpus, "existing_docs", lambda: {
+        "key:Drifted Act": {
+            "id": "id-1",
+            "version": "v8" if posts else "v7",
+            "json_filename": "json/" + "0" * 64 + ".json",
+        }
+    })
+    monkeypatch.setattr(push_corpus, "open_url", fails_once)
+
+    assert push_corpus.main([
+        "--base-url", "https://portal.example",
+        "--email", "a@b.c", "--password", "x" * 12,
+    ]) == 0
+    assert len(posts) == 2, "a write that did not land must be retried"
+    assert posts[0][1] == "v7", "the first attempt carries the planned version"
+    assert posts[1][1] == "v8", "the retry must name the version the server has now"
+
+
+def test_the_live_push_reaches_the_upload_it_planned(tmp_path, monkeypatch, capsys):
+    """The third loop that named a fixed field count out of a row that grows.
+
+    `RefreshRow` fixed the two refresh loops; this one still unpacked seven names from
+    an eight-field `LocalDoc`, so the upload path raised `ValueError: too many values
+    to unpack` the moment anything was actually new.  It never fired only because
+    every document already existed remotely -- `0 to upload`, every round.
+    """
+    pdf = tmp_path / "a.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    body_file = tmp_path / "a.json"
+    body_file.write_text('{"ok": 1}', encoding="utf-8")
+    # A non-empty `metrics` is the eighth field: without it the old unpack would still
+    # work and this test would pass for the wrong reason.
+    local = push_corpus.LocalDoc(10, "Brand New Act", str(pdf), str(body_file), "customs",
+                                 "Brand New Act", "acts", {"leaves": 1})
+
+    posts = []
+
+    monkeypatch.setattr(push_corpus, "build_opener", lambda: object())
+    monkeypatch.setattr(push_corpus, "login", lambda *a, **k: {"email": "a@b.c", "role": "admin"})
+    monkeypatch.setattr(push_corpus, "local_documents", lambda: [local])
+    monkeypatch.setattr(push_corpus, "existing_docs", lambda: {})
+    monkeypatch.setattr(
+        push_corpus, "open_url",
+        lambda request, timeout=0: (
+            posts.append((request.full_url, request.data)) or _fake_response()
+        ),
+    )
+
+    assert push_corpus.main([
+        "--base-url", "https://portal.example",
+        "--email", "a@b.c", "--password", "x" * 12,
+    ]) == 0
+    assert len(posts) == 1, "the one absent document must actually be uploaded"
+    url, sent_body = posts[0]
+    assert url == "https://portal.example/api/documents/upload"
+    assert b'name="name"' in sent_body and b"Brand New Act" in sent_body
+    assert b'name="corpus_lane"' in sent_body and b"customs" in sent_body
+    assert b'name="source_key"' in sent_body, "without it the deployment mints a uuid4"
+    assert b'name="corpus_origin"' in sent_body
+    assert b'filename="a.pdf"' in sent_body and b'filename="a.json"' in sent_body
