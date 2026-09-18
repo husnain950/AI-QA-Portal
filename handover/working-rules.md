@@ -173,6 +173,17 @@ acts `scan_page_count` phase to take 10-13 minutes before the first child spawns
   document with no footnote zone calibrates `footnote_size` to nonsense (11.0 for Sales Tax
   Rules 01-01-2025, whose real footnote prose is 9.0 and which has 0 footnote records).
 
+**A zone that a document does not have is not the same as a zone it should not have.**
+`calibrate` gives up (`zone_mode "none"`) when the two commonest prose sizes are within
+`SIZE_GAP_MIN`, and that is right when they are two BODY sizes -- but the give-up is applied
+to the DOCUMENT when the evidence is only about the CANDIDATE. Round 41 paid this: Sales Tax
+Rules 2006 (01-01-2025) prints two whole pages at 11.0pt against a 12.0pt body, so 11.0 won
+the second slot and 869 markers had nowhere to resolve. **And the repair has a failure
+direction of its own**: promoting the next candidate on mass alone gave Finance Act 2024 a
+zone made of SCHEDULE TARIFF ROWS -- 10 false records reading `S. No. Taxable Income Rate of
+Tax`. Finance Act 2019 already ships 95 of those. **Before believing a new footnote zone,
+check WHERE the candidate's words sit on the page**, not just how many there are.
+
 **Measure the invariant fix and the parser fix separately**, on identical JSON for the
 first. Nearly every class is part wrong-invariant and part real defect, and a single total
 hides both. `no_footnote_text_in_body` was 45 hits that were *all* a `title=` attribute —
