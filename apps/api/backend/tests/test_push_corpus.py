@@ -377,3 +377,34 @@ def test_put_metrics_gives_up_rather_than_hanging(monkeypatch):
 
     assert push_corpus.put_metrics("doc-1", {}) is False
     assert len(attempts) == 4
+
+
+def test_dry_run_lists_refreshes_instead_of_crashing(tmp_path, monkeypatch, capsys):
+    """`--dry-run` unpacked a fixed field count out of a row that grows.
+
+    A refresh row is `(id, version, *LocalDoc)`. `LocalDoc` gained `metrics`; the
+    listing loop still named nine fields, so the one mode whose entire job is to be
+    safe to run died with `ValueError: too many values to unpack` -- after printing
+    the totals, and before naming a single document. Against the live portal that is
+    89 documents you are about to overwrite and cannot see.
+    """
+    body = tmp_path / "a.json"
+    body.write_text("{}", encoding="utf-8")
+    local = push_corpus.LocalDoc(10, "Drifted Act", "a.pdf", str(body), "customs",
+                                 "Drifted Act", "acts", {"leaves": 1})
+
+    monkeypatch.setattr(push_corpus, "build_opener", lambda: object())
+    monkeypatch.setattr(push_corpus, "login", lambda *a, **k: {"email": "a@b.c", "role": "admin"})
+    monkeypatch.setattr(push_corpus, "local_documents", lambda: [local])
+    monkeypatch.setattr(push_corpus, "existing_docs", lambda: {
+        "key:Drifted Act": {"id": "id-1", "version": "v7",
+                            "json_filename": "json/" + "0" * 64 + ".json"}
+    })
+
+    assert push_corpus.main([
+        "--base-url", "https://portal.example", "--dry-run",
+        "--email", "a@b.c", "--password", "x" * 12,
+    ]) == 0
+    out = capsys.readouterr().out
+    assert "1 to refresh" in out
+    assert "would refresh" in out and "Drifted Act" in out and "[customs]" in out

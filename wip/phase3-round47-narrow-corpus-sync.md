@@ -90,11 +90,60 @@ The two editions round 46 found carry **69** and **72** leaves, and appear in `_
 but not in `_pre_45` — they are not the retest subject. The 15-of-17 install gap does not
 reach FS-02 or FS-07; it is a separate, un-logged defect in two other editions.
 
+## The dry-run that could not be run
+
+`backend.push_corpus --dry-run` is the only way to see what a push would overwrite
+before it overwrites it. It crashed:
+
+```
+116 local documents, 115 on production: 89 to refresh (134 MB of JSON), 0 to upload, 27 already identical
+ValueError: too many values to unpack (expected 9)
+```
+
+A refresh row is `(id, version, *LocalDoc)`. `LocalDoc` gained a `metrics` field; the
+listing loop still named nine. It printed the totals, then died before naming a single
+document — so the mode whose entire job is to be safe to run told you 89 documents were
+about to be rewritten and refused to say which. The loop now ends `*_rest`, so a tenth
+field cannot do it again. Gated by
+`test_dry_run_lists_refreshes_instead_of_crashing`, which fails on the nine-name unpack.
+
+With it fixed, the 89 are:
+
+| lane | documents | | lane | documents |
+|---|---|---|---|---|
+| customs | 20 | | other_acts | 5 |
+| sales_tax | 19 | | finance | 4 |
+| federal_excise | 17 | | other_rules | 2 |
+| ordinance | 12 | | federal_excise_rules | 2 |
+| sales_tax_rules | 6 | | tax_laws_amendment | 1 |
+| customs_rules | 1 | | | |
+
+**Twelve are ordinance.** That lane was never part of the 77 and was not synced here —
+the deployment is drifted from the local database on it independently.
+
+## The sync that was run
+
+Blanket, acts and rules only, on the corpus owner's decision:
+
+```
+tools/sync_corpus.py --only acts --only rules
+acts   discovered 80  validated 80  updated 66  skipped 14  failed 0
+rules  discovered 11  validated 11  updated 11  skipped  0  failed 0
+withdrawn 0  restored 0  unmatched 0  problems 0
+```
+
+The 14 skipped are the image-backed documents that have never been converted; their
+hashes already matched. Re-measured after, the drift is closed: **91 identical, 0
+differ**, 116 active versions over 116 documents, 0 withdrawn, all rows still `draft`.
+A `pg_dump` taken before the run is in the session scratchpad.
+
+**Nothing was pushed to the deployment.** That is a separate decision.
+
 ## Verification
 
 ```
 ruff check                          All checks passed!
-pytest apps/api/backend/tests tools/tests -q    879 passed, 3 skipped
+pytest apps/api/backend/tests tools/tests -q    880 passed, 3 skipped
 run_tests_smoke.py                  Pipeline gate passed (exit 0)
 ```
 
@@ -102,5 +151,5 @@ The lane suites SKIP in this worktree — the corpus is staged in the main check
 This change touches no pipeline code: `run_sync` gains one filter, and `corpus_sync` and
 `tools/sync_corpus.py` pass it through.
 
-**Not done here:** no sync was run, in either direction. The choice between the narrow
-two and installing rounds 39-46 wholesale is the corpus owner's.
+**Not done here:** nothing was sent to the deployment. A push would refresh 89 documents
+there, 12 of them from a lane this round never touched.

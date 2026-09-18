@@ -398,7 +398,12 @@ def main(argv: list[str] | None = None):
         )
 
     if args.dry_run:
-        for _id, _version, size, name, _pdf, js, lane, _key, _origin in to_refresh:
+        # `*_rest`, not a name per field: a refresh row is `(id, version, *LocalDoc)`,
+        # so every field added to `LocalDoc` lengthens it. `metrics` was added and
+        # this unpack was not, which made `--dry-run` -- the one mode whose whole job
+        # is to be safe to run -- die with `too many values to unpack` after printing
+        # the totals and before listing a single document.
+        for _id, _version, _size, name, _pdf, js, lane, *_rest in to_refresh:
             print(
                 f"  would refresh {os.path.getsize(js) / 1048576:6.1f} MB  "
                 f"[{lane or '-'}]  {name}"
