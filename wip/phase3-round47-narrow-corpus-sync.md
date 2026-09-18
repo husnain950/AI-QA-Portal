@@ -127,23 +127,37 @@ With it fixed, the 89 are:
 **Twelve are ordinance.** That lane was never part of the 77 and was not synced here —
 the deployment is drifted from the local database on it independently.
 
-## The sync that was run
+## The sync and the push that were run
 
-Blanket, acts and rules only, on the corpus owner's decision:
+Blanket, all three corpora, on the corpus owner's decision:
 
 ```
-tools/sync_corpus.py --only acts --only rules
-acts   discovered 80  validated 80  updated 66  skipped 14  failed 0
-rules  discovered 11  validated 11  updated 11  skipped  0  failed 0
+acts       discovered 80  validated 80  updated 66  skipped 14  failed 0
+rules      discovered 11  validated 11  updated 11  skipped  0  failed 0
+ordinance  discovered 12  validated 12  updated  9  skipped  3  failed 0
 withdrawn 0  restored 0  unmatched 0  problems 0
 ```
 
-The 14 skipped are the image-backed documents that have never been converted; their
-hashes already matched. Re-measured after, the drift is closed: **91 identical, 0
-differ**, 116 active versions over 116 documents, 0 withdrawn, all rows still `draft`.
-A `pg_dump` taken before the run is in the session scratchpad.
+The skipped documents already matched by `source_hash`. Three ordinance editions raised
+a pre-existing `FLAG` (`Declared pages 2026-2026 fall outside the document's 1-611`) —
+flagged, not failed, and not introduced here. Re-measured after, every lane is clean:
+**acts 80/0, rules 11/0, ordinance 12/0**. A `pg_dump` from before each run is in the
+session scratchpad.
 
-**Nothing was pushed to the deployment.** That is a separate decision.
+Then `push_corpus` to the deployment: **85 sent, 4 failed, 30.0 min, 114 MB**. Three
+failures were `409 stale_version` on Income Tax Ordinance editions and one a server-side
+`500 Database update failed` on Customs Rules 2001. A second run — which the tool is
+built to allow — reported **0 to refresh, 116 already identical, 0 failed**: all four had
+landed, and the 409s are two local rows resolving to one remote document (116 local
+against 115 remote). Pipeline health: 23/23 measurements sent.
+
+Verified against the portal by content hash, the three editions this round was about:
+
+| edition | portal blob |
+|---|---|
+| …(As amended up to 11th March 2019 ) | `88cfba37…` **matches staged** |
+| …(as amended up to 31st December, 2019) | `ed6c2366…` **matches staged** |
+| …as amended upto 30-06-2025 (the FS-02/FS-07 subject) | `5ab39c1f…` **matches staged** |
 
 ## Verification
 
@@ -157,5 +171,6 @@ The lane suites SKIP in this worktree — the corpus is staged in the main check
 This change touches no pipeline code: `run_sync` gains one filter, and `corpus_sync` and
 `tools/sync_corpus.py` pass it through.
 
-**Not done here:** nothing was sent to the deployment. A push would refresh 89 documents
-there, 12 of them from a lane this round never touched.
+**Left open:** the `500 Database update failed` on Customs Rules 2001 is a server-side
+error the client only reports. It succeeded on the retry, so it is intermittent, not a
+blocked document — but nothing here explains it.
