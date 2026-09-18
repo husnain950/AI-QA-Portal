@@ -13,6 +13,7 @@ import pytest
 from fastapi import UploadFile
 from pypdf import PdfWriter
 
+from backend import database
 from backend.database import database_connection
 from backend.routes.documents import upload_document
 from backend.services import versions
@@ -192,3 +193,44 @@ async def test_the_active_version_is_advertised_for_the_next_write(runtime_sandb
     assert len(active) == 1
     assert active[0]["id"]
     assert json.dumps(payload), "response is serialisable as-is"
+
+
+async def test_a_lock_timeout_on_replace_json_is_a_503_not_an_opaque_500(
+    runtime_sandbox, client, monkeypatch
+):
+    """Contention is not a broken document, and a 500 says nothing a client can act on.
+
+    Every request runs under `SET LOCAL lock_timeout`, and `create_version` takes
+    `FOR UPDATE` on the document row, so two writes against one document make the
+    second abort on 55P03.  `main.py` already answers that with a clean
+    `503 lock_timeout` telling the caller to retry -- but `_add_version`'s terminal
+    `except Exception` caught it first and returned `500 Database update failed`.
+
+    That is what a corpus push saw on Customs Rules 2001: an opaque 500 on a document
+    that was about to land, indistinguishable from a real write failure.
+    """
+    # Otherwise this test waits out the full production 3s for its answer.
+    monkeypatch.setattr(database, "REQUEST_LOCK_TIMEOUT", "250ms")
+
+    async with database_connection() as db:
+        document_id = await _document(db)
+        active_id = (await versions.active_version(db, document_id))["id"]
+
+    # Real contention, not a mocked exception: this proves 55P03 reaches the handler
+    # AND that the route stopped eating it.
+    holder = await open_connection()
+    await holder.execute("SELECT id FROM documents WHERE id = ? FOR UPDATE", (document_id,))
+    try:
+        blocked = await client.post(
+            f"/api/documents/{document_id}/replace-json",
+            files={"json_file": ("act.json", _variant("Blocked"), "application/json")},
+            headers={"If-Match": f'"version:{active_id}"'},
+        )
+    finally:
+        # Closed, not just rolled back: the truncation fixture only drains caller-owned
+        # connections at the NEXT test's setup, and the GC gets there first.
+        await holder.rollback()
+        await holder.close()
+
+    assert blocked.status_code == 503, blocked.text
+    assert blocked.json()["detail"]["code"] == "lock_timeout"

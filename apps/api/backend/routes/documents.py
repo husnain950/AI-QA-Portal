@@ -18,7 +18,7 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse
 
-from backend.database import DatabaseConnection, get_db
+from backend.database import DatabaseConnection, get_db, is_lock_timeout
 from backend.deps import require_reviewer
 from backend.models import (
     DocumentEditionsResponse,
@@ -760,8 +760,13 @@ async def _add_version(
     except HTTPException:
         await db.rollback()
         raise
-    except Exception:
+    except Exception as exc:
         await db.rollback()
+        # A lock timeout is contention, not a broken document: `main.py` already turns
+        # 55P03 into a 503 telling the client to retry, and swallowing it here is what
+        # made a push report an opaque 500 on a document that was about to land.
+        if is_lock_timeout(exc):
+            raise
         logger.exception("Database update failed on replace-json")
         raise HTTPException(status_code=500, detail="Database update failed")
     return row, outcome
