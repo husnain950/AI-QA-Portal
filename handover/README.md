@@ -44,6 +44,16 @@ widening of any pattern `signature.measure` reads (`CHAPTER_RE`, `PART_RE`, `DIV
 only thing watching it is a gate CI skips. Rerun `--write` in the same round. Artifact:
 [`wip/phase3-round40-discovery-signatures.md`](../wip/phase3-round40-discovery-signatures.md).
 
+**Round 41 closed row 13, the top of the board.** Sales Tax Rules 2006 (01-01-2025) went
+from **761 unresolved markers and 0 footnote records to 367 records, 321 bound citations and
+57 unresolved**. `calibrate` had paired its 12.0pt body with the 11.0pt of two whole pages —
+*another regime's body*, not the page folio the ledger named — failed the `SIZE_GAP_MIN` test
+and gave the document up. The gap test was consulted in the wrong place: it now skips that
+candidate rather than the document, gated by a mass floor and by the requirement that a
+footnote zone actually sit at the foot of the page. **Exactly one document in the corpus
+changes.** The row's rider did **not** fire. Artifact:
+[`wip/phase3-round41-second-body-calibration.md`](../wip/phase3-round41-second-body-calibration.md).
+
 **The board has had no register-bearing work since round 36.** Work is picked from the
 **unmeasured surface** instead — the unresolved `<sup class="marker">` census, which no
 invariant watches. It stands at **3,265 across 81 documents** after round 37 (acts 1,900 /
