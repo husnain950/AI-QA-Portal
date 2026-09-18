@@ -34,7 +34,7 @@ import statistics
 from dataclasses import asdict, dataclass
 
 from .grammar import PAGE_TOC, SCHEDULE_TOC_RE, folio_value
-from .pagemodel import Word, _group_into_lines, normalize_text
+from .pagemodel import _AMEND_VERB_RE, Word, _group_into_lines, normalize_text
 from .profiles import ACTS, Profile
 
 # A table-of-contents row: a section code, a title, then the printed page it
@@ -151,6 +151,26 @@ SIZE_GAP_MIN = 2.0
 FOOTNOTE_BAND_TOP = 0.60
 FOOTNOTE_BAND_SHARE = 0.5
 
+#: A footnote zone must contain FOOTNOTES.  ``pagemodel._is_amendment_note``
+#: already carries the measurement that decides this -- "97.7% of real footnotes
+#: match; a body rate/penalty TABLE cell never does, so this is the signal that a
+#: marker block is footnotes and not a table" -- but it is consulted per marker
+#: line and never about the document's zone as a whole.  Finance Act 2019's zone
+#: is made entirely of SCHEDULE TARIFF ROWS: 595 sampled zone lines carry ONE
+#: edit verb between them, and the document ships 95 footnote records of which 5
+#: bind to anything and none reads like a note (`Breeding bulls 0102.2910 0%
+#: Nil`; one record swallowed the table's own numbering row).
+#:
+#: The line floor is not ceremony -- it is what protects Customs Rules 2001,
+#: whose apparatus is printed ONCE at the end at BODY size (round 37), so its
+#: size zone holds 24 lines and none of them is a note while the document itself
+#: carries 419 real records and 656 citations.  A thin zone is no evidence.
+#: Measured over the 141 acts and rules sources, this demotes TWO documents, one
+#: of them staged, and both thresholds sit in a wide gap: 24 lines against 100,
+#: and 0.2% against the next document up at 5.4%.
+ZONE_NOTE_MIN_LINES = 100
+ZONE_NOTE_MIN_SHARE = 0.02
+
 
 @dataclass(frozen=True)
 class Calibration:
@@ -238,6 +258,43 @@ def _leftmost_mode(values, default, share=0.08, ndigits=0):
     floor = max(2, int(len(values) * share))
     frequent = [v for v, c in counts.items() if c >= floor]
     return min(frequent) if frequent else min(counts)
+
+
+def _zone_holds_notes(lines, cut: float) -> bool:
+    """Whether the text below ``cut`` reads like FOOTNOTES rather than a table.
+
+    A size split can be clean and still be wrong about what it separates.
+    Finance Act 2019 sets its schedules' tariff tables at 8.0pt against an
+    11.0pt body, so the split is textbook -- and everything under it is table.
+    That document ships **95 footnote records of which 5 bind to anything**, and
+    not one reads like a note: ``Breeding bulls 0102.2910 0% Nil``, and one
+    record swallowed the table's own numbering row.
+
+    ``pagemodel._is_amendment_note`` already carries the measurement this turns
+    on -- *"97.7% of real footnotes match; a body rate/penalty TABLE cell never
+    does, so this is the signal that a marker block is footnotes and not a
+    table"* -- but it is consulted per marker line and never asked about the
+    document's zone as a whole.
+
+    Answers True on too little evidence, and the floor is the whole reason this
+    is safe.  Customs Rules 2001 prints its apparatus ONCE at the end, at BODY
+    size (round 37), so its size zone holds **24 lines and not one note** while
+    the document itself carries **419 records and 656 citations**.  A thin zone
+    is not evidence of absence.  Measured over the 141 acts and rules sources,
+    this demotes **two documents, one of them staged**, and both thresholds sit
+    in a wide gap: 24 lines against a floor of 100, and 0.2% against the next
+    document up at 5.4%.
+    """
+    zone_lines = notes = 0
+    for ln in lines:
+        if not ln.words or ln.max_size > cut:
+            continue
+        zone_lines += 1
+        if _AMEND_VERB_RE.search(ln.text()):
+            notes += 1
+    if zone_lines < ZONE_NOTE_MIN_LINES:
+        return True
+    return notes >= ZONE_NOTE_MIN_SHARE * zone_lines
 
 
 def _prose_sizes(all_sizes: collections.Counter,
@@ -645,6 +702,16 @@ def calibrate(pdf, sample: int = 36, profile: Profile = ACTS) -> Calibration:
         # text is MISPLACED rather than LOST -- conservation still reaches 100%,
         # and the ``no_footnote_text_in_body`` invariant makes the misplacement
         # loud instead of silent, which was the guard's real purpose.
+        zone_mode = "none"
+        footnote_text_max = footnote_marker_max_size = 0.0
+
+    # ---- does the zone contain NOTES? ----------------------------------
+    # A size split can be clean and still be wrong about what it separates.
+    # Finance Act 2019 sets its schedules' tariff tables at 8.0pt against an
+    # 11.0pt body, so the split is textbook -- and everything below it is table,
+    # not notes.  Ask the zone what it holds before believing in it.
+    if zone_mode == "size" and not _zone_holds_notes(
+            (ln for _, lines in per_page_lines for ln in lines), footnote_text_max):
         zone_mode = "none"
         footnote_text_max = footnote_marker_max_size = 0.0
 
