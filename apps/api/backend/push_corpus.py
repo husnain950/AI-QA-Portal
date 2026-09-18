@@ -70,6 +70,21 @@ class LocalDoc(NamedTuple):
     #: has not measured this document. Carried so a deployment -- which has no
     #: reports directory and so has never held a single row -- can show them.
     metrics: dict | None = None
+class RefreshRow(NamedTuple):
+    """One document to re-send, with the remote id and active version to send it to.
+
+    ``doc`` is kept whole rather than splatted flat. The flat form was
+    ``(id, version, *LocalDoc)``, and two separate loops unpacked it by naming every
+    field: adding ``metrics`` to ``LocalDoc`` broke both, silently, until each was
+    run. ``--dry-run`` died after printing "89 to refresh" and before naming one of
+    them, and the live push died in the same place a minute later.
+    """
+
+    id: str
+    version: str | None
+    doc: LocalDoc
+
+
 BASE = ""
 _OPENER: urllib.request.OpenerDirector | None = None
 
@@ -271,8 +286,9 @@ def plan_refresh(local, remote):
     -> skipped entirely; present and different -> a new version of the JSON only, since
     the PDF is content-addressed too and has not moved.
 
-    ``local`` is a list of :class:`LocalDoc`. Network-free, so the part that decides
-    what gets overwritten is testable.
+    ``local`` is a list of :class:`LocalDoc`; each refresh comes back as a
+    :class:`RefreshRow`. Network-free, so the part that decides what gets overwritten
+    is testable.
     """
     to_upload, to_refresh = [], []
     for item in local:
@@ -295,7 +311,7 @@ def plan_refresh(local, remote):
         if match is None:
             to_upload.append(item)
         elif adopting or match["json_filename"] != f"json/{sha256_file(item.json)}.json":
-            to_refresh.append((match["id"], match.get("version"), *item))
+            to_refresh.append(RefreshRow(match["id"], match.get("version"), item))
     return to_upload, to_refresh
 
 
@@ -380,7 +396,7 @@ def main(argv: list[str] | None = None):
     to_upload, to_refresh = plan_refresh(todo, present)
 
     upload_bytes = sum(item.size for item in to_upload)
-    refresh_bytes = sum(os.path.getsize(item[5]) for item in to_refresh)
+    refresh_bytes = sum(os.path.getsize(row.doc.json) for row in to_refresh)
     orphans = plan_orphans(todo, present)
     print(
         f"{len(todo)} local documents, {len(present)} on production: "
@@ -398,15 +414,10 @@ def main(argv: list[str] | None = None):
         )
 
     if args.dry_run:
-        # `*_rest`, not a name per field: a refresh row is `(id, version, *LocalDoc)`,
-        # so every field added to `LocalDoc` lengthens it. `metrics` was added and
-        # this unpack was not, which made `--dry-run` -- the one mode whose whole job
-        # is to be safe to run -- die with `too many values to unpack` after printing
-        # the totals and before listing a single document.
-        for _id, _version, _size, name, _pdf, js, lane, *_rest in to_refresh:
+        for row in to_refresh:
             print(
-                f"  would refresh {os.path.getsize(js) / 1048576:6.1f} MB  "
-                f"[{lane or '-'}]  {name}"
+                f"  would refresh {os.path.getsize(row.doc.json) / 1048576:6.1f} MB  "
+                f"[{row.doc.lane or '-'}]  {row.doc.name}"
             )
         for item in to_upload:
             seeded = "corpus" if item.source_key else "upload"
@@ -454,25 +465,26 @@ def main(argv: list[str] | None = None):
 
     # Refresh first: it is JSON only, and it is what makes an already-visible library
     # tell the truth about its OCR provenance. Uploads can take their time afterwards.
-    for doc_id, version, _size, name, _pdf, js, lane, source_key, origin in to_refresh:
+    for row in to_refresh:
+        doc = row.doc
         fields = {"note": "Corpus refresh from push_corpus."}
-        if lane:
-            fields["corpus_lane"] = lane
+        if doc.lane:
+            fields["corpus_lane"] = doc.lane
         # Sent on every refresh, not just an adoption: it is idempotent, and it is
         # what turns a row seeded before corpus identity into one the pipeline-health
         # ingest and reconciliation can both see.
-        if source_key:
-            fields["source_key"] = source_key
-        if origin:
-            fields["corpus_origin"] = origin
+        if doc.source_key:
+            fields["source_key"] = doc.source_key
+        if doc.corpus_origin:
+            fields["corpus_origin"] = doc.corpus_origin
         send(
             "refresh",
-            f"{BASE}/api/documents/{doc_id}/replace-json",
+            f"{BASE}/api/documents/{row.id}/replace-json",
             fields,
-            {"json_file": (os.path.basename(js), js)},
-            name,
-            os.path.getsize(js),
-            if_match=version,
+            {"json_file": (os.path.basename(doc.json), doc.json)},
+            doc.name,
+            os.path.getsize(doc.json),
+            if_match=row.version,
         )
 
     risky, rest = plan_order(to_upload, args.risky_above_mb * 1048576)

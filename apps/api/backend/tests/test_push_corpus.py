@@ -119,11 +119,10 @@ def test_plan_refresh_splits_by_content_hash(tmp_path):
 
     to_upload, to_refresh = push_corpus.plan_refresh(local, remote)
     assert [item.name for item in to_upload] == ["New Act"], "absent -> upload"
-    assert to_refresh == [(  # id and active version first: replace-json needs both
-        "id-2", "v-2", 20, "Stale Act", "b.pdf", str(drifted), "finance",
-        "Stale Act", "acts", None,
-    )]
-    assert not any(item[2] == "Identical Act" for item in to_refresh), (
+    assert to_refresh == [  # id and active version first: replace-json needs both
+        push_corpus.RefreshRow("id-2", "v-2", local[1])
+    ]
+    assert not any(row.doc.name == "Identical Act" for row in to_refresh), (
         "matching content hash must not cost a new version"
     )
 
@@ -408,3 +407,50 @@ def test_dry_run_lists_refreshes_instead_of_crashing(tmp_path, monkeypatch, caps
     out = capsys.readouterr().out
     assert "1 to refresh" in out
     assert "would refresh" in out and "Drifted Act" in out and "[customs]" in out
+
+
+def test_the_live_push_reaches_the_refresh_it_planned(tmp_path, monkeypatch, capsys):
+    """The dry-run was not the only loop unpacking the row by field name.
+
+    Both were written against `(id, version, *LocalDoc)` and both broke when
+    `LocalDoc` gained `metrics` -- so fixing the one that crashed first left a push
+    that still died, a minute later, having sent nothing. This drives the live loop
+    and pins what `replace-json` is actually called with.
+    """
+    body = tmp_path / "a.json"
+    body.write_text("{}", encoding="utf-8")
+    local = push_corpus.LocalDoc(10, "Drifted Act", "a.pdf", str(body), "customs",
+                                 "Drifted Act", "acts", None)
+
+    sent = []
+
+    class FakeResponse:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b"null"
+
+    monkeypatch.setattr(push_corpus, "build_opener", lambda: object())
+    monkeypatch.setattr(push_corpus, "login", lambda *a, **k: {"email": "a@b.c", "role": "admin"})
+    monkeypatch.setattr(push_corpus, "local_documents", lambda: [local])
+    monkeypatch.setattr(push_corpus, "existing_docs", lambda: {
+        "key:Drifted Act": {"id": "id-1", "version": "v7",
+                            "json_filename": "json/" + "0" * 64 + ".json"}
+    })
+    monkeypatch.setattr(
+        push_corpus, "open_url",
+        lambda request, timeout=0: (
+            sent.append((request.full_url, request.get_header("If-match"), request.data))
+            or FakeResponse()
+        ),
+    )
+
+    assert push_corpus.main([
+        "--base-url", "https://portal.example",
+        "--email", "a@b.c", "--password", "x" * 12,
+    ]) == 0
+    assert len(sent) == 1, "the one drifted document must actually be sent"
+    url, if_match, body = sent[0]
+    assert url == "https://portal.example/api/documents/id-1/replace-json"
+    assert if_match == "v7", "replace-json is precondition-gated on the active version"
+    assert b'name="corpus_lane"' in body and b"customs" in body
+    assert b'name="source_key"' in body and b'name="corpus_origin"' in body

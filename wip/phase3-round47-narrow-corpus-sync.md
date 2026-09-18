@@ -100,12 +100,18 @@ before it overwrites it. It crashed:
 ValueError: too many values to unpack (expected 9)
 ```
 
-A refresh row is `(id, version, *LocalDoc)`. `LocalDoc` gained a `metrics` field; the
+A refresh row was `(id, version, *LocalDoc)`. `LocalDoc` gained a `metrics` field; the
 listing loop still named nine. It printed the totals, then died before naming a single
-document — so the mode whose entire job is to be safe to run told you 89 documents were
-about to be rewritten and refused to say which. The loop now ends `*_rest`, so a tenth
-field cannot do it again. Gated by
-`test_dry_run_lists_refreshes_instead_of_crashing`, which fails on the nine-name unpack.
+document — so the mode whose entire job is to be safe to run said 89 documents were about
+to be rewritten and refused to say which.
+
+**Naming the missing field in that loop was the wrong fix, and the live push proved it a
+minute later**, dying at line 457 on the same unpack, having sent nothing. Two loops were
+written against one producer's flat tuple and both drifted from it silently, because
+neither runs until you are already committed. `plan_refresh` now returns a `RefreshRow`
+(`id`, `version`, `doc`) and keeps the `LocalDoc` whole, so a ninth field cannot reach
+either consumer. Gated by `test_dry_run_lists_refreshes_instead_of_crashing` and
+`test_the_live_push_reaches_the_refresh_it_planned`; restoring the flat row fails **both**.
 
 With it fixed, the 89 are:
 
@@ -143,7 +149,7 @@ A `pg_dump` taken before the run is in the session scratchpad.
 
 ```
 ruff check                          All checks passed!
-pytest apps/api/backend/tests tools/tests -q    880 passed, 3 skipped
+pytest apps/api/backend/tests tools/tests -q    881 passed, 3 skipped
 run_tests_smoke.py                  Pipeline gate passed (exit 0)
 ```
 
