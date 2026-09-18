@@ -218,36 +218,42 @@ converts **11 of 48** — the other 36 are scans and one is Urdu, and every scan
 was skipped by instruction. Acts has the same shape smaller: 25 editions carrying 2,065
 image-backed pages.
 
-**The lanes are NO LONGER at one revision — the CONTENT is current, the stamps are not.**
-Measured 2026-09-18 after round 44 and the Federal Excise re-conversion:
+**Acts and rules are at ONE revision again and `-dirty` is gone**, after round 46's clean
+77-document re-conversion (2026-09-18, 1,162s at 2 workers, 0 failures):
 
 | documents | lane | `pipeline_revision` |
 |---|---|---|
-| 29 | acts | `a8a0dffe4bf9` — round 38 |
-| **21** | acts | **`a8a0dffe4bf9-dirty`** — round 38, converted from a tree with uncommitted edits, so the stamp records nothing usable |
-| **15** | acts | **`d6512faa9a02`** — the Federal Excise editions, re-converted 2026-09-18 (below) |
-| 1 | acts | `974029e3c0bf` — Finance Act 2019, round 44 |
+| **66** | acts | **`34f0453fd498`** — round 46, from a clean tree |
 | 14 | acts | *(none recorded)* — the image-backed documents, see below |
-| 9 | rules | `a8a0dffe4bf9` — round 38 |
-| 1 | rules | `e6a0bc8059e0` — Sales Tax Rules 01-01-2025, round 41 |
-| 1 | rules | `fea1cc5bac2c` — Customs Rules 2001, round 42 |
-| 9 | ordinance | `dbcab2f79b78` — PRs #93-#99, and current: the ordinance lane runs `fbr_ingest`, which does not import `legal_ingest`, so rounds 35-44 cannot reach it |
+| **11** | rules | **`34f0453fd498`** — round 46 |
+| 9 | ordinance | `dbcab2f79b78` — PRs #93-#99, and current: the ordinance lane runs `fbr_ingest`, which does not import `legal_ingest`, so rounds 35-46 cannot reach it |
 | 3 | ordinance | `4827840…` (round 12) — the image-backed ITO editions |
 
-**Every staged document's CONTENT matches `main`**, which is why the register snapshot and the
-pipeline gate both pass: rounds 40-44 changed four staged documents between them and all four
-are installed, and round 39's census measured 102 of 119 byte-identical. What is mixed is the
-provenance, and **21 acts outputs are `-dirty` and therefore unattributable**. A single clean
-77-document re-conversion (~16 minutes, `953s` measured) would unify it; nothing depends on it
-today, so it is recorded rather than done.
+The 21 `a8a0dffe4bf9-dirty` acts outputs round 38 left behind are gone, and
+`tools/tests/test_corpus_provenance_is_clean.py` fails if any lane acquires another. What is
+still mixed is mixed for a reason that is *recorded*: 17 image-backed documents no run can
+touch while the no-OCR decision stands, and an ordinance lane on a separate parser. Stale is
+attributable; `-dirty` never is, which is why the gate forbids only the second.
+
+**That re-conversion also found a defect nothing else could see.** This block used to say
+*"Every staged document's CONTENT matches `main`, which is why the register snapshot and the
+pipeline gate both pass"* — the second clause was true and the first did not follow from it.
+**75 of the 77 were byte-identical; two were not**, both Federal Excise editions still at
+round 38, because the corpus stages **17** of them and the install below re-converted **15**.
+The two gained round 39's tariff tables (`<table>` 2→5 and 3→6, `<tr>` 5→132 and 11→92) and
+shed 37 false markers, with bound citations, leaves and footnote records unchanged, and all
+three lane suites green before and after. **A re-conversion for provenance is also the only
+audit of installation this project has.** Artifact:
+[`wip/phase3-round46-clean-reprovenance.md`](../wip/phase3-round46-clean-reprovenance.md).
 
 **2026-09-18 — round 39's output had never been installed.** The QA tracker's FS-02 and FS-07
 were still `In Progress` because the *portal* still showed them broken: every Federal Excise
 edition was serving output converted at `a8a0dff`, round **38**, which predates round 39's
 table fix. Round 39 converted twice to *measure* and never copied the result into `output/`.
-The fifteen staged editions were re-converted from a clean `main` (`d6512faa9a02`): **all 15
+Fifteen staged editions were re-converted from a clean `main` (`d6512faa9a02`): **all 15
 changed, `<table>` 35 → 80 (+45), `<tr>` 162 → 1,887 (+1,725)**, and three of them shed a
-`-dirty` stamp. FIRST SCHEDULE Table-I now renders as one 69-row table and Table-II as one
+`-dirty` stamp. **Fifteen of seventeen** — round 46 found the other two, still at round 38;
+count the census, not the batch. FIRST SCHEDULE Table-I now renders as one 69-row table and Table-II as one
 24-row table, both with the four columns the PDF prints. **This is the trap
 `working-rules.md` states as "a fix that is shipped and a fix that is measured are two
 different states" — with a third state it did not name: MEASURED BUT NOT INSTALLED.**
@@ -324,7 +330,7 @@ is the cross-check that the scope was right.
 
 ```sh
 .venv/bin/python tools/run_suite.py acts        # and rules, ordinance -> 1 / 2 / 5
-.venv/bin/python -m pytest tools/tests -q       # 245 passed, 1 skipped
+.venv/bin/python -m pytest tools/tests -q       # 322 passed, 1 skipped
 .venv/bin/python tools/run_tests_smoke.py       # package self-checks + lane suites
 .venv/bin/python tools/discover_corpus.py --check
 .venv/bin/ruff check                            # BARE -- matches ci.yml
@@ -383,7 +389,7 @@ factual below it has moved.
 | Phase 5's gate is "the deletion of the **two** Round 3 exemptions" | **4 entries**, across 2 documents. (`wip/tasks.md` says *five*; that is also wrong — verified by grep at this commit) |
 | "4c — transport and deploy … Docker is down on this host" | done, as the `wip/integration/` track, #59–#76 |
 | an exported transcript "is **not gitignored**" | resolved — `.gitignore:80` |
-| `pytest tools/tests` → 56 passed | **245 passed, 1 skipped** |
+| `pytest tools/tests` → 56 passed | **322 passed, 1 skipped** |
 
 One more, not in HANDOVER: every file under `wip/integration/` still states the register as
 **34**. Round 14 took it to 32, round 15 to 29, round 16 to 25, where rounds 17 and 18 left it,
