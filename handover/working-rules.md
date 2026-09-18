@@ -79,6 +79,14 @@ worktree finds **no documents**. Symlink the lanes in once, per worktree:
 for L in acts rules ordinance; do ln -sfn "$PWD/data/corpora/$L" .worktrees/rN/data/corpora/$L; done
 ```
 
+**Or skip the symlinks: only the IMPORT root comes from `__file__`.** The corpus root goes
+through `corpus_paths.get(lane).path()`, which honours `CORPUS_ACTS` / `CORPUS_RULES` /
+`CORPUS_ORDINANCE` — that is the whole point of those variables and `corpus_paths._demo`
+asserts it. So `CORPUS_ACTS=$MAIN/data/corpora/acts … $MAIN/.venv/bin/python <run from the
+worktree>` gives the worktree's parser the main tree's corpus with nothing on disk to undo,
+and a lane you forget to pass resolves to the worktree's empty one and reports **0
+documents** rather than quietly measuring `main`. Round 46 converted all 77 that way.
+
 (Use absolute targets — a relative `../../../` from `.worktrees/rN/data/corpora/` lands in
 `.worktrees/`, not the repo root, and resolves to nothing.) Related, and it cost real time
 in round 15: **the Bash tool's cwd resets between calls**, so a `python - <<PY` heredoc
