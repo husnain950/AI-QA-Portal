@@ -255,6 +255,14 @@ triggering it.
 on a PR are **not** evidence about ingest. `tools/tests/test_register_snapshot.py` is the
 real gate, and it only runs where the corpus is staged.
 
+**A parser widening moves the DISCOVERY artifacts, silently.** `signature.measure` counts
+`CHAPTER_RE`, `PART_RE`, `DIVISION_RE`, `SCHEDULE_RE`, `TABLE_RE` and the TOC row patterns
+into the signature it writes to `tools/discovery/signatures.json`. Round 20 added the
+en-dash to `CHAPTER_RE`'s separator class and moved `chapter_lines` on **27 documents**; the
+artifact stayed stale for twenty rounds, because the only thing watching it is
+`discover_corpus.py --check` — a gate CI skips. Touch any of those patterns and rerun
+`--write` **in the same round**. Round 40 paid this.
+
 **Run `ruff check` bare.** `pyproject.toml`'s `src = ["apps/api", "packages", "tools"]` is
 what pulls `packages/` in; `ruff check apps/api tools` silently misses it. The Makefile and
 `ci.yml` both run it bare — match them.

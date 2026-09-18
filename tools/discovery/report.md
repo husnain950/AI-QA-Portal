@@ -68,27 +68,27 @@ away.
 | pages | family | containers | CH | dot leaders | producer | file |
 |---|---|---|---|---|---|---|
 | 13 | urdu | flat | 0 | 0 | Microsoft® Word 2016 | Table of content for Customs Act 1969-Urdu Version.pdf |
-| 225 | consolidated | C | 20 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2012).pdf |
-| 234 | consolidated | C | 42 | 0 | Microsoft® Word 2016 | Customs Act, 1969 (As amended upto 11th March, 2019).pdf |
-| 236 | consolidated | C | 42 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2011).pdf |
-| 238 | consolidated | C | 42 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2009).pdf |
-| 239 | consolidated | C | 42 | 0 | Acrobat Distiller 7.0 (Windows) |  Customs Act ,1969 (Amended upto 30th June 2007).pdf |
-| 239 | consolidated | C | 42 | 0 | -- | Customs Act ,1969 (Amended upto 30th June 2010).pdf |
-| 241 | consolidated | C | 42 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2008).pdf |
-| 242 | consolidated | C | 42 | 0 | Microsoft® Word 2010 |  Customs Act ,1969 (As amended up to 30th June, 2014).pdf |
-| 244 | consolidated | C | 42 | 0 | Microsoft® Word 2010 | Customs Act ,1969 (As amended up to 30th June, 2015).pdf |
-| 245 | consolidated | C | 42 | 0 | Microsoft® Word 2010 | Customs Act ,1969 (As amended up to 30th June, 2016).pdf |
-| 247 | consolidated | C | 42 | 0 | Microsoft® Word 2010 | Customs Act, 1969 (As amended upto 30th June, 2017).pdf |
-| 248 | consolidated | C | 42 | 0 | Microsoft® Word 2010 | Customs Act ,1969 (as Amended upto 30th June 2013).pdf |
-| 253 | consolidated | C | 42 | 0 | Microsoft® Word 2013 | Customs Act, 1969 as amended up to 30.06.2019 |
+| 225 | consolidated | C | 22 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2012).pdf |
+| 234 | consolidated | C | 44 | 0 | Microsoft® Word 2016 | Customs Act, 1969 (As amended upto 11th March, 2019).pdf |
+| 236 | consolidated | C | 44 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2011).pdf |
+| 238 | consolidated | C | 44 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2009).pdf |
+| 239 | consolidated | C | 44 | 0 | Acrobat Distiller 7.0 (Windows) |  Customs Act ,1969 (Amended upto 30th June 2007).pdf |
+| 239 | consolidated | C | 44 | 0 | -- | Customs Act ,1969 (Amended upto 30th June 2010).pdf |
+| 241 | consolidated | C | 44 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2008).pdf |
+| 242 | consolidated | C | 44 | 0 | Microsoft® Word 2010 |  Customs Act ,1969 (As amended up to 30th June, 2014).pdf |
+| 244 | consolidated | C | 44 | 0 | Microsoft® Word 2010 | Customs Act ,1969 (As amended up to 30th June, 2015).pdf |
+| 245 | consolidated | C | 44 | 0 | Microsoft® Word 2010 | Customs Act ,1969 (As amended up to 30th June, 2016).pdf |
+| 247 | consolidated | C | 44 | 0 | Microsoft® Word 2010 | Customs Act, 1969 (As amended upto 30th June, 2017).pdf |
+| 248 | consolidated | C | 44 | 0 | Microsoft® Word 2010 | Customs Act ,1969 (as Amended upto 30th June 2013).pdf |
+| 253 | consolidated | C | 44 | 0 | Microsoft® Word 2013 | Customs Act, 1969 as amended up to 30.06.2019 |
 | 259 | urdu | flat | 0 | 0 | Microsoft® Word 2013 | Custom Act 1969-updated upto 11.03.2019 (Urdu Version).pdf |
-| 265 | consolidated | C | 42 | 0 | Microsoft® Word 2013 | Customs Act, 1969 as amended up to 30.06.2020.pdf |
-| 266 | consolidated | C | 42 | 0 | Microsoft® Word 2010 | Customs Act, 1969 as amended up to 30.06.2021 |
-| 270 | consolidated | C | 41 | 0 | -- | Customs Act, 1969 as amended up to 30.06.2022 |
-| 271 | consolidated | C | 41 | 0 | Microsoft® Word 2016 | Customs Act, 1969 as amended up to 30.06.2023 |
-| 277 | consolidated | C | 41 | 0 | Microsoft® Word 2019 |  Customs Act, 1969 as amended up to 30.06.2024.pdf |
-| 279 | consolidated | C | 39 | 0 | Microsoft® Word 2021 |  Customs Act, 1969 as amended up to 30th June, 2025.pdf |
-| 302 | consolidated | C | 42 | 0 | Microsoft® Word 2013 | Customs Act, 1969 as amended up to 31.12.2019 |
+| 265 | consolidated | C | 44 | 0 | Microsoft® Word 2013 | Customs Act, 1969 as amended up to 30.06.2020.pdf |
+| 266 | consolidated | C | 44 | 0 | Microsoft® Word 2010 | Customs Act, 1969 as amended up to 30.06.2021 |
+| 270 | consolidated | C | 43 | 0 | -- | Customs Act, 1969 as amended up to 30.06.2022 |
+| 271 | consolidated | C | 43 | 0 | Microsoft® Word 2016 | Customs Act, 1969 as amended up to 30.06.2023 |
+| 277 | consolidated | C | 43 | 0 | Microsoft® Word 2019 |  Customs Act, 1969 as amended up to 30.06.2024.pdf |
+| 279 | consolidated | C | 41 | 0 | Microsoft® Word 2021 |  Customs Act, 1969 as amended up to 30th June, 2025.pdf |
+| 302 | consolidated | C | 44 | 0 | Microsoft® Word 2013 | Customs Act, 1969 as amended up to 31.12.2019 |
 
 ### acts / Finance Acts  (20 editions, 4 shapes)
 
@@ -185,12 +185,12 @@ away.
 
 | pages | family | containers | CH | dot leaders | producer | file |
 |---|---|---|---|---|---|---|
-| 248 | consolidated | PCD | 29 | 357 | Microsoft® Word 2010 |  Income Tax Rules, 2002 Amended upto 10th, December, 2015. |
-| 307 | consolidated | PCD | 29 | 379 | Microsoft® Word 2013 |  Income Tax Rules, 2002 Amended upto 18th October, 2016.pd |
-| 318 | consolidated | PCD | 29 | 391 | Microsoft® Word 2010 |  Income Tax Rules, 2002 Amended upto 10th February, 2017.p |
-| 377 | consolidated | PCD | 30 | 53 | Acrobat Distiller 7.0 (Windows) | Income Tax Rules, 2002 Amended up to August, 2008.pdf |
-| 631 | consolidated | CPD | 44 | 8 | Microsoft® Word 2013 |  Income Tax Rules, 2002 Amended upto 8th September, 2020.p |
-| 946 | consolidated | PCD | 56 | 8 | -- |  Income Tax Rules, 2002 Amended upto 24.11.2023.pdf |
+| 248 | consolidated | PCD | 44 | 357 | Microsoft® Word 2010 |  Income Tax Rules, 2002 Amended upto 10th, December, 2015. |
+| 307 | consolidated | PCD | 44 | 379 | Microsoft® Word 2013 |  Income Tax Rules, 2002 Amended upto 18th October, 2016.pd |
+| 318 | consolidated | PCD | 44 | 391 | Microsoft® Word 2010 |  Income Tax Rules, 2002 Amended upto 10th February, 2017.p |
+| 377 | consolidated | PCD | 38 | 53 | Acrobat Distiller 7.0 (Windows) | Income Tax Rules, 2002 Amended up to August, 2008.pdf |
+| 631 | consolidated | CPD | 46 | 8 | Microsoft® Word 2013 |  Income Tax Rules, 2002 Amended upto 8th September, 2020.p |
+| 946 | consolidated | PCD | 58 | 8 | -- |  Income Tax Rules, 2002 Amended upto 24.11.2023.pdf |
 
 ### rules / Sales Tax Rules 2006  (9 editions, 2 shapes)
 
@@ -201,7 +201,7 @@ away.
 | 150 | consolidated | PC | 20 | 262 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 30.10.2018.pdf |
 | 193 | consolidated | PC | 27 | 367 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 30.06.2020 |
 | 218 | consolidated | PC | 28 | 372 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 31.12.2020 |
-| 224 | consolidated | PC | 31 | 500 | Microsoft® Word 2016 | Sales Tax Rules 2006 updated upto 30-06-2025.pdf |
+| 224 | consolidated | PC | 33 | 500 | Microsoft® Word 2016 | Sales Tax Rules 2006 updated upto 30-06-2025.pdf |
 | 241 | consolidated | PC | 31 | 497 | Microsoft® Word 2019 | Sales Tax Rules, 2006 (Updated upto 01-01-2025).pdf |
 | 241 | consolidated | PC | 28 | 459 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 31.08.2021 |
 | 251 | consolidated | PC | 28 | 510 | Microsoft® Word 2019 | The Sales Tax Rules, 2006 updated upto 31.10.2023 |

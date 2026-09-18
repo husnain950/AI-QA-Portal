@@ -34,9 +34,15 @@ closed** — THIRD SCHEDULE Table-I prints no numbering row at all, which is
 [row q4](tasks.md#closed-by-round-38--a-qa-cycle-not-a-board-row). See
 [`tasks.md`](tasks.md#closed-by-round-38--a-qa-cycle-not-a-board-row).
 
-**One gate is red and it is not round 38's.** `tools/discover_corpus.py --check` reports
-`signatures.json` stale over 27 documents; `main` gives exit 1 and a byte-identical list.
-It needs its own round.
+**Every gate is green as of round 40.** `tools/discover_corpus.py --check` had reported
+`signatures.json` stale over 27 documents since **PR #86 (round 20)**; round 40 regenerated
+the artifacts and attributed the whole drift to one character — the CHAPTER en-dash added to
+`grammar.CHAPTER_RE`'s separator class, which `signature.measure` counts into
+`chapter_lines`. No family moved and no parser code changed. **The lesson generalises:** a
+widening of any pattern `signature.measure` reads (`CHAPTER_RE`, `PART_RE`, `DIVISION_RE`,
+`SCHEDULE_RE`, `TABLE_RE`, the TOC rows) moves a discovery signature silently, because the
+only thing watching it is a gate CI skips. Rerun `--write` in the same round. Artifact:
+[`wip/phase3-round40-discovery-signatures.md`](../wip/phase3-round40-discovery-signatures.md).
 
 **The board has had no register-bearing work since round 36.** Work is picked from the
 **unmeasured surface** instead — the unresolved `<sup class="marker">` census, which no
