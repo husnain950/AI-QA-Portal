@@ -350,3 +350,44 @@ def test_each_corpus_names_its_own_source_subdirectory(monkeypatch, tmp_path):
         root = tmp_path / label
         (root / title).mkdir(parents=True)
         assert registry.get(label).source_within(root) == root / title
+
+
+def _stub_corpus(root, stems):
+    """A pipeline repository whose JSON pairs with a PDF but holds no sections."""
+    (root / "output").mkdir(parents=True)
+    (root / "Acts").mkdir(parents=True)
+    (root / "Acts" / "source.pdf").write_bytes(b"%PDF-1.4\n")
+    for stem in stems:
+        (root / "output" / f"{stem}.json").write_text(
+            json.dumps({"metadata": {"filename": "source.pdf"}}), encoding="utf-8"
+        )
+
+
+async def test_match_narrows_the_work_but_not_the_corpus_listing(monkeypatch, tmp_path):
+    """`--match` must never become a withdrawal.
+
+    The obvious way to sync two documents is to point the sync at a directory holding
+    only those two -- and `reconcile_corpus` then withdraws every acts document that
+    directory does not contain. `--match` exists so a narrow sync is possible without
+    that: it filters the pairs that get worked, while `source_keys` -- the only thing
+    reconciliation reads -- stays the full `output/` listing.
+    """
+    from backend.services.corpus_sync import run_corpus_sync
+
+    acts = tmp_path / "acts"
+    _stub_corpus(acts, ["Excise Act 2005 (11th March 2019)", "Customs Act, 1969"])
+    monkeypatch.setenv("CORPUS_ACTS", str(acts))
+
+    summary = await run_corpus_sync(only=["acts"], match="11th march", dry_run=True)
+    part = summary["acts"]
+
+    # the work narrowed: only the matched document was validated at all
+    assert part["discovered"] == 2 and part["matched"] == 1
+    assert [p.split(":")[0] for p in part["problems"]] == [
+        "Excise Act 2005 (11th March 2019)"
+    ]
+    # ...and the listing did not: both stems still count as present
+    assert part["source_keys"] == [
+        "Customs Act, 1969",
+        "Excise Act 2005 (11th March 2019)",
+    ]

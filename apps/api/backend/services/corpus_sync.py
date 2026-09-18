@@ -142,6 +142,7 @@ async def sync_one(
     strict: bool,
     metrics: bool,
     pdf_dir: Optional[Path],
+    match: Optional[str] = None,
 ) -> Dict[str, Any]:
     if not repo.is_dir():
         return {
@@ -163,6 +164,7 @@ async def sync_one(
         metrics_dir=metrics_dir,
         pdf_dir=pdf_dir,
         corpus_origin=label,
+        match=match,
     )
     result["label"] = label
     result["repo"] = str(repo)
@@ -179,6 +181,7 @@ async def run_corpus_sync(
     force: bool = False,
     strict: bool = False,
     metrics: bool = False,
+    match: Optional[str] = None,
     ordinance_only: bool = False,
     acts_only: bool = False,
     rules_only: bool = False,
@@ -262,6 +265,7 @@ async def run_corpus_sync(
             # (`make seed-fixtures` syncs `data/fixtures/acts`), and reading the
             # registry here would point the sync at the real corpus instead.
             pdf_dir=corpus.source_within(path),
+            match=match,
         )
         combined[corpus.label] = part
         # `sync_one` already counts an unusable corpus root as one failure and also
