@@ -139,6 +139,18 @@ RULE_COVERAGE_MIN = 0.30
 # from being the same mistake.
 SIZE_GAP_MIN = 2.0
 
+#: A footnote zone sits at the FOOT of the page.  Used only by `_prose_sizes`,
+#: to decide whether a candidate second prose size is a footnote size at all:
+#: at least ``FOOTNOTE_BAND_SHARE`` of its words must fall below
+#: ``FOOTNOTE_BAND_TOP`` of the page height.  Measured over all 141 acts and
+#: rules sources with a text layer -- Sales Tax Rules 2006 (01-01-2025) puts
+#: 63% of its 9.0pt words in that band and Federal Excise 30-06-2025 puts 96%
+#: of its 8.0pt ones there, against 31% for Finance Act 2024's 8.0pt (which is
+#: schedule tariff text, not notes) and 0% for Inland Revenue Uniform Rules'
+#: 10.0pt.  The two populations do not overlap anywhere near the cut.
+FOOTNOTE_BAND_TOP = 0.60
+FOOTNOTE_BAND_SHARE = 0.5
+
 
 @dataclass(frozen=True)
 class Calibration:
@@ -226,6 +238,64 @@ def _leftmost_mode(values, default, share=0.08, ndigits=0):
     floor = max(2, int(len(values) * share))
     frequent = [v for v, c in counts.items() if c >= floor]
     return min(frequent) if frequent else min(counts)
+
+
+def _prose_sizes(all_sizes: collections.Counter,
+                 low_sizes: collections.Counter) -> tuple[float, float]:
+    """``(body_size, footnote_size)`` from a sampled word-size histogram.
+
+    The two dominant text sizes are body and footnote.  Headings, folios and
+    inline superscript markers are all present but individually rare, so the
+    top-2 modes are the two prose sizes.
+
+    ...unless the runner-up is a SECOND BODY.  A document may set more than one
+    size regime: Sales Tax Rules 2006 (01-01-2025) runs its rules at 12.0 and
+    prints two whole pages -- p31 and p152, 991 words between them -- at 11.0,
+    so 11.0 outranked the 9.0 its footnotes are actually set in.  The 12.0/11.0
+    pair then failed ``SIZE_GAP_MIN`` in :func:`calibrate` and the document was
+    zoned ``"none"``: **869 inline markers, 0 footnote records**, every one
+    unresolved, and no footnote invariant could see it because a document with
+    no records passes them all.
+
+    The gap was already the right discriminator -- it was consulted in the wrong
+    place.  Reaching it meant giving the document up, when the evidence says
+    only that THIS candidate is not a footnote size.  So skip it and take the
+    next one that clears the gap.
+
+    Two guards decide whether the next candidate is a footnote size, and each
+    was measured against the documents that need the other:
+
+    * **Mass.**  It must be prose, not decoration.  Below its 10.0pt runner-up
+      Finance Act 2022 offers 5.5pt (12 words) and 6.1pt (11); promoting either
+      would cut that document's zone boundary from 10.5 to 8.25 for nothing.
+      Eight candidates in the corpus are rejected by this and by nothing else.
+    * **Position.**  A footnote zone sits at the FOOT of the page.  Finance Act
+      2024 sets 573 words at 8.0pt -- 5.5% of its sample, comfortably past the
+      mass floor -- and only 31% of them fall in the bottom band, because they
+      are SCHEDULE TARIFF ROWS, not notes.  Promoting it was measured: it minted
+      **10 false footnote records** whose text reads ``S. No. Taxable Income
+      Rate of Tax`` and shredded 51 table rows.  Four candidates, that one
+      included, are rejected by this and by nothing else.
+
+    Over the **141 acts and rules sources with a text layer** -- the two lanes
+    that read this module; ``fbr_ingest`` is a fork with no ``calibrate`` at
+    all -- seventeen documents reach the retry and exactly **one** is promoted:
+    the Sales Tax Rules edition above.  It can only ever fire where the
+    runner-up was already going to be rejected, so it has no reach into a
+    document that calibrates cleanly today.
+    """
+    ranked = [s for s, _ in all_sizes.most_common() if all_sizes[s] >= 4]
+    if not ranked:
+        return 12.0, 9.0
+    body_size = ranked[0]
+    footnote_size = next((s for s in ranked[1:] if s < body_size), body_size - 3.0)
+    if body_size - footnote_size < SIZE_GAP_MIN:
+        floor = max(4.0, 0.01 * sum(all_sizes.values()))
+        alt = next((s for s in ranked[1:] if s <= body_size - SIZE_GAP_MIN), None)
+        if (alt is not None and all_sizes[alt] >= floor
+                and low_sizes[alt] >= FOOTNOTE_BAND_SHARE * all_sizes[alt]):
+            footnote_size = alt
+    return body_size, footnote_size
 
 
 def _page_lines(page):
@@ -355,6 +425,7 @@ def calibrate(pdf, sample: int = 36, profile: Profile = ACTS) -> Calibration:
     page_rules: list[list] = []              # per-page rules, for margin coverage
     per_page_lines = []
     all_sizes: collections.Counter = collections.Counter()
+    low_sizes: collections.Counter = collections.Counter()
     dash_counts: collections.Counter = collections.Counter()
 
     for i in idx:
@@ -364,8 +435,12 @@ def calibrate(pdf, sample: int = 36, profile: Profile = ACTS) -> Calibration:
             continue
         per_page_lines.append((i, lines))
         for ln in lines:
+            low = (ln.top / page_h) >= FOOTNOTE_BAND_TOP
             for w in ln.words:
-                all_sizes[round(w.size, 1)] += 1
+                size = round(w.size, 1)
+                all_sizes[size] += 1
+                if low:
+                    low_sizes[size] += 1
         ordered = sorted(lines, key=lambda ln: ln.top)
         top_lines.append((ordered[0].text().strip(), ordered[0].top))
 
@@ -479,12 +554,7 @@ def calibrate(pdf, sample: int = 36, profile: Profile = ACTS) -> Calibration:
                       else page_h * 0.90)
 
     # ---- body / footnote sizes -----------------------------------------
-    # The two dominant text sizes are body and footnote.  Headings, folios and
-    # inline superscript markers are all present but individually rare, so the
-    # top-2 modes are the two prose sizes.
-    ranked = [s for s, _ in all_sizes.most_common() if all_sizes[s] >= 4]
-    body_size = ranked[0] if ranked else 12.0
-    footnote_size = next((s for s in ranked[1:] if s < body_size), body_size - 3.0)
+    body_size, footnote_size = _prose_sizes(all_sizes, low_sizes)
 
     boundary = (body_size + footnote_size) / 2.0
     body_min_size = boundary
