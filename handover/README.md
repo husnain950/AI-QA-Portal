@@ -218,16 +218,40 @@ converts **11 of 48** — the other 36 are scans and one is Urdu, and every scan
 was skipped by instruction. Acts has the same shape smaller: 25 editions carrying 2,065
 image-backed pages.
 
-**All three lanes are at ONE revision, as far as the OCR decision allows.** Re-measured
-2026-09-14 after **round 37**, converting every staged document from a **clean** tree — 77 of
-77, 0 failures, 953s. The 21/56 split rounds 35-36 left in acts and rules is **gone**:
+**The lanes are NO LONGER at one revision — the CONTENT is current, the stamps are not.**
+Measured 2026-09-18 after round 44 and the Federal Excise re-conversion:
 
-| documents | `pipeline_revision` |
-|---|---|
-| **77** (66 acts + 11 rules) | **`0139b858daac`** — round 37. Every text-layer document in both lanes |
-| **9** (ordinance) | `dbcab2f79b78` — PRs #93-#99. Rounds 35-37 are all `legal_ingest`; the ordinance lane runs `fbr_ingest` and does not import it, so it is current |
-| 14 | *(none recorded)* — the image-backed acts documents, see below |
-| 3 | `4827840…` (round 12) — the image-backed ITO editions (20.02.2026, 30.06.2024, 31.07.2025) |
+| documents | lane | `pipeline_revision` |
+|---|---|---|
+| 29 | acts | `a8a0dffe4bf9` — round 38 |
+| **21** | acts | **`a8a0dffe4bf9-dirty`** — round 38, converted from a tree with uncommitted edits, so the stamp records nothing usable |
+| **15** | acts | **`d6512faa9a02`** — the Federal Excise editions, re-converted 2026-09-18 (below) |
+| 1 | acts | `974029e3c0bf` — Finance Act 2019, round 44 |
+| 14 | acts | *(none recorded)* — the image-backed documents, see below |
+| 9 | rules | `a8a0dffe4bf9` — round 38 |
+| 1 | rules | `e6a0bc8059e0` — Sales Tax Rules 01-01-2025, round 41 |
+| 1 | rules | `fea1cc5bac2c` — Customs Rules 2001, round 42 |
+| 9 | ordinance | `dbcab2f79b78` — PRs #93-#99, and current: the ordinance lane runs `fbr_ingest`, which does not import `legal_ingest`, so rounds 35-44 cannot reach it |
+| 3 | ordinance | `4827840…` (round 12) — the image-backed ITO editions |
+
+**Every staged document's CONTENT matches `main`**, which is why the register snapshot and the
+pipeline gate both pass: rounds 40-44 changed four staged documents between them and all four
+are installed, and round 39's census measured 102 of 119 byte-identical. What is mixed is the
+provenance, and **21 acts outputs are `-dirty` and therefore unattributable**. A single clean
+77-document re-conversion (~16 minutes, `953s` measured) would unify it; nothing depends on it
+today, so it is recorded rather than done.
+
+**2026-09-18 — round 39's output had never been installed.** The QA tracker's FS-02 and FS-07
+were still `In Progress` because the *portal* still showed them broken: every Federal Excise
+edition was serving output converted at `a8a0dff`, round **38**, which predates round 39's
+table fix. Round 39 converted twice to *measure* and never copied the result into `output/`.
+The fifteen staged editions were re-converted from a clean `main` (`d6512faa9a02`): **all 15
+changed, `<table>` 35 → 80 (+45), `<tr>` 162 → 1,887 (+1,725)**, and three of them shed a
+`-dirty` stamp. FIRST SCHEDULE Table-I now renders as one 69-row table and Table-II as one
+24-row table, both with the four columns the PDF prints. **This is the trap
+`working-rules.md` states as "a fix that is shipped and a fix that is measured are two
+different states" — with a third state it did not name: MEASURED BUT NOT INSTALLED.**
+Baseline kept in `data/corpora/acts/output/_pre_45/`.
 
 **The ordinance lane moved twenty-two rounds in one step**, from round 12, and nine of its
 twelve documents are now current. The other three are image-backed and cannot follow.

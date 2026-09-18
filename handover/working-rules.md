@@ -86,6 +86,15 @@ using a *relative* path silently patched `packages/` in the **main tree** instea
 worktree. Half the round's changes landed on the wrong branch. Use absolute paths in
 every edit, and `git status` in **both** trees before you trust a measurement.
 
+**Installing the output is part of the round, and nothing checks that you did.** Round 39
+measured its table fix by converting 119 documents twice and never copied the post-change
+output into `output/`, so for a day the corpus served round 38's rendering from a tree whose
+code contained round 39's fix. The QA tracker recorded FS-02 and FS-07 as open, and it was
+RIGHT about the portal and wrong about the code. Nothing catches this: the lane suites and the
+register read whatever is on disk, so a stale-but-self-consistent corpus is green. After a
+round that changes any document, check `metadata.pipeline_revision` on that document, not just
+the diff you measured. **Shipped, measured, and installed are three states, not two.**
+
 **Two rounds shipped code that moved nothing, because the documents carrying the hits were
 not staged.** Rounds 20's fixes for the heading-terminator scan, the omission spellings,
 `preamble_carries_no_toc_tail` and `clause_codes_plausible` were all correct and all
