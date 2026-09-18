@@ -1395,7 +1395,15 @@ def _render_line_run(line_refs, footnote_map, off_fn, cited, subheads=False):
                         for w in sorted(r.line.words, key=lambda w: (w.top, w.x0)):
                             if w.is_marker:
                                 cited.append((r.page, w.text.strip()))
-                plain = "\n".join(r.line.text() for r in region)
+                # Line.text() joins every word with a space; the source's own
+                # spacing is what _render_words reconstructs from the glue test,
+                # and plain_text must read the same inside a table as outside it
+                # ("the 30th June, 2020", not "the 30 th June, 2020" -- a
+                # no_split_ordinals hit the moment a region becomes a table).
+                # cited=None: this run's citations are registered just above.
+                plain = "\n".join(
+                    _render_line(r.line, r.page, footnote_map, off_fn(r.page), None)[0]
+                    for r in region)
                 rows.append(("table", plain, html))
                 geoms.append((None, region[0].page))
                 prev_plain = plain

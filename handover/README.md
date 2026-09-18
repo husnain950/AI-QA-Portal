@@ -20,6 +20,20 @@ bare-`[See …]` leaves **201 → 7**, orphaned dashes **412 → 2**, leaves **+
 omitted s.31 recovered). Register still **0**. See
 [`tasks.md`](tasks.md#closed-by-round-38--a-qa-cycle-not-a-board-row).
 
+**Round 39 (2026-09-18) closed the two rows round 38 held.** FS-02 and FS-07, the
+Federal Excise tariff tables that reached the portal as `<p>` prose. The ledger's
+one-line prescription (widen `_NUM_TOKEN`) is **not** a fix: alone it renders 125 `<tr>`
+for a 69-row table and reprints the page header nine times as data. **Five defects**, four
+in the column model and one — `no_split_ordinals`, `30 th June` — raised by the round
+itself, because the table path has always joined words with `" ".join`. Measured over 119
+convertible sources converted twice: **17 changed, 102 byte-identical**, and the 17 are
+exactly the census population (162 `Col.(N)` rows / 17 documents, all Federal Excise).
+Tables **+51**, `<tr>` **+1,933**, `<p>` **−607**, leaves **+0**, footnote records **+0**;
+unresolved markers **−181**, all of them false. Register still **0**. **FS-07 is only half
+closed** — THIRD SCHEDULE Table-I prints no numbering row at all, which is
+[row q4](tasks.md#closed-by-round-38--a-qa-cycle-not-a-board-row). See
+[`tasks.md`](tasks.md#closed-by-round-38--a-qa-cycle-not-a-board-row).
+
 **One gate is red and it is not round 38's.** `tools/discover_corpus.py --check` reports
 `signatures.json` stale over 27 documents; `main` gives exit 1 and a byte-identical list.
 It needs its own round.
