@@ -423,6 +423,7 @@ async def run_sync(
     metrics_dir: Optional[Path] = None,
     pdf_dir: Optional[Path] = None,
     corpus_origin: Optional[str] = None,
+    match: Optional[str] = None,
 ) -> Dict[str, object]:
     if acts_repo:
         pairs, unmatched = discover_acts_repo(source, pdf_dir)
@@ -447,6 +448,15 @@ async def run_sync(
         "pdf_pages": 0,
         "problems": [],
     }
+    if match:
+        # Sync a subset of the corpus without lying about what the corpus HOLDS.
+        # `source_keys` above is deliberately the full listing: reconciliation
+        # withdraws every stem missing from it, so narrowing by pointing the sync at a
+        # directory holding only the wanted documents withdraws all the others. Narrow
+        # the work, never the listing.
+        needle = match.casefold()
+        pairs = [pair for pair in pairs if needle in pair.source_key.casefold()]
+        summary["matched"] = len(pairs)
     problems: List[str] = list(unmatched)
     for line in unmatched:
         print(f"UNMATCHED {line}", file=sys.stderr)

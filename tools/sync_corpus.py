@@ -47,6 +47,15 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="CORPUS",
         help=f"sync only this corpus; repeatable ({', '.join(LABELS)})",
     )
+    p.add_argument(
+        "--match",
+        metavar="TEXT",
+        help=(
+            "Sync only documents whose JSON stem contains TEXT (case-insensitive). "
+            "Reconciliation still sees the whole corpus, so the documents this skips "
+            "are not withdrawn"
+        ),
+    )
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--force", action="store_true")
     p.add_argument("--strict", action="store_true")
@@ -63,6 +72,7 @@ def main() -> int:
     summary = asyncio.run(
         run_corpus_sync(
             only=args.only,
+            match=args.match,
             dry_run=args.dry_run,
             force=args.force,
             strict=args.strict,
