@@ -2447,7 +2447,40 @@ _SUBCHAPTER_BODY_RE = re.compile(
 # leading amendment decoration on a structural heading: superscript marker(s)
 # and/or opening bracket(s), e.g. "1[PART VA", "[PART III" (the marker can land
 # on its own line, leaving just the bracket)
-_STRUCT_DECOR_RE = re.compile(r"^(?:[\d*]{1,3}\s*|\[+\s*)+")
+#
+# The marker may be a RUN, and the run's separators are the ones
+# ``grammar._MARKER_RUN_SEP_RE`` already lists -- ``,``, ``&`` and ``/`` -- because
+# one extracted word fuses them.  This pattern knew only whitespace, so it read
+# ONE marker and stopped at the separator: Customs Rules 2001 prints
+# ``2&30 [CHAPTER XIV`` (p102) and ``41&46 [CHAPTER VIII`` (p21), which stripped
+# to ``&30 [CHAPTER XIV`` and never matched a heading form.  Both chapters were
+# absent from the tree and their rules parented under the preceding chapter --
+# 326-340 under CHAPTER XIII, and CHAPTER VIII's whole run under CHAPTER VII.
+# `grammar.MARKER_PREFIX` has admitted these separators since the round that
+# measured them; this was the second, narrower implementation of the same idea.
+#
+# An opening QUOTE is deliberately NOT decoration here, and it was measured
+# before it was refused.  Customs Rules 2001 prints ``"Chapter XX`` (p163) as a
+# substituted caption, so admitting the quote looks like it recovers a third
+# chapter -- but the same glyph opens QUOTED REPEALED TEXT, and that is the
+# commoner reading by far.  Customs Act 1969 p219 prints, under ``LEGAL
+# REFERENCE``:
+#
+#     2. Omitted by the Finance Ordinance, 2000 ..., At the
+#     time of omission section 196-K to 196-U were as under:
+#     "Chapter XIX-A
+#     SETTLEMENT CASES
+#     196-K. Indirect Taxes Settlement Commission.- (1) ...
+#
+# CHAPTER XIX-A is ALREADY in that document's tree, cut from the live
+# ``1 [ CHAPTER XIX-A`` sixteen lines above.  Cutting here would mint a second
+# one and re-parent eleven repealed sections as live law, in at least twenty
+# Customs editions.  The suite's reader refuses the same line for the same
+# reason -- see ``_QUOTE_CUE`` in ``suite/invariants/_common.py`` -- and telling
+# the two apart needs quote-TERRITORY tracking, which is a different change from
+# this one.
+_STRUCT_DECOR_RE = re.compile(
+    r"^(?:[\d*]{1,3}(?:\s*[,&/]\s*[\d*]{1,3})*\s*|\[+\s*)+")
 
 
 def _norm_container_code(text: str) -> str:

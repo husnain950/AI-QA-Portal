@@ -235,6 +235,28 @@ register snapshot.
 bracket gate was safe. Re-running it showed the measurement had expired — but it was still
 right about the danger.
 
+**A leading QUOTE is not decoration, however much it looks like one.** Round 42 measured
+admitting `“` before a container caption, because Customs Rules 2001 prints
+`“Chapter XX` as a substituted heading. The same glyph opens QUOTED REPEALED TEXT, and
+that is the commoner reading: Customs Act 1969 p219 prints `“Chapter XIX-A` under *"At
+the time of omission section 196-K to 196-U were as under:"* while the LIVE chapter is
+already cut sixteen lines above. Accepting it mints a duplicate chapter and re-parents
+eleven repealed sections as law in at least twenty editions. `suite/invariants/_common.py`
+had the answer already, in `_QUOTE_CUE`.
+
+**A census over `extract_text` cannot see a superscript.** Round 42's first boundary census
+screened every corpus line through `signature.extract_text` and reported the marker-run class
+as **zero gains** -- because that extractor hands `2&30 [CHAPTER XIV` over as `[CHAPTER XIV`,
+which the narrow regex already accepted. The class it was written to measure was invisible to
+it. Re-run over `calibrate._page_lines`, the parser's own line text, it is there. This is the
+same rule as *"measure against the parser's line text, not the rendered output"*, and it now
+has a second instance.
+
+**Do not monkeypatch a module global inside a process pool to A/B a regex.** The same round's
+pooled census reported 3 gains where a direct call on one document returned 3 for that
+document alone. Pass the pattern into a local reimplementation of the three-line predicate
+instead; it is thread-safe, it is faster, and it cannot silently measure the wrong arm.
+
 **The obvious generalisation is often wrong.** `XIVA` and `XIV-A` are two *different*
 chapters of Sales Tax Rules 2006; matching numerals by value collapses them.
 

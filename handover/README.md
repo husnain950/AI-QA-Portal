@@ -54,6 +54,14 @@ footnote zone actually sit at the foot of the page. **Exactly one document in th
 changes.** The row's rider did **not** fire. Artifact:
 [`wip/phase3-round41-second-body-calibration.md`](../wip/phase3-round41-second-body-calibration.md).
 
+**Round 42 closed row 14, the last ranked row.** Customs Rules 2001 goes from **41 chapters
+to 43**, with rule **89** recovered. `builder._STRUCT_DECOR_RE` knew only whitespace between
+stacked amendment markers, so `41&46 [CHAPTER VIII` and `2&30 [CHAPTER XIV` were never
+boundaries; the grammar's own `MARKER_PREFIX` has known `,` and `&` for rounds. **CHAPTER XX
+is deliberately not recovered** — it wears an opening quote, and that glyph opens quoted
+repealed text far more often than a substituted caption. Artifact:
+[`wip/phase3-round42-marker-run-decoration.md`](../wip/phase3-round42-marker-run-decoration.md).
+
 **The board has had no register-bearing work since round 36.** Work is picked from the
 **unmeasured surface** instead — the unresolved `<sup class="marker">` census, which no
 invariant watches. It stands at **3,265 across 81 documents** after round 37 (acts 1,900 /
