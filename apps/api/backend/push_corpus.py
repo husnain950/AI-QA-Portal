@@ -315,6 +315,30 @@ def plan_refresh(local, remote):
     return to_upload, to_refresh
 
 
+def remote_state(doc, if_match=None):
+    """``(landed, if_match)`` after re-planning this ONE document against the remote.
+
+    A write that failed at the edge may have committed anyway, and `/replace-json` is
+    version-gated, so replaying it blind is not safe: attempt 2 either finds the
+    `If-Match` superseded (**409**) or blocks on attempt 1's own `FOR UPDATE` until the
+    request lock timeout fires (**500**). Round 47 reported four such failures on four
+    documents that were already correct, and a second whole run was what discovered it.
+
+    `plan_refresh` is the existing answer to "does the deployment hold exactly these
+    bytes, and if not, what version must the next write name" -- re-running it over a
+    corpus of one is the re-check, so the matching rule cannot drift into a second copy.
+    """
+    try:
+        to_upload, to_refresh = plan_refresh([doc], existing_docs())
+    except Exception as error:
+        # A blip on the re-check must not abort the push: fall back to retrying.
+        print(f"  re-check failed for {doc.name[:48]}: {error}", file=sys.stderr, flush=True)
+        return False, if_match
+    if not to_upload and not to_refresh:
+        return True, if_match
+    return False, (to_refresh[0].version if to_refresh else None) or if_match
+
+
 def put_metrics(document_id: str, metrics: dict) -> bool:
     """POST one document's pipeline measurements. Never fatal.
 
@@ -430,38 +454,55 @@ def main(argv: list[str] | None = None):
     started = time.time()
     total = len(to_refresh) + len(to_upload)
 
-    def send(label, url, fields, files, name, size, if_match=None):
-        """POST one document. Returns True on success; reports and skips on failure."""
+    def send(label, url, fields, files, doc, size, if_match=None):
+        """POST one document. Returns True on success; reports and skips on failure.
+
+        The retry re-reads the remote before deciding anything -- see `remote_state`.
+        A document that landed is counted as sent, and a document that did not is
+        retried against the version the deployment holds NOW, not the one the plan
+        snapshotted before the run started.
+        """
         nonlocal done, failed, sent
         body, ctype = multipart(fields, files)
-        request = urllib.request.Request(url, data=body, method="POST")
-        request.add_header("Content-Type", ctype)
-        if if_match:
-            request.add_header("If-Match", if_match)
+        landed = False
         for attempt in (1, 2):
+            # Rebuilt per attempt so a refreshed `If-Match` can actually be used.
+            request = urllib.request.Request(url, data=body, method="POST")
+            request.add_header("Content-Type", ctype)
+            if if_match:
+                request.add_header("If-Match", if_match)
             try:
                 with open_url(request, timeout=900) as response:
                     json.loads(response.read().decode() or "null")
-                done += 1
-                sent += size
+                landed = True
+                break
+            except Exception as error:
+                # Attempt 1's error used to be discarded entirely, so a run reported
+                # attempt 2's 409/500 -- a consequence of attempt 1, never its cause.
+                detail = getattr(error, "read", lambda: b"")()[:200]
                 print(
-                    f"  [{done:3d}/{total}] {label} {size / 1048576:6.1f} MB  "
-                    f"{sent / 1048576:6.0f} MB sent  "
-                    f"{(time.time() - started) / 60:4.1f} min  {name[:48]}",
+                    f"  attempt {attempt} {label} {doc.name[:48]}: {error} {detail!r}",
+                    file=sys.stderr,
                     flush=True,
                 )
-                return True
-            except Exception as error:
-                if attempt == 2:
-                    failed += 1
-                    detail = getattr(error, "read", lambda: b"")()[:200]
-                    print(
-                        f"  FAILED {label} {name[:48]}: {error} {detail!r}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
-                    return False
                 time.sleep(5)
+                # After the LAST attempt too: a slow commit may land during the retry.
+                landed, if_match = remote_state(doc, if_match)
+                if landed or attempt == 2:
+                    break
+        if not landed:
+            failed += 1
+            print(f"  FAILED {label} {doc.name[:48]}", file=sys.stderr, flush=True)
+            return False
+        done += 1
+        sent += size
+        print(
+            f"  [{done:3d}/{total}] {label} {size / 1048576:6.1f} MB  "
+            f"{sent / 1048576:6.0f} MB sent  "
+            f"{(time.time() - started) / 60:4.1f} min  {doc.name[:48]}",
+            flush=True,
+        )
+        return True
 
     # Refresh first: it is JSON only, and it is what makes an already-visible library
     # tell the truth about its OCR provenance. Uploads can take their time afterwards.
@@ -482,7 +523,7 @@ def main(argv: list[str] | None = None):
             f"{BASE}/api/documents/{row.id}/replace-json",
             fields,
             {"json_file": (os.path.basename(doc.json), doc.json)},
-            doc.name,
+            doc,
             os.path.getsize(doc.json),
             if_match=row.version,
         )
@@ -494,27 +535,29 @@ def main(argv: list[str] | None = None):
             f"{args.risky_above_mb:.0f} MB, sent first while a crash costs nothing",
             flush=True,
         )
-    for size, name, pdf, js, lane, source_key, origin in risky + rest:
-        fields = {"name": name}
-        if lane:
-            fields["corpus_lane"] = lane
+    # The `LocalDoc` is kept whole here for the same reason `RefreshRow` keeps it whole:
+    # this loop named seven fields of an eight-field row and could not run at all.
+    for item in risky + rest:
+        fields = {"name": item.name}
+        if item.lane:
+            fields["corpus_lane"] = item.lane
         # The identity this document already has locally. Without it the deployment
         # mints a uuid4 and a `source_type='upload'` row, which is what made pipeline
         # health unmatchable and a re-push destructive.
-        if source_key:
-            fields["source_key"] = source_key
-        if origin:
-            fields["corpus_origin"] = origin
+        if item.source_key:
+            fields["source_key"] = item.source_key
+        if item.corpus_origin:
+            fields["corpus_origin"] = item.corpus_origin
         send(
             "upload ",
             f"{BASE}/api/documents/upload",
             fields,
             {
-                "pdf": (os.path.basename(pdf), pdf),
-                "json_file": (os.path.basename(js), js),
+                "pdf": (os.path.basename(item.pdf), item.pdf),
+                "json_file": (os.path.basename(item.json), item.json),
             },
-            name,
-            size,
+            item,
+            item.size,
         )
 
     # Health last, and only for what is actually there: a measurement is about a
