@@ -100,3 +100,43 @@ files), `blobs-preprune-*.tar` (362 MB, 242 blobs).
   log was not worth it without a decision.
 - **`evidence/*.zip` and `render/*.png` blobs** are unreachable by any delete path
   (`blob_store.is_referenced` only knows `pdf`/`json`). Pre-existing; own cleanup.
+
+---
+
+# Production round (2026-09-22)
+
+Prod is a separate managed Postgres, reachable only through the API. Backup first:
+`review-snapshot-20260922-100617.json`, 40.9 MB, **112 of 115 documents**. The three that
+failed with `Bad Gateway` — `Income Tax Ordinance 2001 - amended upto 30.06.2023`,
+`Customs Act, 1969 as amended up to 30.06.2024`, `The Tax Laws (Amendment) Act, 2023` —
+are all in the **keep** set, so every document being deleted is covered.
+
+## Two defects that only appear against the deployed portal
+
+Both were invisible locally and are fixed in the follow-up PR (#117).
+
+1. **67 documents in one request → 504.** nginx stops waiting long before Postgres
+   finishes the cascade; the transaction rolls back and the run changes nothing. The API
+   was never the limit. Chunking is now `--chunk`, default **10** — sized so 67 documents
+   is 7 requests plus the orphan sweep, inside the `HEAVY` budget of ten per hour per IP.
+   A chunk of 7 would commit comfortably and then 429 halfway through.
+2. **The delete reported contention as a broken document.** `_delete_documents` caught
+   every exception and returned `500 Database deletion failed`, swallowing SQLSTATE 55P03
+   that `main.py` already maps to a retryable 503. `replace_json` re-raises for exactly
+   this reason and its comment records the same bug biting before. A cascade across a
+   batch is where the 3s request lock timeout is most reachable, so pruning a deployed
+   portal is the case that finds it. **The single-document route shares the helper**, so
+   this was pre-existing there too, just rarely triggered by one document.
+
+A single small document (`Income Tax (Third Amendment) Act, 2016`, 2 sections) deleted
+cleanly with a 200 — that is how the route itself was cleared and the fault localised to
+batch duration. It is also why prod reads 114 rather than 115 before the real run.
+
+## Northflank reality vs the template
+
+`crx-worker` **does not exist** in Northflank. The template declares it and
+`deploy-northflank.yml` mentions it, but the project has only `crx-api` and `crx-web` —
+dispatching a deploy with `crx-worker` fails with
+`Could not find service 'crx-worker'`. PR #116's advice to include it is wrong.
+Consequence beyond deploys: **prod runs no job worker at all** (`WORKER_IN_PROCESS=0` on
+`crx-api`), so anything enqueued there never runs.

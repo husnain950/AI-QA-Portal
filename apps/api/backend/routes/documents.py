@@ -677,9 +677,15 @@ async def _delete_documents(db: DatabaseConnection, document_ids: list[str]) -> 
         for document_id in document_ids:
             await db.execute("DELETE FROM documents WHERE id = ?", (document_id,))
         await db.commit()
-    except Exception:
+    except Exception as exc:
         await db.rollback()
-        logger.exception("Database deletion failed")
+        # Contention, not a broken document: `main.py` turns 55P03 into a 503 that says
+        # to retry. Swallowing it here reports an opaque 500 for a batch that would have
+        # landed on the next attempt -- and a cascade over many documents is exactly
+        # where the request lock timeout is reachable.
+        if is_lock_timeout(exc):
+            raise
+        logger.exception("Database deletion failed (%d document(s))", len(document_ids))
         raise HTTPException(status_code=500, detail="Database deletion failed")
 
     # Content addressing means another document may share these bytes; only unlink what

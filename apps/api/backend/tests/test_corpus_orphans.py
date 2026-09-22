@@ -140,3 +140,31 @@ async def test_bulk_delete_requires_admin(sign_in, two_documents):
     reviewer = await sign_in("reviewer")
     response = await reviewer.request("DELETE", "/api/documents", json={"ids": [DOOMED]})
     assert response.status_code == 403, response.text
+
+
+async def test_bulk_delete_surfaces_a_lock_timeout_as_503(client, db, two_documents, monkeypatch):
+    """Contention must not read as a broken document -- it is retryable.
+
+    The stub raises what Postgres actually raises: a SQLAlchemy OperationalError whose
+    `orig` carries SQLSTATE 55P03. `main.py` registers its handler against those types
+    only, so a bare RuntimeError would escape it and prove nothing.
+    """
+    from sqlalchemy.exc import OperationalError
+
+    from backend.database import LOCK_TIMEOUT_SQLSTATE, DatabaseConnection
+
+    real = DatabaseConnection.execute
+
+    # `execute` is a sync factory returning an awaitable context manager, so the stub
+    # has to be sync too -- an `async def` is never awaited on sign-in's `async with`.
+    def _boom(self, sql, params=None):
+        if sql.strip().upper().startswith("DELETE FROM DOCUMENTS"):
+            orig = Exception("canceling statement due to lock timeout")
+            orig.sqlstate = LOCK_TIMEOUT_SQLSTATE
+            raise OperationalError("DELETE FROM documents", {}, orig)
+        return real(self, sql, params)
+
+    monkeypatch.setattr(DatabaseConnection, "execute", _boom)
+    response = await client.request("DELETE", "/api/documents", json={"ids": [DOOMED]})
+    assert response.status_code == 503, response.text
+    assert response.json()["code"] == "lock_timeout"
