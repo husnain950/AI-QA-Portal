@@ -140,3 +140,42 @@ dispatching a deploy with `crx-worker` fails with
 `Could not find service 'crx-worker'`. PR #116's advice to include it is wrong.
 Consequence beyond deploys: **prod runs no job worker at all** (`WORKER_IN_PROCESS=0` on
 `crx-api`), so anything enqueued there never runs.
+
+## Result
+
+Production matches local exactly.
+
+| | before | after |
+|---|---:|---:|
+| documents | 115 | **44** |
+| sections | 23,585 | 9,647 |
+| statute_families | — | 18 removed by the sweep |
+| jobs | — | 2 removed by the sweep |
+| review_events | 549 | 549 *(retained; append-only)* |
+
+Verified after: dry run reports **keep 48 / delete 0**; `/health/ready` ok; `corpus/status`
+reads 44; the largest surviving document (`Customs Rules, 2001 (Updated Up to 30.06.2023)`,
+1,107 sections) serves its 9.3 MB PDF blob with HTTP 200.
+
+The 48-vs-44 gap is the same four duplicate ordinance ingests found locally — identical
+PDF hashes, the `-` spelling carrying one version against the other's two. The stale
+copies were deleted, then the orphan sweep run.
+
+### One thing to know about the failed attempts
+
+Both the 504 and the subsequent 500s reported failure to the client while the server
+**kept going and committed**. Immediately after the 500, prod still read 115; some minutes
+later it read 48. So a failed prune run here is not evidence that nothing happened —
+**always re-read the document count before retrying**, or a retry will be computed against
+a portal that has already moved. The tool is idempotent, so the re-read costs nothing.
+
+## Still open
+
+- **Prod users were not wiped** — no user-delete API exists, prod Postgres is not
+  externally reachable, and it would lock the portal out until `crx-api` restarts.
+- **21 shortlist rows could be ingested** (PDF staged on disk, never converted); 3 have no
+  PDF anywhere: ICT (Tax on Services) Ordinance 2001 upto 30.06.2022, Sales Tax Rules 2006
+  upto 31.08.2021, and upto 31.10.2023.
+- **`crx-worker` does not exist on Northflank**, so prod has no job worker at all.
+- **The Compose blob mount** still points at an empty named volume rather than
+  `./data/uploads`; blobs were copied in to make the local viewer work.
