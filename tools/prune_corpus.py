@@ -55,9 +55,14 @@ DEFAULT_CORPUS_ROOT = REPO_ROOT / "data" / "corpora"
 DEFAULT_MAX_DELETE = 80
 TIMEOUT = 120
 MAX_ATTEMPTS = 4
-MAX_RETRY_WAIT = 300
-# Must stay <= MAX_BULK_DELETE in backend.routes.documents.
-BULK_CHUNK = 500
+# A HEAVY 429 frees up only when the hour-long window rolls; capping the wait lower
+# just burns attempts on a sleep that was never going to be long enough.
+MAX_RETRY_WAIT = 3900
+# Must stay <= MAX_BULK_DELETE in backend.routes.documents. The real ceiling is not
+# the API but the proxy in front of it: 67 documents in one transaction 504'd against
+# the deployed portal, where nginx gives up long before Postgres does. Keep a chunk
+# small enough to commit inside that timeout, and few enough to fit the 10/hour budget.
+BULK_CHUNK = 10
 SESSION_COOKIE = "crx_session"  # must match backend.services.auth.SESSION_COOKIE
 
 _SHA_IN_KEY = re.compile(r"([0-9a-f]{64})")
@@ -199,6 +204,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--email", default=os.environ.get("ADMIN_EMAIL"))
     parser.add_argument("--password", default=os.environ.get("ADMIN_PASSWORD"))
     parser.add_argument("--max-delete", type=int, default=DEFAULT_MAX_DELETE)
+    parser.add_argument(
+        "--chunk", type=int, default=BULK_CHUNK,
+        help=f"documents per delete request (default {BULK_CHUNK}); lower it if the "
+             "portal sits behind a proxy that times out first",
+    )
     parser.add_argument("--apply", action="store_true", help="actually delete")
     args = parser.parse_args(argv)
 
@@ -243,8 +253,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print()
     # One request per chunk, not one per document: a per-document loop 429s after ten.
-    for start in range(0, len(delete), BULK_CHUNK):
-        chunk = delete[start:start + BULK_CHUNK]
+    for start in range(0, len(delete), args.chunk):
+        chunk = delete[start:start + args.chunk]
         result = call(
             opener,
             f"{base_url}/api/documents",
