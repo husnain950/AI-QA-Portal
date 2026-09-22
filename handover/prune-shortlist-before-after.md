@@ -179,3 +179,131 @@ a portal that has already moved. The tool is idempotent, so the re-read costs no
 - **`crx-worker` does not exist on Northflank**, so prod has no job worker at all.
 - **The Compose blob mount** still points at an empty named volume rather than
   `./data/uploads`; blobs were copied in to make the local viewer work.
+
+---
+
+# Ingest round (2026-09-22): the 21 staged shortlist rows
+
+The prune round left 24 shortlist rows with no document. 21 of them had a PDF sitting in
+`data/corpora/` that had simply never been converted. This round converted those 21 and
+synced them. **Local only — production is untouched.**
+
+Targets: 11 ordinance, 10 rules. Resolved by re-running `prune_corpus.resolve` against the
+live portal, so the list is the tool's own unmatched set, not a hand transcription.
+
+## Result
+
+| | before | after |
+|---|---:|---:|
+| portal documents | 44 | **63** |
+| sections | 9,647 | **9,874** |
+| corpus `output/*.json` | 44 | 63 |
+| shortlist rows with no document | 24 | **5** |
+
+Sync reported `added 11` (ordinance) + `added 8` (rules), `failed 0`, `withdrawn 0`,
+`unmatched 0`, stderr empty. New lanes appear for the rules documents:
+`federal_excise_rules` (1) and `other_rules` (7).
+
+## Two documents were refused, and should be
+
+Both fail the OCR fidelity floor, which refuses to emit a statute from a recognition it
+cannot stand behind. This is the pipeline working, not a failure to fix:
+
+| document | pages | agreement | floor |
+|---|---:|---:|---:|
+| Income Tax Rules, 2002 Amended upto 24.11.2023 | 946 (15 image-backed) | **62.7%** | 85% |
+| PSW (Deputation/Secondment of Civil Servants) Regulations, 2021 | 20 | **74.3%** | 85% |
+
+Neither can be ingested without a cleaner source PDF. `--admit-below-floor` would not help:
+it redirects to `output/_provisional/`, which the corpus glob never reads.
+
+So the 5 rows still absent are these 2 plus the 3 that have no PDF anywhere (ICT Ordinance
+upto 30.06.2022, Sales Tax Rules 2006 upto 31.08.2021 and upto 31.10.2023).
+
+## The pipeline gate now fails, and most of it is the wrong invariant
+
+`tools/run_tests_smoke.py`: acts 34 pass (unchanged); **ordinance fails on all 11 new
+editions**, **rules on 3 of 8**. Split it before acting on it.
+
+**Wrong invariant (ordinance, all 11).** Until this round the ordinance lane held only
+Income Tax Ordinance 2001 editions, so assertions about *that* statute held everywhere by
+accident. The lane now also holds amendment ordinances and the ICT Ordinance:
+
+- `structure_counts` fires on every new edition with `chapters in tree 1 < 13` and
+  `no ordinal-titled schedules in tree`. Both numbers are the Income Tax Ordinance's shape.
+  A 3-page amendment ordinance has one chapter and no schedules by nature.
+- **10 of the 374 ordinance cases carry no edition scope** — `ch1_sec1_heading`,
+  `ch1_sec2_body`, `sec207_operative_first_line`, `sec230E_real_body`,
+  `qa_114_no_phantom_table` and five siblings. The other 364 are scoped and skip correctly
+  (`skipped (other edition) 364`). Unscoped, they assert Income Tax Ordinance content against
+  every edition in the lane: `heading 'Interpretation' != 'Definitions'`,
+  `target not found: section 207`. Scoping those 10 to the Income Tax Ordinance editions is
+  the fix; nothing about the new documents is wrong here.
+
+**Real hits (rules, 3 of 8).** These are document defects, not scope problems:
+
+| edition | invariant |
+|---|---|
+| Federal Excise Rules, 2005 (31-10-2023) | `no_split_ordinals` (1), `section_carries_its_body` (2), `bold_gate_unchanged_on_text_layer` (1) |
+| Inland Revenue Uniform Rules, 2021 | `clause_codes_plausible` (1) |
+| S.R.O 406(I)/2023 PSW Trade Data Rules | `preamble_carries_no_toc_tail` (1) |
+
+One ordinance hit is also real: `preamble_present` on Tax Laws (Second Amendment) Ordinance,
+2021 — that document lost its preamble and section 1 (see below).
+
+## Parse defects found by reading the documents, independent of the gate
+
+The gate does not catch these, so they are listed per document:
+
+- **ICT (Tax on Services) Ordinance 2001, all 4 editions** — 3 sections is correct (the
+  PDF's own TOC lists exactly 1, 2, 3), but `THE SCHEDULE` with Table-1 and Table-2 — the
+  rate tables, i.e. the substance — is swallowed into section 3's body and
+  `schedules: 0`. Section 3 spans pages 4→15 of 15 and carries 11k–17k characters.
+- **Tax Laws (Second Amendment) Ordinance, 2021** — emits section 2 only; section 1 and
+  the preamble are gone, 21,906 characters in one node.
+- **Tax Laws (Second Amendment) Ordinance, 2022** — codes 1, 2, 3, **5**; section 4 missing.
+- **Inland Revenue Uniform Rules, 2021** — section codes come out as `1` and **`2021`**:
+  the year in the title read as a rule number, 21,643 characters in one node.
+- **OCR'd PSW scans** — gaps in rule numbering: IRMS 2023 has 1,3,5,7,8,9; Trade Data 2022
+  has 1,2,3,6,7,8; SRO 406 has 1,2,3,4,5,7; Assets Rules 2023 starts at 2.
+
+Clean: Federal Excise Rules 2005 parses as 2 instruments / 131 sections with contiguous
+codes, and both Income Tax (Amendment) Ordinances parse as their true 2 sections.
+
+## Verification
+
+- All 63 documents' PDF blobs return **HTTP 200** (the 19 new ones after the blob copy below).
+- `sections` with empty `html_content`: **0 of 9,874**. The one empty `plain_text` row is
+  `Finance Act, 2022 / THE FIFTH SCHEDULE` and pre-dates this round.
+- `prune_corpus.py` dry run: **keep 63, delete 0, 5 rows absent** — the corpus and the
+  shortlist agree on everything that exists.
+- `sync_corpus.py --dry-run` after the run: `validated 63, failed 0, unmatched 0,
+  withdrawn 0` — every corpus JSON still validates and still pairs with a PDF.
+
+**A dry run's `added` count is not evidence of anything.** `run_sync` returns before it
+opens the database when `dry_run` is set, so `added` is *always* 0 — it read 0 before this
+round with 24 documents missing, and it reads 0 now. The earlier section above cites
+`added 0 ... corpus and database agree exactly`; that conclusion happened to be true but
+the number does not support it. `validated` (JSONs seen) and `failed`/`unmatched` are the
+signals a dry run actually carries.
+
+Note the API list endpoint `/api/documents/{id}/sections` returns no `html`/`plain_text`
+for any document, old or new — checking HTML coverage through it reports 100% missing and
+means nothing. Query `sections.html_content` directly.
+
+## The Compose blob mount bit again
+
+Sync wrote the 19 new PDF blobs to the host `./data/uploads`, but `crx-api` mounts the named
+volume `blob-cache` at `/app/data/uploads`. All 19 new documents 404'd their PDF until the
+blobs were copied in with `docker cp`, exactly as the prune round had to. The mount itself
+is still unfixed — anything that writes a blob from the host needs this copy.
+
+## Not done
+
+- **Production is untouched** — it still reads 44 documents. Pushing these 19 is a separate
+  decision, and the parse defects above argue for reviewing them locally first.
+- **The 10 unscoped ordinance cases are not scoped.** Left alone deliberately: it is a suite
+  change, and the gate failing loudly is better than a quiet exemption.
+- **No parser change was made.** Every defect above is recorded, none fixed — the corpus
+  was converted at one revision (`4fec3ef`) and editing the parser mid-round would have
+  produced a mixed-revision corpus.
