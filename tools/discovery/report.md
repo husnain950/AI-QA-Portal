@@ -5,19 +5,19 @@ measured from the staged corpus; nothing here is hand-entered.
 
 ## 1. Census
 
-**190 documents**, 58 document groups, 3 lanes.
+**83 documents**, 28 document groups, 3 lanes.
 
 | family | documents | parseable | mean confidence |
 |---|---|---|---|
 | unconvertible | 3 | no | 1.0 |
-| urdu | 4 | no | 0.62 |
-| no_text_layer | 30 | no | 0.47 |
-| amending | 36 | yes | 0.73 |
-| consolidated | 117 | no | 0.85 |
+| urdu | 0 | no | 0.0 |
+| no_text_layer | 7 | no | 0.5 |
+| amending | 16 | yes | 0.8 |
+| consolidated | 57 | no | 0.85 |
 | **unexplained** | 0 | -- | -- |
 
-By lane: ordinance 47, acts 95, rules 48
-Inherited from group (no text layer of their own): 9
+By lane: ordinance 21, acts 38, rules 24
+Inherited from group (no text layer of their own): 1
 
 ## 2. Families
 
@@ -27,10 +27,10 @@ significant: the first family whose required set holds wins.
 | # | family | required signals | optional signals | n |
 |---|---|---|---|---|
 | 1 | unconvertible | legacy_word_format | -- | 3 |
-| 2 | urdu | arabic_script | full_translation | 4 |
-| 3 | no_text_layer | no_text_layer | short, sro_notified, form_bearing | 30 |
-| 4 | amending | amending_language | no_contents_page, gazette_masthead, flat, names_its_targets | 36 |
-| 5 | consolidated | has_leaves | has_contents_page, has_containers, has_schedules, amendment_footnotes, names_its_leaf_kind | 117 |
+| 2 | urdu | arabic_script | full_translation | 0 |
+| 3 | no_text_layer | no_text_layer | short, sro_notified, form_bearing | 7 |
+| 4 | amending | amending_language | no_contents_page, gazette_masthead, flat, names_its_targets | 16 |
+| 5 | consolidated | has_leaves | has_contents_page, has_containers, has_schedules, amendment_footnotes, names_its_leaf_kind | 57 |
 
 ## 3. Shape group-by
 
@@ -40,20 +40,16 @@ is what shows whether the five families are cutting the corpus where it bends.
 
 | n | containers | contents | family | example group |
 |---|---|---|---|---|
-| 58 | C | toc | consolidated | Customs Act, 1969 |
-| 33 | flat | notoc | amending | Income Tax (Amendment) Ordinance, 2018 |
-| 30 | flat | notoc | no_text_layer | Assets Declaration (Amendment) Ordinance 2019 |
-| 24 | flat | notoc | consolidated | The Islamabad Capital Territory (Tax on Services) Ordinance, 2001 |
-| 15 | PCD | toc | consolidated | Income Tax Ordinance, 2001 |
-| 8 | PC | toc | consolidated | Sales Tax Rules 2006 |
-| 5 | C | notoc | consolidated | Public Finance Management Act, 2019 |
-| 4 | flat | notoc | urdu | Assets Declaration Ordinance, 2019 |
-| 4 | CPD | toc | consolidated | Income Tax Ordinance, 2001 |
+| 27 | C | toc | consolidated | Customs Act, 1969 |
+| 14 | flat | notoc | amending | Income Tax (Amendment) Ordinance, 2021 |
+| 13 | flat | notoc | consolidated | The Islamabad Capital Territory (Tax on Services) Ordinance, 2001 |
+| 9 | PCD | toc | consolidated | Income Tax Ordinance, 2001 |
+| 7 | flat | notoc | no_text_layer | Recruitment Rules |
+| 6 | PC | toc | consolidated | Sales Tax Rules 2006 |
 | 3 | flat | notoc | unconvertible | Income Tax Ordinance, 1979 - Old Laws |
-| 2 | CP | toc | consolidated | Customs Rules, 2001 (Updated Up to 30.06.2023) |
-| 1 | PC | toc | amending | Finance Acts |
 | 1 | P | toc | amending | Finance Acts |
 | 1 | CP | toc | amending | Finance Acts |
+| 1 | CP | toc | consolidated | Customs Rules, 2001 (Updated Up to 30.06.2023) |
 | 1 | flat | toc | consolidated | Inland Revenue Uniform Rules, 2021 |
 
 ## 4. Drift inside a document group
@@ -63,70 +59,24 @@ This is where a publisher re-typesetting mid-group becomes visible, and where
 a folder that is a filing convention rather than a document group gives itself
 away.
 
-### acts / Customs Act, 1969  (22 editions, 2 shapes)
+### acts / Finance Acts  (7 editions, 3 shapes)
 
 | pages | family | containers | CH | dot leaders | producer | file |
 |---|---|---|---|---|---|---|
-| 13 | urdu | flat | 0 | 0 | Microsoft® Word 2016 | Table of content for Customs Act 1969-Urdu Version.pdf |
-| 225 | consolidated | C | 22 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2012).pdf |
-| 234 | consolidated | C | 44 | 0 | Microsoft® Word 2016 | Customs Act, 1969 (As amended upto 11th March, 2019).pdf |
-| 236 | consolidated | C | 44 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2011).pdf |
-| 238 | consolidated | C | 44 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2009).pdf |
-| 239 | consolidated | C | 44 | 0 | Acrobat Distiller 7.0 (Windows) |  Customs Act ,1969 (Amended upto 30th June 2007).pdf |
-| 239 | consolidated | C | 44 | 0 | -- | Customs Act ,1969 (Amended upto 30th June 2010).pdf |
-| 241 | consolidated | C | 44 | 0 | Acrobat Distiller 7.0 (Windows) | Customs Act ,1969 (Amended upto 30th June 2008).pdf |
-| 242 | consolidated | C | 44 | 0 | Microsoft® Word 2010 |  Customs Act ,1969 (As amended up to 30th June, 2014).pdf |
-| 244 | consolidated | C | 44 | 0 | Microsoft® Word 2010 | Customs Act ,1969 (As amended up to 30th June, 2015).pdf |
-| 245 | consolidated | C | 44 | 0 | Microsoft® Word 2010 | Customs Act ,1969 (As amended up to 30th June, 2016).pdf |
-| 247 | consolidated | C | 44 | 0 | Microsoft® Word 2010 | Customs Act, 1969 (As amended upto 30th June, 2017).pdf |
-| 248 | consolidated | C | 44 | 0 | Microsoft® Word 2010 | Customs Act ,1969 (as Amended upto 30th June 2013).pdf |
-| 253 | consolidated | C | 44 | 0 | Microsoft® Word 2013 | Customs Act, 1969 as amended up to 30.06.2019 |
-| 259 | urdu | flat | 0 | 0 | Microsoft® Word 2013 | Custom Act 1969-updated upto 11.03.2019 (Urdu Version).pdf |
-| 265 | consolidated | C | 44 | 0 | Microsoft® Word 2013 | Customs Act, 1969 as amended up to 30.06.2020.pdf |
-| 266 | consolidated | C | 44 | 0 | Microsoft® Word 2010 | Customs Act, 1969 as amended up to 30.06.2021 |
-| 270 | consolidated | C | 43 | 0 | -- | Customs Act, 1969 as amended up to 30.06.2022 |
-| 271 | consolidated | C | 43 | 0 | Microsoft® Word 2016 | Customs Act, 1969 as amended up to 30.06.2023 |
-| 277 | consolidated | C | 43 | 0 | Microsoft® Word 2019 |  Customs Act, 1969 as amended up to 30.06.2024.pdf |
-| 279 | consolidated | C | 41 | 0 | Microsoft® Word 2021 |  Customs Act, 1969 as amended up to 30th June, 2025.pdf |
-| 302 | consolidated | C | 44 | 0 | Microsoft® Word 2013 | Customs Act, 1969 as amended up to 31.12.2019 |
-
-### acts / Finance Acts  (20 editions, 4 shapes)
-
-| pages | family | containers | CH | dot leaders | producer | file |
-|---|---|---|---|---|---|---|
-| 3 | amending | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Finance Act, 2012 - Explanation regarding important amendm |
 | 9 | amending | flat | 0 | 0 | -- | Finance Supplementary Act, 2023.pdf |
-| 15 | amending | flat | 0 | 0 | -- | Finance Supplementary (Amendment) Act, 2018.pdf |
-| 24 | amending | flat | 0 | 0 | -- | Finance Supplementary (Second Amendment) Act, 2019.pdf |
 | 24 | amending | flat | 0 | 0 | Kodak Alaris Inc. | The Finance (Supplementary) Act, 2022 (Act. No. IV of 2022 |
-| 30 | amending | flat | 0 | 0 | Microsoft® Office Word 2007 | Finance Act 2011-12.pdf |
-| 53 | amending | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Finance Act, 2012-2013..pdf |
 | 53 | amending | flat | 0 | 0 | -- | Finance Act, 2023.pdf |
-| 59 | amending | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Finance Act, 2013.pdf |
 | 89 | amending | flat | 0 | 0 | -- | Finance Act 2024.pdf |
-| 140 | amending | flat | 1 | 0 | -- | Finance Act, 2020.pdf |
-| 148 | amending | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Finance Act, 2014.pdf |
-| 159 | amending | flat | 0 | 0 | Microsoft® Word 2010 | Finance Act, 2018-19.pdf |
-| 215 | amending | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Finance Act 2016-17.pdf |
 | 230 | amending | P | 0 | 0 | Microsoft® Word 2010 | Finance Act, 2021.pdf |
-| 236 | amending | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Finance Act, 2015.pdf |
-| 258 | amending | PC | 9 | 0 | -- | Finance Act, 2019.pdf |
 | 292 | amending | flat | 0 | 0 | Microsoft® Word 2010 | Finance Act 2025.pdf |
-| 683 | amending | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Finance Act, 2017-18.pdf |
 | 952 | amending | CP | 105 | 2 | -- | Finance Act, 2022.pdf |
 
-### acts / The Sales Tax Act, 1990  (21 editions, 2 shapes)
+### acts / The Sales Tax Act, 1990  (12 editions, 2 shapes)
 
 | pages | family | containers | CH | dot leaders | producer | file |
 |---|---|---|---|---|---|---|
 | 0 | unconvertible | flat | 0 | 0 | -- | The Sales Tax Act, 1990 amended up to July 01, 2014.doc |
 | 0 | unconvertible | flat | 0 | 0 | -- | sta2014.docx |
-| 84 | consolidated | C | 10 | 141 | Acrobat Distiller 7.0 (Windows) | Sales Tax Act, 1990 (As amended vide Finance (Amendment) O |
-| 158 | consolidated | C | 10 | 151 | LibreOfficeDev 26.8.0.0.alpha0 (AA | The Sales Tax Act, 1990 amended up to July 01, 2014.pdf |
-| 163 | consolidated | C | 10 | 145 | Microsoft® Word 2010 |  The Sales Tax Act 1990 (amended up to 31-08-2016).pdf |
-| 163 | consolidated | C | 10 | 145 | Microsoft® Word 2010 | The Sales Tax Act 1990 (amended up to 1st July 2015).pdf |
-| 181 | consolidated | C | 10 | 137 | Microsoft® Word 2010 | The Sales Tax Act 1990 (as amended up to 01.07.2017).pdf |
-| 193 | consolidated | C | 11 | 134 | Microsoft® Word 2016 | The Sales Tax Act, 1990 (As amended up to 11th March, 2019 |
 | 229 | consolidated | C | 13 | 166 | Microsoft® Word 2019 | Sales Tax Act 1990 amended upto 30-06-2025.pdf |
 | 238 | consolidated | C | 12 | 167 | Microsoft® Word 2013 | Sales Tax Act, 1990 as amended up to 15.01.2022.pdf |
 | 247 | consolidated | C | 10 | 166 | Microsoft® Word LTSC | Sales Tax Act, 1990 as amended up to 07th May, 2024 throug |
@@ -135,76 +85,8 @@ away.
 | 250 | consolidated | C | 10 | 168 | Microsoft® Word 2013 | Sales Tax Act, 1990 as amended up to 22nd August, 2022.pdf |
 | 250 | consolidated | C | 10 | 168 | Microsoft® Word 2013 | Sales Tax Act, 1990 as amended up to 30.06.2022.pdf |
 | 252 | consolidated | C | 13 | 175 | Microsoft® Word LTSC | Sales Tax Act, 1990 amended upto 30th June, 2024.pdf |
-| 261 | consolidated | C | 10 | 0 | Microsoft® Word 2013 | The Sales Tax Act, 1990 (as amended up to 31st December, 2 |
-| 262 | consolidated | C | 10 | 164 | Microsoft® Word 2013 | The Sales Tax Act, 1990 (as amended up to 30th June, 2019) |
-| 273 | consolidated | C | 10 | 0 | Microsoft® Word for Microsoft 365 | Sales Tax Act,1990 as amended up to 30.06.2020.pdf |
 | 291 | consolidated | C | 12 | 164 | Microsoft® Word 2013 | Sales Tax Act, 1990 as amended up to 30.06.2021.pdf |
 | 292 | consolidated | C | 12 | 165 | Microsoft® Word 2019 |  Sales Tax Act, 1990 as amended up to 15.9.2021 through Ta |
-
-### ordinance / Assets Declaration Ordinance, 2019  (2 editions, 2 shapes)
-
-| pages | family | containers | CH | dot leaders | producer | file |
-|---|---|---|---|---|---|---|
-| 8 | no_text_layer | flat | 0 | 0 | -- | Assets Declaration Ordinance, 2019 - English Version.pdf |
-| 11 | urdu | flat | 0 | 0 | Microsoft® Word 2016 | Assets Declaration Ordinance, 2019 - Urdu Version.pdf |
-
-### ordinance / Income Tax Ordinance, 2001  (21 editions, 4 shapes)
-
-| pages | family | containers | CH | dot leaders | producer | file |
-|---|---|---|---|---|---|---|
-| 2 | no_text_layer | flat | 0 | 0 | -- | Ordinance No XV of 2015 - The exemption of withholding tax |
-| 2 | no_text_layer | flat | 0 | 0 | -- | Ordinance No XV of 2015 - The exemption of withholding tax |
-| 3 | no_text_layer | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Corrections in 15 _ Surcharge on Income Tax payable during |
-| 3 | no_text_layer | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Corrections in 15 _ Surcharge on Income Tax payable during |
-| 4 | no_text_layer | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Tax Laws (Amendment) Ordinance, 2016.pdf |
-| 4 | no_text_layer | flat | 0 | 0 | Adobe Acrobat 7.0 Image Conversion | Tax Laws (Amendment) Ordinance, 2016.pdf |
-| 6 | amending | flat | 0 | 0 | Adobe Acrobat 7.0 Paper Capture Pl | Income Tax (Amendment) Ordinance, 2018.pdf |
-| 6 | amending | flat | 0 | 0 | Adobe Acrobat 7.0 Paper Capture Pl | Income Tax (Amendment) Ordinance, 2018.pdf |
-| 609 | consolidated | CPD | 25 | 9 | Microsoft® Word 2010 | Income Tax Ordinance, 2001 amended upto 11th March, 2019.p |
-| 611 | consolidated | CPD | 25 | 9 | Microsoft® Word 2013 | Income Tax Ordinance, 2001 Amended upto 30-06-2018.pdf |
-| 633 | consolidated | PCD | 25 | 9 | Microsoft® Word 2013 | Income Tax Ordinance, 2001 amended upto 30th June, 2019.pd |
-| 634 | consolidated | CPD | 25 | 9 | Microsoft® Word 2013 | Income Tax Ordinance, 2001 amended upto 31st December, 201 |
-| 670 | consolidated | PCD | 13 | 9 | Microsoft® Word 2013 | Income Tax Ordinance, 2001 amended upto 30th June, 2020.pd |
-| 739 | consolidated | PCD | 25 | 9 | -- | Income Tax Ordinance, 2001 updated upto 30 June 2021.pdf |
-| 767 | consolidated | PCD | 25 | 9 | Microsoft® Word 2013 | Income Tax Ordinance, 2001 amended up to 30th June 2022.pd |
-| 781 | consolidated | PCD | 25 | 9 | Microsoft® Word 2013 | Income Tax Ordinance, 2001 Amended upto 30.06.2023.pdf |
-| 784 | consolidated | PCD | 25 | 9 | Microsoft® Word 2019 | Income Tax Ordinance, 2001 Amended upto 04.05.2024.pdf |
-| 801 | consolidated | PCD | 499 | 9 | Microsoft® Word 20190㘮 | Income Tax Ordinance, 2001 Amended upto 30.06.2024.pdf |
-| 821 | consolidated | PCD | 513 | 9 | -- |  Income Tax Ordinance, 2001 Amended upto 20.02.2026.pdf |
-| 821 | consolidated | PCD | 513 | 9 | -- | Income Tax Ordinance, 2001 Amended upto 20.02.2026.pdf |
-| 822 | consolidated | PCD | 513 | 9 | -- | Income Tax Ordinance, 2001 Amended upto 31.07.2025.pdf |
-
-### rules / Asset Declaration (Procedure and Conditions) Rules, 2019  (2 editions, 2 shapes)
-
-| pages | family | containers | CH | dot leaders | producer | file |
-|---|---|---|---|---|---|---|
-| 3 | no_text_layer | flat | 0 | 0 | -- | Asset Declaration (Procedure and Conditions) Rules, 2019 - |
-| 4 | urdu | flat | 0 | 0 | Microsoft® Word 2013 | Asset Declaration (Procedure and Conditions) Rules, 2019 - |
-
-### rules / Income Tax Rules, 2002  (6 editions, 2 shapes)
-
-| pages | family | containers | CH | dot leaders | producer | file |
-|---|---|---|---|---|---|---|
-| 248 | consolidated | PCD | 44 | 357 | Microsoft® Word 2010 |  Income Tax Rules, 2002 Amended upto 10th, December, 2015. |
-| 307 | consolidated | PCD | 44 | 379 | Microsoft® Word 2013 |  Income Tax Rules, 2002 Amended upto 18th October, 2016.pd |
-| 318 | consolidated | PCD | 44 | 391 | Microsoft® Word 2010 |  Income Tax Rules, 2002 Amended upto 10th February, 2017.p |
-| 377 | consolidated | PCD | 38 | 53 | Acrobat Distiller 7.0 (Windows) | Income Tax Rules, 2002 Amended up to August, 2008.pdf |
-| 631 | consolidated | CPD | 46 | 8 | Microsoft® Word 2013 |  Income Tax Rules, 2002 Amended upto 8th September, 2020.p |
-| 946 | consolidated | PCD | 58 | 8 | -- |  Income Tax Rules, 2002 Amended upto 24.11.2023.pdf |
-
-### rules / Sales Tax Rules 2006  (9 editions, 2 shapes)
-
-| pages | family | containers | CH | dot leaders | producer | file |
-|---|---|---|---|---|---|---|
-| 113 | consolidated | CP | 15 | 213 | Microsoft® Word 2010 | THE SALES TAX RULES, 2006 UPDATED UPTO 11.08.2014.pdf |
-| 149 | consolidated | PC | 20 | 262 | Microsoft® Word 2010 | Sales Tax Rules 2006 (amended up to 30th June 2015).pdf |
-| 150 | consolidated | PC | 20 | 262 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 30.10.2018.pdf |
-| 193 | consolidated | PC | 27 | 367 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 30.06.2020 |
-| 218 | consolidated | PC | 28 | 372 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 31.12.2020 |
-| 224 | consolidated | PC | 33 | 500 | Microsoft® Word 2016 | Sales Tax Rules 2006 updated upto 30-06-2025.pdf |
-| 241 | consolidated | PC | 31 | 497 | Microsoft® Word 2019 | Sales Tax Rules, 2006 (Updated upto 01-01-2025).pdf |
-| 241 | consolidated | PC | 28 | 459 | Microsoft® Word 2013 | The Sales Tax Rules, 2006 updated upto 31.08.2021 |
-| 251 | consolidated | PC | 28 | 510 | Microsoft® Word 2019 | The Sales Tax Rules, 2006 updated upto 31.10.2023 |
 
 ## 5. Low confidence and unexplained
 
@@ -214,48 +96,34 @@ refuses it rather than forcing it into the nearest shape.
 
 | family | conf | lane | evidence | file |
 |---|---|---|---|---|
-| consolidated | 0.33 | ordinance | has_leaves; has_schedules | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | Foreign Assets (Declaration and Repatriation) Act, 2 |
-| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | The Federal Board of Revenue Act, 2007 (Amended up t |
 | consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | The Pakistan Single Window Act, 2021.pdf |
-| consolidated | 0.33 | acts | has_leaves; names_its_leaf_kind | Voluntary Declaration of Domestic Assets Act, 2018.p |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | AML_CFT Sanction Rules, 2020.pdf |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Counter-Measures for High Risk Jurisdiction Rules, 2 |
 | consolidated | 0.33 | rules | has_leaves; has_contents_page | Inland Revenue Uniform Rules, 2021.pdf |
 | consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | PSW Evidence of Identity Regulations, 2023.pdf |
 | consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Pakistan Single Window Evidence of Identity (EOI) Ru |
 | consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Pakistan Single Window Integrated Risk Management Sy |
 | consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Pakistan Single Window Trade Data Dissemination, Exc |
 | consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | S.R.O406(I)_2023 - PSW Trade Data Dissemination, Exc |
-| consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Sales Tax Special Procedure (Withholding) Rules, 200 |
 | consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | Sharing of Declaration of Assets of Civil Servants R |
 | consolidated | 0.33 | rules | has_leaves; names_its_leaf_kind | The Pakistan Single Window (Deputation_Secondment of |
-| amending | 0.4 | acts | amending_language; gazette_masthead | Finance Act, 2019.pdf |
 | amending | 0.4 | acts | amending_language; names_its_targets | Finance Act, 2022.pdf |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | Islamabad Capital Territory (Tax on Services) amende |
 | consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
 | consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
 | consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
 | consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
 | consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.5 | ordinance | has_leaves; has_schedules; names_its_leaf_kind | The Islamabad Capital Territory (Tax on Services) Or |
-| consolidated | 0.5 | acts | has_leaves; has_containers; names_its_leaf_kind | Public Finance Management Act, 2019.pdf |
-| consolidated | 0.5 | rules | has_leaves; has_containers; names_its_leaf_kind | FBR AML_CFT Regulations.pdf |
-| consolidated | 0.5 | rules | has_leaves; amendment_footnotes; names_its_leaf_kind | THE SALES TAX SPECIAL PROCEDURE (WITHHOLDING) RULES, |
 
 ## 6. Coverage
 
 Every (family, container order) cell the corpus exercises. A cell that empties
 on a rerun means a family stopped being tested by real documents.
 
-| family | C | CP | CPD | P | PC | PCD | flat |
-|---|---|---|---|---|---|---|---|
-| unconvertible | · | · | · | · | · | · | 3 |
-| urdu | · | · | · | · | · | · | 4 |
-| no_text_layer | · | · | · | · | · | · | 30 |
-| amending | · | 1 | · | 1 | 1 | · | 33 |
-| consolidated | 63 | 2 | 4 | · | 8 | 15 | 25 |
+| family | C | CP | P | PC | PCD | flat |
+|---|---|---|---|---|---|---|
+| unconvertible | · | · | · | · | · | 3 |
+| urdu | · | · | · | · | · | · |
+| no_text_layer | · | · | · | · | · | 7 |
+| amending | · | 1 | 1 | · | · | 14 |
+| consolidated | 27 | 1 | · | 6 | 9 | 14 |
 
-*13 of 35 cells exercised.*
+*10 of 30 cells exercised.*
 

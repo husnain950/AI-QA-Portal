@@ -162,3 +162,69 @@ async def trigger_sync(
     job = await jobs.enqueue(db, "corpus_sync", payload=payload, actor=actor)
     await db.commit()
     return {"job_id": job["id"], "state": job["state"]}
+
+
+# Deleting a document cascades through every table that carries a real foreign key to
+# it. These five do not: findings, section_overlays and jobs name a document by bare
+# text, review_assignments names a finding, and a statute family outlives its last
+# edition. They are swept here rather than from the delete route because a sweep is
+# cheap, idempotent, and correct even for rows orphaned by an earlier delete.
+#
+# review_events is deliberately absent: `review_events_no_delete` (0001_postgres_baseline)
+# rejects DELETE on an append-only audit log, so its rows are reported, never removed.
+_ORPHAN_SWEEPS: List[tuple[str, str]] = [
+    (
+        "findings",
+        "DELETE FROM findings f WHERE NOT EXISTS ("
+        "SELECT 1 FROM documents d WHERE d.id = f.document_id)",
+    ),
+    # An overlay is keyed by the PDF's hash, which is how the blob is named.
+    (
+        "section_overlays",
+        "DELETE FROM section_overlays o WHERE NOT EXISTS ("
+        "SELECT 1 FROM documents d WHERE d.pdf_filename = 'pdf/' || o.pdf_sha256 || '.pdf')",
+    ),
+    # After findings, so assignments to findings deleted just above go too.
+    (
+        "review_assignments",
+        "DELETE FROM review_assignments a WHERE NOT EXISTS ("
+        "SELECT 1 FROM findings f WHERE f.id = a.finding_id)",
+    ),
+    (
+        "jobs",
+        "DELETE FROM jobs j WHERE j.payload ->> 'document_id' IS NOT NULL "
+        "AND NOT EXISTS ("
+        "SELECT 1 FROM documents d WHERE d.id = j.payload ->> 'document_id')",
+    ),
+    (
+        "statute_families",
+        "DELETE FROM statute_families s WHERE NOT EXISTS ("
+        "SELECT 1 FROM documents d WHERE d.statute_family_id = s.id)",
+    ),
+]
+
+
+@router.delete("/orphans")
+async def purge_orphans(db: DatabaseConnection = Depends(get_db)):
+    """Delete rows whose document is already gone.
+
+    Admin-only for free: `required_role` gives every DELETE under /api the admin role,
+    so this needs no dependency of its own.
+    """
+    deleted: Dict[str, int] = {}
+    try:
+        for table, sql in _ORPHAN_SWEEPS:
+            async with db.execute(sql) as cursor:
+                deleted[table] = max(cursor.rowcount, 0)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="orphan purge failed")
+
+    async with db.execute("SELECT COUNT(*) FROM review_events") as cursor:
+        retained = (await cursor.fetchone())[0]
+
+    return {
+        "deleted": deleted,
+        "retained": {"review_events": int(retained or 0)},
+    }

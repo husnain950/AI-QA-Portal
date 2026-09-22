@@ -654,21 +654,28 @@ async def get_raw_files(document_id: str, db: DatabaseConnection = Depends(get_d
         raise HTTPException(status_code=404, detail="Document not found")
     return {"pdf_filename": r["pdf_filename"], "json_filename": r["json_filename"]}
 
-@router.delete("/{document_id}")
-async def delete_document(document_id: str, db: DatabaseConnection = Depends(get_db)):
-    row = await _require_document(db, document_id)
+async def _delete_documents(db: DatabaseConnection, document_ids: list[str]) -> None:
+    """Delete documents in one transaction and unlink the blobs nothing else holds.
 
-    # Collect every blob this document points at, including superseded versions, before
-    # the cascade removes the rows that name them.
-    candidates = {row["pdf_filename"], row["json_filename"]}
-    async with db.execute(
-        "SELECT json_filename FROM document_versions WHERE document_id = ?",
-        (document_id,),
-    ) as cursor:
-        candidates.update(item["json_filename"] for item in await cursor.fetchall())
+    Shared by the single and bulk routes so there is one deletion path, not two that
+    drift. Every id is resolved before anything is deleted, so an unknown id 404s
+    without having half-emptied the set.
+    """
+    # Collect every blob these documents point at, including superseded versions,
+    # before the cascade removes the rows that name them.
+    candidates: set[str] = set()
+    for document_id in document_ids:
+        row = await _require_document(db, document_id)
+        candidates.update({row["pdf_filename"], row["json_filename"]})
+        async with db.execute(
+            "SELECT json_filename FROM document_versions WHERE document_id = ?",
+            (document_id,),
+        ) as cursor:
+            candidates.update(item["json_filename"] for item in await cursor.fetchall())
 
     try:
-        await db.execute("DELETE FROM documents WHERE id = ?", (document_id,))
+        for document_id in document_ids:
+            await db.execute("DELETE FROM documents WHERE id = ?", (document_id,))
         await db.commit()
     except Exception:
         await db.rollback()
@@ -676,10 +683,41 @@ async def delete_document(document_id: str, db: DatabaseConnection = Depends(get
         raise HTTPException(status_code=500, detail="Database deletion failed")
 
     # Content addressing means another document may share these bytes; only unlink what
-    # nothing else references.
+    # nothing else references. After the commit, so a shared blob is judged against the
+    # rows that actually survive.
     for name in candidates:
         await blob_store.unlink_if_unreferenced(db, name)
 
+
+#: One bulk delete is one request against the HEAVY rate limit (10/hour), where the
+#: same work as N single deletes would 429 after ten. Pruning a corpus to a shortlist
+#: is the case that needs it -- a per-document loop cannot finish against a deployed
+#: portal. The cap is a guard against a client that computed its list wrongly.
+MAX_BULK_DELETE = 500
+
+
+@router.delete("")
+async def delete_documents(
+    body: dict, db: DatabaseConnection = Depends(get_db)
+):
+    """Delete many documents by id. Admin-only, like every DELETE under /api."""
+    ids = body.get("ids")
+    if not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids):
+        raise HTTPException(status_code=400, detail="body must be {\"ids\": [\"...\"]}")
+    unique = list(dict.fromkeys(ids))
+    if len(unique) > MAX_BULK_DELETE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"at most {MAX_BULK_DELETE} documents per request, got {len(unique)}",
+        )
+
+    await _delete_documents(db, unique)
+    return JSONResponse(content={"deleted": len(unique)})
+
+
+@router.delete("/{document_id}")
+async def delete_document(document_id: str, db: DatabaseConnection = Depends(get_db)):
+    await _delete_documents(db, [document_id])
     return JSONResponse(
         content={"message": "Document and all associated data deleted successfully"}
     )
