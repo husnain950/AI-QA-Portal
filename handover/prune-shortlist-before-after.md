@@ -307,3 +307,74 @@ is still unfixed — anything that writes a blob from the host needs this copy.
 - **No parser change was made.** Every defect above is recorded, none fixed — the corpus
   was converted at one revision (`4fec3ef`) and editing the parser mid-round would have
   produced a mixed-revision corpus.
+
+---
+
+# Round (2026-09-23): the three "no PDF anywhere" rows, and production
+
+## They were never missing
+
+The three rows recorded above as having no PDF anywhere (ICT Ordinance upto 30.06.2022,
+Sales Tax Rules 2006 upto 31.08.2021 and upto 31.10.2023) were staged in `data/corpora/`
+all along, saved **without a `.pdf` extension**. Every discovery glob is `**/*.pdf`, so the
+tools could not see them. `file` reports all three as PDF documents. The user's source folder
+(`~/Downloads/FBR Ordinance `) holds the same files under the same extensionless names. That
+folder also has five other extensionless PDFs (Customs Act 2021/2022/2023, Customs Rules 2023,
+Finance (Supplementary) Act 2022). Those were already ingested, so something upstream renamed
+them at some point. Any future "no PDF" finding needs `file`, not a glob.
+
+The three were renamed in place to add `.pdf` (gitignored, no diff) and converted one file at
+a time with `-o`. The parser has no diff since `4fec3ef`, so the corpus is still single-revision.
+
+## One ingested, two refused
+
+| document | result |
+|---|---|
+| ICT (Tax on Services) Ordinance 2001 upto 30.06.2022 | converted, 3 sections, synced (`added 1`, stderr empty) |
+| Sales Tax Rules 2006 upto 31.08.2021 | **refused**: 5 OCR pages, 51.7% agreement < 85%, low-confidence 16.8% > 15% |
+| Sales Tax Rules 2006 upto 31.10.2023 | **refused**: 6 OCR pages, 51.5% agreement < 85% |
+
+The ICT edition has the same defect as its four siblings: s.3 spans pp. 4→15 and swallows
+THE SCHEDULE (15,656 chars). It is recorded, not fixed.
+
+The source folder's copies of Income Tax Rules 2002 (24.11.2023) and the PSW
+Deputation/Secondment Regulations 2021 are **byte-identical** (sha256) to the staged copies
+that were refused last round. The folder offers no cleaner source for them.
+
+**Four shortlist rows now fall short, and all four for the same reason:** the OCR fidelity
+floor. Each needs a clean text-layer source PDF. The pipeline is right to refuse them.
+
+## Production
+
+`make backup-remote` first: `review-snapshot-20260923-101717.json`, 17.8 MB, **44 of 44**
+documents. Then `push_corpus --dry-run`: `20 to upload, 0 to refresh, 44 already identical`.
+That means none of the existing prod documents drifted. Then the real push:
+`20 sent, 0 failed, 1.5 min`, and pipeline health `37/37`.
+
+This pushes last round's 19 documents as well as today's one. That includes every parse
+defect recorded in the ingest round above: the ICT schedule swallow, the missing sections in
+Tax Laws (Second Amendment) 2021 and 2022, the Inland Revenue Uniform Rules `2021` code, and
+the gaps in PSW rule numbering. The user chose to ship them rather than hold them.
+
+## Result
+
+| | local before | local after | prod before | prod after |
+|---|---:|---:|---:|---:|
+| documents | 63 | **64** | 44 | **64** |
+| shortlist rows absent | 5 | **4** | 24 | **4** |
+
+## Verification
+
+- `prune_corpus.py` dry run, local and prod: **keep 64, delete 0, absent 4**. The four absent
+  rows are the OCR-refused documents.
+- New local document: 4 section rows (3 sections plus the synthetic root), 0 with empty
+  `html_content`. Its PDF returns HTTP 200 (670,911 bytes) with a session.
+- Prod: `/health/ready` 200. All 20 new documents' PDFs return **HTTP 200**.
+- `audit_pdf_serving --check-url` reports `url_mismatch` for all 64 documents. That is an
+  unauthenticated 401: the audit predates the auth migration and sends no session. The
+  on-disk check in the same report (page count, size) passes.
+
+## The Compose blob mount, third time
+
+Sync wrote the PDF and JSON blobs to the host `./data/uploads`, and both had to be
+`docker cp`'d into the `blob-cache` volume. Still unfixed.
