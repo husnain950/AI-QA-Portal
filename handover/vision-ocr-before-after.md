@@ -155,3 +155,24 @@ its own entry in `tools/suite/exemptions/rules.json`:
 - Removed as unused: whole-page strip tiling for dense screenshots. If a future run needs
   it, the approach is to cut on the whitest row near each boundary.
 - **Rotate the OpenPaths key** used for this run. It was pasted into a chat session.
+
+## Local sync and production (2026-09-24)
+
+- **Local:** `sync_corpus.py --rules-only --match` added the four documents (`added 1` each,
+  stderr empty). As in #120, the blobs landed in the host `./data/uploads`, so all 8 were
+  `docker cp`'d into the `blob-cache` volume and sha256-checked. There are now 68 documents,
+  and all four PDFs return 200.
+- **Backup:** `make backup-remote` produced `review-snapshot-20260924-112110.json`, 18.0 MB,
+  **64 of 64**. The first attempt missed one document on a truncated read (`IncompleteRead`)
+  and was re-run until complete.
+- **Push:** the dry run showed `4 to upload, 0 to refresh, 64 already identical`. The real
+  push sent `4, 0 failed` in 28.9 min, and pipeline health came back `37/37`.
+  - ITR's first attempt hit a write timeout at roughly 0.5 MB/s upload and the retry landed.
+  - A second dry run shows `68 already identical` with no duplicate names, so the timed-out
+    attempt left nothing behind.
+- **Prod verification:**
+  - `/health/ready` returns 200.
+  - The four documents keep their local ids, their PDFs return 200 at full size, and their
+    section counts match local (6 / 334 / 358 / 185).
+- **Shortlist:** `prune_corpus.py` dry run, local and prod: **keep 68, delete 0, rows with no
+  document 0**. The four rows #120 left absent are closed.
