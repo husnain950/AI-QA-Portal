@@ -3,6 +3,7 @@
 **2026-09-24.** Ingests the four documents the shortlist left out because of their scanned
 pages ([shortlist artifact](https://claude.ai/artifact/Y2MhMq2P3Mbgfzbp8xYWQp)). Before this
 round, two had been refused at the OCR fidelity floor and two had never been converted.
+They are exactly the **4 shortlist rows still absent** after PR #120's production push.
 Review page (image evidence, bake-off, per-document numbers): [Scanned Rules Ingested](https://claude.ai/artifact/SmQBw9pKum4gTzhdiMAmLy).
 
 | document | pages | scanned (OCR'd) | before | after |
