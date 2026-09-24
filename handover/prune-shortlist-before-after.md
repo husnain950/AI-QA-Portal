@@ -206,6 +206,11 @@ Sync reported `added 11` (ordinance) + `added 8` (rules), `failed 0`, `withdrawn
 
 ## Two documents were refused, and should be
 
+> **Superseded 2026-09-24.** Both refused documents, and both Sales Tax Rules editions
+> whose PDFs have since arrived, are now ingested from a voted vision-OCR sidecar. See
+> [vision-ocr-before-after.md](vision-ocr-before-after.md). The row below is the state
+> this round started from.
+
 Both fail the OCR fidelity floor, which refuses to emit a statute from a recognition it
 cannot stand behind. This is the pipeline working, not a failure to fix:
 
