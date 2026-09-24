@@ -153,7 +153,9 @@ def _heading_from_words(before_words, code: str) -> str:
     # to len(code)-1 separator runs, so it can never reach past the code token.
     txt = re.sub(r"^\(?" + r"[\s.\-]*".join(map(re.escape, code))
                  + r"\)?\s*\.?\s*", "", txt)
-    txt = re.sub(r"\.?\s*[—–―─-]+\s*$", "", txt).strip()
+    # the terminator may be a spaced RUN of dash groups ("invoices.- -" when
+    # the doubled terminator wraps onto the next line) -- strip all of it
+    txt = re.sub(r"\.?\s*(?:[—–―─-]+\s*)+$", "", txt).strip()
     return _clean_heading(txt)
 
 

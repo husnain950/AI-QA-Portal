@@ -2750,6 +2750,20 @@ def _find_heading_split(seg, cutoff):
         res = _words_after_heading_dash(words, allow_first=(li > 0))
         if res is not None:
             before, after = res
+            # ...and the doubled terminator can be split by the WRAP: Sales Tax
+            # Rules 31.08.2021 p.113 prints "150X. ... electronic invoices.-" /
+            # "- (1) The registered buyer", so the second dash opened the body
+            # and hid its "(1)" from _classify.  Same rule as on one line -- a
+            # dash-only token after the terminator belongs to the heading.
+            if not after and li + 1 < cutoff \
+                    and not getattr(seg[li + 1].line, "is_table", False):
+                nxt = sorted(seg[li + 1].line.words, key=lambda w: w.x0)
+                k = 0
+                while k < len(nxt) and nxt[k].text.strip() \
+                        and all(c in _DASH_CHARS for c in nxt[k].text.strip()):
+                    k += 1
+                if k:
+                    return li + 1, nxt[:k], nxt[k:]
             return li, before, after
         # 2) inserted sections often have no dash and run straight into "(1)"
         #    (e.g. "99A. ...electricity\nconnections. (1) Notwithstanding...").
@@ -3270,8 +3284,9 @@ def _body_heading_title(h4_inner: str, code: str) -> str:
         return ""
     m = max(cands, key=lambda c: c.end())
     s = s[m.end():]
-    # drop the heading terminator (".—" / ",-" / a bare dash) and any bracket
-    s = re.sub(r"[\s\]\[]*[.,]?\s*[—–―─-]+\s*$", "", s).strip()
+    # drop the heading terminator (".—" / ",-" / a bare dash) and any bracket;
+    # a doubled terminator that wrapped ("invoices.- -") is a spaced RUN
+    s = re.sub(r"[\s\]\[]*[.,]?\s*(?:[—–―─-]+\s*)+$", "", s).strip()
     # A marker printed BETWEEN the code and the title leaves its opening bracket
     # at the head of the title once the <sup> refs above are dropped: the
     # 30.06.2025 Customs edition prints s.3C as "3C. 22,23[Directorate General of

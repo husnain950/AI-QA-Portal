@@ -43,6 +43,26 @@
       "applies_to": "Sales Tax Rules, 2006 (Updated upto 01-01-2025)",
       "invariant": "section_carries_its_body",
       "reason": "Three heading-only leaves, each traced to a PRINTING ERROR in the source that hides the rule's own code from the body reader. The invariant is right: the body text really is in the preceding leaf. (1) Rule 44A, PDF page 66, prints a LEFT DOUBLE QUOTATION MARK before the code -- '“44A. -Selection and conduct of audit.-(1) This rule shall apply to selection of cases for audit by the FBR' -- where its contents row on page 5 reads '44A. Selection and conduct of audit'. (2) Rule 150W, PDF page 109, DROPS THE LEADING DIGIT of its own code: the body prints '228[50W. Audit.-- The integrated supplier shall allow physical and online remote access' while the contents row on page 10 reads '150W. Audit'. (3) Rule 150ZQZI, PDF page 151, prints its code with a LOWERCASE L for the capital I -- '150ZQZl. Functions of the licensing committee.—' -- and page 152 carries a genuinely DIFFERENT rule, '150ZQZL. Right granted to the licensee', so the two cannot be folded together. Its contents row on page 13 also carries the printer's typo 'liceensing'. None of the three can be read without making the parser wrong about correct documents: admitting a left double quote as a code prefix, accepting a code whose digits do not match its contents row, or collapsing l->I, which would collide 150ZQZl with the real 150ZQZL. NO EXPIRY. All three are permanent defects in a 'native-digital' source (metadata source_kind), so none of them is an OCR artifact and none clears on the OCR decision -- correcting an earlier note in handover/tasks.md that called 150ZQZl OCR-class. These are the three hits this entry covers and they are enumerated on purpose: a FOURTH hit on this document would be a new defect this entry does not describe, and the reason should be re-read rather than assumed to cover it."
+    },
+    {
+      "applies_to": "Sales Tax Rules, 2006 updated upto 31.08.2021",
+      "invariant": "no_jammed_words",
+      "reason": "Same cause as Customs Rules above: jammed tokens in the source PDF's text layer. Measured for this edition: every hit is ONE pdfplumber word of 65-87 characters with ZERO space glyphs inside it and no inter-character gap above 0.28pt, so there is no positional information to split on -- the same run of rules (42 'whetherthemonthlyreturnsfurnished...', 117 'onwhichcopyoftheproclamation...') the 01-01-2025 edition's entry covers. All hits are on text-layer pages; none is on the vision-OCR'd pages."
+    },
+    {
+      "applies_to": "Sales Tax Rules, 2006 updated upto 31.08.2021",
+      "invariant": "section_carries_its_body",
+      "reason": "Three heading-only leaves, all traced to the source. (1) Rule 44A, PDF page 64, prints a LEFT DOUBLE QUOTATION MARK before the code -- '“44A.-Selection and conduct of audit.-(1) This rule shall apply ...' -- the same printing error the 01-01-2025 edition's entry describes. (2)+(3) Rules 150ZEI and 150ZEJ exist only in the STALE CONTENTS on PDF page 11 ('150ZEI. DEfinitions', '150ZEJ. Procedure for claim of cashback by the customers.'): the body prints CHAPTER XIV-AB as '[**omitted**]' and runs straight from 150ZEG to 150ZEK (PDF page 125-126), so there is no body text for either rule anywhere in the document. Enumerated on purpose: a fourth hit is a new defect this entry does not describe."
+    },
+    {
+      "applies_to": "Sales Tax Rules, 2006 updated upto 31.10.2023",
+      "invariant": "no_jammed_words",
+      "reason": "Same cause as Customs Rules above: jammed tokens in the source PDF's text layer. Measured for this edition: every hit is ONE pdfplumber word of 75-91 characters with ZERO space glyphs inside it and no inter-character gap above 0.28pt, so there is no positional information to split on -- the same run of rules (42 'whetherthemonthlyreturnsfurnished...', 117 'onwhichcopyoftheproclamation...') the 01-01-2025 edition's entry covers. All hits are on text-layer pages; none is on the vision-OCR'd pages."
+    },
+    {
+      "applies_to": "Sales Tax Rules, 2006 updated upto 31.10.2023",
+      "invariant": "section_carries_its_body",
+      "reason": "Three heading-only leaves, all traced to the source. (1) Rule 44A, PDF page 70, prints a LEFT DOUBLE QUOTATION MARK before the code -- '“44A.-Selection and conduct of audit.-(1) This rule shall apply ...' -- the same printing error the 01-01-2025 edition's entry describes. (2)+(3) Rules 150ZEI and 150ZEJ exist only in the STALE CONTENTS on PDF page 11 ('150ZEI. DEfinitions', '150ZEJ. Procedure for claim of cashback by the customers.'): the body prints CHAPTER XIV-AB as '[**omitted**]' and runs straight from 150ZEG to 150ZEK (PDF page 131-132), so there is no body text for either rule anywhere in the document. Enumerated on purpose: a fourth hit is a new defect this entry does not describe."
     }
   ]
 }

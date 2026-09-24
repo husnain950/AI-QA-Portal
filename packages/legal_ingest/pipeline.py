@@ -1248,7 +1248,9 @@ def run(pdf_path: str, progress=lambda *a: None, _max_body_page: int | None = No
         # than extracted, by what, how well the engines agreed, and how many
         # tokens are doubted -- previously none of that survived the conversion.
         metadata["ocr"] = {
-            "engines": "tesseract+rapidocr",
+            # "vision:<models>" when a page's text came from a frozen
+            # tools/vision_ocr.py sidecar rather than the two engines
+            "engines": ",".join(fidelity.engines),
             "pages": fidelity.pages,
             # WHICH pages, not just how many.  Without this a reader cannot tell
             # whether a given section's text was recognised or extracted, and no
