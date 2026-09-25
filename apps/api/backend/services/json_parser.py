@@ -72,6 +72,13 @@ _CONTAINER_CODE_RE = re.compile(
 )
 
 
+#: Every list whose items are leaves. Contract producers emit only ``sections``; the
+#: Word-derived exports (FED Rules 2005, Sales Tax Rules 2006) emit ``rules`` inside
+#: their containers and ``forms`` at the root or under an instrument. Reading only
+#: ``sections`` turned each of those documents into one leaf, its preamble.
+LEAF_LISTS = ("sections", "rules", "forms")
+
+
 def _blank_to_none(value: Any) -> Optional[str]:
     if value is None:
         return None
@@ -358,22 +365,21 @@ def parse_json_document(
                 division_heading=heading,
             )
 
-        child_collections = (
-            "chapters", "schedules", "sections", "parts", "divisions"
-        )
+        child_collections = ("chapters", "schedules", "parts", "divisions", *LEAF_LISTS)
         has_children = any(node.get(key) for key in child_collections)
         if allow_content_leaf and "html" in node and not has_children:
             process_section(node, next_context, source_key)
 
         # Keep the portal's established reading order: direct sections first,
         # followed by parts and divisions.
-        for index, section in enumerate(node.get("sections") or []):
-            if isinstance(section, dict):
-                process_section(
-                    section,
-                    next_context,
-                    f"{source_key}/sections/{index}",
-                )
+        for key in LEAF_LISTS:
+            for index, section in enumerate(node.get(key) or []):
+                if isinstance(section, dict):
+                    process_section(
+                        section,
+                        next_context,
+                        f"{source_key}/{key}/{index}",
+                    )
 
         for index, part in enumerate(node.get("parts") or []):
             if isinstance(part, dict):
@@ -505,6 +511,11 @@ def parse_json_document(
                 "schedule",
                 allow_content_leaf=False,
             )
+
+    # A root `forms` list has no container above it, so its leaves carry no context.
+    for index, form in enumerate(data.get("forms") or []):
+        if isinstance(form, dict):
+            process_section(form, empty_context, f"/forms/{index}")
 
     _apply_reading_order(sections)
     return sections, footnotes

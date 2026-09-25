@@ -19,6 +19,7 @@ to resume after an interruption.
 
     python -m backend.push_corpus --base-url https://your-portal.example.com
     python -m backend.push_corpus --base-url ... --dry-run
+    python -m backend.push_corpus --base-url ... --match "Sales Tax Rules, 2006"
 
 Credentials: ``ADMIN_EMAIL`` / ``ADMIN_PASSWORD`` (or ``--email`` / ``--password``).
 Every API path needs a session after the auth migration; replace-json and the v2 upload
@@ -392,6 +393,16 @@ def main(argv: list[str] | None = None):
         help="documents at least this large go first, while a crash is still free",
     )
     parser.add_argument(
+        "--match",
+        action="append",
+        metavar="TEXT",
+        help=(
+            "push only documents whose name contains TEXT (case-insensitive); "
+            "repeatable. A local database can hold editions held back from the "
+            "deployment on purpose, and without this every one of them goes too"
+        ),
+    )
+    parser.add_argument(
         "--email",
         default=os.environ.get("ADMIN_EMAIL", ""),
         help="admin email (default: ADMIN_EMAIL)",
@@ -417,11 +428,16 @@ def main(argv: list[str] | None = None):
 
     todo = local_documents()
     present = existing_docs() if need_remote else {}
+    # From the whole local set: a document --match leaves out is not an orphan.
+    orphans = plan_orphans(todo, present)
+    if args.match:
+        needles = [text.casefold() for text in args.match]
+        todo = [doc for doc in todo if any(n in doc.name.casefold() for n in needles)]
+        print(f"--match: {len(todo)} local document(s) selected", flush=True)
     to_upload, to_refresh = plan_refresh(todo, present)
 
     upload_bytes = sum(item.size for item in to_upload)
     refresh_bytes = sum(os.path.getsize(row.doc.json) for row in to_refresh)
-    orphans = plan_orphans(todo, present)
     print(
         f"{len(todo)} local documents, {len(present)} on production: "
         f"{len(to_refresh)} to refresh ({refresh_bytes / 1048576:.0f} MB of JSON), "

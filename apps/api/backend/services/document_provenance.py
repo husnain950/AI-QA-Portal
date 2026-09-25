@@ -23,6 +23,11 @@ KNOWN_SOURCE_KINDS = frozenset(
     {SOURCE_KIND_NATIVE, SOURCE_KIND_SCANNED, SOURCE_KIND_MIXED}
 )
 
+#: A Word source has a text layer by construction. The PDF beside it is a render, so
+#: the scan heuristic has nothing true to say about it -- it called the 2026-09-25
+#: Income Tax Ordinance export "mixed OCR" and badged all 450 leaves.
+WORD_SOURCE_KINDS = frozenset({"doc", "docx"})
+
 TAG_PROVISIONAL = "ocr-provisional"
 TAG_NEEDS_REVIEW = "ocr-needs-review"
 TAG_PDF_INFERRED = "pdf-inferred"
@@ -105,6 +110,8 @@ def derive_from_metadata(
     explicit = meta.get("source_kind")
     if not isinstance(explicit, str):
         explicit = None
+    elif explicit in WORD_SOURCE_KINDS:
+        explicit = SOURCE_KIND_NATIVE
 
     # When JSON has no OCR block at all, fall back to a lightweight PDF scan
     # heuristic so the portal can still classify documents for facets.
