@@ -28,9 +28,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from backend.database import DatabaseConnection, DatabaseRow
 from backend.services.clock import iso_now_z as _now
+from backend.services.json_parser import LEAF_LISTS
 
 _LEAF_SEGMENTS = {
-    "instruments", "chapters", "schedules", "parts", "divisions", "sections"
+    "instruments", "chapters", "schedules", "parts", "divisions", *LEAF_LISTS
 }
 
 

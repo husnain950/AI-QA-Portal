@@ -55,6 +55,12 @@ A **container** nests `parts[]`, `divisions[]` and `sections[]`. A **leaf** is a
 carrying `html`. Containers may also be leaves: `rvw_export` emits leaf-shaped parts
 under chapters for gazette continuations, and the portal's flattener allows it.
 
+**The portal reads more than the pipelines write.** Word-derived exports (the
+2026-09-25 FED Rules 2005 and Sales Tax Rules 2006) name their leaf list `rules[]` and
+carry a `forms[]` list at the root or under an instrument, with leaf `type`s `rule`,
+`form` and `annex` and node-key abbrevs `r` and `fm`. `json_parser.LEAF_LISTS` reads
+all three lists as leaves. This repo's pipelines still emit only `sections[]`.
+
 Every node — container and leaf alike — carries `code`, `type` and `node_key`.
 A leaf additionally carries `heading`, `html`, `plain_text`, `start_page`, `end_page`,
 `page_number` and `footnotes[]`.

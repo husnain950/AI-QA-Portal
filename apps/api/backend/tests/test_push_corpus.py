@@ -219,6 +219,30 @@ def test_main_requires_credentials_for_live_push(monkeypatch):
         assert "ADMIN_EMAIL" in str(exc)
 
 
+def test_match_scopes_the_push_to_the_named_documents(monkeypatch, capsys):
+    # The local database held 19 editions kept off production on purpose when the
+    # 2026-09-25 export was pushed; an unscoped run would have sent them as well.
+    # No credentials, so the dry run stays offline instead of reading the remote.
+    monkeypatch.delenv("ADMIN_EMAIL", raising=False)
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+
+    def doc(name):
+        return push_corpus.LocalDoc(1, name, "p.pdf", "j.json", None, name, None)
+
+    monkeypatch.setattr(push_corpus, "local_documents", lambda: [
+        doc("Sales Tax Rules, 2006 Updated upto 10-08-2026"),
+        doc("Customs Act, 1969 held back"),
+        doc("Federal Excise Rules, 2005 updated upto 16-09-2026"),
+    ])
+    push_corpus.main([
+        "--base-url", "https://portal.example", "--dry-run",
+        "--match", "sales tax rules", "--match", "FEDERAL EXCISE RULES",
+    ])
+    sent = [line for line in capsys.readouterr().out.splitlines() if "would send" in line]
+    assert len(sent) == 2, sent
+    assert not any("Customs" in line for line in sent), sent
+
+
 def test_a_deployment_seeded_before_identity_is_adopted_not_duplicated(tmp_path):
     """The live portal's 106 documents, which have no `source_key` at all.
 

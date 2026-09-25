@@ -154,6 +154,24 @@ def test_pdf_fallback_infers_scanned_when_no_ocr(monkeypatch):
         os.unlink(pdf_path)
 
 
+def test_a_word_source_is_native_whatever_its_render_looks_like(monkeypatch):
+    import legal_ingest.pagemodel as pagemodel
+
+    monkeypatch.setattr(pagemodel, "_page_is_scan", lambda page, **_: True)
+
+    pdf_path = _pdf_path_from_bytes(_pdf_bytes(pages=3))
+    try:
+        for kind in ("doc", "docx"):
+            payload = json.dumps({"metadata": {"total_pages": 3, "source_kind": kind}})
+            provenance = derive_from_json_content(payload, total_pages=3, pdf_path=pdf_path)
+            assert provenance.source_kind == SOURCE_KIND_NATIVE, kind
+            assert provenance.tags == [SOURCE_KIND_NATIVE], kind
+    finally:
+        import os
+
+        os.unlink(pdf_path)
+
+
 def test_pdf_fallback_infers_mixed_when_partial_scan(monkeypatch):
     # Mark the first 2/3 pages as scan-heavy => 0.66 ratio => mixed-ocr.
     import legal_ingest.pagemodel as pagemodel

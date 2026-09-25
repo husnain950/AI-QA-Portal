@@ -425,3 +425,50 @@ def test_the_omission_marker_survives_heading_normalisation():
 
     # Leading gazette junk still goes; the marker behind it does not.
     assert normalize_heading("] [ ... ] Return") == "[ ... ] Return"
+
+
+def test_rules_and_forms_lists_are_leaves_like_sections():
+    """The Word-derived rules exports say `rules` where the contract says `sections`.
+
+    Shapes copied from FED Rules 2005 (rules under an instrument's chapter) and Sales
+    Tax Rules 2006 (rules under a chapter's part, forms at the root). Reading only
+    `sections` gave each of those documents exactly one leaf, the preamble.
+    """
+    from backend.services.overlays import get_leaf
+
+    def leaf(code, page, node_key):
+        return {"code": code, "heading": f"Heading {code}", "html": f"<p>{code}</p>",
+                "plain_text": code, "start_page": page, "end_page": page,
+                "footnotes": [], "node_key": node_key}
+
+    document = {
+        "metadata": {"total_pages": 9},
+        "instruments": [{
+            "code": "S.R.O. 534(1)/2005", "type": "instrument", "node_key": "inst:sro",
+            "chapters": [{"code": "CHAPTER I", "type": "chapter", "node_key": "inst:sro/ch:i",
+                          "rules": [leaf("1", 1, "inst:sro/ch:i/r:1")]}],
+            "forms": [leaf("FORM A", 2, "inst:sro/fm:a")],
+        }],
+        "chapters": [{"code": "CHAPTER II", "type": "chapter", "node_key": "ch:ii",
+                      # A part carrying html AND rules is a container, not a leaf.
+                      "parts": [{"code": "PART I", "type": "part", "node_key": "ch:ii/pt:i",
+                                 "html": "<p>PART I</p>", "plain_text": "PART I",
+                                 "rules": [leaf("2", 3, "ch:ii/pt:i/r:2")]}]}],
+        "forms": [leaf("STR-1", 4, "fm:str-1")],
+    }
+    sections, _ = parse_json_document(json.dumps(document), document_id="rules-1")
+
+    assert [s["section_code"] for s in sections] == ["1", "FORM A", "2", "STR-1"]
+    assert [s["source_key"] for s in sections] == [
+        "/instruments/0/chapters/0/rules/0",
+        "/instruments/0/forms/0",
+        "/chapters/0/parts/0/rules/0",
+        "/forms/0",
+    ]
+    assert sections[0]["instrument_code"] == "S.R.O. 534(1)/2005"
+    assert sections[0]["chapter_code"] == "CHAPTER I"
+    assert (sections[2]["chapter_code"], sections[2]["part_code"]) == ("CHAPTER II", "PART I")
+    assert sections[3]["chapter_code"] is None  # a root form has no container
+    # An AI-fix overlay addresses a leaf by that same path.
+    for section in sections:
+        assert get_leaf(document, section["source_key"])["code"] == section["section_code"]
