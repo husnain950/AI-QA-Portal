@@ -6,7 +6,7 @@ converted JSON. **No converter in this repo made them**: `metadata.filename` nam
 page numbers are Word's saved page breaks (the `.doc` has a character-share estimate).
 There is no PDF.
 
-**Local: ingested.** Production follows the merge of this PR (see the end).
+**Local: ingested. Production: pushed 2026-09-25**, 68 → 73 documents (see the end).
 
 ## What stood in the way, and what this PR does about it
 
@@ -119,11 +119,32 @@ are badged Native digital. The Playwright smoke passes 5/5 on these documents.
 
 ## Production
 
-Pending the merge and the green deploy of this PR. The order is fixed:
+Done on 2026-09-25, after #122 merged and its deploy of `6865dca` went green
+(run 36126923216).
 
-1. `backup-remote`.
-2. Canary `push_corpus --match "Federal Excise Rules, 2005 updated upto 16-09-2026"`, and
-   confirm prod `total_sections` = 137.
-   - If it reads 1, prod is still on the old parser. **Pushing the same bytes again is a
-     no-op**, so the document would have to be deleted first.
-3. Push the other four. That is 5 HEAVY uploads.
+- **Dry run:** `--match` with each of the five full edition names printed `5 selected`,
+  `68 on production: 0 to refresh, 5 to upload (44 MB)`. Full names are needed:
+  `Sales Tax Rules, 2006` alone also matches editions held back from production.
+- **Backup:** `make backup-remote` wrote `review-snapshot-20260925-123033.json`, 18.8 MB,
+  **68 of 68**. The first attempt got 67 because of a truncated read, so it was re-run.
+- **Canary:** FED Rules alone was sent in 0.3 min. Prod read `total_sections` **137**, badged
+  native-digital, with its PDF at full size (4,424,533 bytes). Prod was on the new parser,
+  so the delete-and-stop branch was not needed.
+- **The other four:** `4 sent, 0 failed` in 5.9 min (ITO's 23 MB took 1.5 min). Prod now
+  has **73** documents.
+  - The first three attempts died before sending anything. Each got an `IncompleteRead`
+    on the 86 KB `GET /api/documents` inside `existing_docs()`, which has no retry.
+  - The same truncation hits curl and plain `urllib`: about 4 in 30 reads today, not tied
+    to login or HTTP version. Re-running is safe, because the tool re-plans from prod on
+    every run.
+- **Verification:**
+  - A second dry run shows `73 on production: 5 already identical`, with no duplicate names.
+  - `total_sections` matches local for each: 77 / 137 / 450 / 179 / 415. All five are
+    native-digital. `/health/ready` returns 200.
+  - All five PDFs return 200. ITO's first fetch came back short (973 KB of 18.0 MB), but
+    prod's `Content-Length` is 17,984,339, and two full downloads hash to its
+    content address `5e33bf68…`. The blob is intact; the fetch was truncated.
+- **Shortlist:** a `prune_corpus.py` dry run against prod reads **keep 68, delete 5**. The
+  shortlist CSV names none of these five, so a `--apply` would delete all of them.
+  Nothing was deleted. Add them to the shortlist, or leave `--apply` alone, before the
+  next prune.
