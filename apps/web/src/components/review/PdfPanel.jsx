@@ -200,7 +200,7 @@ const PdfPanel = ({ pdfUrl }) => {
     }, [handlePrevPage, handleNextPage]);
 
     return (
-        <div className="flex flex-col" style={{ height: '100%' }}>
+        <div className="flex flex-col" style={{ height: '100%', minHeight: 0 }}>
             {/* Header / Controls */}
             <div className="panel-header pdf-panel-header">
                 <span className="panel-title">PDF Original</span>

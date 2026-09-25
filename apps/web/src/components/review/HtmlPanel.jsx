@@ -208,7 +208,7 @@ const HtmlPanel = ({ section, sectionId, htmlContent, footnotes, qualityFlags })
     };
 
     return (
-        <div className="flex flex-col" style={{ height: '100%' }} onClick={handleCancelAnnotation}>
+        <div className="flex flex-col" style={{ height: '100%', minHeight: 0 }} onClick={handleCancelAnnotation}>
             <div className="panel-header html-panel-header">
                 <div className="html-panel-title" title={MODE_HINTS[paneMode]}>
                     <span className="panel-title">{MODE_TITLES[paneMode]}</span>

@@ -282,8 +282,8 @@ const ReviewPage = () => {
     );
 
     const rightPanel = (
-        <div className="flex flex-col" style={{ height: '100%' }}>
-            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div className="flex flex-col" style={{ height: '100%', minHeight: 0 }}>
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 {viewMode === 'section' ? (
                     activeSection ? (
                         <HtmlPanel

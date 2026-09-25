@@ -395,6 +395,7 @@
 
 .review-context-strip {
     display: flex;
+    flex-shrink: 0;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
@@ -434,6 +435,7 @@
 
 .review-infobar {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     gap: 0;
     background: var(--color-bg-secondary);
