@@ -327,6 +327,7 @@ class PageOCR:
     missed: list[str] = field(default_factory=list)   # text only RapidOCR saw
     repairs: list[dict] = field(default_factory=list)
     error: str | None = None         # set when the page could not be OCR'd
+    engine: str = "tesseract+rapidocr"   # or "vision:<models>" from a sidecar
 
     @property
     def agreement(self) -> float:
@@ -559,6 +560,12 @@ def _cache_key(pdf_path: str, pageno: int, dpi: int, repair: bool) -> str:
     except OSError:
         ident = pdf_path
     raw = f"{CACHE_VERSION}|{ident}|{pageno}|{dpi}|{int(repair)}"
+    side = _vision_page(pdf_path, pageno)
+    if side is not None:
+        # an edited sidecar must re-apply; an absent one leaves every existing
+        # cache key exactly as it was
+        raw += f"|vision{VISION_VERSION}:" + hashlib.sha256(
+            json.dumps(side, sort_keys=True).encode()).hexdigest()
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
 
 
@@ -572,7 +579,8 @@ def _cache_load(key: str) -> PageOCR | None:
         return None
     return PageOCR(page=d["page"], words=d["words"], agreed=d["agreed"],
                    total=d["total"], low_conf=d["low_conf"],
-                   missed=d["missed"], repairs=d["repairs"])
+                   missed=d["missed"], repairs=d["repairs"],
+                   engine=d.get("engine", "tesseract+rapidocr"))
 
 
 def _cache_store(key: str, r: PageOCR) -> None:
@@ -584,7 +592,8 @@ def _cache_store(key: str, r: PageOCR) -> None:
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump({"page": r.page, "words": r.words, "agreed": r.agreed,
                        "total": r.total, "low_conf": r.low_conf,
-                       "missed": r.missed, "repairs": r.repairs}, fh)
+                       "missed": r.missed, "repairs": r.repairs,
+                       "engine": r.engine}, fh)
         os.replace(tmp, os.path.join(CACHE_DIR, f"{key}.json"))
     except OSError:
         pass                                # a cache is an optimisation, never a
@@ -613,11 +622,159 @@ def ocr_page(pdf_path: str, pageno: int, dpi: int = DEFAULT_DPI,
     if hit is not None:
         return hit
     png = render_png(pdf_path, pageno, dpi)
-    result = align(tesseract_words(png, dpi), rapidocr_lines(png), pageno, dpi)
-    if repair:
-        result.words, result.repairs = repair_enumerators(result.words)
+    side = _vision_page(pdf_path, pageno)
+    if side is not None:
+        result = apply_vision(tesseract_words(png, dpi), side, pageno, dpi)
+    else:
+        result = align(tesseract_words(png, dpi), rapidocr_lines(png), pageno, dpi)
+        if repair:
+            result.words, result.repairs = repair_enumerators(result.words)
     _cache_store(key, result)
     return result
+
+
+# --------------------------------------------------------------------------
+# 3b. vision sidecar (tools/vision_ocr.py)
+# --------------------------------------------------------------------------
+# A page whose engines cannot agree well enough (the Income Tax Rules' IRIS
+# screenshots, PSW 2021's photocopy) may carry a sidecar ``<pdf>.vision.json``:
+# text transcribed OFFLINE by three vision models, voted token by token, and
+# three-way splits ruled on against the page image.  Nothing here calls a
+# model -- the sidecar is a frozen input, so a conversion stays reproducible.
+# The TEXT comes from the sidecar; the GEOMETRY still comes from Tesseract,
+# because pagemodel reads indentation and line breaks from word boxes.
+
+_SIDECARS: dict[str, dict] = {}
+#: bump when apply_vision's placement changes, like CACHE_VERSION
+VISION_VERSION = "1"
+
+
+def _vision_page(pdf_path: str, pageno: int) -> dict | None:
+    path = f"{pdf_path}.vision.json"
+    if path not in _SIDECARS:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                _SIDECARS[path] = json.load(fh)
+        except OSError:
+            _SIDECARS[path] = {}
+    side = _SIDECARS[path]
+    page = side.get("pages", {}).get(str(pageno))
+    if page is None:
+        return None
+    return {**page, "models": page.get("models") or side.get("models", [])}
+
+
+def apply_vision(tess: list[dict], side: dict, pageno: int = 1,
+                 dpi: int = DEFAULT_DPI) -> PageOCR:
+    """Sidecar lines, placed on Tesseract's line boxes, as pdfplumber word dicts.
+
+    One sidecar line is one layout line, its tokens in their voted order --
+    placing tokens individually on Tesseract's WORD boxes let every misaligned
+    diff block scramble the reading order.  Each line takes its height, left
+    edge and size from the Tesseract line it best matches; matches that would
+    run against the sidecar's reading order are dropped (longest increasing
+    run), and unmatched lines are interpolated between their neighbours.
+    """
+    scale = 72.0 / dpi
+    by_line: dict[int, list[dict]] = {}
+    for w in tess:
+        by_line.setdefault(w["line"], []).append(w)
+    tlines = []
+    for ws in by_line.values():
+        ws.sort(key=lambda w: w["box"][0])
+        tlines.append({"text": _norm(" ".join(w["text"] for w in ws)),
+                       "x0": min(w["box"][0] for w in ws),
+                       "x1": max(w["box"][2] for w in ws),
+                       "top": min(w["box"][1] for w in ws),
+                       "bottom": max(w["box"][3] for w in ws),
+                       "size_px": next((w["size_px"] for w in ws if w["size_px"]), None)})
+    slines = [ln["tokens"] for ln in side["lines"] if ln["tokens"]]
+    out = PageOCR(page=pageno, words=[],
+                  engine="vision:" + "+".join(side.get("models", [])))
+    if not tlines:               # nothing to take geometry from: refuse, never guess
+        out.error = "vision sidecar but Tesseract found no text lines"
+        return out
+
+    # best Tesseract line per sidecar line (a line is used once)
+    cands = []
+    for i, toks in enumerate(slines):
+        text = _norm(" ".join(t["text"] for t in toks))
+        for j, tl in enumerate(tlines):
+            sm = difflib.SequenceMatcher(None, text, tl["text"], autojunk=False)
+            if sm.real_quick_ratio() >= 0.5 and sm.quick_ratio() >= 0.5:
+                r = sm.ratio()
+                if r >= 0.5:
+                    cands.append((r, i, j))
+    match: dict[int, int] = {}
+    used: set[int] = set()
+    for r, i, j in sorted(cands, reverse=True):
+        if i not in match and j not in used:
+            match[i] = j
+            used.add(j)
+    # keep the longest run whose tops increase with the sidecar's line order
+    idx = sorted(match)
+    best: list[list[int]] = []
+    for k, i in enumerate(idx):
+        prev = [best[q] for q in range(k)
+                if tlines[match[idx[q]]]["top"] < tlines[match[i]]["top"]]
+        best.append(max(prev, key=len, default=[]) + [i])
+    keep = set(max(best, key=len, default=[]))
+
+    geo: list[dict | None] = [tlines[match[i]] if i in keep else None
+                              for i in range(len(slines))]
+    known = [i for i, g in enumerate(geo) if g]
+    if not known:
+        out.error = "no sidecar line matched a Tesseract line"
+        return out
+    height = sum(g["bottom"] - g["top"] for g in geo if g) / len(known)
+    for i, g in enumerate(geo):
+        if g:
+            continue
+        lo = max((k for k in known if k < i), default=None)
+        hi = min((k for k in known if k > i), default=None)
+        ref = geo[lo if lo is not None else hi]
+        if lo is not None and hi is not None:
+            top = geo[lo]["top"] + (geo[hi]["top"] - geo[lo]["top"]) * (i - lo) / (hi - lo)
+        elif lo is not None:
+            top = geo[lo]["top"] + (i - lo) * height * 1.4
+        else:
+            top = geo[hi]["top"] - (hi - i) * height * 1.4
+        geo[i] = {**ref, "top": top, "bottom": top + height, "x1": None}
+    # distinct lines must stay distinct: pagemodel merges tops within LINE_TOL
+    min_step = 4.0 / scale
+    for i in range(1, len(geo)):
+        if geo[i]["top"] < geo[i - 1]["top"] + min_step:
+            h = geo[i]["bottom"] - geo[i]["top"]
+            geo[i] = {**geo[i], "top": geo[i - 1]["top"] + min_step}
+            geo[i]["bottom"] = geo[i]["top"] + h
+
+    for toks, g in zip(slines, geo):
+        chars = sum(len(t["text"]) + 1 for t in toks)
+        span = (g["x1"] - g["x0"]) if g["x1"] else chars * (g["bottom"] - g["top"]) * 0.5
+        cw = span / max(1, chars)
+        x = g["x0"]
+        size_px = g["size_px"] or (g["bottom"] - g["top"]) / 0.72
+        for t in toks:
+            settled = t.get("ruled") is not None or t["votes"] >= 2
+            out.total += 1
+            out.agreed += settled
+            out.low_conf += not settled
+            x1 = x + cw * len(t["text"])
+            out.words.append({
+                "text": t["text"],
+                "x0": x * scale, "x1": x1 * scale,
+                "top": g["top"] * scale, "bottom": g["bottom"] * scale,
+                "size": round(size_px * scale, 1),
+                "fontname": None,
+                "conf": "agreed" if settled else float(t["votes"]),
+                "needs_review": not settled,
+                "page": pageno,
+                "vision_votes": t["votes"],
+                "vision_alts": t.get("alts", []),
+                "_space_before": True,
+            })
+            x = x1 + cw
+    return out
 
 
 def ocr_words(pdf_path: str, pageno: int, dpi: int = DEFAULT_DPI) -> list[dict]:
@@ -900,6 +1057,7 @@ class Fidelity:
     missed: list[tuple[int, str]] = field(default_factory=list)
     disagreements: list[dict] = field(default_factory=list)
     repairs: list[dict] = field(default_factory=list)
+    engines: list[str] = field(default_factory=list)   # distinct PageOCR.engine
 
     @property
     def admitted(self) -> bool:
@@ -954,6 +1112,8 @@ def fidelity_of(path: str, pages: list[PageOCR]) -> Fidelity:
         f.missed.extend((p.page, t) for t in p.missed)
         f.repairs.extend(p.repairs)
         f.disagreements.extend(w for w in p.words if w.get("needs_review"))
+        if p.engine not in f.engines:
+            f.engines.append(p.engine)
     return f
 
 
@@ -1256,6 +1416,63 @@ def _demo() -> None:
                                       low_conf=3),
                               PageOCR(page=2, words=[], agreed=0, total=0)])
     assert f.admitted and f.blank == 1 and f.mean_agreement == 99.0, f.reason
+
+    # vision sidecar: text and line order from the vote, geometry from Tesseract
+    tess = [_tw("Rule", (100, 100, 200, 150)), _tw("5(l)", (220, 100, 300, 150)),
+            _tw("tax", (100, 300, 160, 350), line=1),
+            _tw("sidebar", (900, 50, 990, 90), line=2)]
+    side = {"models": ["a", "b", "c"], "lines": [
+        {"tokens": [{"text": "Rule", "votes": 3},
+                    {"text": "5(1)", "votes": 2, "alts": ["5(l)"]}]},
+        {"tokens": [{"text": "levied", "votes": 1}]},          # Tesseract missed it
+        {"tokens": [{"text": "tax", "votes": 3}]},
+        {"tokens": [{"text": "sidebar", "votes": 3}]}]}         # out of order: dropped
+    r = apply_vision(tess, side)
+    s = 72.0 / DEFAULT_DPI
+    assert [w["text"] for w in r.words] == ["Rule", "5(1)", "levied", "tax", "sidebar"]
+    top = [w["top"] for w in r.words]
+    assert top[0] == top[1] == 100 * s and top[3] == 300 * s, top
+    assert 100 * s < top[2] < 300 * s and top[4] > top[3], top    # reading order kept
+    assert r.words[0]["x0"] == 100 * s and r.words[0]["x1"] < r.words[1]["x0"]
+    assert r.words[2]["needs_review"] and not r.words[1]["needs_review"]
+    assert (r.agreed, r.total, r.low_conf) == (4, 5, 1) and r.engine == "vision:a+b+c"
+
+    def _side(*lines):
+        return {"lines": [{"tokens": [{"text": w, "votes": 3} for w in ln.split()]}
+                          for ln in lines]}
+    # a spurious early match at the page foot must not drag every later line
+    # below it: the longest in-order run wins and the stray is interpolated
+    tess = [_tw("Rule", (100, 100, 200, 150)), _tw("tax", (100, 200, 160, 250), line=1),
+            _tw("Folio", (100, 900, 200, 950), line=2)]
+    r = apply_vision(tess, _side("Folio", "Rule", "tax"))
+    top = [w["top"] for w in r.words]
+    assert top[1] == 100 * s and top[2] == 200 * s and top[0] < top[1], top
+    # lines Tesseract missed stay distinct lines (pagemodel merges within
+    # LINE_TOL = 3pt), even when squeezed between two close matched lines
+    tess = [_tw("alpha", (100, 100, 200, 110)), _tw("omega", (100, 112, 200, 122), line=1)]
+    r = apply_vision(tess, _side("alpha", "beta", "gamma", "omega"))
+    top = [w["top"] for w in r.words]
+    assert all(b - a > 3.0 for a, b in zip(top, top[1:])), top
+    # an unrelated Tesseract line never lends its geometry to a sidecar line
+    tess = [_tw("Rule", (100, 100, 200, 150)), _tw("deivel", (400, 700, 500, 750), line=1)]
+    r = apply_vision(tess, _side("Rule", "levied"))
+    assert r.words[1]["top"] != 700 * s and r.words[1]["x0"] == 100 * s, r.words[1]
+    # an edited sidecar must miss the cache; no sidecar keeps the old key
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = os.path.join(tmp, "x.pdf")
+        open(pdf, "wb").close()
+        bare = _cache_key(pdf, 1, 300, True)
+        keys = []
+        for text in ("a", "b"):
+            with open(pdf + ".vision.json", "w") as fh:
+                json.dump({"pages": {"1": {"lines": [{"tokens": [{"text": text}]}]}}}, fh)
+            _SIDECARS.clear()
+            keys.append(_cache_key(pdf, 1, 300, True))
+        _SIDECARS.clear()
+        assert len({bare, *keys}) == 3, keys
+    # no sidecar on disk -> no sidecar, so every other document is untouched
+    assert _vision_page("/nonexistent.pdf", 1) is None
 
     print("legal_ingest.ocr: self-check OK")
 

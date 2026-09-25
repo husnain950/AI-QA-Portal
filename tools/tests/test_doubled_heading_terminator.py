@@ -108,3 +108,49 @@ def test_operative_text_fused_to_the_dash_is_still_body():
     head, body = split("20. Delegation.—The Federal Government may")
     assert head == "20. Delegation.—"
     assert body.startswith("The Federal Government may")
+
+
+def _seg(*lines):
+    from legal_ingest.builder import LineRef
+    from legal_ingest.pagemodel import Line
+    return [LineRef(page=1, line=Line(top=140.0 + 14 * i, words=_words(t)))
+            for i, t in enumerate(lines)]
+
+
+def test_a_doubled_terminator_split_by_the_wrap_stays_with_the_heading():
+    # Sales Tax Rules 31.08.2021 p.113: the heading line ends ".-" and the next
+    # line OPENS with the second "-", so rule 150X's body began "- (1) ..."
+    from legal_ingest.builder import _find_heading_split
+    seg = _seg("150X. Same conditions to apply in respect of buyer for "
+               "receiving electronic invoices.-",
+               "- (1) The registered buyer who receives electronic invoices")
+    li, before, after = _find_heading_split(seg, len(seg))
+    assert li == 1 and [w.text for w in before] == ["-"], (li, before)
+    assert " ".join(w.text for w in after).startswith("(1) The registered buyer")
+    assert _classify(" ".join(w.text for w in after)) == "subsec"
+
+
+def test_a_body_line_that_merely_starts_later_is_untouched():
+    # no dash on the next line: the split stays on the heading line
+    from legal_ingest.builder import _find_heading_split
+    seg = _seg("30. Use of powers of subordinate officer.—",
+               "(1) The Collector may")
+    li, _, after = _find_heading_split(seg, len(seg))
+    assert li == 0 and after == []
+
+
+def test_the_heading_field_sheds_a_wrapped_doubled_terminator():
+    from legal_ingest.discover import _heading_from_words
+    words = _words("150X. Same conditions to apply in respect of buyer for "
+                   "receiving electronic invoices.- -")
+    assert _heading_from_words(words, "150X") == (
+        "Same conditions to apply in respect of buyer for receiving electronic invoices")
+
+
+def test_the_body_heading_title_sheds_a_wrapped_doubled_terminator():
+    from legal_ingest.builder import _body_heading_title
+    assert _body_heading_title(
+        "150X. Same conditions to apply in respect of buyer for receiving "
+        "electronic invoices.- -", "150X") == (
+        "Same conditions to apply in respect of buyer for receiving electronic invoices")
+    assert _body_heading_title("15. Prohibitions.-", "15") == "Prohibitions"
